@@ -243,6 +243,62 @@ router.post('/verify', _upload.single("pdfFile"), adminController.verify);
 
 /**
  * @swagger
+ * /api/verify-with-hash:
+ *   post:
+ *     summary: Verify a certificate hash on the blockchain
+ *     description: Verify the existence and validity of a certificate using its hash on the blockchain.
+ *     tags: [Verifier]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               hash:
+ *                 type: string
+ *                 description: Certificate hash to be verified
+ *     responses:
+ *       200:
+ *         description: Successfully verified certificate
+ *         schema:
+ *           type: object
+ *           properties:
+ *             message:
+ *               type: string
+ *               description: Verification status message
+ *             details:
+ *               type: object
+ *               description: Details about the certificate
+ *               properties:
+ *                 certificateNumber:
+ *                   type: string
+ *                   description: The certificate number
+ *       400:
+ *         description: Certificate not found or not valid
+ *         schema:
+ *           type: object
+ *           properties:
+ *             message:
+ *               type: string
+ *               description: Error message
+ *             details:
+ *               type: string
+ *               description: Additional details about the error
+ *       500:
+ *         description: Internal server error
+ *         schema:
+ *           type: object
+ *           properties:
+ *             message:
+ *               type: string
+ *               description: Error message
+ */
+
+router.post('/verify-with-hash', adminController.verifyWithHash);
+
+/**
+ * @swagger
  * /api/signup:
  *   post:
  *     summary: Create a new admin account
