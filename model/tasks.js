@@ -48,10 +48,16 @@ const insertCertificateData = async (data) => {
 };
 
 const extractCertificateInfo = (qrCodeText) => {
+  // console.log("QR Code Text", qrCodeText);
     const lines = qrCodeText.split("\n");
-    const certificateInfo = {
-        "Certificate Hash": "",
-        "Certificate Number": "",
+  const certificateInfo = {
+      "Transaction Hash": "",
+      "Certificate Hash": "",
+      "Certificate Number": "",
+      "Name": "",
+      "Course Name": "",
+      "Grant Date": "",
+      "Expiration Date": ""
     };
 
     for (const line of lines) {
@@ -62,10 +68,25 @@ const extractCertificateInfo = (qrCodeText) => {
 
             value = value.replace(/,/g, "");
 
-            if (key === "Certificate Hash") {
+            if(key === "Transaction Hash") {
+              certificateInfo["Transaction Hash"] = value.replace(/"/g, "");
+              // Remove double quotes from the Transaction Hash
+                const transactionHash = certificateInfo["Transaction Hash"];
+              // Add "Polygon URL" field with the constructed URL
+                const polygonURL = `https://${process.env.NETWORK}.com/tx/${transactionHash}`;
+                certificateInfo["Polygon URL"] = polygonURL;
+            }else if (key === "Certificate Hash") {
                 certificateInfo["Certificate Hash"] = value;
             } else if (key === "Certificate Number") {
                 certificateInfo["Certificate Number"] = value;
+            } else if (key === "Name") {
+                certificateInfo["Name"] = value;
+            } else if (key === "Course Name") {
+                certificateInfo["Course Name"] = value;
+            } else if (key === "Grant Date") {
+                certificateInfo["Grant Date"] = value;
+            } else if (key === "Expiration Date") {
+                certificateInfo["Expiration Date"] = value;
             }
         }
     }
@@ -97,13 +118,8 @@ const extractQRCodeDataFromPDF = async (pdfFilePath) => {
 
         const buffer = Buffer.from(dataUri, "base64");
         const png = PNG.sync.read(buffer);
-        console.log("png", png);
-        console.log("png.data", png.data);
-        console.log("png.width", png.width);
-        console.log("png.height", png.height);
 
         const code = jsQR(Uint8ClampedArray.from(png.data), png.width, png.height);
-        console.log("code", code);
         const qrCodeText = code?.data;
 
         if (!qrCodeText)
@@ -151,11 +167,11 @@ const addLinkToPdf = async (
     //Adding qr code
     const pdfDc = await PDFDocument.create();
     const pngImage = await pdfDoc.embedPng(qrCode);
-    const pngDims = pngImage.scale(0.32);
+    const pngDims = pngImage.scale(0.36);
 
     page.drawImage(pngImage, {
-        x: width - pngDims.width - 124,
-        y: 104,
+        x: width - pngDims.width - 117,
+        y: 135,
         width: pngDims.width,
         height: pngDims.height,
     });

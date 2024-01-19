@@ -266,12 +266,10 @@ const polygonLink = async (req, res) => {
 const verify = async (req, res) => {
   file = req.file.path;
   try {
-    const certificateData = await extractQRCodeDataFromPDF(file);
-    console.log("Certificate Hash:", certificateData["Certificate Hash"]);
-    console.log("Certificate Number:", certificateData["Certificate Number"]);
+    var certificateData = await extractQRCodeDataFromPDF(file);
 
     const contract = await web3i();
-    const certificateNumber = Number(certificateData["Certificate Number"]);
+    const certificateNumber = certificateData["Certificate Number"];
     const val = await contract.methods
       .verifyCertificate(certificateData["Certificate Hash"])
       .call();
@@ -281,14 +279,13 @@ const verify = async (req, res) => {
 
     const verificationResponse = {
       message: message,
-      detailsQR: detailsQR
+      detailsQR: certificateData
     };
 
     res.status(isCertificateValid ? 200 : 400).json(verificationResponse);
   } catch (error) {
     const verificationResponse = {
-      message: "Certificate is not valid",
-      detailsQR: detailsQR
+      message: "Certificate is not valid"
     };
 
     res.status(400).json(verificationResponse);
@@ -301,6 +298,51 @@ const verify = async (req, res) => {
 
   await cleanUploadFolder();
           
+};
+
+const verifyWithHash = async (req, res) => {
+  inputHash = req.body.hash;
+  try {
+    // Blockchain processing.
+    const contract = await web3i();
+    const response = await contract.methods.verifyCertificate(inputHash).call();
+
+    if (response[0] == true) {
+      const certificateNumber = response[1];
+    try {
+          // Check mongoose connection
+          const dbState = await isDBConncted();
+          if (dbState === false) {
+            console.error("Database connection is not ready");
+          } else {
+            console.log("Database connection is ready");
+          }
+      var certificateExist = await Issues.findOne({ certificateNumber });
+      if(certificateExist) {
+      var isCertificateValid = response[0] == true && response[1] == certificateExist.certificateNumber;
+      } else {
+        isCertificateValid = false;
+      }
+      const message = isCertificateValid ? "Verified: Certificate details available" : "Certificate details not available";
+
+      const verificationResponse = {
+        message: message,
+        details: (isCertificateValid) ? certificateExist : certificateNumber
+      };
+      res.status(200).json(verificationResponse);
+      
+      }catch (error) {
+          console.error("Internal server error", error);
+      }
+    } else {
+      res.status(400).json({ message: "Certificate doesn't exist" });
+    }
+  } catch (error) {
+    const verificationResponse = {
+      message: "Certificate is not valid"
+    };
+    res.status(400).json(verificationResponse);
+  }   
 };
 
 
@@ -711,6 +753,7 @@ module.exports = {
   issue,
   polygonLink,
   verify,
+  verifyWithHash,
   signup,
   login,
   logout,
