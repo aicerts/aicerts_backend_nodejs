@@ -51,11 +51,10 @@ const extractCertificateInfo = (qrCodeText) => {
   // console.log("QR Code Text", qrCodeText);
     const lines = qrCodeText.split("\n");
   const certificateInfo = {
-      "Transaction Hash": "",
-      "Certificate Hash": "",
-      "Certificate Number": "",
+      "Verify On Blockchain": "",
+      "Certification Number": "",
       "Name": "",
-      "Course Name": "",
+      "Certification Name": "",
       "Grant Date": "",
       "Expiration Date": ""
     };
@@ -68,21 +67,14 @@ const extractCertificateInfo = (qrCodeText) => {
 
             value = value.replace(/,/g, "");
 
-            if(key === "Transaction Hash") {
-              certificateInfo["Transaction Hash"] = value.replace(/"/g, "");
-              // Remove double quotes from the Transaction Hash
-                const transactionHash = certificateInfo["Transaction Hash"];
-              // Add "Polygon URL" field with the constructed URL
-                const polygonURL = `https://${process.env.NETWORK}.com/tx/${transactionHash}`;
-                certificateInfo["Polygon URL"] = polygonURL;
-            }else if (key === "Certificate Hash") {
-                certificateInfo["Certificate Hash"] = value;
-            } else if (key === "Certificate Number") {
-                certificateInfo["Certificate Number"] = value;
+            if(key === "Verify On Blockchain") {
+                certificateInfo["Verify On Blockchain"] = value;
+            } else if (key === "Certification Number") {
+                certificateInfo["Certification Number"] = value;
             } else if (key === "Name") {
                 certificateInfo["Name"] = value;
-            } else if (key === "Course Name") {
-                certificateInfo["Course Name"] = value;
+            } else if (key === "Certification Name") {
+                certificateInfo["Certification Name"] = value;
             } else if (key === "Grant Date") {
                 certificateInfo["Grant Date"] = value;
             } else if (key === "Expiration Date") {
@@ -102,18 +94,22 @@ const extractQRCodeDataFromPDF = async (pdfFilePath) => {
             width: 2000,
             height: 2000,
       };
-      
         /**
          * Initialize PDF to image conversion by supplying a file path
          */
+      console.log("PDF file path Test 0", pdfFilePath);
         const base64Response = await fromPath(pdfFilePath, pdf2picOptions)(
             1, // page number to be converted to image
             true // returns base64 output
       );
 
+      console.log("PDF file path - Testting 1",base64Response);
         const dataUri = base64Response?.base64;
 
-        if (!dataUri)
+      console.log("PDF file path - Testting 2", dataUri);
+      if (!dataUri)
+          
+      console.log("PDF file path - Testting 3", dataUri);
             throw new Error("PDF could not be converted to Base64 string");
 
         const buffer = Buffer.from(dataUri, "base64");

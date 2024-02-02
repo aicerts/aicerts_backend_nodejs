@@ -63,22 +63,23 @@ const issuePdf = async (req, res) => {
         );
         const hash = await confirm(tx);
 
-        const qrCodeData =
-`Transaction Hash: "${hash}",
-Certificate Hash: ${combinedHash},
-Certificate Number: ${fields.Certificate_Number},
-Name: ${fields.name},
-Course Name: ${fields.courseName},
-Grant Date: ${fields.Grant_Date},
-Expiration Date: ${fields.Expiration_Date}`;
+      const linkUrl = `https://${process.env.NETWORK}.com/tx/${hash}`;
+          
+          const qrCodeData =
+`Verify On Blockchain: ${linkUrl},
+Certification Number: ${Certificate_Number},
+Name: ${name},
+Certification Name: ${courseName},
+Grant Date: ${Grant_Date},
+Expiration Date: ${Expiration_Date}`;
 
-        const qrCodeImage = await QRCode.toBuffer(qrCodeData, {
-          errorCorrectionLevel: "H",
-        });
+      const qrCodeImage = await QRCode.toDataURL(qrCodeData, {
+        errorCorrectionLevel: "H",
+      });
 
         file = req.file.path;
         const outputPdf = `${fields.Certificate_Number}${name}.pdf`;
-        linkUrl = `https://${process.env.NETWORK}.com/tx/${hash}`;
+        // linkUrl = `https://${process.env.NETWORK}.com/tx/${hash}`;
 
         const opdf = await addLinkToPdf(
           // __dirname + "/" + file,
@@ -194,20 +195,20 @@ const issue = async (req, res) => {
 
           hash = await confirm(tx);
 
+      const polygonLink = `https://${process.env.NETWORK}.com/tx/${hash}`;
+          
           const qrCodeData =
-`Transaction Hash: "${hash}",
-Certificate Hash: ${combinedHash},
-Certificate Number: ${Certificate_Number},
+`Verify On Blockchain: ${polygonLink},
+Certification Number: ${Certificate_Number},
 Name: ${name},
-Course Name: ${courseName},
+Certification Name: ${courseName},
 Grant Date: ${Grant_Date},
 Expiration Date: ${Expiration_Date}`;
 
-          const qrCodeImage = await QRCode.toDataURL(qrCodeData, {
-            errorCorrectionLevel: "H",
-          });
+      const qrCodeImage = await QRCode.toDataURL(qrCodeData, {
+        errorCorrectionLevel: "H",
+      });
 
-          const polygonLink = `https://${process.env.NETWORK}.com/tx/${hash}`;
 
         try {
           // Check mongoose connection
@@ -345,6 +346,52 @@ const verifyWithHash = async (req, res) => {
   }   
 };
 
+const verifyWithId = async (req, res) => {
+  inputId = req.body.id;
+
+  try {
+    // Blockchain processing.
+    const contract = await web3i();
+    const response = await contract.methods.verifyCertificateById(inputId).call();
+
+    if (response === true) {
+      const certificateNumber = inputId;
+    try {
+          // Check mongoose connection
+          const dbState = await isDBConncted();
+          if (dbState === false) {
+            console.error("Database connection is not ready");
+          } else {
+            console.log("Database connection is ready");
+          }
+      var certificateExist = await Issues.findOne({ certificateNumber });
+      if(certificateExist) {
+      var isCertificateValid = response[0] == true && response[1] == certificateExist.certificateNumber;
+      } else {
+        isCertificateValid = false;
+      }
+      const message = isCertificateValid ? "Verified: Certificate details available" : "Certificate details not available";
+
+      const verificationResponse = {
+        message: message,
+        details: (isCertificateValid) ? certificateExist : certificateNumber
+      };
+      res.status(200).json(verificationResponse);
+      
+      }catch (error) {
+          console.error("Internal server error", error);
+      }
+    } else {
+      res.status(400).json({ status: "FAILED", message: "Certificate doesn't exist" });
+    }
+  } catch (error) {
+    res.status(500).json({
+      status: "FAILED",
+      message: error,
+    });
+  } 
+
+};
 
 // Admin Signup
 const signup = async (req, res) => {
@@ -454,7 +501,7 @@ const login = async (req, res) => {
                 adminExist.status = true;
                 adminExist.save();
                 // Password match
-                res.json({
+                res.status(200).json({
                   status: "SUCCESS",
                   message: "Valid User Credentials",
                 });
@@ -754,6 +801,7 @@ module.exports = {
   polygonLink,
   verify,
   verifyWithHash,
+  verifyWithId,
   signup,
   login,
   logout,
