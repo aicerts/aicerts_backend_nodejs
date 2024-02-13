@@ -245,7 +245,7 @@ router.post('/verify', _upload.single("pdfFile"), adminController.verify);
  * @swagger
  * /api/verify-with-id:
  *   post:
- *     summary: Verify a certificate ID on the blockchain
+ *     summary: Verify a certificate ID on the blockchain [future scope]
  *     description: Verify the existence and validity of a certificate using its ID on the blockchain.
  *     tags: [Verifier]
  *     requestBody:
