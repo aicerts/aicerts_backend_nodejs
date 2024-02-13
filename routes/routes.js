@@ -201,7 +201,7 @@ router.get('/polygonlink', adminController.polygonLink);
  * @swagger
  * /api/verify:
  *   post:
- *     summary: Verify a certificate
+ *     summary: Verify the Certificate with QR - Blockchain URL
  *     tags: [Verifier]
  *     requestBody:
  *       required: true
@@ -243,10 +243,10 @@ router.post('/verify', _upload.single("pdfFile"), adminController.verify);
 
 /**
  * @swagger
- * /api/verify-with-hash:
+ * /api/verify-with-id:
  *   post:
- *     summary: Verify a certificate hash on the blockchain
- *     description: Verify the existence and validity of a certificate using its hash on the blockchain.
+ *     summary: Verify a certificate ID on the blockchain
+ *     description: Verify the existence and validity of a certificate using its ID on the blockchain.
  *     tags: [Verifier]
  *     requestBody:
  *       required: true
@@ -258,22 +258,28 @@ router.post('/verify', _upload.single("pdfFile"), adminController.verify);
  *               hash:
  *                 type: string
  *                 description: Certificate hash to be verified
- *     responses:
+  *     responses:
  *       200:
- *         description: Successfully verified certificate
- *         schema:
- *           type: object
- *           properties:
- *             message:
- *               type: string
- *               description: Verification status message
- *             details:
+ *         description: Successful operation
+ *         content:
+ *           application/json:
+ *             schema:
  *               type: object
- *               description: Details about the certificate
  *               properties:
- *                 certificateNumber:
+ *                 status:
  *                   type: string
- *                   description: The certificate number
+ *                   description: Status of the operation
+ *                 response:
+ *                   type: object
+ *                   properties:
+ *                     message:
+ *                       type: string
+ *                       description: Verification message
+ *                     details:
+ *                       type: object
+ *                       description: Certificate details if available
+ *                       properties:
+ *                         // Define the properties of the certificate details object here
  *       400:
  *         description: Certificate not found or not valid
  *         schema:
@@ -295,7 +301,7 @@ router.post('/verify', _upload.single("pdfFile"), adminController.verify);
  *               description: Error message
  */
 
-router.post('/verify-with-hash', adminController.verifyWithHash);
+router.post('/verify-with-id', adminController.verifyWithId);
 
 /**
  * @swagger
@@ -723,6 +729,9 @@ router.post('/approve-issuer', adminController.approveIssuer);
  *             schema:
  *               type: object
  *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Success
  *                 message:
  *                   type: string
  *                   description: Success message
@@ -745,7 +754,7 @@ router.post('/approve-issuer', adminController.approveIssuer);
  *               properties:
  *                 message:
  *                   type: string
- *                   description: Error message for internal server error
+ *                   description: Error message for Internal Server Error / Address Available
  */
 
 router.post('/add-trusted-owner', adminController.addTrustedOwner);
@@ -774,6 +783,9 @@ router.post('/add-trusted-owner', adminController.addTrustedOwner);
  *             schema:
  *               type: object
  *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Success
  *                 message:
  *                   type: string
  *                   description: Success message
@@ -796,7 +808,7 @@ router.post('/add-trusted-owner', adminController.addTrustedOwner);
  *               properties:
  *                 message:
  *                   type: string
- *                   description: Error message for internal server error
+ *                   description: Error message for Internal Server Error / Address Unavailable
  */
 
 router.post('/remove-trusted-owner', adminController.removeTrustedOwner);

@@ -263,27 +263,19 @@ const polygonLink = async (req, res) => {
   res.json({ linkUrl });
 };
 
-// Verify page
+// Verify page with PDF QR - Blockchain URL
 const verify = async (req, res) => {
   file = req.file.path;
   try {
-    var certificateData = await extractQRCodeDataFromPDF(file);
+    const certificateData = await extractQRCodeDataFromPDF(file);
 
-    const contract = await web3i();
-    const certificateNumber = certificateData["Certificate Number"];
-    const val = await contract.methods
-      .verifyCertificate(certificateData["Certificate Hash"])
-      .call();
+    const blockchainUrl = certificateData["Verify On Blockchain"];
 
-    const isCertificateValid = val[0] == true && val[1] == certificateNumber;
-    const message = isCertificateValid ? "Verified: Certificate is valid" : "Certificate is not valid";
-
-    const verificationResponse = {
-      message: message,
-      detailsQR: certificateData
-    };
-
-    res.status(isCertificateValid ? 200 : 400).json(verificationResponse);
+    if(blockchainUrl && blockchainUrl.length > 0) {
+      res.status(200).json({status: "SUCCESS", message: "Certificate is valid", Details: certificateData});
+    } else {
+      res.status(400).json({status: "FAILED", message: "Certificate is not valid"});
+    }
   } catch (error) {
     const verificationResponse = {
       message: "Certificate is not valid"
@@ -301,50 +293,7 @@ const verify = async (req, res) => {
           
 };
 
-const verifyWithHash = async (req, res) => {
-  inputHash = req.body.hash;
-  try {
-    // Blockchain processing.
-    const contract = await web3i();
-    const response = await contract.methods.verifyCertificate(inputHash).call();
-
-    if (response[0] == true) {
-      const certificateNumber = response[1];
-    try {
-          // Check mongoose connection
-          const dbState = await isDBConncted();
-          if (dbState === false) {
-            console.error("Database connection is not ready");
-          } else {
-            console.log("Database connection is ready");
-          }
-      var certificateExist = await Issues.findOne({ certificateNumber });
-      if(certificateExist) {
-      var isCertificateValid = response[0] == true && response[1] == certificateExist.certificateNumber;
-      } else {
-        isCertificateValid = false;
-      }
-      const message = isCertificateValid ? "Verified: Certificate details available" : "Certificate details not available";
-
-      const verificationResponse = {
-        message: message,
-        details: (isCertificateValid) ? certificateExist : certificateNumber
-      };
-      res.status(200).json(verificationResponse);
-      
-      }catch (error) {
-          console.error("Internal server error", error);
-      }
-    } else {
-      res.status(400).json({ message: "Certificate doesn't exist" });
-    }
-  } catch (error) {
-    const verificationResponse = {
-      message: "Certificate is not valid"
-    };
-    res.status(400).json(verificationResponse);
-  }   
-};
+// Verify certificate with ID
 
 const verifyWithId = async (req, res) => {
   inputId = req.body.id;
@@ -712,6 +661,7 @@ const addTrustedOwner = async (req, res) => {
       const hash = await confirm(tx);
 
       const responseMessage = {
+        status: "SUCCESS",
         message: "Trusted owner added successfully",
       };
 
@@ -722,7 +672,7 @@ const addTrustedOwner = async (req, res) => {
 
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Internal Server Error" });
+    res.status(500).json({ message: "Internal Server Error / Address Available" });
   }
 };
 
@@ -751,6 +701,7 @@ const removeTrustedOwner = async (req, res) => {
     const hash = await confirm(tx);
 
     const responseMessage = {
+      status: "SUCCESS",
       message: "Trusted owner removed successfully",
     };
 
@@ -761,7 +712,7 @@ const removeTrustedOwner = async (req, res) => {
 
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Internal Server Error" });
+    res.status(500).json({ message: "Internal Server Error / Address Unavailable" });
   }
 };
 
@@ -800,7 +751,6 @@ module.exports = {
   issue,
   polygonLink,
   verify,
-  verifyWithHash,
   verifyWithId,
   signup,
   login,
