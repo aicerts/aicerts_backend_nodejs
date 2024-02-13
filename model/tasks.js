@@ -49,40 +49,32 @@ const insertCertificateData = async (data) => {
 
 const extractCertificateInfo = (qrCodeText) => {
   // console.log("QR Code Text", qrCodeText);
-    const lines = qrCodeText.split("\n");
+  const lines = qrCodeText.split("\n");
   const certificateInfo = {
-      "Transaction Hash": "",
-      "Certificate Hash": "",
-      "Certificate Number": "",
+      "Verify On Blockchain": "",
+      "Certification Number": "",
       "Name": "",
-      "Course Name": "",
+      "Certification Name": "",
       "Grant Date": "",
       "Expiration Date": ""
     };
 
     for (const line of lines) {
-        const parts = line.trim().split(":");
-        if (parts.length === 2) {
-            const key = parts[0].trim();
-            let value = parts[1].trim();
+      const parts = line.trim().split(/:\s+/); // Use a regular expression to split by colon followed by optional whitespace
+      if (parts.length === 2) {
+        const key = parts[0].trim();
+        let value = parts[1].trim();
+  
+        value = value.replace(/,/g, "");
 
-            value = value.replace(/,/g, "");
-
-            if(key === "Transaction Hash") {
-              certificateInfo["Transaction Hash"] = value.replace(/"/g, "");
-              // Remove double quotes from the Transaction Hash
-                const transactionHash = certificateInfo["Transaction Hash"];
-              // Add "Polygon URL" field with the constructed URL
-                const polygonURL = `https://${process.env.NETWORK}.com/tx/${transactionHash}`;
-                certificateInfo["Polygon URL"] = polygonURL;
-            }else if (key === "Certificate Hash") {
-                certificateInfo["Certificate Hash"] = value;
-            } else if (key === "Certificate Number") {
-                certificateInfo["Certificate Number"] = value;
+            if(key === "Verify On Blockchain") {
+                certificateInfo["Verify On Blockchain"] = value;
+            } else if (key === "Certification Number") {
+                certificateInfo["Certification Number"] = value;
             } else if (key === "Name") {
                 certificateInfo["Name"] = value;
-            } else if (key === "Course Name") {
-                certificateInfo["Course Name"] = value;
+            } else if (key === "Certification Name") {
+                certificateInfo["Certification Name"] = value;
             } else if (key === "Grant Date") {
                 certificateInfo["Grant Date"] = value;
             } else if (key === "Expiration Date") {
@@ -94,46 +86,46 @@ const extractCertificateInfo = (qrCodeText) => {
 };
 
 const extractQRCodeDataFromPDF = async (pdfFilePath) => {
-    try {
-        const pdf2picOptions = {
-            quality: 100,
-            density: 300,
-            format: "png",
-            width: 2000,
-            height: 2000,
-      };
-      
-        /**
-         * Initialize PDF to image conversion by supplying a file path
-         */
-        const base64Response = await fromPath(pdfFilePath, pdf2picOptions)(
-            1, // page number to be converted to image
-            true // returns base64 output
-      );
+  try {
+      const pdf2picOptions = {
+          quality: 100,
+          density: 300,
+          format: "png",
+          width: 2000,
+          height: 2000,
+    };
+    
+      /**
+       * Initialize PDF to image conversion by supplying a file path
+       */
+      const base64Response = await fromPath(pdfFilePath, pdf2picOptions)(
+          1, // page number to be converted to image
+          true // returns base64 output
+    );
 
-        const dataUri = base64Response?.base64;
+      const dataUri = base64Response?.base64;
 
-        if (!dataUri)
-            throw new Error("PDF could not be converted to Base64 string");
+      if (!dataUri)
+          throw new Error("PDF could not be converted to Base64 string");
 
-        const buffer = Buffer.from(dataUri, "base64");
-        const png = PNG.sync.read(buffer);
+      const buffer = Buffer.from(dataUri, "base64");
+      const png = PNG.sync.read(buffer);
 
-        const code = jsQR(Uint8ClampedArray.from(png.data), png.width, png.height);
-        const qrCodeText = code?.data;
+      const code = jsQR(Uint8ClampedArray.from(png.data), png.width, png.height);
+      const qrCodeText = code?.data;
 
-        if (!qrCodeText)
-            throw new Error("QR Code Text could not be extracted from PNG image");
+      if (!qrCodeText)
+          throw new Error("QR Code Text could not be extracted from PNG image");
 
-        detailsQR = qrCodeText;
+      detailsQR = qrCodeText;
 
-        const certificateInfo = extractCertificateInfo(qrCodeText);
+      const certificateInfo = extractCertificateInfo(qrCodeText);
 
-        return certificateInfo;
-    } catch (error) {
-        console.error(error);
-        throw error;
-    }
+      return certificateInfo;
+  } catch (error) {
+      console.error(error);
+      throw error;
+  }
 };
 
 const addLinkToPdf = async (
@@ -299,7 +291,7 @@ const simulateTrustedOwner = async (contractFunction, address) => {
     }
     } catch (e) {
     if (e.code == ethers.errors.CALL_EXCEPTION) {
-      console.log("Simulation failed for issue Certificate.");
+      console.log("Simulation failed for Trusted Owner.");
       return false;
     }
   }

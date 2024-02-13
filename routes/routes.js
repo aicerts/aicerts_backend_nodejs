@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-
+const {ensureAuthenticated} = require("../config/auth")
 const multer = require('multer');
 const { fileFilter } = require('../model/tasks');
 
@@ -96,7 +96,7 @@ const _upload = multer({ storage, fileFilter });
  *                   description: Error message for internal server error.
  */
 
-router.post('/issue', _upload.single("pdfFile"), adminController.issue);
+router.post('/issue',ensureAuthenticated, _upload.single("pdfFile"), adminController.issue);
 
 /**
  * @swagger
@@ -174,7 +174,7 @@ router.post('/issue', _upload.single("pdfFile"), adminController.issue);
  */
 
 
-router.post('/issue-pdf', _upload.single("file"), adminController.issuePdf);
+router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminController.issuePdf);
 
 // /**
 //  * @swagger
@@ -201,7 +201,7 @@ router.get('/polygonlink', adminController.polygonLink);
  * @swagger
  * /api/verify:
  *   post:
- *     summary: Verify a certificate
+ *     summary: Verify the Certificate with QR - Blockchain URL
  *     tags: [Verifier]
  *     requestBody:
  *       required: true
@@ -243,10 +243,10 @@ router.post('/verify', _upload.single("pdfFile"), adminController.verify);
 
 /**
  * @swagger
- * /api/verify-with-hash:
+ * /api/verify-with-id:
  *   post:
- *     summary: Verify a certificate hash on the blockchain
- *     description: Verify the existence and validity of a certificate using its hash on the blockchain.
+ *     summary: Verify a certificate ID on the blockchain
+ *     description: Verify the existence and validity of a certificate using its ID on the blockchain.
  *     tags: [Verifier]
  *     requestBody:
  *       required: true
@@ -258,22 +258,28 @@ router.post('/verify', _upload.single("pdfFile"), adminController.verify);
  *               hash:
  *                 type: string
  *                 description: Certificate hash to be verified
- *     responses:
+  *     responses:
  *       200:
- *         description: Successfully verified certificate
- *         schema:
- *           type: object
- *           properties:
- *             message:
- *               type: string
- *               description: Verification status message
- *             details:
+ *         description: Successful operation
+ *         content:
+ *           application/json:
+ *             schema:
  *               type: object
- *               description: Details about the certificate
  *               properties:
- *                 certificateNumber:
+ *                 status:
  *                   type: string
- *                   description: The certificate number
+ *                   description: Status of the operation
+ *                 response:
+ *                   type: object
+ *                   properties:
+ *                     message:
+ *                       type: string
+ *                       description: Verification message
+ *                     details:
+ *                       type: object
+ *                       description: Certificate details if available
+ *                       properties:
+ *                         // Define the properties of the certificate details object here
  *       400:
  *         description: Certificate not found or not valid
  *         schema:
@@ -295,7 +301,7 @@ router.post('/verify', _upload.single("pdfFile"), adminController.verify);
  *               description: Error message
  */
 
-router.post('/verify-with-hash', adminController.verifyWithHash);
+router.post('/verify-with-id', adminController.verifyWithId);
 
 /**
  * @swagger
@@ -533,7 +539,7 @@ router.post('/login', adminController.login);
  *                   description: Result message (An error occurred during logout).
  */
 
-router.post('/logout', adminController.logout);
+router.post('/logout',ensureAuthenticated, adminController.logout);
 
 /**
  * @swagger
@@ -637,7 +643,7 @@ router.post('/reset-password', adminController.resetPassword);
  *                   example: An error occurred while fetching user details
  */
 
-router.get('/get-all-issuers', adminController.getAllIssuers);
+router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers);
 
 /**
  * @swagger
@@ -697,7 +703,7 @@ router.get('/get-all-issuers', adminController.getAllIssuers);
  *                   example: An error occurred during the password reset process!
  */
 
-router.post('/approve-issuer', adminController.approveIssuer);
+router.post('/approve-issuer',ensureAuthenticated, adminController.approveIssuer);
 
 /**
  * @swagger
@@ -723,6 +729,9 @@ router.post('/approve-issuer', adminController.approveIssuer);
  *             schema:
  *               type: object
  *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Success
  *                 message:
  *                   type: string
  *                   description: Success message
@@ -745,10 +754,10 @@ router.post('/approve-issuer', adminController.approveIssuer);
  *               properties:
  *                 message:
  *                   type: string
- *                   description: Error message for internal server error
+ *                   description: Error message for Internal Server Error / Address Available
  */
 
-router.post('/add-trusted-owner', adminController.addTrustedOwner);
+router.post('/add-trusted-owner',ensureAuthenticated, adminController.addTrustedOwner);
 
 /**
  * @swagger
@@ -774,6 +783,9 @@ router.post('/add-trusted-owner', adminController.addTrustedOwner);
  *             schema:
  *               type: object
  *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Success
  *                 message:
  *                   type: string
  *                   description: Success message
@@ -796,10 +808,10 @@ router.post('/add-trusted-owner', adminController.addTrustedOwner);
  *               properties:
  *                 message:
  *                   type: string
- *                   description: Error message for internal server error
+ *                   description: Error message for Internal Server Error / Address Unavailable
  */
 
-router.post('/remove-trusted-owner', adminController.removeTrustedOwner);
+router.post('/remove-trusted-owner',ensureAuthenticated, adminController.removeTrustedOwner);
 
 /**
  * @swagger
@@ -850,6 +862,74 @@ router.post('/remove-trusted-owner', adminController.removeTrustedOwner);
  *                   description: Error message for internal server error
  */
 
-router.get('/check-balance', adminController.checkBalance);
+router.get('/check-balance',ensureAuthenticated, adminController.checkBalance);
 
+/**
+ * @swagger
+ * /api/verify-encrypted:
+ *   post:
+ *     summary: Verify a certificate with encryption
+ *     tags: [Verifier]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               encryptedData:
+ *                 type: string
+ *                 description: Encrypted data containing certificate information
+ *               iv:
+ *                 type: string
+ *                 description: Initialization vector used for encryption
+ *     responses:
+ *       '200':
+ *         description: Certificate decoded successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Verification status (PASSED)
+ *                 message:
+ *                   type: string
+ *                   description: Verification result message
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *               
+ *                     Certificate Number:
+ *                       type: string
+ *                       description: Certificate number
+ *                     Course Name:
+ *                       type: string
+ *                       description: Name of the course
+ *                     Expiration Date:
+ *                       type: string
+ *                       description: Date of certificate expiration
+ *                     Grant Date:
+ *                       type: string
+ *                       description: Date of certificate grant
+ *                     Name:
+ *                       type: string
+ *                       description: Recipient's name
+ *                     Polygon Link:
+ *                       type: string
+ *                       description: Polygon Link
+ *       '500':
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ */
+
+
+router.post('/verify-encrypted', (req, res) => adminController.decodeCertificate(req, res));
 module.exports=router;

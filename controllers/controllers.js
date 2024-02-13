@@ -4,6 +4,8 @@ const app = express();
 const path = require("path");
 const QRCode = require("qrcode");
 const fs = require("fs");
+const {  decryptData, generateEncryptedUrl } = require("../common/cryptoFunction");
+const {  generateJwtToken } = require("../common/authUtils");
 
 const Web3 = require('web3');
 // mongodb admin model
@@ -63,22 +65,35 @@ const issuePdf = async (req, res) => {
         );
         const hash = await confirm(tx);
 
-        const qrCodeData =
-`Transaction Hash: "${hash}",
-Certificate Hash: ${combinedHash},
-Certificate Number: ${fields.Certificate_Number},
-Name: ${fields.name},
-Course Name: ${fields.courseName},
-Grant Date: ${fields.Grant_Date},
-Expiration Date: ${fields.Expiration_Date}`;
+      const linkUrl = `https://${process.env.NETWORK}.com/tx/${hash}`;
+      const dataWithLink = {
+        ...fields,polygonLink:linkUrl
+              }
+      const urlLink = generateEncryptedUrl(dataWithLink);
+      const legacyQR = false;
 
-        const qrCodeImage = await QRCode.toBuffer(qrCodeData, {
-          errorCorrectionLevel: "H",
-        });
+      let qrCodeData = '';
+      if (legacyQR) {
+          // Include additional data in QR code
+          qrCodeData = `Verify On Blockchain: ${linkUrl},
+          Certification Number: ${Certificate_Number},
+          Name: ${name},
+          Certification Name: ${courseName},
+          Grant Date: ${Grant_Date},
+          Expiration Date: ${Expiration_Date}`;
+              
+      } else {
+          // Directly include the URL in QR code
+          qrCodeData = urlLink;
+      }
+
+      const qrCodeImage = await QRCode.toDataURL(qrCodeData, {
+        errorCorrectionLevel: "H",
+      });
 
         file = req.file.path;
         const outputPdf = `${fields.Certificate_Number}${name}.pdf`;
-        linkUrl = `https://${process.env.NETWORK}.com/tx/${hash}`;
+        // linkUrl = `https://${process.env.NETWORK}.com/tx/${hash}`;
 
         const opdf = await addLinkToPdf(
           // __dirname + "/" + file,
@@ -194,20 +209,31 @@ const issue = async (req, res) => {
 
           hash = await confirm(tx);
 
-          const qrCodeData =
-`Transaction Hash: "${hash}",
-Certificate Hash: ${combinedHash},
-Certificate Number: ${Certificate_Number},
-Name: ${name},
-Course Name: ${courseName},
-Grant Date: ${Grant_Date},
-Expiration Date: ${Expiration_Date}`;
+      const polygonLink = `https://${process.env.NETWORK}.com/tx/${hash}`;
+     
+      const dataWithLink = {...fields,polygonLink:polygonLink}
 
-          const qrCodeImage = await QRCode.toDataURL(qrCodeData, {
-            errorCorrectionLevel: "H",
-          });
+      const urlLink = generateEncryptedUrl(dataWithLink);
+      const legacyQR = false;
+      let qrCodeData = '';
+      if (legacyQR) {
+          // Include additional data in QR code
+          qrCodeData = `Verify On Blockchain: ${polygonLink},
+          Certification Number: ${Certificate_Number},
+          Name: ${name},
+          Certification Name: ${courseName},
+          Grant Date: ${Grant_Date},
+          Expiration Date: ${Expiration_Date}`;
+              
+      } else {
+          // Directly include the URL in QR code
+          qrCodeData = urlLink;
+      }
 
-          const polygonLink = `https://${process.env.NETWORK}.com/tx/${hash}`;
+      const qrCodeImage = await QRCode.toDataURL(qrCodeData, {
+        errorCorrectionLevel: "H",
+      });
+
 
         try {
           // Check mongoose connection
@@ -262,27 +288,19 @@ const polygonLink = async (req, res) => {
   res.json({ linkUrl });
 };
 
-// Verify page
+// Verify page with PDF QR - Blockchain URL
 const verify = async (req, res) => {
   file = req.file.path;
   try {
-    var certificateData = await extractQRCodeDataFromPDF(file);
+    const certificateData = await extractQRCodeDataFromPDF(file);
 
-    const contract = await web3i();
-    const certificateNumber = certificateData["Certificate Number"];
-    const val = await contract.methods
-      .verifyCertificate(certificateData["Certificate Hash"])
-      .call();
+    const blockchainUrl = certificateData["Verify On Blockchain"];
 
-    const isCertificateValid = val[0] == true && val[1] == certificateNumber;
-    const message = isCertificateValid ? "Verified: Certificate is valid" : "Certificate is not valid";
-
-    const verificationResponse = {
-      message: message,
-      detailsQR: certificateData
-    };
-
-    res.status(isCertificateValid ? 200 : 400).json(verificationResponse);
+    if(blockchainUrl && blockchainUrl.length > 0) {
+      res.status(200).json({status: "SUCCESS", message: "Certificate is valid", Details: certificateData});
+    } else {
+      res.status(400).json({status: "FAILED", message: "Certificate is not valid"});
+    }
   } catch (error) {
     const verificationResponse = {
       message: "Certificate is not valid"
@@ -300,15 +318,18 @@ const verify = async (req, res) => {
           
 };
 
-const verifyWithHash = async (req, res) => {
-  inputHash = req.body.hash;
+// Verify certificate with ID
+
+const verifyWithId = async (req, res) => {
+  inputId = req.body.id;
+
   try {
     // Blockchain processing.
     const contract = await web3i();
-    const response = await contract.methods.verifyCertificate(inputHash).call();
+    const response = await contract.methods.verifyCertificateById(inputId).call();
 
-    if (response[0] == true) {
-      const certificateNumber = response[1];
+    if (response === true) {
+      const certificateNumber = inputId;
     try {
           // Check mongoose connection
           const dbState = await isDBConncted();
@@ -335,16 +356,60 @@ const verifyWithHash = async (req, res) => {
           console.error("Internal server error", error);
       }
     } else {
-      res.status(400).json({ message: "Certificate doesn't exist" });
+      res.status(400).json({ status: "FAILED", message: "Certificate doesn't exist" });
     }
   } catch (error) {
-    const verificationResponse = {
-      message: "Certificate is not valid"
-    };
-    res.status(400).json(verificationResponse);
-  }   
+    res.status(500).json({
+      status: "FAILED",
+      message: error,
+    });
+  } 
+
 };
 
+/**
+ * Handles the decoding of a certificate from an encrypted link.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
+const decodeCertificate = async (req, res) => {
+  try {
+      // Extract encrypted link from the request body
+      const encryptedData = req.body.encryptedData;
+      const iv = req.body.iv;
+
+      // Decrypt the link
+      const decryptedData = decryptData(encryptedData, iv);
+      
+      const originalData = JSON.parse(decryptedData);
+      let isValid = false;
+      let parsedData;
+      if(originalData !== null){
+     parsedData = {
+          "Certificate Number": originalData.Certificate_Number || "",
+          "Course Name": originalData.courseName || "",
+          "Expiration Date": originalData.Expiration_Date || "",
+          "Grant Date": originalData.Grant_Date || "",
+          "Name": originalData.name || "",
+          "Polygon URL": originalData.polygonLink || ""
+        };
+        isValid = true
+      }
+        
+
+      // Respond with the verification status and decrypted data if valid
+      if (isValid) {
+          res.status(200).json({ status: "PASSED", message: "Verified", data: parsedData });
+      } else {
+          res.status(200).json({ status: "FAILED", message: "Not Verified" });
+      }
+  } catch (error) {
+      // Handle errors and send an appropriate response
+      console.error(error);
+      res.status(500).json({ message: "Internal Server Error" });
+  }
+};
 
 // Admin Signup
 const signup = async (req, res) => {
@@ -454,9 +519,17 @@ const login = async (req, res) => {
                 adminExist.status = true;
                 adminExist.save();
                 // Password match
-                res.json({
+                const JWTToken = generateJwtToken()
+               
+                res.status(200).json({
                   status: "SUCCESS",
                   message: "Valid User Credentials",
+                  data:{
+                    JWTToken:JWTToken,
+                    name:data[0]?.name,
+                    organization:data[0]?.organization,
+                    email:data[0]?.email
+                  }
                 });
               } else {
                 res.json({
@@ -665,6 +738,7 @@ const addTrustedOwner = async (req, res) => {
       const hash = await confirm(tx);
 
       const responseMessage = {
+        status: "SUCCESS",
         message: "Trusted owner added successfully",
       };
 
@@ -675,7 +749,7 @@ const addTrustedOwner = async (req, res) => {
 
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Internal Server Error" });
+    res.status(500).json({ message: "Internal Server Error / Address Available" });
   }
 };
 
@@ -704,6 +778,7 @@ const removeTrustedOwner = async (req, res) => {
     const hash = await confirm(tx);
 
     const responseMessage = {
+      status: "SUCCESS",
       message: "Trusted owner removed successfully",
     };
 
@@ -714,7 +789,7 @@ const removeTrustedOwner = async (req, res) => {
 
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: "Internal Server Error" });
+    res.status(500).json({ message: "Internal Server Error / Address Unavailable" });
   }
 };
 
@@ -753,7 +828,7 @@ module.exports = {
   issue,
   polygonLink,
   verify,
-  verifyWithHash,
+  verifyWithId,
   signup,
   login,
   logout,
@@ -762,5 +837,6 @@ module.exports = {
   approveIssuer,
   addTrustedOwner,
   removeTrustedOwner,
-  checkBalance
+  checkBalance,
+  decodeCertificate
 }
