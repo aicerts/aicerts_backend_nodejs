@@ -14,7 +14,7 @@ const { Admin, User, Issues } = require("../config/schema");
 // Password handler
 const bcrypt = require("bcrypt");
 
-const { insertCertificateData, extractQRCodeDataFromPDF, addLinkToPdf, calculateHash, web3i, confirm, simulateIssueCertificate, simulateTrustedOwner, cleanUploadFolder, isDBConncted } = require('../model/tasks');
+const { insertCertificateData, extractQRCodeDataFromPDF, addLinkToPdf, calculateHash, web3i, confirm, simulateIssueCertificate, simulateTrustedOwner, cleanUploadFolder, isDBConncted, emailNotification } = require('../model/tasks');
 let linkUrl;
 let detailsQR;
 
@@ -689,27 +689,36 @@ const approveIssuer = async (req, res) => {
     }
     
     const user = await User.findOne({ email });
-    if (!user || user.approved) {
+    if (!user) {
       return res.json({
         status: 'FAILED',
-        message: 'User not found (or) User Approved!',
+        message: 'User not found!',
       });
-
     }
 
+    if (user.approved) {
+      await emailNotification(email);
+      return res.json({
+        status: 'SUCCESS',
+        message: 'User Approved!',
+      });
+    }
+    
+    const mailStatus = await emailNotification(email);
+    const mailresponse = mailStatus == 200 ? "sent" : "NA";
     // Save verification details
     user.approved = true;
-    user.save();
-
+    await user.save();
     res.json({
         status: "SUCCESS",
+        email: mailresponse,
         message: "User Approved successfully"
      });
 
   } catch (error) {
     res.json({
       status: 'FAILED',
-      message: 'An error occurred during password reset process!',
+      message: 'An error occurred during User Approved process!',
     });
   }
 };

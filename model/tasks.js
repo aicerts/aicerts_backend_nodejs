@@ -12,6 +12,10 @@ const jsQR = require("jsqr");
 const { ethers } = require("ethers");
 const mongoose = require("mongoose");
 
+// Email Notification
+const formData = require("form-data");
+const Mailgun = require("mailgun.js");
+
 const abi = require("../config/abi.json");
 const contractAddress = process.env.CONTRACT_ADDRESS;
 const account = process.env.ACCOUNT_ADDRESS;
@@ -344,4 +348,26 @@ const isDBConncted = async () => {
   }
 };
 
-module.exports = { insertCertificateData, extractCertificateInfo, extractQRCodeDataFromPDF, addLinkToPdf, calculateHash, web3i, confirm, fileFilter, simulateTrustedOwner, simulateIssueCertificate, cleanUploadFolder, isDBConncted };
+// Email Notfication
+const emailNotification = async(email) => {
+  const mailgun = new Mailgun(formData);
+  const client = await mailgun.client({username: process.env.EMAIL_API_NAME, key: process.env.EMAIL_API_KEY});
+
+  const messageData = {
+    from: process.env.EMAIL_FROM,
+    to: process.env.EMAIL_TO,
+    subject: 'AICerts Admin',
+    text: `Hi ${email}, Congratulations for approved by the admin, can login into your profile!`
+  };
+
+  await client.messages.create(process.env.EMAIL_DOMAIN, messageData)
+ .then((res) => {
+   return res.status;
+ })
+ .catch((err) => {
+   return err.status;
+ });
+
+};
+
+module.exports = { insertCertificateData, extractCertificateInfo, extractQRCodeDataFromPDF, addLinkToPdf, calculateHash, web3i, confirm, fileFilter, simulateTrustedOwner, simulateIssueCertificate, cleanUploadFolder, isDBConncted, emailNotification };
