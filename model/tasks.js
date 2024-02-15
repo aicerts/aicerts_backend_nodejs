@@ -11,10 +11,29 @@ const { PNG } = require("pngjs");
 const jsQR = require("jsqr");
 const { ethers } = require("ethers");
 const mongoose = require("mongoose");
+const nodemailer = require('nodemailer');
 
-// Email Notification
-const formData = require("form-data");
-const Mailgun = require("mailgun.js");
+const transporter = nodemailer.createTransport({
+  service: process.env.MAIL_SERVICE,
+  host: process.env.MAIL_HOST,
+  port: 587,
+  secure: false,
+  auth: {
+      user: process.env.USER_MAIL, // replace with your Gmail email
+      pass: process.env.MAIL_PWD,  // replace with your Gmail password
+  },
+});
+
+const mailOptions = {
+from: {
+  name: 'AICerts Admin',
+  address: process.env.USER_MAIL,
+}, // replace with your Gmail email
+to: '', // replace with your Gmail email
+subject: 'AICerts Admin Notification',
+text: '',
+};
+
 
 const abi = require("../config/abi.json");
 const contractAddress = process.env.CONTRACT_ADDRESS;
@@ -248,13 +267,14 @@ const confirm = async (tx) => {
 
 
 const simulateIssueCertificate = async (certificateNumber, hash) => {
+  console.log("Passing hash & certiicate", certificateNumber, hash);
   // Replace with your actual function name and arguments
-  const functionName = 'issueCertificate';
-  const functionArguments = [certificateNumber, hash];
+  // const functionName = 'issueCertificate';
+  // const functionArguments = [certificateNumber, hash];
   try {
     // const result = await _contract.callStatic.issueCertificate(certificateNumber, hash);
     const result = await _contract.populateTransaction.issueCertificate(certificateNumber, hash);
-
+    console.log("The result is", result);
     // const gasEstimate = await _contract.estimateGas[functionName](...functionArguments);
     // console.log(`Estimated gas required for issueCertificate : `, gasEstimate.toString());
     const resultData = result.data;
@@ -348,26 +368,19 @@ const isDBConncted = async () => {
   }
 };
 
-// Email Notfication
-const emailNotification = async(email) => {
-  const mailgun = new Mailgun(formData);
-  const client = await mailgun.client({username: process.env.EMAIL_API_NAME, key: process.env.EMAIL_API_KEY});
-
-  const messageData = {
-    from: process.env.EMAIL_FROM,
-    to: process.env.EMAIL_TO,
-    subject: 'AICerts Admin',
-    text: `Hi ${email}, Congratulations for approved by the admin, can login into your profile!`
-  };
-
-  await client.messages.create(process.env.EMAIL_DOMAIN, messageData)
- .then((res) => {
-   return res.status;
- })
- .catch((err) => {
-   return err.status;
- });
-
+// Email Notfication Nodemailer function
+const sendEmail = async (email) => {
+  try {
+      mailOptions.to = email;
+      mailOptions.text = `Hi ${email}, Congratulations for approved by the admin, can login into your profile!`;
+      transporter.sendMail(mailOptions);
+      console.log('Email sent successfully');
+      return true;
+  } catch (error) {
+      console.error('Error sending email:', error);
+      return false;
+  }
 };
 
-module.exports = { insertCertificateData, extractCertificateInfo, extractQRCodeDataFromPDF, addLinkToPdf, calculateHash, web3i, confirm, fileFilter, simulateTrustedOwner, simulateIssueCertificate, cleanUploadFolder, isDBConncted, emailNotification };
+
+module.exports = { insertCertificateData, extractCertificateInfo, extractQRCodeDataFromPDF, addLinkToPdf, calculateHash, web3i, confirm, fileFilter, simulateTrustedOwner, simulateIssueCertificate, cleanUploadFolder, isDBConncted, sendEmail };

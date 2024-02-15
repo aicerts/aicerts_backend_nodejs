@@ -97,6 +97,7 @@ const _upload = multer({ storage, fileFilter });
  */
 
 router.post('/issue',ensureAuthenticated, _upload.single("pdfFile"), adminController.issue);
+// router.post('/issue', _upload.single("pdfFile"), adminController.issue);
 
 /**
  * @swagger
@@ -175,6 +176,7 @@ router.post('/issue',ensureAuthenticated, _upload.single("pdfFile"), adminContro
 
 
 router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminController.issuePdf);
+// router.post('/issue-pdf', _upload.single("file"), adminController.issuePdf);
 
 // /**
 //  * @swagger
@@ -644,6 +646,7 @@ router.post('/reset-password', adminController.resetPassword);
  */
 
 router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers);
+// router.get('/get-all-issuers', adminController.getAllIssuers);
 
 /**
  * @swagger
@@ -704,6 +707,7 @@ router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers
  */
 
 router.post('/approve-issuer',ensureAuthenticated, adminController.approveIssuer);
+// router.post('/approve-issuer', adminController.approveIssuer);
 
 /**
  * @swagger
