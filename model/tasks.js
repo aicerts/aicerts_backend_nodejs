@@ -86,7 +86,16 @@ const extractCertificateInfo = (qrCodeText) => {
     
       // Parse the JSON string into a JavaScript object
       const parsedData = JSON.parse(fetchDetails);
-      return parsedData;
+      // Create a new object with desired key-value mappings
+      const convertedData = {
+        "Certificate Number": parsedData.Certificate_Number,
+        "Course Name": parsedData.courseName,
+        "Expiration Date": parsedData.Expiration_Date,
+        "Grant Date": parsedData.Grant_Date,
+        "Name": parsedData.name,
+        "Polygon URL": parsedData.polygonLink
+      };
+      return convertedData;
   } else {
     const lines = qrCodeText.split("\n");
   const certificateInfo = {
@@ -107,13 +116,13 @@ const extractCertificateInfo = (qrCodeText) => {
         value = value.replace(/,/g, "");
 
             if(key === "Verify On Blockchain") {
-                certificateInfo["Verify On Blockchain"] = value;
+                certificateInfo["Polygon URL"] = value;
             } else if (key === "Certification Number") {
-                certificateInfo["Certification Number"] = value;
+                certificateInfo["Certificate Number"] = value;
             } else if (key === "Name") {
                 certificateInfo["Name"] = value;
             } else if (key === "Certification Name") {
-                certificateInfo["Certification Name"] = value;
+                certificateInfo["Course Name"] = value;
             } else if (key === "Grant Date") {
                 certificateInfo["Grant Date"] = value;
             } else if (key === "Expiration Date") {
@@ -121,19 +130,7 @@ const extractCertificateInfo = (qrCodeText) => {
             }
         }
     }
-     // Create a new object with desired key-value mappings
-    const convertedData = {
-      'Certificate_Number':  certificateInfo['Certification Number'],
-      'name':  certificateInfo['Name'],
-      'courseName':  certificateInfo['Certification Name'],
-      'Grant_Date':  certificateInfo['Grant Date'],
-      'Expiration_Date':  certificateInfo['Expiration Date'],
-      'polygonLink':  certificateInfo['Verify On Blockchain']
-    };
-    const _parsedData = JSON.stringify(convertedData);
-    // Parse the JSON string into a JavaScript object
-    const __parsedData = JSON.parse(_parsedData);
-    return __parsedData;
+    return certificateInfo;
   }
   
 };
