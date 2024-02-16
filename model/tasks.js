@@ -274,7 +274,6 @@ const simulateIssueCertificate = async (certificateNumber, hash) => {
   try {
     // const result = await _contract.callStatic.issueCertificate(certificateNumber, hash);
     const result = await _contract.populateTransaction.issueCertificate(certificateNumber, hash);
-    console.log("The result is", result);
     // const gasEstimate = await _contract.estimateGas[functionName](...functionArguments);
     // console.log(`Estimated gas required for issueCertificate : `, gasEstimate.toString());
     const resultData = result.data;
@@ -369,10 +368,12 @@ const isDBConncted = async () => {
 };
 
 // Email Notfication Nodemailer function
-const sendEmail = async (email) => {
+const sendEmail = async (name, email) => {
   try {
       mailOptions.to = email;
-      mailOptions.text = `Hi ${email}, Congratulations for approved by the admin, can login into your profile!`;
+      mailOptions.text = `Hi ${name}, 
+Congratulations! You've been approved by the admin. 
+You can now log in to your profile. With username ${email}`;
       transporter.sendMail(mailOptions);
       console.log('Email sent successfully');
       return true;

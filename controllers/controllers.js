@@ -14,6 +14,9 @@ const { Admin, User, Issues } = require("../config/schema");
 // Password handler
 const bcrypt = require("bcrypt");
 
+const min_length = parseInt(process.env.MIN_LENGTH);
+const max_length = parseInt(process.env.MAX_LENGTH);
+
 const { insertCertificateData, extractQRCodeDataFromPDF, addLinkToPdf, calculateHash, web3i, confirm, simulateIssueCertificate, simulateTrustedOwner, cleanUploadFolder, isDBConncted, sendEmail } = require('../model/tasks');
 let linkUrl;
 let detailsQR;
@@ -32,7 +35,7 @@ const issuePdf = async (req, res) => {
   const idExist = await User.findOne({ email });
   const isNumberExist = await Issues.findOne({certificateNumber: Certificate_Number});
 
-  if (!idExist || !isNumberExist || !Certificate_Number || !name || !courseName || !Grant_Date || !Expiration_Date || [Certificate_Number, name, courseName, Grant_Date, Expiration_Date].some(value => typeof value !== 'string' || value == 'string') || Certificate_Number.length < process.env.MIN_LENGTH || Certificate_Number.length > process.env.MAX_LENGTH) {
+  if (!idExist || isNumberExist || !Certificate_Number || !name || !courseName || !Grant_Date || !Expiration_Date || [Certificate_Number, name, courseName, Grant_Date, Expiration_Date].some(value => typeof value !== 'string' || value == 'string') || Certificate_Number.length > max_length || Certificate_Number.length < min_length) {
     res.status(400).json({ message: "Please provide valid details" });
     return;
   } else {
@@ -176,7 +179,7 @@ const issue = async (req, res) => {
   const idExist = await User.findOne({ email });
   const isNumberExist = await Issues.findOne({certificateNumber: Certificate_Number});
 
-  if (!idExist || !isNumberExist || !Certificate_Number || !name || !courseName || !Grant_Date || !Expiration_Date || [Certificate_Number, name, courseName, Grant_Date, Expiration_Date].some(value => typeof value !== 'string' || value == 'string') || Certificate_Number.length < process.env.MIN_LENGTH || Certificate_Number.length > process.env.MAX_LENGTH) {
+  if (!idExist || isNumberExist || !Certificate_Number || !name || !courseName || !Grant_Date || !Expiration_Date || [Certificate_Number, name, courseName, Grant_Date, Expiration_Date].some(value => typeof value !== 'string' || value == 'string') || Certificate_Number.length > max_length || Certificate_Number.length < min_length) {
     res.status(400).json({ message: "Please fill all the fields with valid details" });
     return;
   } else {
@@ -700,7 +703,7 @@ const approveIssuer = async (req, res) => {
     }
 
     if (user.approved) {
-      await sendEmail(email);
+      await sendEmail(user.name, email);
       return res.json({
         status: 'SUCCESS',
         message: 'User Approved!',
@@ -708,15 +711,15 @@ const approveIssuer = async (req, res) => {
     }
     
 
-    const _mailStatus = await sendEmail(email);
-    const _mailresponse = _mailStatus == true ? "sent" : "NA";
+    const mailStatus = await sendEmail(user.name, email);
+    const mailresponse = mailStatus == true ? "sent" : "NA";
 
     // Save verification details
     user.approved = true;
     await user.save();
     res.json({
         status: "SUCCESS",
-        email: _mailresponse,
+        email: mailresponse,
         message: "User Approved successfully"
      });
 
