@@ -36,7 +36,23 @@ const issuePdf = async (req, res) => {
   const isNumberExist = await Issues.findOne({certificateNumber: Certificate_Number});
 
   if (!idExist || isNumberExist || !Certificate_Number || !name || !courseName || !Grant_Date || !Expiration_Date || [Certificate_Number, name, courseName, Grant_Date, Expiration_Date].some(value => typeof value !== 'string' || value == 'string') || Certificate_Number.length > max_length || Certificate_Number.length < min_length) {
-    res.status(400).json({ message: "Please provide valid details" });
+    // res.status(400).json({ message: "Please provide valid details" });
+    let errorMessage = "Please provide valid details";
+    
+    // Check for specific error conditions and update the error message accordingly
+    if (isNumberExist) {
+      errorMessage = "Certificate number already exists";
+    } else if (!Certificate_Number) {
+        errorMessage = "Certificate number is required";
+    } else if (Certificate_Number.length > max_length) {
+        errorMessage = `Certificate number should be less than ${max_length} characters`;
+    } else if (Certificate_Number.length < min_length) {
+        errorMessage = `Certificate number should be at least ${min_length} characters`;
+    } else if(!idExist) {
+        errorMessage = `Invalid Issuer Email`;
+    }
+    
+    res.status(400).json({ message: errorMessage });
     return;
   } else {
     const fields = {
@@ -180,8 +196,23 @@ const issue = async (req, res) => {
   const isNumberExist = await Issues.findOne({certificateNumber: Certificate_Number});
 
   if (!idExist || isNumberExist || !Certificate_Number || !name || !courseName || !Grant_Date || !Expiration_Date || [Certificate_Number, name, courseName, Grant_Date, Expiration_Date].some(value => typeof value !== 'string' || value == 'string') || Certificate_Number.length > max_length || Certificate_Number.length < min_length) {
-    res.status(400).json({ message: "Please fill all the fields with valid details" });
-    return;
+      // res.status(400).json({ message: "Please provide valid details" });
+      let errorMessage = "Please provide valid details";
+    
+      // Check for specific error conditions and update the error message accordingly
+      if (isNumberExist) {
+          errorMessage = "Certificate number already exists";
+      } else if (!Certificate_Number) {
+          errorMessage = "Certificate number is required";
+      } else if (Certificate_Number.length > max_length) {
+          errorMessage = `Certificate number should be less than ${max_length} characters`;
+      } else if (Certificate_Number.length < min_length) {
+          errorMessage = `Certificate number should be at least ${min_length} characters`;
+      } else if(!idExist) {
+          errorMessage = `Invalid Issuer Email`;
+      }
+      res.status(400).json({ message: errorMessage });
+      return;
   } else {
     try {
       const fields = {
