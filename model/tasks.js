@@ -95,6 +95,7 @@ const extractCertificateInfo = (qrCodeText) => {
         "Name": parsedData.name,
         "Polygon URL": parsedData.polygonLink
       };
+      console.log("Data of Redirect", convertedData);
       return convertedData;
   } else {
     const lines = qrCodeText.split("\n");
@@ -130,6 +131,7 @@ const extractCertificateInfo = (qrCodeText) => {
             }
         }
     }
+    console.log("Data LMS ", certificateInfo);
     return certificateInfo;
   }
   
