@@ -118,11 +118,11 @@ const extractCertificateInfo = (qrCodeText) => {
             if(key === "Verify On Blockchain") {
                 certificateInfo["Polygon URL"] = value;
             } else if (key === "Certification Number") {
-                certificateInfo["Certification Number"] = value;
+                certificateInfo["Certificate Number"] = value;
             } else if (key === "Name") {
                 certificateInfo["Name"] = value;
             } else if (key === "Certification Name") {
-                certificateInfo["Certification Name"] = value;
+                certificateInfo["Course Name"] = value;
             } else if (key === "Grant Date") {
                 certificateInfo["Grant Date"] = value;
             } else if (key === "Expiration Date") {
