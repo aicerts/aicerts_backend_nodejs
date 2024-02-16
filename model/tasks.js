@@ -13,6 +13,8 @@ const { ethers } = require("ethers");
 const mongoose = require("mongoose");
 const nodemailer = require('nodemailer');
 
+const {  decryptData, generateEncryptedUrl } = require("../common/cryptoFunction");
+
 const transporter = nodemailer.createTransport({
   service: process.env.MAIL_SERVICE,
   host: process.env.MAIL_HOST,
@@ -72,7 +74,21 @@ const insertCertificateData = async (data) => {
 
 const extractCertificateInfo = (qrCodeText) => {
   // console.log("QR Code Text", qrCodeText);
-  const lines = qrCodeText.split("\n");
+  // Check if the data starts with 'http://' or 'https://'
+  if (qrCodeText.startsWith('http://') ||  qrCodeText.startsWith('https://')) {
+    const url = decodeURIComponent(qrCodeText);
+    const qIndex = url.indexOf("q=");
+    const ivIndex = url.indexOf("iv=");
+    const q = url.substring(qIndex + 2, ivIndex - 1);
+    const iv = url.substring(ivIndex + 3);
+
+    const fetchDetails = decryptData(q, iv);
+    
+      // Parse the JSON string into a JavaScript object
+      const parsedData = JSON.parse(fetchDetails);
+      return parsedData;
+  } else {
+    const lines = qrCodeText.split("\n");
   const certificateInfo = {
       "Verify On Blockchain": "",
       "Certification Number": "",
@@ -105,7 +121,21 @@ const extractCertificateInfo = (qrCodeText) => {
             }
         }
     }
-    return certificateInfo;
+     // Create a new object with desired key-value mappings
+    const convertedData = {
+      'Certificate_Number':  certificateInfo['Certification Number'],
+      'name':  certificateInfo['Name'],
+      'courseName':  certificateInfo['Certification Name'],
+      'Grant_Date':  certificateInfo['Grant Date'],
+      'Expiration_Date':  certificateInfo['Expiration Date'],
+      'polygonLink':  certificateInfo['Verify On Blockchain']
+    };
+    const _parsedData = JSON.stringify(convertedData);
+    // Parse the JSON string into a JavaScript object
+    const __parsedData = JSON.parse(_parsedData);
+    return __parsedData;
+  }
+  
 };
 
 const extractQRCodeDataFromPDF = async (pdfFilePath) => {
@@ -143,7 +173,6 @@ const extractQRCodeDataFromPDF = async (pdfFilePath) => {
       detailsQR = qrCodeText;
 
       const certificateInfo = extractCertificateInfo(qrCodeText);
-
       return certificateInfo;
   } catch (error) {
       console.error(error);

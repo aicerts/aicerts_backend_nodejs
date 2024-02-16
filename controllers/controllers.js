@@ -300,7 +300,7 @@ const verify = async (req, res) => {
   try {
     const certificateData = await extractQRCodeDataFromPDF(file);
 
-    const blockchainUrl = certificateData["Verify On Blockchain"];
+    const blockchainUrl = certificateData.polygonLink;
 
     if(blockchainUrl && blockchainUrl.length > 0) {
       res.status(200).json({status: "SUCCESS", message: "Certificate is valid", Details: certificateData});
