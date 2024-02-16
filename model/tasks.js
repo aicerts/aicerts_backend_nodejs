@@ -11,6 +11,31 @@ const { PNG } = require("pngjs");
 const jsQR = require("jsqr");
 const { ethers } = require("ethers");
 const mongoose = require("mongoose");
+const nodemailer = require('nodemailer');
+
+const {  decryptData, generateEncryptedUrl } = require("../common/cryptoFunction");
+
+const transporter = nodemailer.createTransport({
+  service: process.env.MAIL_SERVICE,
+  host: process.env.MAIL_HOST,
+  port: 587,
+  secure: false,
+  auth: {
+      user: process.env.USER_MAIL, // replace with your Gmail email
+      pass: process.env.MAIL_PWD,  // replace with your Gmail password
+  },
+});
+
+const mailOptions = {
+from: {
+  name: 'AICerts Admin',
+  address: process.env.USER_MAIL,
+}, // replace with your Gmail email
+to: '', // replace with your Gmail email
+subject: 'AICerts Admin Notification',
+text: '',
+};
+
 
 const abi = require("../config/abi.json");
 const contractAddress = process.env.CONTRACT_ADDRESS;
@@ -49,7 +74,30 @@ const insertCertificateData = async (data) => {
 
 const extractCertificateInfo = (qrCodeText) => {
   // console.log("QR Code Text", qrCodeText);
-  const lines = qrCodeText.split("\n");
+  // Check if the data starts with 'http://' or 'https://'
+  if (qrCodeText.startsWith('http://') ||  qrCodeText.startsWith('https://')) {
+    const url = decodeURIComponent(qrCodeText);
+    const qIndex = url.indexOf("q=");
+    const ivIndex = url.indexOf("iv=");
+    const q = url.substring(qIndex + 2, ivIndex - 1);
+    const iv = url.substring(ivIndex + 3);
+
+    const fetchDetails = decryptData(q, iv);
+    
+      // Parse the JSON string into a JavaScript object
+      const parsedData = JSON.parse(fetchDetails);
+      // Create a new object with desired key-value mappings
+      const convertedData = {
+        "Certificate Number": parsedData.Certificate_Number,
+        "Course Name": parsedData.courseName,
+        "Expiration Date": parsedData.Expiration_Date,
+        "Grant Date": parsedData.Grant_Date,
+        "Name": parsedData.name,
+        "Polygon URL": parsedData.polygonLink
+      };
+      return convertedData;
+  } else {
+    const lines = qrCodeText.split("\n");
   const certificateInfo = {
       "Verify On Blockchain": "",
       "Certification Number": "",
@@ -68,7 +116,7 @@ const extractCertificateInfo = (qrCodeText) => {
         value = value.replace(/,/g, "");
 
             if(key === "Verify On Blockchain") {
-                certificateInfo["Verify On Blockchain"] = value;
+                certificateInfo["Polygon URL"] = value;
             } else if (key === "Certification Number") {
                 certificateInfo["Certification Number"] = value;
             } else if (key === "Name") {
@@ -83,6 +131,8 @@ const extractCertificateInfo = (qrCodeText) => {
         }
     }
     return certificateInfo;
+  }
+  
 };
 
 const extractQRCodeDataFromPDF = async (pdfFilePath) => {
@@ -120,7 +170,6 @@ const extractQRCodeDataFromPDF = async (pdfFilePath) => {
       detailsQR = qrCodeText;
 
       const certificateInfo = extractCertificateInfo(qrCodeText);
-
       return certificateInfo;
   } catch (error) {
       console.error(error);
@@ -244,13 +293,13 @@ const confirm = async (tx) => {
 
 
 const simulateIssueCertificate = async (certificateNumber, hash) => {
+  console.log("Passing hash & certiicate", certificateNumber, hash);
   // Replace with your actual function name and arguments
-  const functionName = 'issueCertificate';
-  const functionArguments = [certificateNumber, hash];
+  // const functionName = 'issueCertificate';
+  // const functionArguments = [certificateNumber, hash];
   try {
     // const result = await _contract.callStatic.issueCertificate(certificateNumber, hash);
     const result = await _contract.populateTransaction.issueCertificate(certificateNumber, hash);
-
     // const gasEstimate = await _contract.estimateGas[functionName](...functionArguments);
     // console.log(`Estimated gas required for issueCertificate : `, gasEstimate.toString());
     const resultData = result.data;
@@ -344,4 +393,21 @@ const isDBConncted = async () => {
   }
 };
 
-module.exports = { insertCertificateData, extractCertificateInfo, extractQRCodeDataFromPDF, addLinkToPdf, calculateHash, web3i, confirm, fileFilter, simulateTrustedOwner, simulateIssueCertificate, cleanUploadFolder, isDBConncted };
+// Email Notfication Nodemailer function
+const sendEmail = async (name, email) => {
+  try {
+      mailOptions.to = email;
+      mailOptions.text = `Hi ${name}, 
+Congratulations! You've been approved by the admin. 
+You can now log in to your profile. With username ${email}`;
+      transporter.sendMail(mailOptions);
+      console.log('Email sent successfully');
+      return true;
+  } catch (error) {
+      console.error('Error sending email:', error);
+      return false;
+  }
+};
+
+
+module.exports = { insertCertificateData, extractCertificateInfo, extractQRCodeDataFromPDF, addLinkToPdf, calculateHash, web3i, confirm, fileFilter, simulateTrustedOwner, simulateIssueCertificate, cleanUploadFolder, isDBConncted, sendEmail };
