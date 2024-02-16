@@ -96,8 +96,8 @@ const _upload = multer({ storage, fileFilter });
  *                   description: Error message for internal server error.
  */
 
-// router.post('/issue',ensureAuthenticated, _upload.single("pdfFile"), adminController.issue);
-router.post('/issue', _upload.single("pdfFile"), adminController.issue);
+ router.post('/issue',ensureAuthenticated, _upload.single("pdfFile"), adminController.issue);
+// router.post('/issue', _upload.single("pdfFile"), adminController.issue);
 
 /**
  * @swagger
@@ -175,8 +175,8 @@ router.post('/issue', _upload.single("pdfFile"), adminController.issue);
  */
 
 
-// router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminController.issuePdf);
-router.post('/issue-pdf', _upload.single("file"), adminController.issuePdf);
+ router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminController.issuePdf);
+// router.post('/issue-pdf', _upload.single("file"), adminController.issuePdf);
 
 // /**
 //  * @swagger
