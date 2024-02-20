@@ -741,7 +741,6 @@ const approveIssuer = async (req, res) => {
       });
     }
     
-
     const mailStatus = await sendEmail(user.name, email);
     const mailresponse = mailStatus == true ? "sent" : "NA";
 

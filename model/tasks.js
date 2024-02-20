@@ -21,7 +21,7 @@ const transporter = nodemailer.createTransport({
   port: 587,
   secure: false,
   auth: {
-      user: process.env.USER_MAIL, // replace with your Gmail email
+      user: process.env.USER_NAME, // replace with your Gmail email
       pass: process.env.MAIL_PWD,  // replace with your Gmail password
   },
 });
@@ -397,6 +397,7 @@ const isDBConncted = async () => {
 
 // Email Notfication Nodemailer function
 const sendEmail = async (name, email) => {
+  console.log("Details", name, email);
   try {
       mailOptions.to = email;
       mailOptions.text = `Hi ${name}, 

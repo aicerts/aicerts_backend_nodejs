@@ -96,12 +96,7 @@ const _upload = multer({ storage, fileFilter });
  *                   description: Error message for internal server error.
  */
 
-<<<<<<< Updated upstream
- router.post('/issue',ensureAuthenticated, _upload.single("pdfFile"), adminController.issue);
-// router.post('/issue', _upload.single("pdfFile"), adminController.issue);
-=======
 router.post('/issue',ensureAuthenticated, _upload.single("pdfFile"), adminController.issue);
->>>>>>> Stashed changes
 
 /**
  * @swagger
@@ -179,12 +174,7 @@ router.post('/issue',ensureAuthenticated, _upload.single("pdfFile"), adminContro
  */
 
 
-<<<<<<< Updated upstream
- router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminController.issuePdf);
-// router.post('/issue-pdf', _upload.single("file"), adminController.issuePdf);
-=======
 router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminController.issuePdf);
->>>>>>> Stashed changes
 
 // /**
 //  * @swagger
@@ -255,7 +245,7 @@ router.post('/verify', _upload.single("pdfFile"), adminController.verify);
  * @swagger
  * /api/verify-with-id:
  *   post:
- *     summary: Verify a certificate ID on the blockchain [future scope]
+ *     summary: Verify a certificate ID on the blockchain
  *     description: Verify the existence and validity of a certificate using its ID on the blockchain.
  *     tags: [Verifier]
  *     requestBody:
