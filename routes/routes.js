@@ -707,7 +707,7 @@ router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers
  */
 
 
-router.post('/get-issuer-by-email', adminController.getIssuerByEmail);
+router.post('/get-issuer-by-email',ensureAuthenticated, adminController.getIssuerByEmail);
 
 /**
  * @swagger
