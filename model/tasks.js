@@ -397,7 +397,6 @@ const isDBConncted = async () => {
 
 // Email Notfication Nodemailer function
 const sendEmail = async (name, email) => {
-  console.log("Details", name, email);
   try {
       mailOptions.to = email;
       mailOptions.text = `Hi ${name}, 
