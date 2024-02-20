@@ -683,6 +683,41 @@ const getAllIssuers = async (req, res) => {
   }
 };
 
+const getIssuerByEmail = async (req, res) => {
+  try {
+    // Check mongoose connection
+    const dbState = await isDBConncted();
+    if (dbState === false) {
+      console.error("Database connection is not ready");
+    } else {
+      console.log("Database connection is ready");
+    }
+
+    const { email } = req.body; 
+
+    const issuer = await User.findOne({ email: email }).select('-password');
+
+    if (issuer) {
+      res.json({
+        status: 'SUCCESS',
+        data: issuer,
+        message: `Issuer with email ${email} fetched successfully`
+      });
+    } else {
+      res.json({
+        status: 'FAILED',
+        message: `Issuer with email ${email} not found`
+      });
+    }
+  } catch (error) {
+    res.json({
+      status: 'FAILED',
+      message: 'An error occurred while fetching issuer details by email'
+    });
+  }
+};
+
+
 const approveIssuer = async (req, res) => {
   let { email } = req.body;
   try {
@@ -855,5 +890,6 @@ module.exports = {
   addTrustedOwner,
   removeTrustedOwner,
   checkBalance,
-  decodeCertificate
+  decodeCertificate,
+  getIssuerByEmail
 }
