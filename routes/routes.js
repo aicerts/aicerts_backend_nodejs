@@ -96,8 +96,12 @@ const _upload = multer({ storage, fileFilter });
  *                   description: Error message for internal server error.
  */
 
+<<<<<<< Updated upstream
  router.post('/issue',ensureAuthenticated, _upload.single("pdfFile"), adminController.issue);
 // router.post('/issue', _upload.single("pdfFile"), adminController.issue);
+=======
+router.post('/issue',ensureAuthenticated, _upload.single("pdfFile"), adminController.issue);
+>>>>>>> Stashed changes
 
 /**
  * @swagger
@@ -175,8 +179,12 @@ const _upload = multer({ storage, fileFilter });
  */
 
 
+<<<<<<< Updated upstream
  router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminController.issuePdf);
 // router.post('/issue-pdf', _upload.single("file"), adminController.issuePdf);
+=======
+router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminController.issuePdf);
+>>>>>>> Stashed changes
 
 // /**
 //  * @swagger
@@ -646,7 +654,6 @@ router.post('/reset-password', adminController.resetPassword);
  */
 
 router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers);
-// router.get('/get-all-issuers', adminController.getAllIssuers);
 
 /**
  * @swagger

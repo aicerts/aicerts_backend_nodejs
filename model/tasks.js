@@ -95,7 +95,7 @@ const extractCertificateInfo = (qrCodeText) => {
         "Name": parsedData.name,
         "Polygon URL": parsedData.polygonLink
       };
-      console.log("Data of Redirect", convertedData);
+      // console.log("Data of Redirect", convertedData);
       return convertedData;
   } else {
     const lines = qrCodeText.split("\n");
@@ -131,7 +131,7 @@ const extractCertificateInfo = (qrCodeText) => {
             }
         }
     }
-    console.log("Data LMS ", certificateInfo);
+    // console.log("Data LMS ", certificateInfo);
     return certificateInfo;
   }
   
@@ -295,7 +295,7 @@ const confirm = async (tx) => {
 
 
 const simulateIssueCertificate = async (certificateNumber, hash) => {
-  console.log("Passing hash & certiicate", certificateNumber, hash);
+  // console.log("Passing hash & certiicate", certificateNumber, hash);
   // Replace with your actual function name and arguments
   // const functionName = 'issueCertificate';
   // const functionArguments = [certificateNumber, hash];
