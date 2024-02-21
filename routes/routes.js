@@ -1,21 +1,24 @@
 const express = require('express');
 const router = express.Router();
-const {ensureAuthenticated} = require("../config/auth")
+const { ensureAuthenticated } = require("../config/auth"); // Import authentication middleware
 const multer = require('multer');
-const { fileFilter } = require('../model/tasks');
+const { fileFilter } = require('../model/tasks'); // Import file filter function
+const adminController = require('../controllers/controllers'); // Import admin controller
 
-const adminController = require('../controllers/controllers');
 
+// Configure multer storage options
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, "uploads"); // Set the destination where files will be saved
   },
   filename: (req, file, cb) => {
+    // Set the filename based on the Certificate_Number from the request body
     const Certificate_Number = req.body.Certificate_Number;
     cb(null, file.originalname);
   },
 });
 
+// Initialize multer with configured storage and file filter
 const _upload = multer({ storage, fileFilter });
 
 /**
@@ -700,7 +703,7 @@ router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers
  *                   example: FAILED
  *                 message:
  *                   type: string
- *                   example: An error occurred during the password reset process!
+ *                   example: An error occurred during the user approved process!
  */
 
 router.post('/approve-issuer',ensureAuthenticated, adminController.approveIssuer);
