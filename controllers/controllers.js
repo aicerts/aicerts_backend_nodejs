@@ -295,7 +295,7 @@ const issue = async (req, res) => {
           };
 
           await insertCertificateData(certificateData);
-
+          
           }catch (error) {
           // Handle mongoose connection error (log it, throw an error, etc.)
           console.error("Internal server error", error);
