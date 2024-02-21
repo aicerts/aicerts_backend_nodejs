@@ -891,7 +891,7 @@ const approveIssuer = async (req, res) => {
     // Error occurred during user approval process, respond with failure message
     res.json({
       status: 'FAILED',
-      message: error,
+      message: "An error occurred during the Issuer approved process!",
     });
   }
 };
