@@ -1,13 +1,23 @@
+// Load environment variables from .env file
 require('dotenv').config();
+
+// Connect to the database
 require('./config/db');
+
+// Import required modules
 const express = require("express");
 const swaggerJsdoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
 const bodyParser = require('body-parser');
 const cors = require("cors");
+
+// Create an Express application
 const app = express();
+
+// Define the port number
 const port = process.env.PORT || 8000;
 
+// Import routes
 const tasksRoutes = require('./routes/routes');
 
 // Swagger setup
