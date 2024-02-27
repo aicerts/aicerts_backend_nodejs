@@ -32,6 +32,7 @@ const UserSchema = new Schema({
       required: true,
     },
     approved: Boolean,
+    status: Number,
     address: String,
     country: String,
     organizationType: String,
@@ -42,12 +43,24 @@ const UserSchema = new Schema({
     websiteLink: String,
     phoneNumber: String,
     designation: String,
-    username: {
-        type: String,
-        unique: true
-        // required: true,
-      }
+    username: String,
+    rejectedDate: Date
   });
+
+  // Batch Issues Schema
+const BatchIssuesSchema = new Schema({
+  issuerId: String,
+  batchId: Number,
+  proofHash: [String],
+  transactionHash: String,
+  certificateHash: String,
+  certificateNumber: String,
+  name: String,
+  course: String,
+  grantDate: String,
+  expirationDate: String,
+  issueDate: Date
+});
 
 // Define the schema for the Issues model
 const IssuesSchema = new mongoose.Schema({
@@ -62,13 +75,23 @@ const IssuesSchema = new mongoose.Schema({
   issueDate: { type: Date, default: Date.now } // IssueDate field is of type Date and defaults to the current date/time
 });
 
+// Define the schema for the Blacklist model
+const BlacklistSchema = new mongoose.Schema({
+  issuerId: { type: String, required: true }, // ID field is of type String and is required
+  email: { type: String, required: true }, // Email is of type String and is required
+  terminated: { type: Boolean, required: true } // Email termainated is of type Boolean and is required
+});
 
 const Admin = mongoose.model('Admin', AdminSchema);
 const User = mongoose.model('User', UserSchema);
 const Issues = mongoose.model('Issues', IssuesSchema);
+const BatchIssues = mongoose.model('BatchIssues', BatchIssuesSchema);
+const Blacklist = mongoose.model('Blacklist', BlacklistSchema);
 
 module.exports = {
     Admin,
     User,
-    Issues
+    Issues,
+    BatchIssues,
+    Blacklist
 };

@@ -7,6 +7,8 @@ const app = express(); // Create an instance of the Express application
 const path = require("path");
 const QRCode = require("qrcode");
 const fs = require("fs");
+const _fs = require("fs-extra");
+const { StandardMerkleTree } = require("@openzeppelin/merkle-tree");
 
 // Import custom cryptoFunction module for encryption and decryption
 const { decryptData, generateEncryptedUrl } = require("../common/cryptoFunction");
@@ -17,7 +19,7 @@ const { generateJwtToken } = require("../common/authUtils");
 const Web3 = require('web3');
 
 // Import MongoDB models
-const { Admin, User, Issues } = require("../config/schema");
+const { Admin, User, Issues, BatchIssues, Blacklist } = require("../config/schema");
 
 // Import bcrypt for hashing passwords
 const bcrypt = require("bcrypt");
@@ -27,18 +29,22 @@ const min_length = parseInt(process.env.MIN_LENGTH);
 const max_length = parseInt(process.env.MAX_LENGTH);
 
 // Importing functions from a custom module
-const { 
+const {
+  fetchExcelRecord, 
   insertCertificateData, // Function to insert certificate data into the database
+  insertBatchCertificateData, // Function to insert Batch certificate data into the database
   extractQRCodeDataFromPDF, // Function to extract QR code data from a PDF file
   addLinkToPdf, // Function to add a link to a PDF file
   calculateHash, // Function to calculate the hash of a file
   web3i, // Instance of Web3 for interacting with Ethereum
   confirm, // Function to confirm a certificate
   simulateIssueCertificate, // Function to simulate issuing a certificate
+  simulateIssueBatchCertificates, // Function to simulate issuing a Batch of certificate
   simulateTrustedOwner, // Function to simulate a trusted owner
   cleanUploadFolder, // Function to clean up the upload folder
   isDBConncted, // Function to check if the database connection is established
-  sendEmail // Function to send an email
+  sendEmail, // Function to send an email on approved
+  rejectEmail // Function to send an email on rejected
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
 let linkUrl; // Variable to store a link URL
@@ -64,7 +70,8 @@ const issuePdf = async (req, res) => {
 
   // Validation checks for request data
   if (
-    !idExist || // User does not exist
+    // (!idExist || idExist.status !== 1)|| // User does not exist
+    !idExist ||
     isNumberExist || // Certificate number already exists
     !Certificate_Number || // Missing certificate number
     !name || // Missing name
@@ -89,7 +96,9 @@ const issuePdf = async (req, res) => {
       errorMessage = `Certificate number should be at least ${min_length} characters`;
     } else if (!idExist) {
       errorMessage = `Invalid Issuer Email`;
-    }
+    // } else if(idExist.status !== 1) {
+    //   errorMessage = `Unauthorised Issuer Email`;
+  }
 
     // Respond with error message
     res.status(400).json({ message: errorMessage });
@@ -251,6 +260,7 @@ const issue = async (req, res) => {
 
   // Validation checks for request data
   if (
+    // (!idExist || idExist.status !== 1)|| // User does not exist
     !idExist || // User does not exist
     isNumberExist || // Certificate number already exists
     !Certificate_Number || // Missing certificate number
@@ -276,7 +286,9 @@ const issue = async (req, res) => {
           errorMessage = `Certificate number should be at least ${min_length} characters`;
       } else if(!idExist) {
           errorMessage = `Invalid Issuer Email`;
-      }
+      // } else if(idExist.status !== 1) {
+      //   errorMessage = `Unauthorised Issuer Email`;
+    }
 
       // Respond with error message
       res.status(400).json({ message: errorMessage });
@@ -343,6 +355,8 @@ const issue = async (req, res) => {
 
       const qrCodeImage = await QRCode.toDataURL(qrCodeData, {
         errorCorrectionLevel: "H",
+        width: 300, // Adjust the width as needed
+        height: 300, // Adjust the height as needed
       });
 
 
@@ -398,6 +412,158 @@ const issue = async (req, res) => {
   }
 };
 
+// API call for Batch Certificates issue 
+const batchCertificateIssue = async (req, res) => {
+  const email = req.body.email;
+  
+  file = req.file.path;
+
+  const idExist = await User.findOne({ email });
+
+  var filePath = req.file.path;
+
+  // Fetch the records from the Excel file
+  const excelData = await fetchExcelRecord(filePath);
+
+  await _fs.remove(filePath);
+
+    if (!idExist || !req.file || !req.file.filename || req.file.filename === 'undefined' || excelData.response === false) {
+  
+    console.log("The response is", excelData.message);
+    let errorMessage = "Please provide valid details";
+    if(!idExist){
+      errorMessage = "Invalid Issuer";
+    }
+    else if(excelData.response == false){
+      errorMessage =  excelData.message;
+    } 
+
+    res.status(400).json({ status: "FAILED", message: errorMessage });
+    return;
+    
+  } else {
+
+    // console.log("The certificates details", excelData.message[0]);
+
+    // Batch Certification Formated Details
+    const rawBatchData = excelData.message[0];
+    // Certification count
+    const certificatesCount = excelData.message[1];
+    // certification unformated details
+    const batchData = excelData.message[2];
+
+    const certificationIDs = rawBatchData.map(item => item.certificationID);
+
+    // Initialize an empty list to store matching IDs
+    const matchingIDs = [];
+
+    // Assuming BatchIssues is your MongoDB model
+    for (const id of certificationIDs) {
+      const issueExist = await BatchIssues.findOne({ certificateNumber: id });
+      if (issueExist) {
+        matchingIDs.push(id);
+      }
+    }
+
+    if(matchingIDs.length>0){
+
+      res.status(400).json({ status: "FAILED", message: "Excel file has Existing Certification IDs", Details: matchingIDs });
+      return;
+
+    } 
+
+    const hashedBatchData = batchData.map(data => {
+      // Convert data to string and calculate hash
+      const dataString = data.map(item => item.toString()).join('');
+      const _hash = calculateHash(dataString);
+      return _hash;
+    });
+  
+  // // Format as arrays with corresponding elements using a loop
+  const values = [];
+  for (let i = 0; i < certificatesCount; i++) {
+      values.push([hashedBatchData[i]]);
+  }
+
+  try {
+    // Generate the Merkle tree
+      const tree = StandardMerkleTree.of(values, ['string']);
+
+      // Fetch the root from Tree
+      console.log('Merkle Root:', tree.root);        
+
+      // Blockchain processing.
+      const contract = await web3i();
+
+    const batchNumber = await contract.methods.getRootLength().call();
+    const allocateBatchId = parseInt(batchNumber) + 1;
+          
+    const simulateIssue = await simulateIssueBatchCertificates(tree.root);
+          
+      if (simulateIssue) {
+      //   const tx = contract.methods.issueBatchOfCertificates(
+      //     tree.root
+      // );
+      
+      //   hash = await confirm(tx);
+
+      //   const polygonLink = `https://${process.env.NETWORK}.com/tx/${hash}`;
+
+      try {
+        // Check mongoose connection
+        const dbState = await isDBConncted();
+        if (dbState === false) {
+          console.error("Database connection is not ready");
+        } else {
+          console.log("Database connection is ready");
+          }
+          
+          var batchDetails = [];
+          for (var i = 0; i < certificatesCount; i++) {
+            var _proof = tree.getProof(i);
+            batchDetails[i] = {
+                  id: idExist.id,
+                  batchId: allocateBatchId,
+                  proofHash: _proof,
+                  transactionHash: "hash",
+                  certificateHash: hashedBatchData[i],
+                  certificateNumber: rawBatchData[i].certificationID,
+                  name: rawBatchData[i].name,
+                  course: rawBatchData[i].certificationName,
+                  grantDate: rawBatchData[i].grantDate,
+                  expirationDate: rawBatchData[i].expirationDate
+              }
+              
+            // console.log("Batch Certificate Details", batchDetails[i]);
+              // await insertBatchCertificateData(batchDetails[i]);
+        }
+        console.log("Data inserted");
+
+        res.status(200).json({
+          status: "SUCCESS",
+          message: "Batch of Certificates issued successfully",
+          polygonLink: "polygonLink",
+          details: batchDetails,
+        });
+
+        await cleanUploadFolder();
+
+        } catch (error) {
+        // Handle mongoose connection error (log it, throw an error, etc.)
+        console.error("Internal server error", error);
+      }
+      }
+      else {
+        res.status(400).json({ status: "FAILED", message: "Simulation failed for issue BatchCertificates" });
+      }
+
+  } catch (error) {
+      console.error('Error:', error);
+      return res.status(500).json({ status: 'FAILED', error: 'Internal Server Error.' });
+  }
+}
+};
+
 // Define a route that takes a hash parameter
 const polygonLink = async (req, res) => {
   res.json({ linkUrl });
@@ -441,9 +607,7 @@ const verify = async (req, res) => {
   await cleanUploadFolder();
 };
 
-
 // Verify certificate with ID
-
 const verifyWithId = async (req, res) => {
   inputId = req.body.id;
 
@@ -534,6 +698,37 @@ const decodeCertificate = async (req, res) => {
       res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
+// API call for Batch Certificates verify with Certification ID
+const verifyBatchCertificate = async (req, res) => {
+
+  const { id } = req.body;
+  try {
+    // const tree = StandardMerkleTree.load(JSON.parse(fs.readFileSync('tree.json', 'utf8')));
+    const issueExist = await BatchIssues.findOne({ certificateNumber: id });
+  
+  if (issueExist) {
+      const batchNumber = (issueExist.batchId)-1;
+      const dataHash = issueExist.certificateHash;
+      const proof = issueExist.proofHash;
+
+      // Blockchain processing.
+      const contract = await web3i();
+
+      const val = await contract.methods.verifyCertificateInBatch(batchNumber, dataHash, proof).call();
+
+      return res.status(val ? 200 : 400).json({ status: val ? 'SUCCESS' : 'FAILED', Message: val ? (`Verified Certificate: ${issueExist.certificateNumber}`) : 'Invalid Certificate ID' });
+    
+    } else {
+        
+    return res.status(400).json({ status: 'FAILED', error: 'Invalid Certificate ID' });
+    }
+      }
+  catch (error) {
+    console.error('Error:', error);
+    return res.status(500).json({ status: 'FAILED', error: 'Internal Server Error.' });
+  }
+}; 
 
 // Admin Signup
 const signup = async (req, res) => {
@@ -877,9 +1072,10 @@ const approveIssuer = async (req, res) => {
 
     // Save verification details
     user.approved = true;
+    user.status = 1;
+    user.rejectedDate = null;
     await user.save();
     
-
     // Respond with success message indicating user approval
     res.json({
         status: "SUCCESS",
@@ -892,6 +1088,75 @@ const approveIssuer = async (req, res) => {
     res.json({
       status: 'FAILED',
       message: "An error occurred during the Issuer approved process!",
+    });
+  }
+};
+
+// Reject Issuer
+const rejectIssuer = async (req, res) => {
+  let { email } = req.body;
+  try {
+    // Check mongoose connection
+      const dbState = await isDBConncted();
+      if (dbState === false) {
+        console.error("Database connection is not ready");
+      } else {
+        console.log("Database connection is ready");
+    }
+
+    // const list = await Blacklist.findOne({ email });
+    // if(list){
+    //   // Respond with success message indicating user approval
+    //   res.json({
+    //     status: "FAILED",
+    //     message: "Blacklisted User"
+    // });
+    // }  else {
+
+    // Find user by email
+    const user = await User.findOne({ email });
+    
+    // If user doesn't exist, return failure response
+    if (!user) {
+      return res.json({
+        status: 'FAILED',
+        message: 'User not found!',
+      });
+    }
+
+    // If user is already rejected, send email and return success response
+    if (user.status == 2) {
+      await rejectEmail(user.name, email);
+      return res.json({
+        status: 'SUCCESS',
+        message: 'User Rejected!',
+      });
+    }
+    
+    // If user is not approved yet, send email and update user's approved status
+    const mailStatus = await rejectEmail(user.name, email);
+    const mailresponse = (mailStatus === true) ? "sent" : "NA";
+
+    // Save Issuer rejected details
+    user.approved = false;
+    user.status = 2;
+    user.rejectedDate = Date.now();
+    await user.save();
+    
+    // Respond with success message indicating user approval
+    res.json({
+        status: "SUCCESS",
+        email: mailresponse,
+        message: "User Rejected successfully"
+     });
+
+    // } 
+
+  } catch (error) {
+    // Error occurred during user approval process, respond with failure message
+    res.json({
+      status: 'FAILED',
+      message: "An error occurred during the Issuer rejected process!",
     });
   }
 };
@@ -1041,12 +1306,52 @@ const checkBalance = async (req, res) => {
   }
 };
 
+
+// Test Function
+const testFunction = async (req, res) => {
+  // Test method
+  // Extracting required data from the request body
+  const email = req.body.email;
+   try {
+    // Check if user with provided email exists
+    const user = await User.findOne({ email });
+
+    if (user) {
+
+    //   const newBlacklist = new Blacklist({
+    //     issuerId: user.id, 
+    //     email: user.email,
+    //     terminated: true,
+    // });
+
+    // await newBlacklist.save();
+    //   // Delete the user
+    //   await user.remove();
+    //   console.log(`Deleted user with given email: ${user.email}`);
+
+    const targetDate = user.rejectedDate;
+    console.log("The date", targetDate != null ? targetDate : "Not set");
+
+      res.status(200).json({ message: "Operation Successful" });
+    } else {
+      res.status(400).json({ message: "Invalid Email" });
+    }
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+  
+};
+
 module.exports = {
   // Function to issue a PDF certificate
   issuePdf,
 
   // Function to issue a certificate
   issue,
+
+  // Function to issue a Batch of certificates
+  batchCertificateIssue,
 
   // Function to generate a Polygon link for a certificate
   polygonLink,
@@ -1056,6 +1361,9 @@ module.exports = {
 
   // Function to verify a certificate with an ID
   verifyWithId,
+
+  // Function to verify a Batch certificate with an ID
+  verifyBatchCertificate,
 
   // Function to handle admin signup
   signup,
@@ -1075,6 +1383,9 @@ module.exports = {
   // Function to approve an issuer
   approveIssuer,
 
+   // Function to reject an issuer
+  rejectIssuer,
+
   // Function to add a trusted owner
   addTrustedOwner,
 
@@ -1085,5 +1396,7 @@ module.exports = {
   checkBalance,
 
   // Function to decode a certificate
-  decodeCertificate
+  decodeCertificate,
+
+  testFunction
 };

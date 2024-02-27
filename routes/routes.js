@@ -21,6 +21,9 @@ const storage = multer.diskStorage({
 // Initialize multer with configured storage and file filter
 const _upload = multer({ storage, fileFilter });
 
+// const __upload = multer({ storage, excelFilter });
+const __upload = multer({dest: "uploads/"});
+
 /**
  * @swagger
  * /api/issue:
@@ -99,7 +102,8 @@ const _upload = multer({ storage, fileFilter });
  *                   description: Error message for internal server error.
  */
 
-router.post('/issue',ensureAuthenticated, _upload.single("pdfFile"), adminController.issue);
+// router.post('/issue',ensureAuthenticated, _upload.single("pdfFile"), adminController.issue);
+router.post('/issue', _upload.single("pdfFile"), adminController.issue);
 
 /**
  * @swagger
@@ -176,8 +180,83 @@ router.post('/issue',ensureAuthenticated, _upload.single("pdfFile"), adminContro
  *                   description: Error message for internal server error.
  */
 
+// router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminController.issuePdf);
+router.post('/issue-pdf', _upload.single("file"), adminController.issuePdf);
 
-router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminController.issuePdf);
+/**
+ * @swagger
+ * /api/batch-certificate-issue:
+ *   post:
+ *     summary: Batch Issue Certificates
+ *     description: Endpoint to batch issue certificates and store data on the blockchain
+ *     tags: [Issue Batch (*Upload Excel)]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: The issuer email.
+ *               excelFile:
+ *                 type: string
+ *                 format: binary
+ *                 description: Excel file to be uploaded
+ *             required:
+ *               - email
+ *     responses:
+ *       '200':
+ *         description: Batch issuance successful
+ *         content:
+ *           application/json:
+ *             example:
+ *               status: "SUCCESS"
+ *               message: Batch of Certificates issued successfully
+ *               polygonLink: https://your-network.com/tx/transactionHash
+ *               details:
+ *                 - issuerId: 2323a323cb
+ *                   batchID: 1
+ *                   proofHash: [3232a12212]
+ *                   transactionHash: 12345678
+ *                   certuficateHash: 122113523
+ *                   certificateNumber: ASD2121
+ *                   name: ABC
+ *                   course: Advanced AI
+ *                   grantDate: 12-12-24
+ *                   expirationDate: 12-12-25
+ *                   issueDate: 12-12-24
+ *                 - issuerId: 2323a323cb
+ *                   batchID: 1
+ *                   proofHash: [3232a12213]
+ *                   transactionHash: 12345673
+ *                   certuficateHash: 122113529
+ *                   certificateNumber: ASD3131
+ *                   name: XYZ
+ *                   course: Advanced AI
+ *                   grantDate: 12-11-24
+ *                   expirationDate: 12-11-25
+ *                   issueDate: 12-11-24
+ *                 # Add more certificates details if needed
+ *       '400':
+ *         description: Bad Request
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: Bad Request
+ *               status: "FAILED"
+ *               message: Please provide valid Certificate details / Simulation for the IssueCertificate failed
+ *       '500':
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             example:
+ *               status: "FAILED"
+ *               error: Internal Server Error
+ */
+router.post('/batch-certificate-issue', __upload.single("excelFile"), adminController.batchCertificateIssue);
+
 
 // /**
 //  * @swagger
@@ -305,6 +384,49 @@ router.post('/verify', _upload.single("pdfFile"), adminController.verify);
  */
 
 router.post('/verify-with-id', adminController.verifyWithId);
+
+/**
+ * @swagger
+ * /api/verify-batch-certificate:
+ *   post:
+ *     summary: Verify Certificate ID in Batch Certificates
+ *     description: Endpoint to verify if a ID exists in the Batch Certificate
+ *     tags: [Batch Certificate Verifier]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               id:
+ *                 type: string
+ *                 description: ID to be verified in the Batch Certificate
+ *                 example: "1234567efgh"
+ *     responses:
+ *       '200':
+ *         description: ID is verified in the Batch Certificate
+ *         content:
+ *           application/json:
+ *             example:
+ *               status: "SUCCESS"
+ *               Message: "Verified"
+ *       '400':
+ *         description: Hash verification failed
+ *         content:
+ *           application/json:
+ *             example:
+ *               status: "FAILED"
+ *               Message: "Invalid Certificate ID"
+ *       '500':
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             example:
+ *               status: "FAILED"
+ *               error: "Internal Server Error."
+ */
+router.post('/verify-batch-certificate', adminController.verifyBatchCertificate);
 
 /**
  * @swagger
@@ -652,7 +774,7 @@ router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers
  * @swagger
  * /api/approve-issuer:
  *   post:
- *     summary: Approve a user
+ *     summary: Approve an Issuer
  *     tags: [Admin]
  *     requestBody:
  *       required: true
@@ -690,7 +812,7 @@ router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers
  *                   example: FAILED
  *                 message:
  *                   type: string
- *                   example: User not found (or) User Approved!
+ *                   example: User not found!
  *       500:
  *         description: Internal server error
  *         content:
@@ -706,7 +828,69 @@ router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers
  *                   example: An error occurred during the user approved process!
  */
 
-router.post('/approve-issuer',ensureAuthenticated, adminController.approveIssuer);
+// router.post('/approve-issuer',ensureAuthenticated, adminController.approveIssuer);
+router.post('/approve-issuer', adminController.approveIssuer);
+
+/**
+ * @swagger
+ * /api/reject-issuer:
+ *   post:
+ *     summary: Reject an Issuer
+ *     tags: [Admin]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: User's email address
+ *     responses:
+ *       200:
+ *         description: User rejected successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: SUCCESS
+ *                 message:
+ *                   type: string
+ *                   example: User Rejected successfully
+ *       400:
+ *         description: Bad request or user not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: User not found!
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred during the user rejected process!
+ */
+
+// router.post('/reject-issuer',ensureAuthenticated, adminController.rejectIssuer);
+router.post('/reject-issuer', adminController.rejectIssuer);
 
 /**
  * @swagger
@@ -935,4 +1119,7 @@ router.get('/check-balance',ensureAuthenticated, adminController.checkBalance);
 
 
 router.post('/verify-encrypted', (req, res) => adminController.decodeCertificate(req, res));
+
+router.post('/test-function', (req, res) => adminController.testFunction(req, res));
+
 module.exports=router;

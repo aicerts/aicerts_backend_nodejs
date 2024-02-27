@@ -15,6 +15,7 @@ const jsQR = require("jsqr"); // JavaScript QR code reader
 const { ethers } = require("ethers"); // Ethereum JavaScript library
 const mongoose = require("mongoose"); // MongoDB object modeling tool
 const nodemailer = require('nodemailer'); // Module for sending emails
+const readXlsxFile = require('read-excel-file/node');
 
 const {  decryptData, generateEncryptedUrl } = require("../common/cryptoFunction"); // Custom functions for cryptographic operations
 
@@ -79,8 +80,54 @@ const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, _provider);
 const _contract = new ethers.Contract(contractAddress, abi, wallet);
 
 
-// Import the Issues model from the schema defined in "../config/schema"
-const { Issues } = require("../config/schema");
+// Import the Issues models from the schema defined in "../config/schema"
+const { Issues, BatchIssues } = require("../config/schema");
+
+// Example usage: Excel Headers
+const expectedHeadersSchema = [
+  'certificationID',
+  'name',
+  'certificationName',
+  'grantDate',
+  'expirationDate'
+];
+
+// Fetch records from the excel file
+const fetchExcelRecord = async (_path) => {
+  // api to fetch excel data into json
+  const newPath = path.join(..._path.split("\\"));
+  const sheetNames = await readXlsxFile.readSheetNames(newPath);
+  try {
+    if(sheetNames == "Batch"){
+      // api to fetch excel data into json
+      const rows = await readXlsxFile(newPath, {sheet: 'Batch'});
+      // Check if the extracted headers match the expected pattern
+      const isValidHeaders = JSON.stringify(rows[0]) === JSON.stringify(expectedHeadersSchema);
+      if(isValidHeaders){
+        const headers = rows.shift();
+        const targetData = rows.map(row => {
+          const obj = {};
+          headers.forEach((header, index) => {
+            obj[header] = row[index];
+          });
+          return obj; // Return the fetched rows
+        });
+  
+        return { status: "SUCCESS", response: true, message: [targetData, rows.length, rows] };
+
+      } else {
+        return { status: "FAILED", response: false, message: "Invalid headers in the Excel file." };
+      }
+    } else {
+      return { status: "FAILED", response: false, message: "The Excel Sheet name should be - Batch." };
+    }
+      
+  } catch (error) {
+      console.error('Error fetching record:', error);
+      throw error; // Rethrow the error for handling it in the caller function
+      
+  }
+}
 
 // Function to insert certificate data into MongoDB
 const insertCertificateData = async (data) => {
@@ -116,6 +163,41 @@ const insertCertificateData = async (data) => {
     // Handle errors related to database connection or insertion
     console.error("Error connecting to MongoDB:", error);
   }
+};
+
+const insertBatchCertificateData = async (data) => {
+  try {
+    
+      // Insert data into MongoDB
+      const newBatchIssue = new BatchIssues({ 
+              issuerId: data.id,
+              batchId: data.batchId,
+              proofHash: data.proofHash,
+              transactionHash: data.transactionHash,
+              certificateHash: data.certificateHash,
+              certificateNumber: data.certificateNumber,
+              name: data.name,
+              course: data.course,
+              grantDate: data.grantDate,
+              expirationDate: data.expirationDate,
+              issueDate: Date.now()
+      });
+      
+      const result = await newBatchIssue.save();
+
+      // const idExist = await User.findOne({ id: data.id });
+
+      // if(idExist) {
+      //   const previousCount = await idExist.counter;
+      //   idExist.counter = previousCount+1;
+      //   User.save();
+      // } else {
+      //   console.log("Counter not updated");
+      // }
+      // console.log("Batch Certificate data inserted");
+      } catch (error) {
+        console.error("Error connecting to MongoDB:", error);
+    }
 };
 
 const extractCertificateInfo = (qrCodeText) => {
@@ -281,7 +363,7 @@ const addLinkToPdf = async (
     const pdfDc = await PDFDocument.create();
     // Adding QR code to the PDF page
     const pngImage = await pdfDoc.embedPng(qrCode); // Embed QR code image
-    const pngDims = pngImage.scale(0.36); // Scale QR code image
+    const pngDims = pngImage.scale(0.31); // Scale QR code image
 
     page.drawImage(pngImage, {
         x: width - pngDims.width - 117,
@@ -410,6 +492,29 @@ const simulateIssueCertificate = async (certificateNumber, hash) => {
   }
 };
 
+const simulateIssueBatchCertificates = async (hash) => {
+  // Replace with your actual function name and arguments
+  const functionName = 'formRoot';
+  const functionArguments = [hash];
+  try {
+    const result = await _contract.populateTransaction.issueBatchOfCertificates(hash);
+
+    // const gasEstimate = await _contract.estimateGas[functionName](...functionArguments);
+    // console.log(`Estimated gas required for issueBatchCertificate : `, gasEstimate.toString());
+    const resultData = result.data;
+    if (resultData.length > 0) {
+      return true;
+    } else {
+      return false;
+    }
+    } catch (e) {
+    if (e.code == ethers.errors.CALL_EXCEPTION) {
+      console.log("Simulation failed for issue BatchCertificates.");
+      return false;
+    }
+  }
+};
+
 const simulateTrustedOwner = async (contractFunction, address) => {
   // Replace with your actual function name and arguments
   const functionArguments = [address];
@@ -459,6 +564,17 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
+const excelFilter = (req, file, cb) => {
+  if (file.mimetype === "application/vnd.ms-excel" || file.mimetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") {
+    cb(null, true);
+  } else {
+    cb(
+      new Error("Invalid file type. Only Excel files (XLS, XLSX) are allowed."),
+      false
+    );
+  }
+};
+
 const cleanUploadFolder = async () => {
   const uploadFolder = '/uploads'; // Specify the folder path you want
   const folderPath = path.join(__dirname, '..', uploadFolder);
@@ -467,10 +583,8 @@ const cleanUploadFolder = async () => {
   const filesInFolder = fs.readdirSync(folderPath);
 
   if (filesInFolder.length > 0) {
-    // Filter only PDF files
-    const pdfFilesInFolder = filesInFolder.filter(file => file.endsWith(".pdf"));
-    // Delete all PDF files in the folder
-    pdfFilesInFolder.forEach(fileToDelete => {
+    // Delete all files in the folder
+    filesInFolder.forEach(fileToDelete => {
       const filePathToDelete = path.join(folderPath, fileToDelete);
       try {
         fs.unlinkSync(filePathToDelete);
@@ -496,7 +610,7 @@ const isDBConncted = async () => {
 };
 
 
-// Email Notfication Nodemailer function
+// Email Approved Notfication function
 const sendEmail = async (name, email) => {
   // Log the details of the email recipient (name and email address)
   // console.log("Details", name, email);
@@ -522,10 +636,42 @@ You can now log in to your profile. With username ${email}`;
   }
 };
 
+// Email Rejected Notfication function
+const rejectEmail = async (name, email) => {
+  // console.log("Details", name, email);
+  try {
+      // Update the mailOptions object with the recipient's email address and email body
+      mailOptions.to = email;
+      mailOptions.text = `Hi ${name}, 
+      We regret to inform you that your account registration has been declined by the admin. 
+      If you have any questions or concerns, please feel free to contact us. 
+      Thank you for your interest.`;
+  
+      // Send the email using the configured transporter
+      transporter.sendMail(mailOptions);
+      console.log('Email sent successfully');
+
+      // Return true to indicate that the email was sent successfully
+      return true;
+  } catch (error) {
+      // Log an error message if there was an error sending the email
+      console.error('Error sending email:', error);
+
+      // Return false to indicate that the email sending failed
+      return false;
+  }
+};
+
 
 module.exports = {
+  // Fetch & validate excel file records
+  fetchExcelRecord,
+
   // Function to insert certificate data into MongoDB
   insertCertificateData,
+
+  // Insert Batch certificate data into Database
+  insertBatchCertificateData,
 
   // Function to extract certificate information from a QR code text
   extractCertificateInfo,
@@ -545,8 +691,11 @@ module.exports = {
   // Function to confirm and send a transaction on the Ethereum blockchain
   confirm,
 
-  // Function for filtering file uploads based on MIME type
+  // Function for filtering file uploads based on MIME type Pdf
   fileFilter,
+
+  // Function for filtering file uploads based on MIME type Excel
+  excelFilter,
 
   // Function to simulate adding or removing a trusted owner
   simulateTrustedOwner,
@@ -554,12 +703,18 @@ module.exports = {
   // Function to simulate issuing a certificate
   simulateIssueCertificate,
 
+  // Function to simulate Batch issuing a certificate
+  simulateIssueBatchCertificates,
+
   // Function to clean up the upload folder
   cleanUploadFolder,
 
   // Function to check if MongoDB is connected
   isDBConncted,
 
-  // Function to send an email
-  sendEmail
+  // Function to send an email (approved)
+  sendEmail,
+
+  // Function to send an email (rejected)
+  rejectEmail
 };
