@@ -42,7 +42,7 @@ const {
   simulateIssueBatchCertificates, // Function to simulate issuing a Batch of certificate
   simulateTrustedOwner, // Function to simulate a trusted owner
   cleanUploadFolder, // Function to clean up the upload folder
-  isDBConncted, // Function to check if the database connection is established
+  isDBConnected, // Function to check if the database connection is established
   sendEmail, // Function to send an email on approved
   rejectEmail // Function to send an email on rejected
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
@@ -165,7 +165,7 @@ const issuePdf = async (req, res) => {
       }
 
       const qrCodeImage = await QRCode.toDataURL(qrCodeData, {
-        errorCorrectionLevel: "H",
+        errorCorrectionLevel: "H", width: 350, height: 350
       });
 
         file = req.file.path;
@@ -186,7 +186,7 @@ const issuePdf = async (req, res) => {
 
         try {
           // Check mongoose connection
-          const dbState = await isDBConncted();
+          const dbState = await isDBConnected();
           if (dbState === false) {
             console.error("Database connection is not ready");
           } else {
@@ -355,14 +355,14 @@ const issue = async (req, res) => {
 
       const qrCodeImage = await QRCode.toDataURL(qrCodeData, {
         errorCorrectionLevel: "H",
-        width: 300, // Adjust the width as needed
-        height: 300, // Adjust the height as needed
+        width: 350, // Adjust the width as needed
+        height: 350, // Adjust the height as needed
       });
 
 
         try {
           // Check mongoose connection
-          const dbState = await isDBConncted();
+          const dbState = await isDBConnected();
           if (dbState === false) {
             console.error("Database connection is not ready");
           } else {
@@ -511,7 +511,7 @@ const batchCertificateIssue = async (req, res) => {
 
       try {
         // Check mongoose connection
-        const dbState = await isDBConncted();
+        const dbState = await isDBConnected();
         if (dbState === false) {
           console.error("Database connection is not ready");
         } else {
@@ -620,23 +620,18 @@ const verifyWithId = async (req, res) => {
       const certificateNumber = inputId;
     try {
           // Check mongoose connection
-          const dbState = await isDBConncted();
+          const dbState = await isDBConnected();
           if (dbState === false) {
             console.error("Database connection is not ready");
           } else {
             console.log("Database connection is ready");
           }
       var certificateExist = await Issues.findOne({ certificateNumber });
-      if(certificateExist) {
-      var isCertificateValid = response[0] == true && response[1] == certificateExist.certificateNumber;
-      } else {
-        isCertificateValid = false;
-      }
-      const message = isCertificateValid ? "Verified: Certificate details available" : "Certificate details not available";
 
       const verificationResponse = {
-        message: message,
-        details: (isCertificateValid) ? certificateExist : certificateNumber
+        status: "SUCCESS",
+        message: "Valid Certificate",
+        details: (certificateExist) ? certificateExist : certificateNumber
       };
       res.status(200).json(verificationResponse);
       
@@ -649,7 +644,7 @@ const verifyWithId = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       status: "FAILED",
-      message: error,
+      message: "Internal Server error",
     });
   } 
 
@@ -768,7 +763,7 @@ const signup = async (req, res) => {
   } else {
     try {
       // Check mongoose connection
-      const dbState = await isDBConncted();
+      const dbState = await isDBConnected();
       if (dbState === false) {
         console.error("Database connection is not ready");
       } else {
@@ -826,7 +821,7 @@ const login = async (req, res) => {
     });
   } else {
     // Check database connection
-      const dbState = await isDBConncted();
+      const dbState = await isDBConnected();
       if (dbState === false) {
         console.error("Database connection is not ready");
       } else {
@@ -905,7 +900,7 @@ const logout = async (req, res) => {
   let { email } = req.body;
   try {
     // Check mongoose connection
-      const dbState = await isDBConncted();
+      const dbState = await isDBConnected();
       if (dbState === false) {
         console.error("Database connection is not ready");
       } else {
@@ -947,7 +942,7 @@ const resetPassword = async (req, res) => {
   let { email, password } = req.body;
   try {
     // Check database connection
-      const dbState = await isDBConncted();
+      const dbState = await isDBConnected();
       if (dbState === false) {
         console.error("Database connection is not ready");
       } else {
@@ -1009,7 +1004,7 @@ const resetPassword = async (req, res) => {
 const getAllIssuers = async (req, res) => {
   try {
     // Check mongoose connection
-      const dbState = await isDBConncted();
+      const dbState = await isDBConnected();
       if (dbState === false) {
         console.error("Database connection is not ready");
       } else {
@@ -1039,7 +1034,7 @@ const approveIssuer = async (req, res) => {
   let { email } = req.body;
   try {
     // Check mongoose connection
-      const dbState = await isDBConncted();
+      const dbState = await isDBConnected();
       if (dbState === false) {
         console.error("Database connection is not ready");
       } else {
@@ -1097,7 +1092,7 @@ const rejectIssuer = async (req, res) => {
   let { email } = req.body;
   try {
     // Check mongoose connection
-      const dbState = await isDBConncted();
+      const dbState = await isDBConnected();
       if (dbState === false) {
         console.error("Database connection is not ready");
       } else {

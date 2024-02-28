@@ -5,6 +5,8 @@ const cron = require('node-cron');
 // Import the mongoose library for MongoDB interaction
 const mongoose = require("mongoose");
 
+const utils = require('./utils.js');
+
 // Import the Blacklist model from the schema defined in "./schema"
 const { User, Blacklist } = require("./schema");
 
@@ -13,10 +15,7 @@ const schedule_days = parseInt(process.env.SCHEDULE_DAYS);
 
 // Connect to MongoDB using the MONGODB_URI environment variable
 mongoose
-  .connect(process.env.MONGODB_URI, {
-    useNewUrlParser: true, // Use the new URL parser
-    useUnifiedTopology: true, // Use the new Server Discover and Monitoring engine
-  })
+  .connect(utils.MONGODB_URI)
   .then(() => {
     // Schedule the task to run every day at midnight
     cron.schedule('0 0 * * *', deleteRejectedRecords);

@@ -10,12 +10,15 @@ const { PDFDocument, Rectangle } = pdf;
 const fs = require("fs"); // File system module
 const path = require("path"); // Module for working with file paths
 const { fromPath } = require("pdf2pic"); // Converter from PDF to images
+const pdftopic = require("pdftopic");
+const Jimp = require("jimp");
 const { PNG } = require("pngjs"); // PNG image manipulation library
 const jsQR = require("jsqr"); // JavaScript QR code reader
 const { ethers } = require("ethers"); // Ethereum JavaScript library
 const mongoose = require("mongoose"); // MongoDB object modeling tool
 const nodemailer = require('nodemailer'); // Module for sending emails
 const readXlsxFile = require('read-excel-file/node');
+const utils = require('../config/utils.js');
 
 const {  decryptData, generateEncryptedUrl } = require("../common/cryptoFunction"); // Custom functions for cryptographic operations
 
@@ -201,7 +204,7 @@ const insertBatchCertificateData = async (data) => {
 };
 
 const extractCertificateInfo = (qrCodeText) => {
-  // console.log("QR Code Text", qrCodeText);
+  console.log("QR Code Text", qrCodeText);
   // Check if the data starts with 'http://' or 'https://'
   if (qrCodeText.startsWith('http://') ||  qrCodeText.startsWith('https://')) {
     // If it's an encrypted URL, extract the query string parameters q and iv
@@ -275,6 +278,79 @@ const extractCertificateInfo = (qrCodeText) => {
 };
 
 const extractQRCodeDataFromPDF = async (pdfFilePath) => {
+  console.log("pdf path", pdfFilePath);
+  try {
+    const options = {
+      density: 100,
+      saveFilename: "certificate",
+      savePath: "./uploads",
+      format: "png",
+      width: 2756,
+      height: 1969
+    };
+    
+    // Function to convert the entire PDF to a single image
+    const convertPDFToImage = async (pdfPath, options) => {
+      const storeAsImage = fromPath(pdfPath, options);
+      const imageBuffer = await storeAsImage();
+      return imageBuffer;
+    };
+    
+    // Path to the PDF file
+    const pdfPath = pdfFilePath;
+    const outputPath = options.savePath; // Output directory
+    
+    // Ensure output directory exists, create it if it doesn't
+    if (!fs.existsSync(outputPath)) {
+      fs.mkdirSync(outputPath, { recursive: true });
+    }
+
+    // Convert PDF to a single image
+    convertPDFToImage(pdfPath, options)
+    .then(imageBuffer => {
+      // Write the image buffer to a file
+      fs.writeFileSync(path.join(outputPath, `${options.saveFilename}.png`), imageBuffer);
+      console.log(`PDF is now converted to a single image`);
+    })
+    .catch(error => {
+      // console.log(error);
+    });
+    await holdExecution(); // Wait for 2 seconds
+    // Converted image 
+    const imagePath = path.join(outputPath, `${options.saveFilename}.1.png`);
+    console.log("Read file path", imagePath);
+    const buffer = fs.readFileSync(imagePath);
+    
+    // Assuming Jimp.read returns a Promise
+    const image = await Jimp.read(buffer);
+
+    const value = jsQR(image.bitmap.data, image.bitmap.width, image.bitmap.height);
+    if (value) {
+        // Call your other function here and pass value.result to it
+        const certificateInfo = extractCertificateInfo(value.data);
+        return certificateInfo;
+    } else {
+        // console.log('No QR code found in the image.');
+        throw new Error("QR Code not found in image.");
+        return;
+    }
+
+  } catch (error) {
+      // Log and rethrow any errors that occur during the process
+      console.error(error);
+      throw error;
+  }
+};
+
+const holdExecution = () => {
+  return new Promise(resolve => {
+    setTimeout(() => {
+      resolve();
+    }, 2500); // 2000 milliseconds = 2 seconds
+  });
+};
+
+const _extractQRCodeDataFromPDF = async (pdfFilePath) => {
   try {
       const pdf2picOptions = {
           quality: 100,
@@ -595,13 +671,10 @@ const cleanUploadFolder = async () => {
   }
 };
 
-const isDBConncted = async () => {
+const isDBConnected = async () => {
   try {
     // Attempt to establish a connection to the MongoDB database using the provided URI
-    await mongoose.connect(process.env.MONGODB_URI, {
-      useNewUrlParser: true, // Use the new URL parser
-      useUnifiedTopology: true, // Use the new Server Discover and Monitoring engine
-    });
+    await mongoose.connect(utils.MONGODB_URI);
     return true; // Return true if the connection is successful
   } catch (error) {
     console.log(error); // Log any errors that occur during the connection attempt
@@ -710,7 +783,7 @@ module.exports = {
   cleanUploadFolder,
 
   // Function to check if MongoDB is connected
-  isDBConncted,
+  isDBConnected,
 
   // Function to send an email (approved)
   sendEmail,

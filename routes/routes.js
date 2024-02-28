@@ -337,51 +337,55 @@ router.post('/verify', _upload.single("pdfFile"), adminController.verify);
  *           schema:
  *             type: object
  *             properties:
- *               hash:
+ *               id:
  *                 type: string
- *                 description: Certificate hash to be verified
-  *     responses:
+ *                 description: Certificate id to be verified
+ *     responses:
  *       200:
- *         description: Successful operation
+ *         description: Successful response
  *         content:
  *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   description: Status of the operation
- *                 response:
- *                   type: object
- *                   properties:
- *                     message:
- *                       type: string
- *                       description: Verification message
- *                     details:
- *                       type: object
- *                       description: Certificate details if available
- *                       properties:
- *                         // Define the properties of the certificate details object here
+ *            schema:
+ *              type: object
+ *              properties:
+ *                status:
+ *                  type: string
+ *                  example: "SUCCESS"
+ *                message:
+ *                  type: string
+ *                  example: "Valid Certificate"
+ *                details:
+ *                  type: object
+ *                  properties:
+ *                    // Define properties of certificate details object here
  *       400:
- *         description: Certificate not found or not valid
- *         schema:
- *           type: object
- *           properties:
- *             message:
- *               type: string
- *               description: Error message
- *             details:
- *               type: string
- *               description: Additional details about the error
+ *         description: Certificate not found
+ *         content:
+ *           application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                status:
+ *                  type: string
+ *                  example: "FAILED"
+ *                message:
+ *                  type: string
+ *                  example: "Certificate doesn't exist"
  *       500:
- *         description: Internal server error
- *         schema:
- *           type: object
- *           properties:
- *             message:
- *               type: string
- *               description: Error message
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                status:
+ *                  type: string
+ *                  example: "FAILED"
+ *                message:
+ *                  type: string
+ *                  example: "Internal Server error"
  */
+
 
 router.post('/verify-with-id', adminController.verifyWithId);
 
