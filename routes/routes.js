@@ -337,9 +337,9 @@ router.post('/verify', _upload.single("pdfFile"), adminController.verify);
  *           schema:
  *             type: object
  *             properties:
- *               hash:
+ *               id:
  *                 type: string
- *                 description: Certificate hash to be verified
+ *                 description: Certificate id to be verified
   *     responses:
  *       200:
  *         description: Successful operation
