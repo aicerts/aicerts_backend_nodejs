@@ -632,7 +632,7 @@ const verifyWithId = async (req, res) => {
       } else {
         isCertificateValid = false;
       }
-      const message = isCertificateValid ? "Verified: Certificate details available" : "Certificate details not available";
+      const message = isCertificateValid ? "Valid certificate" : "Valid Certificate";
 
       const verificationResponse = {
         message: message,
