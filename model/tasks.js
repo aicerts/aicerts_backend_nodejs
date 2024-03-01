@@ -399,6 +399,25 @@ const holdExecution = () => {
   });
 };
 
+const findRepetitiveIdNumbers = async (data) => {
+  const countMap = {};
+  const repetitiveNumbers = [];
+
+  // Count occurrences of each number
+  data.forEach((number) => {
+    countMap[number] = (countMap[number] || 0) + 1;
+  });
+
+  // Iterate through the count map to find repetitive numbers
+  for (const [key, value] of Object.entries(countMap)) {
+    if (value > 1) {
+      repetitiveNumbers.push(key);
+    }
+  }
+
+  return repetitiveNumbers;
+};
+
 const extractQRCodeDataFromPDF = async (pdfFilePath) => {
   try {
       const pdf2picOptions = {
@@ -488,7 +507,7 @@ const addLinkToPdf = async (
     const pdfDc = await PDFDocument.create();
     // Adding QR code to the PDF page
     const pngImage = await pdfDoc.embedPng(qrCode); // Embed QR code image
-    const pngDims = pngImage.scale(0.31); // Scale QR code image
+    const pngDims = pngImage.scale(0.36); // Scale QR code image
 
     page.drawImage(pngImage, {
         x: width - pngDims.width - 117,
@@ -588,7 +607,6 @@ const confirm = async (tx) => {
   return hash; // Return the transaction hash
 };
 
-
 const simulateIssueCertificate = async (certificateNumber, hash) => {
   // console.log("Passing hash & certiicate", certificateNumber, hash);
   // Replace with your actual function name and arguments
@@ -675,6 +693,38 @@ const simulateTrustedOwner = async (contractFunction, address) => {
   }
 };
 
+// Function to simulate a grant / revoke role to an address
+const simulateRoleToAddress = async (check, role, address) => {
+  // const functionArguments = [address];
+  try{
+
+        // Determine the function to simulate based on the provided role parameter
+        if(check == "grant") {
+        var roleResult = await _contract.populateTransaction.grantRole(role ,address);
+        } else if(check == "revoke"){
+        var roleResult = await _contract.populateTransaction.revokeRole(role ,address);
+        } else {
+          return false;
+        }
+        // Extract data from the result
+        const resultData = roleResult.data;
+
+        // Check if data exists (indicating success) and return true, otherwise return false
+        if (resultData.length > 0) {
+          return true; // Simulation successful
+        } else {
+          return false; // Simulation failed
+        }
+
+  }catch (e) {
+    // Handle exceptions, such as CALL_EXCEPTION, indicating simulation failure
+    if (e.code == ethers.errors.CALL_EXCEPTION) {
+      console.log("Simulation failed for Grant Role to an address.");
+      return false; // Simulation failed
+    }
+  }
+
+};
 
 const fileFilter = (req, file, cb) => {
   // Check if the file MIME type is a PDF
@@ -730,7 +780,6 @@ const isDBConnected = async () => {
     return false; // Return false if there's an error connecting to the database
   }
 };
-
 
 // Email Approved Notfication function
 const sendEmail = async (name, email) => {
@@ -798,6 +847,9 @@ module.exports = {
   // Insert Batch certificate data into Database
   insertBatchCertificateData,
 
+  // Find repetitive ID
+  findRepetitiveIdNumbers,
+
   // Function to extract certificate information from a QR code text
   extractCertificateInfo,
 
@@ -830,6 +882,9 @@ module.exports = {
 
   // Function to simulate Batch issuing a certificate
   simulateIssueBatchCertificates,
+
+  // Function to simulate a grant / revoke role to an address
+  simulateRoleToAddress,
 
   // Function to clean up the upload folder
   cleanUploadFolder,

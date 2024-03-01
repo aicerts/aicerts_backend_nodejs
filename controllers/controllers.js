@@ -31,9 +31,9 @@ const max_length = parseInt(process.env.MAX_LENGTH);
 // Importing functions from a custom module
 const {
   fetchExcelRecord,
-  isCertificationIdExisted, 
   insertCertificateData, // Function to insert certificate data into the database
   insertBatchCertificateData, // Function to insert Batch certificate data into the database
+  findRepetitiveIdNumbers,
   extractQRCodeDataFromPDF, // Function to extract QR code data from a PDF file
   addLinkToPdf, // Function to add a link to a PDF file
   calculateHash, // Function to calculate the hash of a file
@@ -42,6 +42,7 @@ const {
   simulateIssueCertificate, // Function to simulate issuing a certificate
   simulateIssueBatchCertificates, // Function to simulate issuing a Batch of certificate
   simulateTrustedOwner, // Function to simulate a trusted owner
+  simulateRoleToAddress, // Function to simulate a grant / revoke role to an address
   cleanUploadFolder, // Function to clean up the upload folder
   isDBConnected, // Function to check if the database connection is established
   sendEmail, // Function to send an email on approved
@@ -473,6 +474,13 @@ const batchCertificateIssue = async (req, res) => {
     // Initialize an empty list to store matching IDs
     const matchingIDs = [];
 
+    const repetitiveNumbers = await findRepetitiveIdNumbers(certificationIDs);
+
+    if(repetitiveNumbers.length > 0){
+      res.status(400).json({ status: "FAILED", message: "Excel file has Repetition in Certification IDs", Details: repetitiveNumbers });
+      return;
+    }
+
     // Assuming BatchIssues is your MongoDB model
     for (const id of certificationIDs) {
       const issueExist = await Issues.findOne({ certificateNumber: id });
@@ -518,13 +526,13 @@ const batchCertificateIssue = async (req, res) => {
     const simulateIssue = await simulateIssueBatchCertificates(tree.root);
           
       if (simulateIssue) {
-      //   const tx = contract.methods.issueBatchOfCertificates(
-      //     tree.root
-      // );
+        const tx = contract.methods.issueBatchOfCertificates(
+          tree.root
+      );
       
-      //   hash = await confirm(tx);
+        hash = await confirm(tx);
 
-      //   const polygonLink = `https://${process.env.NETWORK}.com/tx/${hash}`;
+        const polygonLink = `https://${process.env.NETWORK}.com/tx/${hash}`;
 
       try {
         // Check mongoose connection
@@ -542,7 +550,7 @@ const batchCertificateIssue = async (req, res) => {
                   id: idExist.id,
                   batchId: allocateBatchId,
                   proofHash: _proof,
-                  transactionHash: "hash",
+                  transactionHash: hash,
                   certificateHash: hashedBatchData[i],
                   certificateNumber: rawBatchData[i].certificationID,
                   name: rawBatchData[i].name,
@@ -552,7 +560,7 @@ const batchCertificateIssue = async (req, res) => {
               }
               
             // console.log("Batch Certificate Details", batchDetails[i]);
-              // await insertBatchCertificateData(batchDetails[i]);
+              await insertBatchCertificateData(batchDetails[i]);
         }
         console.log("Data inserted");
 
@@ -1344,6 +1352,158 @@ const removeTrustedOwner = async (req, res) => {
   }
 };
 
+// Grant Pauser/Owner Role to an Address
+const grantRoleToAddress = async (req, res) => {
+    // Initialize Web3 instance with RPC endpoint
+    const web3 = await new Web3(
+      new Web3.providers.HttpProvider(
+        process.env.RPC_ENDPOINT
+      )
+    );
+
+      // const { newOwnerAddress } = req.body;
+  try {
+    // Extract new wallet address from request body
+    const assignRole = req.body.role;
+    const newAddress = req.body.address;
+
+    // Validate Ethereum address format
+    if (!web3.utils.isAddress(newAddress)) {
+      return res.status(400).json({ message: "Invalid Ethereum address format" });
+    }
+
+    var contract = await web3i();
+
+    if(assignRole == 0 || assignRole == 1 ){
+
+      const assigningRole = (assignRole == 0) ? process.env.ADMIN_ROLE : process.env.PAUSER_ROLE;
+
+      // Blockchain processing.
+      const response = await contract.methods.hasRole(assigningRole, newAddress).call();
+      
+      if(response === true){
+        // Simulation failed, send failure response
+        return res.status(400).json({ status: "FAILED", message: "Address Existed in the Blockchain" });
+      } else if(response === false) {
+        // Simulate grant Admin role
+        const simulateGrantRole = await simulateRoleToAddress("grant", assigningRole, newAddress);
+
+      // If simulation successful, proceed to grant role to the Address
+      if (simulateGrantRole) {
+
+        // Prepare transaction to add trusted owner
+        const tx = contract.methods.grantRole(assigningRole ,newAddress);
+
+        // Confirm transaction
+        const hash = await confirm(tx);
+
+        const messageInfo = (assignRole == 0) ? "Admin Role Granted" : "Pauser Role Granted";
+
+        // Prepare success response
+        const responseMessage = {
+          status: "SUCCESS",
+          message: messageInfo,
+          details: `https://${process.env.NETWORK}.com/tx/${hash}`
+        };
+
+        // Send success response
+        res.status(200).json(responseMessage);
+      } else {
+        // Simulation failed, send failure response
+        return res.status(400).json({ status: "FAILED", message: "Simulation failed" });
+      }
+
+      } else {
+        return res.status(500).json({ status: "FAILED", message: "Internal Server Error" });
+      }
+
+    } else{
+      return res.status(400).json({ status: "FAILED", message: "Invalid Role assigned" });
+    }
+
+  } catch (error) {
+    // Internal server error occurred, send failure response
+    console.error(error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+// Revoke Pauser/Owner Role from the Address
+const revokeRoleFromAddress = async (req, res) => {
+  // Initialize Web3 instance with RPC endpoint
+  const web3 = await new Web3(
+    new Web3.providers.HttpProvider(
+      process.env.RPC_ENDPOINT
+    )
+  );
+
+    // const { newOwnerAddress } = req.body;
+try {
+  // Extract new wallet address from request body
+  const assignRole = req.body.role;
+  const newAddress = req.body.address;
+
+  // Validate Ethereum address format
+  if (!web3.utils.isAddress(newAddress)) {
+    return res.status(400).json({ message: "Invalid Ethereum address format" });
+  }
+
+  var contract = await web3i();
+
+  if(assignRole == 0 || assignRole == 1 ){
+
+    const assigningRole = (assignRole == 0) ? process.env.ADMIN_ROLE : process.env.PAUSER_ROLE;
+
+    // Blockchain processing.
+    const response = await contract.methods.hasRole(assigningRole, newAddress).call();
+    
+    if(response === false){
+      // Simulation failed, send failure response
+      return res.status(400).json({ status: "FAILED", message: "Address Doesn't Existed in the Blockchain" });
+    } else if(response === true) {
+      // Simulate grant Admin role
+      const simulateGrantRole = await simulateRoleToAddress("revoke", assigningRole, newAddress);
+
+    // If simulation successful, proceed to grant role to the Address
+    if (simulateGrantRole) {
+
+      // Prepare transaction to add trusted owner
+      const tx = contract.methods.grantRole(assigningRole ,newAddress);
+
+      // Confirm transaction
+      const hash = await confirm(tx);
+
+      const messageInfo = (assignRole == 0) ? "Admin Role Revoked" : "Pauser Role Revoked";
+
+      // Prepare success response
+      const responseMessage = {
+        status: "SUCCESS",
+        message: messageInfo,
+        details: `https://${process.env.NETWORK}.com/tx/${hash}`
+      };
+
+      // Send success response
+      res.status(200).json(responseMessage);
+    } else {
+      // Simulation failed, send failure response
+      return res.status(400).json({ status: "FAILED", message: "Simulation failed" });
+    }
+
+    } else {
+      return res.status(500).json({ status: "FAILED", message: "Internal Server Error" });
+    }
+
+  } else{
+    return res.status(400).json({ status: "FAILED", message: "Invalid Role assigned" });
+  }
+
+} catch (error) {
+  // Internal server error occurred, send failure response
+  console.error(error);
+  res.status(500).json({ message: "Internal Server Error" });
+}
+};
+
 // Check Balance
 const checkBalance = async (req, res) => {
   // Initialize Web3 instance with RPC endpoint
@@ -1384,7 +1544,6 @@ const checkBalance = async (req, res) => {
       res.status(500).json({ message: "Internal Server Error" });
   }
 };
-
 
 // Test Function
 // const testFunction = async (req, res) => {
@@ -1462,6 +1621,12 @@ module.exports = {
 
   // Function to remove a trusted owner
   removeTrustedOwner,
+
+  // Function to grant role to an address
+  grantRoleToAddress,
+
+  // Function to revoke role from the address
+  revokeRoleFromAddress,
 
   // Function to check the balance of an Ethereum address
   checkBalance,

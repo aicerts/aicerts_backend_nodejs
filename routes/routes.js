@@ -102,7 +102,8 @@ const __upload = multer({dest: "uploads/"});
  *                   description: Error message for internal server error.
  */
 
-// router.post('/issue',ensureAuthenticated, _upload.single("pdfFile"), adminController.issue);
+router.post('/issue',ensureAuthenticated, _upload.single("pdfFile"), adminController.issue);
+// router.post('/issue', _upload.single("pdfFile"), adminController.issue);
 
 /**
  * @swagger
@@ -254,6 +255,7 @@ router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminContr
  *               status: "FAILED"
  *               error: Internal Server Error
  */
+
 router.post('/batch-certificate-issue', ensureAuthenticated, __upload.single("excelFile"), adminController.batchCertificateIssue);
 // router.post('/batch-certificate-issue', __upload.single("excelFile"), adminController.batchCertificateIssue);
 
@@ -896,8 +898,8 @@ router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers
  *                   example: An error occurred during the user approved process!
  */
 
-router.post('/approve-issuer',ensureAuthenticated, adminController.approveIssuer);
-// router.post('/approve-issuer', adminController.approveIssuer);
+// router.post('/approve-issuer',ensureAuthenticated, adminController.approveIssuer);
+router.post('/approve-issuer', adminController.approveIssuer);
 
 /**
  * @swagger
@@ -957,8 +959,8 @@ router.post('/approve-issuer',ensureAuthenticated, adminController.approveIssuer
  *                   example: An error occurred during the user rejected process!
  */
 
-router.post('/reject-issuer',ensureAuthenticated, adminController.rejectIssuer);
-// router.post('/reject-issuer', adminController.rejectIssuer);
+// router.post('/reject-issuer',ensureAuthenticated, adminController.rejectIssuer);
+router.post('/reject-issuer', adminController.rejectIssuer);
 
 /**
  * @swagger
@@ -1067,6 +1069,142 @@ router.post('/add-trusted-owner',ensureAuthenticated, adminController.addTrusted
  */
 
 router.post('/remove-trusted-owner',ensureAuthenticated, adminController.removeTrustedOwner);
+
+/**
+ * @swagger
+ * /api/grant-role-to-address:
+ *   post:
+ *     summary: Grant Admin / Pauser role to an address
+ *     tags: [Blockchain]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               role:
+ *                 type: integer
+ *                 description: Role to be assigned (0 for Admin, 1 for Pauser)
+ *               address:
+ *                 type: string
+ *                 format: ethereum-address
+ *                 description: Ethereum address to which the role will be assigned
+ *     responses:
+ *       200:
+ *         description: Role successfully granted to the address
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the operation
+ *                 message:
+ *                   type: string
+ *                   description: Details of the operation result
+ *                 details:
+ *                   type: string
+ *                   description: URL to view transaction details on the blockchain explorer
+ *       400:
+ *         description: Bad request or invalid role assigned
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the operation
+ *                 message:
+ *                   type: string
+ *                   description: Reason for the failure
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the operation
+ *                 message:
+ *                   type: string
+ *                   description: Details of the internal server error
+ */
+
+router.post('/grant-role-to-address',ensureAuthenticated, adminController.grantRoleToAddress);
+// router.post('/grant-role-to-address', adminController.grantRoleToAddress);
+
+/**
+ * @swagger
+ * /api/revoke-role-from-address:
+ *   post:
+ *     summary: Revoke Admin / Pauser role from the address
+ *     tags: [Blockchain]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               role:
+ *                 type: integer
+ *                 description: Role to be revoked (0 for Admin, 1 for Pauser)
+ *               address:
+ *                 type: string
+ *                 format: ethereum-address
+ *                 description: Ethereum address to which the role will be revoked
+ *     responses:
+ *       200:
+ *         description: Role successfully revoked from the address
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the operation
+ *                 message:
+ *                   type: string
+ *                   description: Details of the operation result
+ *                 details:
+ *                   type: string
+ *                   description: URL to view transaction details on the blockchain explorer
+ *       400:
+ *         description: Bad request or invalid role assigned
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the operation
+ *                 message:
+ *                   type: string
+ *                   description: Reason for the failure
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the operation
+ *                 message:
+ *                   type: string
+ *                   description: Details of the internal server error
+ */
+
+router.post('/revoke-role-from-address',ensureAuthenticated, adminController.revokeRoleFromAddress);
+// router.post('/revoke-role-from-address', adminController.revokeRoleFromAddress);
 
 /**
  * @swagger
@@ -1184,7 +1322,6 @@ router.get('/check-balance',ensureAuthenticated, adminController.checkBalance);
  *                 message:
  *                   type: string
  */
-
 
 router.post('/verify-encrypted', (req, res) => adminController.decodeCertificate(req, res));
 
