@@ -84,7 +84,7 @@ const _contract = new ethers.Contract(contractAddress, abi, wallet);
 
 
 // Import the Issues models from the schema defined in "../config/schema"
-const { Issues, BatchIssues } = require("../config/schema");
+const { User, Issues, BatchIssues } = require("../config/schema");
 
 // Example usage: Excel Headers
 const expectedHeadersSchema = [
@@ -132,6 +132,35 @@ const fetchExcelRecord = async (_path) => {
   }
 }
 
+// Verify Certification ID from both collections (single / batch)
+const isCertificationIdExisted = async (id) => {
+  const dbStaus = await isDBConnected();
+  console.log("DB connected:", dbStaus);
+
+  if(id == null || id == ""){
+    return [{status: "FAILED", message: "Invalid Data"}];
+  }
+
+  const singleIssueExist = await Issues.findOne({ certificateNumber: id });
+  const batchIssueExist = await BatchIssues.findOne({ certificateNumber: id });
+
+  try{
+      if(singleIssueExist){
+
+        return [{status: "SUCCESS", message: "unit", details: singleIssueExist}];
+      } else if (batchIssueExist) {
+
+        return [{status: "SUCCESS", message: "batch", details: batchIssueExist}];
+      } else {
+
+        return [{status: "FAILED", message: "Certification ID not found"}];
+      }
+
+  }catch (error) {
+        console.error("Error during validation:", error);
+  }
+};
+
 // Function to insert certificate data into MongoDB
 const insertCertificateData = async (data) => {
   try {
@@ -151,15 +180,25 @@ const insertCertificateData = async (data) => {
     // Save the new Issues document to the database
     const result = await newIssue.save();
 
-      // const idExist = await User.findOne({ id: data.id });
+    const idExist = await User.findOne({ id: data.id });
 
-      // if(idExist) {
-      //   const previousCount = await idExist.counter;
-      //   idExist.counter = previousCount+1;
-      //   User.save();
-      // } else {
-      //   console.log("Counter not updated");
-      // }
+      if (idExist) {
+          // If user with given id exists, update certificatesIssued count
+          const previousCount = idExist.certificatesIssued || 0; // Initialize to 0 if certificatesIssued field doesn't exist
+          idExist.certificatesIssued = previousCount + 1;
+          await idExist.save(); // Save the changes to the existing user
+          console.log("Counter updated successfully.");
+      } else {
+          // If user with given id doesn't exist, create a new user instance
+          const newUser = new User({
+              id: data.id,
+              certificatesIssued: 1 // Initialize certificatesIssued count to 1 for the new user
+              // Add other required fields here if needed
+          });
+          await newUser.save(); // Save the new user instance
+          console.log("New user created with certificatesIssued count initialized to 1.");
+      }
+    
     // Logging confirmation message
     console.log("Certificate data inserted");
   } catch (error) {
@@ -188,23 +227,32 @@ const insertBatchCertificateData = async (data) => {
       
       const result = await newBatchIssue.save();
 
-      // const idExist = await User.findOne({ id: data.id });
+const idExist = await User.findOne({ id: data.id });
 
-      // if(idExist) {
-      //   const previousCount = await idExist.counter;
-      //   idExist.counter = previousCount+1;
-      //   User.save();
-      // } else {
-      //   console.log("Counter not updated");
-      // }
-      // console.log("Batch Certificate data inserted");
+if (idExist) {
+    // If user with given id exists, update certificatesIssued count
+    const previousCount = idExist.certificatesIssued || 0; // Initialize to 0 if certificatesIssued field doesn't exist
+    idExist.certificatesIssued = previousCount + 1;
+    await idExist.save(); // Save the changes to the existing user
+    console.log("Counter updated successfully.");
+} else {
+    // If user with given id doesn't exist, create a new user instance
+    const newUser = new User({
+        id: data.id,
+        certificatesIssued: 1 // Initialize certificatesIssued count to 1 for the new user
+        // Add other required fields here if needed
+    });
+    await newUser.save(); // Save the new user instance
+    console.log("New user created with certificatesIssued count initialized to 1.");
+}
+
       } catch (error) {
         console.error("Error connecting to MongoDB:", error);
     }
 };
 
 const extractCertificateInfo = (qrCodeText) => {
-  console.log("QR Code Text", qrCodeText);
+  // console.log("QR Code Text", qrCodeText);
   // Check if the data starts with 'http://' or 'https://'
   if (qrCodeText.startsWith('http://') ||  qrCodeText.startsWith('https://')) {
     // If it's an encrypted URL, extract the query string parameters q and iv
@@ -277,8 +325,8 @@ const extractCertificateInfo = (qrCodeText) => {
   
 };
 
-const extractQRCodeDataFromPDF = async (pdfFilePath) => {
-  console.log("pdf path", pdfFilePath);
+const _extractQRCodeDataFromPDF = async (pdfFilePath) => {
+  // console.log("pdf path", pdfFilePath);
   try {
     const options = {
       density: 100,
@@ -295,7 +343,7 @@ const extractQRCodeDataFromPDF = async (pdfFilePath) => {
       const imageBuffer = await storeAsImage();
       return imageBuffer;
     };
-    
+
     // Path to the PDF file
     const pdfPath = pdfFilePath;
     const outputPath = options.savePath; // Output directory
@@ -315,10 +363,11 @@ const extractQRCodeDataFromPDF = async (pdfFilePath) => {
     .catch(error => {
       // console.log(error);
     });
+
+    
     await holdExecution(); // Wait for 2 seconds
     // Converted image 
     const imagePath = path.join(outputPath, `${options.saveFilename}.1.png`);
-    console.log("Read file path", imagePath);
     const buffer = fs.readFileSync(imagePath);
     
     // Assuming Jimp.read returns a Promise
@@ -330,8 +379,8 @@ const extractQRCodeDataFromPDF = async (pdfFilePath) => {
         const certificateInfo = extractCertificateInfo(value.data);
         return certificateInfo;
     } else {
-        // console.log('No QR code found in the image.');
-        throw new Error("QR Code not found in image.");
+        console.log('No QR code found in the image.');
+        // throw new Error("QR Code not found in image.");
         return;
     }
 
@@ -350,7 +399,7 @@ const holdExecution = () => {
   });
 };
 
-const _extractQRCodeDataFromPDF = async (pdfFilePath) => {
+const extractQRCodeDataFromPDF = async (pdfFilePath) => {
   try {
       const pdf2picOptions = {
           quality: 100,
@@ -739,6 +788,9 @@ const rejectEmail = async (name, email) => {
 module.exports = {
   // Fetch & validate excel file records
   fetchExcelRecord,
+
+  // Verify Certification ID from both collections (single / batch)
+  isCertificationIdExisted,
 
   // Function to insert certificate data into MongoDB
   insertCertificateData,

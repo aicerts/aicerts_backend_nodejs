@@ -103,7 +103,6 @@ const __upload = multer({dest: "uploads/"});
  */
 
 // router.post('/issue',ensureAuthenticated, _upload.single("pdfFile"), adminController.issue);
-router.post('/issue', _upload.single("pdfFile"), adminController.issue);
 
 /**
  * @swagger
@@ -180,8 +179,8 @@ router.post('/issue', _upload.single("pdfFile"), adminController.issue);
  *                   description: Error message for internal server error.
  */
 
-// router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminController.issuePdf);
-router.post('/issue-pdf', _upload.single("file"), adminController.issuePdf);
+router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminController.issuePdf);
+// router.post('/issue-pdf', _upload.single("file"), adminController.issuePdf);
 
 /**
  * @swagger
@@ -255,8 +254,8 @@ router.post('/issue-pdf', _upload.single("file"), adminController.issuePdf);
  *               status: "FAILED"
  *               error: Internal Server Error
  */
-router.post('/batch-certificate-issue', __upload.single("excelFile"), adminController.batchCertificateIssue);
-
+router.post('/batch-certificate-issue', ensureAuthenticated, __upload.single("excelFile"), adminController.batchCertificateIssue);
+// router.post('/batch-certificate-issue', __upload.single("excelFile"), adminController.batchCertificateIssue);
 
 // /**
 //  * @swagger
@@ -386,8 +385,72 @@ router.post('/verify', _upload.single("pdfFile"), adminController.verify);
  *                  example: "Internal Server error"
  */
 
-
 router.post('/verify-with-id', adminController.verifyWithId);
+
+/**
+ * @swagger
+ * /api/verify-certification-id:
+ *   post:
+ *     summary: Verify Single/Batch Certificates by Certification ID
+ *     description: Verify single/batch certificates using their certification ID. It checks whether the certification ID exists in the database and validates it against blockchain records if found.
+ *     tags: [Single / Batch Verifier]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               id:
+ *                 type: string
+ *                 description: Certificate id to be verified
+ *     responses:
+ *       200:
+ *         description: Successful response
+ *         content:
+ *           application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                status:
+ *                  type: string
+ *                  example: "SUCCESS"
+ *                message:
+ *                  type: string
+ *                  example: "Valid Certificate"
+ *                details:
+ *                  type: object
+ *                  properties:
+ *                    // Define properties of certificate details object here
+ *       400:
+ *         description: Certificate not found
+ *         content:
+ *           application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                status:
+ *                  type: string
+ *                  example: "FAILED"
+ *                message:
+ *                  type: string
+ *                  example: "Certificate doesn't exist"
+ *       500:
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                status:
+ *                  type: string
+ *                  example: "FAILED"
+ *                message:
+ *                  type: string
+ *                  example: "Internal Server error"
+ */
+
+router.post('/verify-certification-id', adminController.verifyCertificationId);
 
 /**
  * @swagger
@@ -773,6 +836,7 @@ router.post('/reset-password', adminController.resetPassword);
  */
 
 router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers);
+// router.get('/get-all-issuers', adminController.getAllIssuers);
 
 /**
  * @swagger
@@ -832,8 +896,8 @@ router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers
  *                   example: An error occurred during the user approved process!
  */
 
-// router.post('/approve-issuer',ensureAuthenticated, adminController.approveIssuer);
-router.post('/approve-issuer', adminController.approveIssuer);
+router.post('/approve-issuer',ensureAuthenticated, adminController.approveIssuer);
+// router.post('/approve-issuer', adminController.approveIssuer);
 
 /**
  * @swagger
@@ -893,8 +957,8 @@ router.post('/approve-issuer', adminController.approveIssuer);
  *                   example: An error occurred during the user rejected process!
  */
 
-// router.post('/reject-issuer',ensureAuthenticated, adminController.rejectIssuer);
-router.post('/reject-issuer', adminController.rejectIssuer);
+router.post('/reject-issuer',ensureAuthenticated, adminController.rejectIssuer);
+// router.post('/reject-issuer', adminController.rejectIssuer);
 
 /**
  * @swagger
@@ -1124,6 +1188,6 @@ router.get('/check-balance',ensureAuthenticated, adminController.checkBalance);
 
 router.post('/verify-encrypted', (req, res) => adminController.decodeCertificate(req, res));
 
-router.post('/test-function', (req, res) => adminController.testFunction(req, res));
+// router.post('/test-function', (req, res) => adminController.testFunction(req, res));
 
 module.exports=router;

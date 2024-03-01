@@ -7,8 +7,8 @@ const mongoose = require("mongoose");
 
 const utils = require('./utils.js');
 
-// Import the Blacklist model from the schema defined in "./schema"
-const { User, Blacklist } = require("./schema");
+// Import the issuer model from the schema defined in "./schema"
+const { User } = require("./schema");
 
 // Parse environment variables for days to be deleted
 const schedule_days = parseInt(process.env.SCHEDULE_DAYS);
@@ -23,34 +23,33 @@ mongoose
   })
   .catch((err) => console.log(err)); // Log an error if the connection fails
 
-async function deleteRejectedRecords() {
+const deleteRejectedRecords = async() => {
+
+  try {
      // Calculate the date scheduled days ago
      const scheduledDaysAgo = new Date();
      scheduledDaysAgo.setDate(scheduledDaysAgo.getDate() - schedule_days);
 
-     try {
+     const thresholdDate = new Date(scheduledDaysAgo);
+
         // Find records with rejectedDate older than scheduledDaysAgo
         const usersToDelete = await User.find({
-            rejectedDate: { $lte: scheduledDaysAgo },
-            rejectedDate: { $ne: null } // Exclude documents where rejectedDate is null
-        });
+          //  $and : [{ rejectedDate: { $lt: thresholdDate }, approved: {$ne: true}}]
+           rejectedDate: { $lt: thresholdDate }
+         });
 
-        for (const user of usersToDelete) {
-            const newBlacklist = new Blacklist({
-                issuerId: user.id, 
-                email: user.email,
-                terminated: true,
-            });
-
-            await newBlacklist.save();
-
-            // Delete the user
-            await user.remove();
-
-            console.log(`Deleted user with rejectedDate older than 20 days: ${user}`);
-        }
-
+            // Delete the users
+            for (const user of usersToDelete) {
+              // Ensure that user is a mongoose model instance
+              if (user instanceof mongoose.Model) {
+                await User.findByIdAndDelete(user._id);
+                console.log(`Deleted user with rejectedDate older than ${schedule_days} days: ${user}`);
+              } else {
+                console.log(`Skipping user deletion. Not a valid Mongoose model instance: ${user}`);
+              }
+            }
     } catch (error) {
         console.error('Error deleting old records:', error);
     }
-}
+};
+

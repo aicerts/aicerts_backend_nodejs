@@ -19,7 +19,7 @@ const { generateJwtToken } = require("../common/authUtils");
 const Web3 = require('web3');
 
 // Import MongoDB models
-const { Admin, User, Issues, BatchIssues, Blacklist } = require("../config/schema");
+const { Admin, User, Issues, BatchIssues } = require("../config/schema");
 
 // Import bcrypt for hashing passwords
 const bcrypt = require("bcrypt");
@@ -30,7 +30,8 @@ const max_length = parseInt(process.env.MAX_LENGTH);
 
 // Importing functions from a custom module
 const {
-  fetchExcelRecord, 
+  fetchExcelRecord,
+  isCertificationIdExisted, 
   insertCertificateData, // Function to insert certificate data into the database
   insertBatchCertificateData, // Function to insert Batch certificate data into the database
   extractQRCodeDataFromPDF, // Function to extract QR code data from a PDF file
@@ -67,12 +68,15 @@ const issuePdf = async (req, res) => {
   const idExist = await User.findOne({ email });
   // Check if certificate number already exists
   const isNumberExist = await Issues.findOne({ certificateNumber: Certificate_Number });
+  // Check if certificate number already exists in the Batch
+  const isNumberExistInBatch = await BatchIssues.findOne({ certificateNumber: Certificate_Number });
 
   // Validation checks for request data
   if (
     // (!idExist || idExist.status !== 1)|| // User does not exist
     !idExist ||
-    isNumberExist || // Certificate number already exists
+    isNumberExist || // Certificate number already exists 
+    isNumberExistInBatch || // Certificate number already exists in Batch
     !Certificate_Number || // Missing certificate number
     !name || // Missing name
     !courseName || // Missing course name
@@ -86,9 +90,9 @@ const issuePdf = async (req, res) => {
     let errorMessage = "Please provide valid details";
     
     // Check for specific error conditions and update the error message accordingly
-    if (isNumberExist) {
+    if (isNumberExist || isNumberExistInBatch) {
       errorMessage = "Certificate number already exists";
-    } else if (!Certificate_Number) {
+    }else if (!Certificate_Number) {
       errorMessage = "Certificate number is required";
     } else if (Certificate_Number.length > max_length) {
       errorMessage = `Certificate number should be less than ${max_length} characters`;
@@ -165,7 +169,7 @@ const issuePdf = async (req, res) => {
       }
 
       const qrCodeImage = await QRCode.toDataURL(qrCodeData, {
-        errorCorrectionLevel: "H", width: 350, height: 350
+        errorCorrectionLevel: "H", width: 450, height: 450
       });
 
         file = req.file.path;
@@ -257,12 +261,15 @@ const issue = async (req, res) => {
   const idExist = await User.findOne({ email });
   // Check if certificate number already exists
   const isNumberExist = await Issues.findOne({certificateNumber: Certificate_Number});
+  // Check if certificate number already exists in the Batch
+  const isNumberExistInBatch = await BatchIssues.findOne({ certificateNumber: Certificate_Number });
 
   // Validation checks for request data
   if (
     // (!idExist || idExist.status !== 1)|| // User does not exist
     !idExist || // User does not exist
-    isNumberExist || // Certificate number already exists
+    isNumberExist || // Certificate number already exists 
+    isNumberExistInBatch || // Certificate number already exists in Batch
     !Certificate_Number || // Missing certificate number
     !name || // Missing name
     !courseName || // Missing course name
@@ -276,7 +283,7 @@ const issue = async (req, res) => {
       let errorMessage = "Please provide valid details";
     
       // Check for specific error conditions and update the error message accordingly
-      if (isNumberExist) {
+      if (isNumberExist || isNumberExistInBatch) {
           errorMessage = "Certificate number already exists";
       } else if (!Certificate_Number) {
           errorMessage = "Certificate number is required";
@@ -355,8 +362,8 @@ const issue = async (req, res) => {
 
       const qrCodeImage = await QRCode.toDataURL(qrCodeData, {
         errorCorrectionLevel: "H",
-        width: 350, // Adjust the width as needed
-        height: 350, // Adjust the height as needed
+        width: 450, // Adjust the width as needed
+        height: 450, // Adjust the height as needed
       });
 
 
@@ -427,7 +434,13 @@ const batchCertificateIssue = async (req, res) => {
 
   await _fs.remove(filePath);
 
-    if (!idExist || !req.file || !req.file.filename || req.file.filename === 'undefined' || excelData.response === false) {
+    if (
+      // (!idExist || idExist.status !== 1)|| // User does not exist
+      !idExist || 
+      !req.file || 
+      !req.file.filename || 
+      req.file.filename === 'undefined' || 
+      excelData.response === false) {
   
     console.log("The response is", excelData.message);
     let errorMessage = "Please provide valid details";
@@ -436,7 +449,10 @@ const batchCertificateIssue = async (req, res) => {
     }
     else if(excelData.response == false){
       errorMessage =  excelData.message;
+    // } else if(idExist.status !== 1) {
+    //   errorMessage = `Unauthorised Issuer Email`;
     } 
+    
 
     res.status(400).json({ status: "FAILED", message: errorMessage });
     return;
@@ -459,8 +475,9 @@ const batchCertificateIssue = async (req, res) => {
 
     // Assuming BatchIssues is your MongoDB model
     for (const id of certificationIDs) {
-      const issueExist = await BatchIssues.findOne({ certificateNumber: id });
-      if (issueExist) {
+      const issueExist = await Issues.findOne({ certificateNumber: id });
+      const _issueExist = await BatchIssues.findOne({ certificateNumber: id });
+      if (issueExist || _issueExist) {
         matchingIDs.push(id);
       }
     }
@@ -712,17 +729,93 @@ const verifyBatchCertificate = async (req, res) => {
 
       const val = await contract.methods.verifyCertificateInBatch(batchNumber, dataHash, proof).call();
 
-      return res.status(val ? 200 : 400).json({ status: val ? 'SUCCESS' : 'FAILED', Message: val ? (`Verified Certificate: ${issueExist.certificateNumber}`) : 'Invalid Certificate ID' });
+      return res.status(val ? 200 : 400).json({ status: val ? 'SUCCESS' : 'FAILED', Message: val ? "Valid Certification ID" : 'Invalid Certification ID', details: val ? issueExist : 'NA' });
     
     } else {
         
-    return res.status(400).json({ status: 'FAILED', error: 'Invalid Certificate ID' });
+    return res.status(400).json({ status: 'FAILED', error: 'Invalid Certification ID' });
     }
       }
   catch (error) {
     console.error('Error:', error);
     return res.status(500).json({ status: 'FAILED', error: 'Internal Server Error.' });
   }
+}; 
+
+// API call for Batch Certificates verify with Certification ID
+const verifyCertificationId = async (req, res) => {
+  const inputId = req.body.id;
+  const dbStaus = await isDBConnected();
+  console.log("DB connected:", dbStaus);
+
+ const singleIssueExist = await Issues.findOne({ certificateNumber : inputId });
+ const batchIssueExist = await BatchIssues.findOne({ certificateNumber : inputId });
+
+    // Validation checks for request data
+  if ([inputId].some(value => typeof value !== 'string' || value == 'string') || (!singleIssueExist && !batchIssueExist)) {
+    // res.status(400).json({ message: "Please provide valid details" });
+    let errorMessage = "Please provide valid details";
+    
+    // Check for specific error conditions and update the error message accordingly
+    if (inputId != "string" && singleIssueExist == null && batchIssueExist == null) {
+      errorMessage = "Certificate doesn't exist";
+    }
+
+    // Respond with error message
+    return res.status(400).json({ status: "FAILED", message: errorMessage });
+  } else {
+
+  if (singleIssueExist != null) {
+    
+    // Blockchain processing.
+    const contract = await web3i();
+    const response = await contract.methods.verifyCertificateById(singleIssueExist.certificateNumber).call();
+    if (response === true) {
+    try {
+
+      const verificationResponse = {
+        status: "SUCCESS",
+        message: "Valid Certificate",
+        details: singleIssueExist
+      };
+      res.status(200).json(verificationResponse);
+      
+      }catch (error) {
+        res.status(500).json({ status: 'FAILED', message: 'Internal Server Error.' });
+      }
+    } else {
+      res.status(400).json({ status: "FAILED", message: "Certificate doesn't exist" });
+    }
+
+    } else if(batchIssueExist != null) {
+      const batchNumber = (batchIssueExist.batchId)-1;
+      const dataHash = batchIssueExist.certificateHash;
+      const proof = batchIssueExist.proofHash;
+
+      // Blockchain processing.
+      const contract = await web3i();
+
+      const val = await contract.methods.verifyCertificateInBatch(batchNumber, dataHash, proof).call();
+
+      if (val === true) {
+        try {
+    
+          const _verificationResponse = {
+            status: "SUCCESS",
+            message: "Valid Certificate",
+            details: batchIssueExist
+          };
+          res.status(200).json(_verificationResponse);
+          
+          }catch (error) {
+            res.status(500).json({ status: 'FAILED', message: 'Internal Server Error.' });
+          }
+        } else {
+          res.status(400).json({ status: "FAILED", message: "Certificate doesn't exist" });
+        }
+    } 
+  }
+
 }; 
 
 // Admin Signup
@@ -1099,15 +1192,6 @@ const rejectIssuer = async (req, res) => {
         console.log("Database connection is ready");
     }
 
-    // const list = await Blacklist.findOne({ email });
-    // if(list){
-    //   // Respond with success message indicating user approval
-    //   res.json({
-    //     status: "FAILED",
-    //     message: "Blacklisted User"
-    // });
-    // }  else {
-
     // Find user by email
     const user = await User.findOne({ email });
     
@@ -1303,40 +1387,29 @@ const checkBalance = async (req, res) => {
 
 
 // Test Function
-const testFunction = async (req, res) => {
-  // Test method
-  // Extracting required data from the request body
-  const email = req.body.email;
-   try {
-    // Check if user with provided email exists
-    const user = await User.findOne({ email });
+// const testFunction = async (req, res) => {
+//   // Test method
+//   // Extracting required data from the request body
+//   const email = req.body.email;
+//    try {
+//     // Check if user with provided email exists
+//     const user = await User.findOne({ email });
 
-    if (user) {
+//     if (user) {
 
-    //   const newBlacklist = new Blacklist({
-    //     issuerId: user.id, 
-    //     email: user.email,
-    //     terminated: true,
-    // });
+//     const targetDate = user.rejectedDate;
+//     console.log("The date", targetDate != null ? targetDate : "Not set");
 
-    // await newBlacklist.save();
-    //   // Delete the user
-    //   await user.remove();
-    //   console.log(`Deleted user with given email: ${user.email}`);
-
-    const targetDate = user.rejectedDate;
-    console.log("The date", targetDate != null ? targetDate : "Not set");
-
-      res.status(200).json({ message: "Operation Successful" });
-    } else {
-      res.status(400).json({ message: "Invalid Email" });
-    }
-  } catch (error) {
-    console.error('Error deleting user:', error);
-    res.status(500).json({ message: "Internal Server Error" });
-  }
+//       res.status(200).json({ message: "Operation Successful" });
+//     } else {
+//       res.status(400).json({ message: "Invalid Email" });
+//     }
+//   } catch (error) {
+//     console.error('Error deleting user:', error);
+//     res.status(500).json({ message: "Internal Server Error" });
+//   }
   
-};
+// };
 
 module.exports = {
   // Function to issue a PDF certificate
@@ -1359,6 +1432,9 @@ module.exports = {
 
   // Function to verify a Batch certificate with an ID
   verifyBatchCertificate,
+
+  // Function to verify a Single/Batch certification with an ID
+  verifyCertificationId,
 
   // Function to handle admin signup
   signup,
@@ -1391,7 +1467,7 @@ module.exports = {
   checkBalance,
 
   // Function to decode a certificate
-  decodeCertificate,
+  decodeCertificate
 
-  testFunction
+  // testFunction
 };
