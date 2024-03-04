@@ -776,8 +776,7 @@ router.post('/approve-issuer',ensureAuthenticated, adminController.approveIssuer
  *                   example: An error occurred during the process!
  */
 
-
-router.post('/approve-issuer',ensureAuthenticated, adminController.approveIssuer);
+router.post('/get-issuer-by-email', adminController.getIssuerByEmail);
 
 /**
  * @swagger
