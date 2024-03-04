@@ -840,6 +840,70 @@ router.post('/reset-password', adminController.resetPassword);
 router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers);
 // router.get('/get-all-issuers', adminController.getAllIssuers);
 
+/**
+ * @swagger
+ * /api/get-issuer-by-email:
+ *   post:
+ *     summary: Get issuer by email
+ *     tags: [Admin]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: Issuer's email address
+ *     responses:
+ *       200:
+ *         description: Issuer fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: SUCCESS
+ *                 data:
+ *                   type: object
+ *                   description: Issuer details
+ *                 message:
+ *                   type: string
+ *                   example: Issuer fetched successfully
+ *       400:
+ *         description: Bad request or issuer not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: Issuer not found (or) Bad request!
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred during the process!
+ */
+
+router.post('/get-issuer-by-email', adminController.getIssuerByEmail);
 
 /**
  * @swagger

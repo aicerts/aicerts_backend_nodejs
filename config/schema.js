@@ -43,7 +43,10 @@ const UserSchema = new Schema({
     websiteLink: String,
     phoneNumber: String,
     designation: String,
-    username: String,
+    username: {
+      type: String,
+      unique: true
+    },
     rejectedDate: Date,
     certificatesIssued: Number
   });
