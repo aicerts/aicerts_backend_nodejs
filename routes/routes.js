@@ -650,10 +650,12 @@ router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers
 
 /**
  * @swagger
- * /api/approve-issuer:
+ * /api/get-issuer-by-email:
  *   post:
- *     summary: Approve a user
+ *     summary: Get issuer by email
  *     tags: [Admin]
+ *     security:
+ *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -663,10 +665,10 @@ router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers
  *             properties:
  *               email:
  *                 type: string
- *                 description: User's email address
+ *                 description: Issuer's email address
  *     responses:
  *       200:
- *         description: User approved successfully
+ *         description: Issuer fetched successfully
  *         content:
  *           application/json:
  *             schema:
@@ -675,11 +677,14 @@ router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers
  *                 status:
  *                   type: string
  *                   example: SUCCESS
+ *                 data:
+ *                   type: object
+ *                   description: Issuer details
  *                 message:
  *                   type: string
- *                   example: User Approved successfully
+ *                   example: Issuer fetched successfully
  *       400:
- *         description: Bad request or user not found
+ *         description: Bad request or issuer not found
  *         content:
  *           application/json:
  *             schema:
@@ -690,7 +695,7 @@ router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers
  *                   example: FAILED
  *                 message:
  *                   type: string
- *                   example: User not found (or) User Approved!
+ *                   example: Issuer not found (or) Bad request!
  *       500:
  *         description: Internal server error
  *         content:
@@ -703,11 +708,10 @@ router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers
  *                   example: FAILED
  *                 message:
  *                   type: string
- *                   example: An error occurred during the password reset process!
+ *                   example: An error occurred during the process!
  */
 
-
-router.post('/get-issuer-by-email', adminController.getIssuerByEmail);
+router.post('/approve-issuer',ensureAuthenticated, adminController.approveIssuer);
 
 /**
  * @swagger
