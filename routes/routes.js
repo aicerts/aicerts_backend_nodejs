@@ -840,6 +840,7 @@ router.post('/reset-password', adminController.resetPassword);
 router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers);
 // router.get('/get-all-issuers', adminController.getAllIssuers);
 
+
 /**
  * @swagger
  * /api/approve-issuer:
