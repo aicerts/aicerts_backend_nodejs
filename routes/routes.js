@@ -707,7 +707,7 @@ router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers
  */
 
 
-router.post('/get-issuer-by-email',ensureAuthenticated, adminController.getIssuerByEmail);
+router.post('/get-issuer-by-email', adminController.getIssuerByEmail);
 
 /**
  * @swagger
@@ -1001,5 +1001,7 @@ router.get('/check-balance',ensureAuthenticated, adminController.checkBalance);
  */
 
 
-router.post('/verify-encrypted', (req, res) => adminController.decodeCertificate(req, res));
+router.post('/verify-decrypt', (req, res) => adminController.decodeCertificate(req, res));
+
+
 module.exports=router;

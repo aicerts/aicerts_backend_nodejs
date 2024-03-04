@@ -210,7 +210,7 @@ const addLinkToPdf = async (
     //Adding qr code
     const pdfDc = await PDFDocument.create();
     const pngImage = await pdfDoc.embedPng(qrCode);
-    const pngDims = pngImage.scale(0.36);
+    const pngDims = pngImage.scale(0.99);
 
     page.drawImage(pngImage, {
         x: width - pngDims.width - 117,

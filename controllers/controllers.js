@@ -267,10 +267,10 @@ const issue = async (req, res) => {
           qrCodeData = urlLink;
       }
 
-      const qrCodeImage = await QRCode.toDataURL(qrCodeData, {
-        errorCorrectionLevel: "H",
-      });
-
+      // const qrCodeImage = await QRCode.toDataURL(qrCodeData, {
+      //   errorCorrectionLevel: "H",
+      // });
+      const qrCodeImage = await QRCode.toDataURL(qrCodeData, {   errorCorrectionLevel: "H",   width: 480,height:480});
 
         try {
           // Check mongoose connection
