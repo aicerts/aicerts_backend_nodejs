@@ -32,6 +32,7 @@ const UserSchema = new Schema({
       required: true,
     },
     approved: Boolean,
+    status: Number,
     address: String,
     country: String,
     organizationType: String,
@@ -46,7 +47,24 @@ const UserSchema = new Schema({
         type: String,
         unique: true,
       }
+    rejectedDate: Date,
+    certificatesIssued: Number
   });
+
+  // Batch Issues Schema
+const BatchIssuesSchema = new Schema({
+  issuerId: String,
+  batchId: Number,
+  proofHash: [String],
+  transactionHash: String,
+  certificateHash: String,
+  certificateNumber: String,
+  name: String,
+  course: String,
+  grantDate: String,
+  expirationDate: String,
+  issueDate: Date
+});
 
 // Define the schema for the Issues model
 const IssuesSchema = new mongoose.Schema({
@@ -61,13 +79,14 @@ const IssuesSchema = new mongoose.Schema({
   issueDate: { type: Date, default: Date.now } // IssueDate field is of type Date and defaults to the current date/time
 });
 
-
 const Admin = mongoose.model('Admin', AdminSchema);
 const User = mongoose.model('User', UserSchema);
 const Issues = mongoose.model('Issues', IssuesSchema);
+const BatchIssues = mongoose.model('BatchIssues', BatchIssuesSchema);
 
 module.exports = {
     Admin,
     User,
-    Issues
+    Issues,
+    BatchIssues
 };

@@ -7,6 +7,8 @@ const app = express(); // Create an instance of the Express application
 const path = require("path");
 const QRCode = require("qrcode");
 const fs = require("fs");
+const _fs = require("fs-extra");
+const { StandardMerkleTree } = require("@openzeppelin/merkle-tree");
 
 // Import custom cryptoFunction module for encryption and decryption
 const { decryptData, generateEncryptedUrl } = require("../common/cryptoFunction");
@@ -17,7 +19,7 @@ const { generateJwtToken } = require("../common/authUtils");
 const Web3 = require('web3');
 
 // Import MongoDB models
-const { Admin, User, Issues } = require("../config/schema");
+const { Admin, User, Issues, BatchIssues } = require("../config/schema");
 
 // Import bcrypt for hashing passwords
 const bcrypt = require("bcrypt");
@@ -27,18 +29,24 @@ const min_length = parseInt(process.env.MIN_LENGTH);
 const max_length = parseInt(process.env.MAX_LENGTH);
 
 // Importing functions from a custom module
-const { 
+const {
+  fetchExcelRecord,
   insertCertificateData, // Function to insert certificate data into the database
+  insertBatchCertificateData, // Function to insert Batch certificate data into the database
+  findRepetitiveIdNumbers,
   extractQRCodeDataFromPDF, // Function to extract QR code data from a PDF file
   addLinkToPdf, // Function to add a link to a PDF file
   calculateHash, // Function to calculate the hash of a file
   web3i, // Instance of Web3 for interacting with Ethereum
   confirm, // Function to confirm a certificate
   simulateIssueCertificate, // Function to simulate issuing a certificate
+  simulateIssueBatchCertificates, // Function to simulate issuing a Batch of certificate
   simulateTrustedOwner, // Function to simulate a trusted owner
+  simulateRoleToAddress, // Function to simulate a grant / revoke role to an address
   cleanUploadFolder, // Function to clean up the upload folder
-  isDBConncted, // Function to check if the database connection is established
-  sendEmail // Function to send an email
+  isDBConnected, // Function to check if the database connection is established
+  sendEmail, // Function to send an email on approved
+  rejectEmail // Function to send an email on rejected
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
 let linkUrl; // Variable to store a link URL
@@ -61,11 +69,15 @@ const issuePdf = async (req, res) => {
   const idExist = await User.findOne({ email });
   // Check if certificate number already exists
   const isNumberExist = await Issues.findOne({ certificateNumber: Certificate_Number });
+  // Check if certificate number already exists in the Batch
+  const isNumberExistInBatch = await BatchIssues.findOne({ certificateNumber: Certificate_Number });
 
   // Validation checks for request data
   if (
-    !idExist || // User does not exist
-    isNumberExist || // Certificate number already exists
+    // (!idExist || idExist.status !== 1)|| // User does not exist
+    !idExist ||
+    isNumberExist || // Certificate number already exists 
+    isNumberExistInBatch || // Certificate number already exists in Batch
     !Certificate_Number || // Missing certificate number
     !name || // Missing name
     !courseName || // Missing course name
@@ -79,9 +91,9 @@ const issuePdf = async (req, res) => {
     let errorMessage = "Please provide valid details";
     
     // Check for specific error conditions and update the error message accordingly
-    if (isNumberExist) {
+    if (isNumberExist || isNumberExistInBatch) {
       errorMessage = "Certificate number already exists";
-    } else if (!Certificate_Number) {
+    }else if (!Certificate_Number) {
       errorMessage = "Certificate number is required";
     } else if (Certificate_Number.length > max_length) {
       errorMessage = `Certificate number should be less than ${max_length} characters`;
@@ -89,7 +101,9 @@ const issuePdf = async (req, res) => {
       errorMessage = `Certificate number should be at least ${min_length} characters`;
     } else if (!idExist) {
       errorMessage = `Invalid Issuer Email`;
-    }
+    // } else if(idExist.status !== 1) {
+    //   errorMessage = `Unauthorised Issuer Email`;
+  }
 
     // Respond with error message
     res.status(400).json({ message: errorMessage });
@@ -112,10 +126,10 @@ const issuePdf = async (req, res) => {
   //Blockchain processing.
   const contract = await web3i();    
 
-     // Verify certificate on blockchain
-    const val = await contract.methods.verifyCertificate(combinedHash).call();
+      // Verify certificate on blockchain
+      const val = await contract.methods.verifyCertificateById(Certificate_Number).call();
 
-      if (val[0] == true && val[1] == Certificate_Number) {
+      if (val === true) {
         // Certificate already issued
         res.status(400).json({ message: "Certificate already issued" });
       } 
@@ -156,7 +170,7 @@ const issuePdf = async (req, res) => {
       }
 
       const qrCodeImage = await QRCode.toDataURL(qrCodeData, {
-        errorCorrectionLevel: "H",
+        errorCorrectionLevel: "H", width: 450, height: 450
       });
 
         file = req.file.path;
@@ -177,7 +191,7 @@ const issuePdf = async (req, res) => {
 
         try {
           // Check mongoose connection
-          const dbState = await isDBConncted();
+          const dbState = await isDBConnected();
           if (dbState === false) {
             console.error("Database connection is not ready");
           } else {
@@ -248,11 +262,15 @@ const issue = async (req, res) => {
   const idExist = await User.findOne({ email });
   // Check if certificate number already exists
   const isNumberExist = await Issues.findOne({certificateNumber: Certificate_Number});
+  // Check if certificate number already exists in the Batch
+  const isNumberExistInBatch = await BatchIssues.findOne({ certificateNumber: Certificate_Number });
 
   // Validation checks for request data
   if (
+    // (!idExist || idExist.status !== 1)|| // User does not exist
     !idExist || // User does not exist
-    isNumberExist || // Certificate number already exists
+    isNumberExist || // Certificate number already exists 
+    isNumberExistInBatch || // Certificate number already exists in Batch
     !Certificate_Number || // Missing certificate number
     !name || // Missing name
     !courseName || // Missing course name
@@ -266,7 +284,7 @@ const issue = async (req, res) => {
       let errorMessage = "Please provide valid details";
     
       // Check for specific error conditions and update the error message accordingly
-      if (isNumberExist) {
+      if (isNumberExist || isNumberExistInBatch) {
           errorMessage = "Certificate number already exists";
       } else if (!Certificate_Number) {
           errorMessage = "Certificate number is required";
@@ -276,7 +294,9 @@ const issue = async (req, res) => {
           errorMessage = `Certificate number should be at least ${min_length} characters`;
       } else if(!idExist) {
           errorMessage = `Invalid Issuer Email`;
-      }
+      // } else if(idExist.status !== 1) {
+      //   errorMessage = `Unauthorised Issuer Email`;
+    }
 
       // Respond with error message
       res.status(400).json({ message: errorMessage });
@@ -301,9 +321,10 @@ const issue = async (req, res) => {
       // Blockchain processing.
       const contract = await web3i();
 
-      const val = await contract.methods.verifyCertificate(combinedHash).call();
+      // Verify certificate on blockchain
+      const val = await contract.methods.verifyCertificateById(Certificate_Number).call();
 
-      if (val[0] == true && val[1] == Certificate_Number) {
+      if (val === true) {
         res.status(400).json({ message: "Certificate already issued" });
       } else {
         // Simulate issuing the certificate
@@ -348,7 +369,7 @@ const issue = async (req, res) => {
 
         try {
           // Check mongoose connection
-          const dbState = await isDBConncted();
+          const dbState = await isDBConnected();
           if (dbState === false) {
             console.error("Database connection is not ready");
           } else {
@@ -398,6 +419,175 @@ const issue = async (req, res) => {
   }
 };
 
+// API call for Batch Certificates issue 
+const batchCertificateIssue = async (req, res) => {
+  const email = req.body.email;
+  
+  file = req.file.path;
+
+  const idExist = await User.findOne({ email });
+
+  var filePath = req.file.path;
+
+  // Fetch the records from the Excel file
+  const excelData = await fetchExcelRecord(filePath);
+
+  await _fs.remove(filePath);
+
+    if (
+      // (!idExist || idExist.status !== 1)|| // User does not exist
+      !idExist || 
+      !req.file || 
+      !req.file.filename || 
+      req.file.filename === 'undefined' || 
+      excelData.response === false) {
+  
+    console.log("The response is", excelData.message);
+    let errorMessage = "Please provide valid details";
+    if(!idExist){
+      errorMessage = "Invalid Issuer";
+    }
+    else if(excelData.response == false){
+      errorMessage =  excelData.message;
+    // } else if(idExist.status !== 1) {
+    //   errorMessage = `Unauthorised Issuer Email`;
+    } 
+    
+
+    res.status(400).json({ status: "FAILED", message: errorMessage });
+    return;
+    
+  } else {
+
+    // console.log("The certificates details", excelData.message[0]);
+
+    // Batch Certification Formated Details
+    const rawBatchData = excelData.message[0];
+    // Certification count
+    const certificatesCount = excelData.message[1];
+    // certification unformated details
+    const batchData = excelData.message[2];
+
+    const certificationIDs = rawBatchData.map(item => item.certificationID);
+
+    // Initialize an empty list to store matching IDs
+    const matchingIDs = [];
+
+    const repetitiveNumbers = await findRepetitiveIdNumbers(certificationIDs);
+
+    if(repetitiveNumbers.length > 0){
+      res.status(400).json({ status: "FAILED", message: "Excel file has Repetition in Certification IDs", Details: repetitiveNumbers });
+      return;
+    }
+
+    // Assuming BatchIssues is your MongoDB model
+    for (const id of certificationIDs) {
+      const issueExist = await Issues.findOne({ certificateNumber: id });
+      const _issueExist = await BatchIssues.findOne({ certificateNumber: id });
+      if (issueExist || _issueExist) {
+        matchingIDs.push(id);
+      }
+    }
+
+    if(matchingIDs.length>0){
+
+      res.status(400).json({ status: "FAILED", message: "Excel file has Existing Certification IDs", Details: matchingIDs });
+      return;
+
+    } 
+
+    const hashedBatchData = batchData.map(data => {
+      // Convert data to string and calculate hash
+      const dataString = data.map(item => item.toString()).join('');
+      const _hash = calculateHash(dataString);
+      return _hash;
+    });
+  
+  // // Format as arrays with corresponding elements using a loop
+  const values = [];
+  for (let i = 0; i < certificatesCount; i++) {
+      values.push([hashedBatchData[i]]);
+  }
+
+  try {
+    // Generate the Merkle tree
+      const tree = StandardMerkleTree.of(values, ['string']);
+
+      // Fetch the root from Tree
+      console.log('Merkle Root:', tree.root);        
+
+      // Blockchain processing.
+      const contract = await web3i();
+
+    const batchNumber = await contract.methods.getRootLength().call();
+    const allocateBatchId = parseInt(batchNumber) + 1;
+          
+    const simulateIssue = await simulateIssueBatchCertificates(tree.root);
+          
+      if (simulateIssue) {
+        const tx = contract.methods.issueBatchOfCertificates(
+          tree.root
+      );
+      
+        hash = await confirm(tx);
+
+        const polygonLink = `https://${process.env.NETWORK}.com/tx/${hash}`;
+
+      try {
+        // Check mongoose connection
+        const dbState = await isDBConnected();
+        if (dbState === false) {
+          console.error("Database connection is not ready");
+        } else {
+          console.log("Database connection is ready");
+          }
+          
+          var batchDetails = [];
+          for (var i = 0; i < certificatesCount; i++) {
+            var _proof = tree.getProof(i);
+            batchDetails[i] = {
+                  id: idExist.id,
+                  batchId: allocateBatchId,
+                  proofHash: _proof,
+                  transactionHash: hash,
+                  certificateHash: hashedBatchData[i],
+                  certificateNumber: rawBatchData[i].certificationID,
+                  name: rawBatchData[i].name,
+                  course: rawBatchData[i].certificationName,
+                  grantDate: rawBatchData[i].grantDate,
+                  expirationDate: rawBatchData[i].expirationDate
+              }
+              
+            // console.log("Batch Certificate Details", batchDetails[i]);
+              await insertBatchCertificateData(batchDetails[i]);
+        }
+        console.log("Data inserted");
+
+        res.status(200).json({
+          status: "SUCCESS",
+          message: "Batch of Certificates issued successfully",
+          polygonLink: "polygonLink",
+          details: batchDetails,
+        });
+
+        await cleanUploadFolder();
+
+        } catch (error) {
+        // Handle mongoose connection error (log it, throw an error, etc.)
+        console.error("Internal server error", error);
+      }
+      }
+      else {
+        res.status(400).json({ status: "FAILED", message: "Simulation failed for issue BatchCertificates" });
+      }
+
+  } catch (error) {
+      console.error('Error:', error);
+      return res.status(500).json({ status: 'FAILED', error: 'Internal Server Error.' });
+  }
+}
+};
+
 // Define a route that takes a hash parameter
 const polygonLink = async (req, res) => {
   res.json({ linkUrl });
@@ -441,9 +631,7 @@ const verify = async (req, res) => {
   await cleanUploadFolder();
 };
 
-
 // Verify certificate with ID
-
 const verifyWithId = async (req, res) => {
   inputId = req.body.id;
 
@@ -456,23 +644,18 @@ const verifyWithId = async (req, res) => {
       const certificateNumber = inputId;
     try {
           // Check mongoose connection
-          const dbState = await isDBConncted();
+          const dbState = await isDBConnected();
           if (dbState === false) {
             console.error("Database connection is not ready");
           } else {
             console.log("Database connection is ready");
           }
       var certificateExist = await Issues.findOne({ certificateNumber });
-      if(certificateExist) {
-      var isCertificateValid = response[0] == true && response[1] == certificateExist.certificateNumber;
-      } else {
-        isCertificateValid = false;
-      }
-      const message = isCertificateValid ? "Verified: Certificate details available" : "Certificate details not available";
 
       const verificationResponse = {
-        message: message,
-        details: (isCertificateValid) ? certificateExist : certificateNumber
+        status: "SUCCESS",
+        message: "Valid Certificate",
+        details: (certificateExist) ? certificateExist : certificateNumber
       };
       res.status(200).json(verificationResponse);
       
@@ -485,7 +668,7 @@ const verifyWithId = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       status: "FAILED",
-      message: error,
+      message: "Internal Server error",
     });
   } 
 
@@ -535,6 +718,113 @@ const decodeCertificate = async (req, res) => {
   }
 };
 
+// API call for Batch Certificates verify with Certification ID
+const verifyBatchCertificate = async (req, res) => {
+
+  const { id } = req.body;
+  try {
+    // const tree = StandardMerkleTree.load(JSON.parse(fs.readFileSync('tree.json', 'utf8')));
+    const issueExist = await BatchIssues.findOne({ certificateNumber: id });
+  
+  if (issueExist) {
+      const batchNumber = (issueExist.batchId)-1;
+      const dataHash = issueExist.certificateHash;
+      const proof = issueExist.proofHash;
+
+      // Blockchain processing.
+      const contract = await web3i();
+
+      const val = await contract.methods.verifyCertificateInBatch(batchNumber, dataHash, proof).call();
+
+      return res.status(val ? 200 : 400).json({ status: val ? 'SUCCESS' : 'FAILED', Message: val ? "Valid Certification ID" : 'Invalid Certification ID', details: val ? issueExist : 'NA' });
+    
+    } else {
+        
+    return res.status(400).json({ status: 'FAILED', error: 'Invalid Certification ID' });
+    }
+      }
+  catch (error) {
+    console.error('Error:', error);
+    return res.status(500).json({ status: 'FAILED', error: 'Internal Server Error.' });
+  }
+}; 
+
+// API call for Batch Certificates verify with Certification ID
+const verifyCertificationId = async (req, res) => {
+  const inputId = req.body.id;
+  const dbStaus = await isDBConnected();
+  console.log("DB connected:", dbStaus);
+
+ const singleIssueExist = await Issues.findOne({ certificateNumber : inputId });
+ const batchIssueExist = await BatchIssues.findOne({ certificateNumber : inputId });
+
+    // Validation checks for request data
+  if ([inputId].some(value => typeof value !== 'string' || value == 'string') || (!singleIssueExist && !batchIssueExist)) {
+    // res.status(400).json({ message: "Please provide valid details" });
+    let errorMessage = "Please provide valid details";
+    
+    // Check for specific error conditions and update the error message accordingly
+    if (inputId != "string" && singleIssueExist == null && batchIssueExist == null) {
+      errorMessage = "Certificate doesn't exist";
+    }
+
+    // Respond with error message
+    return res.status(400).json({ status: "FAILED", message: errorMessage });
+  } else {
+
+  if (singleIssueExist != null) {
+    
+    // Blockchain processing.
+    const contract = await web3i();
+    const response = await contract.methods.verifyCertificateById(singleIssueExist.certificateNumber).call();
+    if (response === true) {
+    try {
+
+      const verificationResponse = {
+        status: "SUCCESS",
+        message: "Valid Certificate",
+        details: singleIssueExist
+      };
+      res.status(200).json(verificationResponse);
+      
+      }catch (error) {
+        res.status(500).json({ status: 'FAILED', message: 'Internal Server Error.' });
+      }
+    } else {
+      res.status(400).json({ status: "FAILED", message: "Certificate doesn't exist" });
+    }
+
+    } else if(batchIssueExist != null) {
+      const batchNumber = (batchIssueExist.batchId)-1;
+      const dataHash = batchIssueExist.certificateHash;
+      const proof = batchIssueExist.proofHash;
+
+      // Blockchain processing.
+      const contract = await web3i();
+
+      const val = await contract.methods.verifyCertificateInBatch(batchNumber, dataHash, proof).call();
+
+      if (val === true) {
+        try {
+    
+          const _verificationResponse = {
+            status: "SUCCESS",
+            message: "Valid Certificate",
+            details: batchIssueExist
+          };
+          res.status(200).json(_verificationResponse);
+          
+          }catch (error) {
+            res.status(500).json({ status: 'FAILED', message: 'Internal Server Error.' });
+          }
+        } else {
+          res.status(400).json({ status: "FAILED", message: "Certificate doesn't exist" });
+        }
+    } 
+  }
+
+}; 
+
 // Admin Signup
 const signup = async (req, res) => {
   // Extracting name, email, and password from the request body
@@ -573,7 +863,7 @@ const signup = async (req, res) => {
   } else {
     try {
       // Check mongoose connection
-      const dbState = await isDBConncted();
+      const dbState = await isDBConnected();
       if (dbState === false) {
         console.error("Database connection is not ready");
       } else {
@@ -631,7 +921,7 @@ const login = async (req, res) => {
     });
   } else {
     // Check database connection
-      const dbState = await isDBConncted();
+      const dbState = await isDBConnected();
       if (dbState === false) {
         console.error("Database connection is not ready");
       } else {
@@ -710,7 +1000,7 @@ const logout = async (req, res) => {
   let { email } = req.body;
   try {
     // Check mongoose connection
-      const dbState = await isDBConncted();
+      const dbState = await isDBConnected();
       if (dbState === false) {
         console.error("Database connection is not ready");
       } else {
@@ -752,7 +1042,7 @@ const resetPassword = async (req, res) => {
   let { email, password } = req.body;
   try {
     // Check database connection
-      const dbState = await isDBConncted();
+      const dbState = await isDBConnected();
       if (dbState === false) {
         console.error("Database connection is not ready");
       } else {
@@ -814,7 +1104,7 @@ const resetPassword = async (req, res) => {
 const getAllIssuers = async (req, res) => {
   try {
     // Check mongoose connection
-      const dbState = await isDBConncted();
+      const dbState = await isDBConnected();
       if (dbState === false) {
         console.error("Database connection is not ready");
       } else {
@@ -877,7 +1167,7 @@ const approveIssuer = async (req, res) => {
   let { email } = req.body;
   try {
     // Check mongoose connection
-      const dbState = await isDBConncted();
+      const dbState = await isDBConnected();
       if (dbState === false) {
         console.error("Database connection is not ready");
       } else {
@@ -910,9 +1200,10 @@ const approveIssuer = async (req, res) => {
 
     // Save verification details
     user.approved = true;
+    user.status = 1;
+    user.rejectedDate = null;
     await user.save();
     
-
     // Respond with success message indicating user approval
     res.json({
         status: "SUCCESS",
@@ -925,6 +1216,66 @@ const approveIssuer = async (req, res) => {
     res.json({
       status: 'FAILED',
       message: "An error occurred during the Issuer approved process!",
+    });
+  }
+};
+
+// Reject Issuer
+const rejectIssuer = async (req, res) => {
+  let { email } = req.body;
+  try {
+    // Check mongoose connection
+      const dbState = await isDBConnected();
+      if (dbState === false) {
+        console.error("Database connection is not ready");
+      } else {
+        console.log("Database connection is ready");
+    }
+
+    // Find user by email
+    const user = await User.findOne({ email });
+    
+    // If user doesn't exist, return failure response
+    if (!user) {
+      return res.json({
+        status: 'FAILED',
+        message: 'User not found!',
+      });
+    }
+
+    // If user is already rejected, send email and return success response
+    if (user.status == 2) {
+      await rejectEmail(user.name, email);
+      return res.json({
+        status: 'SUCCESS',
+        message: 'User Rejected!',
+      });
+    }
+    
+    // If user is not approved yet, send email and update user's approved status
+    const mailStatus = await rejectEmail(user.name, email);
+    const mailresponse = (mailStatus === true) ? "sent" : "NA";
+
+    // Save Issuer rejected details
+    user.approved = false;
+    user.status = 2;
+    user.rejectedDate = Date.now();
+    await user.save();
+    
+    // Respond with success message indicating user approval
+    res.json({
+        status: "SUCCESS",
+        email: mailresponse,
+        message: "User Rejected successfully"
+     });
+
+    // } 
+
+  } catch (error) {
+    // Error occurred during user approval process, respond with failure message
+    res.json({
+      status: 'FAILED',
+      message: "An error occurred during the Issuer rejected process!",
     });
   }
 };
@@ -1033,6 +1384,158 @@ const removeTrustedOwner = async (req, res) => {
   }
 };
 
+// Grant Pauser/Owner Role to an Address
+const grantRoleToAddress = async (req, res) => {
+    // Initialize Web3 instance with RPC endpoint
+    const web3 = await new Web3(
+      new Web3.providers.HttpProvider(
+        process.env.RPC_ENDPOINT
+      )
+    );
+
+      // const { newOwnerAddress } = req.body;
+  try {
+    // Extract new wallet address from request body
+    const assignRole = req.body.role;
+    const newAddress = req.body.address;
+
+    // Validate Ethereum address format
+    if (!web3.utils.isAddress(newAddress)) {
+      return res.status(400).json({ message: "Invalid Ethereum address format" });
+    }
+
+    var contract = await web3i();
+
+    if(assignRole == 0 || assignRole == 1 ){
+
+      const assigningRole = (assignRole == 0) ? process.env.ADMIN_ROLE : process.env.PAUSER_ROLE;
+
+      // Blockchain processing.
+      const response = await contract.methods.hasRole(assigningRole, newAddress).call();
+      
+      if(response === true){
+        // Simulation failed, send failure response
+        return res.status(400).json({ status: "FAILED", message: "Address Existed in the Blockchain" });
+      } else if(response === false) {
+        // Simulate grant Admin role
+        const simulateGrantRole = await simulateRoleToAddress("grant", assigningRole, newAddress);
+
+      // If simulation successful, proceed to grant role to the Address
+      if (simulateGrantRole) {
+
+        // Prepare transaction to add trusted owner
+        const tx = contract.methods.grantRole(assigningRole ,newAddress);
+
+        // Confirm transaction
+        const hash = await confirm(tx);
+
+        const messageInfo = (assignRole == 0) ? "Admin Role Granted" : "Pauser Role Granted";
+
+        // Prepare success response
+        const responseMessage = {
+          status: "SUCCESS",
+          message: messageInfo,
+          details: `https://${process.env.NETWORK}.com/tx/${hash}`
+        };
+
+        // Send success response
+        res.status(200).json(responseMessage);
+      } else {
+        // Simulation failed, send failure response
+        return res.status(400).json({ status: "FAILED", message: "Simulation failed" });
+      }
+
+      } else {
+        return res.status(500).json({ status: "FAILED", message: "Internal Server Error" });
+      }
+
+    } else{
+      return res.status(400).json({ status: "FAILED", message: "Invalid Role assigned" });
+    }
+
+  } catch (error) {
+    // Internal server error occurred, send failure response
+    console.error(error);
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+};
+
+// Revoke Pauser/Owner Role from the Address
+const revokeRoleFromAddress = async (req, res) => {
+  // Initialize Web3 instance with RPC endpoint
+  const web3 = await new Web3(
+    new Web3.providers.HttpProvider(
+      process.env.RPC_ENDPOINT
+    )
+  );
+
+    // const { newOwnerAddress } = req.body;
+try {
+  // Extract new wallet address from request body
+  const assignRole = req.body.role;
+  const newAddress = req.body.address;
+
+  // Validate Ethereum address format
+  if (!web3.utils.isAddress(newAddress)) {
+    return res.status(400).json({ message: "Invalid Ethereum address format" });
+  }
+
+  var contract = await web3i();
+
+  if(assignRole == 0 || assignRole == 1 ){
+
+    const assigningRole = (assignRole == 0) ? process.env.ADMIN_ROLE : process.env.PAUSER_ROLE;
+
+    // Blockchain processing.
+    const response = await contract.methods.hasRole(assigningRole, newAddress).call();
+    
+    if(response === false){
+      // Simulation failed, send failure response
+      return res.status(400).json({ status: "FAILED", message: "Address Doesn't Existed in the Blockchain" });
+    } else if(response === true) {
+      // Simulate grant Admin role
+      const simulateGrantRole = await simulateRoleToAddress("revoke", assigningRole, newAddress);
+
+    // If simulation successful, proceed to grant role to the Address
+    if (simulateGrantRole) {
+
+      // Prepare transaction to add trusted owner
+      const tx = contract.methods.grantRole(assigningRole ,newAddress);
+
+      // Confirm transaction
+      const hash = await confirm(tx);
+
+      const messageInfo = (assignRole == 0) ? "Admin Role Revoked" : "Pauser Role Revoked";
+
+      // Prepare success response
+      const responseMessage = {
+        status: "SUCCESS",
+        message: messageInfo,
+        details: `https://${process.env.NETWORK}.com/tx/${hash}`
+      };
+
+      // Send success response
+      res.status(200).json(responseMessage);
+    } else {
+      // Simulation failed, send failure response
+      return res.status(400).json({ status: "FAILED", message: "Simulation failed" });
+    }
+
+    } else {
+      return res.status(500).json({ status: "FAILED", message: "Internal Server Error" });
+    }
+
+  } else{
+    return res.status(400).json({ status: "FAILED", message: "Invalid Role assigned" });
+  }
+
+} catch (error) {
+  // Internal server error occurred, send failure response
+  console.error(error);
+  res.status(500).json({ message: "Internal Server Error" });
+}
+};
+
 // Check Balance
 const checkBalance = async (req, res) => {
   // Initialize Web3 instance with RPC endpoint
@@ -1074,12 +1577,40 @@ const checkBalance = async (req, res) => {
   }
 };
 
+// Test Function
+// const testFunction = async (req, res) => {
+//   // Test method
+//   // Extracting required data from the request body
+//   const email = req.body.email;
+//    try {
+//     // Check if user with provided email exists
+//     const user = await User.findOne({ email });
+
+//     if (user) {
+
+//     const targetDate = user.rejectedDate;
+//     console.log("The date", targetDate != null ? targetDate : "Not set");
+
+//       res.status(200).json({ message: "Operation Successful" });
+//     } else {
+//       res.status(400).json({ message: "Invalid Email" });
+//     }
+//   } catch (error) {
+//     console.error('Error deleting user:', error);
+//     res.status(500).json({ message: "Internal Server Error" });
+//   }
+  
+// };
+
 module.exports = {
   // Function to issue a PDF certificate
   issuePdf,
 
   // Function to issue a certificate
   issue,
+
+  // Function to issue a Batch of certificates
+  batchCertificateIssue,
 
   // Function to generate a Polygon link for a certificate
   polygonLink,
@@ -1089,6 +1620,12 @@ module.exports = {
 
   // Function to verify a certificate with an ID
   verifyWithId,
+
+  // Function to verify a Batch certificate with an ID
+  verifyBatchCertificate,
+
+  // Function to verify a Single/Batch certification with an ID
+  verifyCertificationId,
 
   // Function to handle admin signup
   signup,
@@ -1108,15 +1645,23 @@ module.exports = {
   // Function to approve an issuer
   approveIssuer,
 
+   // Function to reject an issuer
+  rejectIssuer,
+
   // Function to add a trusted owner
   addTrustedOwner,
 
   // Function to remove a trusted owner
   removeTrustedOwner,
 
+  // Function to grant role to an address
+  grantRoleToAddress,
+
+  // Function to revoke role from the address
+  revokeRoleFromAddress,
+
   // Function to check the balance of an Ethereum address
   checkBalance,
   decodeCertificate,
   getIssuerByEmail
 }
-

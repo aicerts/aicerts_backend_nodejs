@@ -1,24 +1,21 @@
 const express = require('express');
 const router = express.Router();
-const { ensureAuthenticated } = require("../config/auth"); // Import authentication middleware
+const {ensureAuthenticated} = require("../config/auth")
 const multer = require('multer');
-const { fileFilter } = require('../model/tasks'); // Import file filter function
-const adminController = require('../controllers/controllers'); // Import admin controller
+const { fileFilter } = require('../model/tasks');
 
+const adminController = require('../controllers/controllers');
 
-// Configure multer storage options
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, "uploads"); // Set the destination where files will be saved
   },
   filename: (req, file, cb) => {
-    // Set the filename based on the Certificate_Number from the request body
     const Certificate_Number = req.body.Certificate_Number;
     cb(null, file.originalname);
   },
 });
 
-// Initialize multer with configured storage and file filter
 const _upload = multer({ storage, fileFilter });
 
 /**
@@ -99,7 +96,8 @@ const _upload = multer({ storage, fileFilter });
  *                   description: Error message for internal server error.
  */
 
-router.post('/issue',ensureAuthenticated, _upload.single("pdfFile"), adminController.issue);
+// router.post('/issue',ensureAuthenticated, _upload.single("pdfFile"), adminController.issue);
+router.post('/issue', _upload.single("pdfFile"), adminController.issue);
 
 /**
  * @swagger
@@ -177,7 +175,8 @@ router.post('/issue',ensureAuthenticated, _upload.single("pdfFile"), adminContro
  */
 
 
-router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminController.issuePdf);
+// router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminController.issuePdf);
+router.post('/issue-pdf', _upload.single("file"), adminController.issuePdf);
 
 // /**
 //  * @swagger
@@ -647,6 +646,7 @@ router.post('/reset-password', adminController.resetPassword);
  */
 
 router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers);
+// router.get('/get-all-issuers', adminController.getAllIssuers);
 
 /**
  * @swagger
@@ -703,7 +703,7 @@ router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers
  *                   example: FAILED
  *                 message:
  *                   type: string
- *                   example: An error occurred during the user approved process!
+ *                   example: An error occurred during the password reset process!
  */
 
 
