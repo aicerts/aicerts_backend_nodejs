@@ -126,10 +126,10 @@ const issuePdf = async (req, res) => {
   //Blockchain processing.
   const contract = await web3i();    
 
-     // Verify certificate on blockchain
-    const val = await contract.methods.verifyCertificate(combinedHash).call();
+      // Verify certificate on blockchain
+      const val = await contract.methods.verifyCertificateById(Certificate_Number).call();
 
-      if (val[0] == true && val[1] == Certificate_Number) {
+      if (val === true) {
         // Certificate already issued
         res.status(400).json({ message: "Certificate already issued" });
       } 
@@ -321,9 +321,10 @@ const issue = async (req, res) => {
       // Blockchain processing.
       const contract = await web3i();
 
-      const val = await contract.methods.verifyCertificate(combinedHash).call();
+      // Verify certificate on blockchain
+      const val = await contract.methods.verifyCertificateById(Certificate_Number).call();
 
-      if (val[0] == true && val[1] == Certificate_Number) {
+      if (val === true) {
         res.status(400).json({ message: "Certificate already issued" });
       } else {
         // Simulate issuing the certificate

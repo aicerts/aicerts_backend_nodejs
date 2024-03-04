@@ -18,7 +18,6 @@ const { ethers } = require("ethers"); // Ethereum JavaScript library
 const mongoose = require("mongoose"); // MongoDB object modeling tool
 const nodemailer = require('nodemailer'); // Module for sending emails
 const readXlsxFile = require('read-excel-file/node');
-const utils = require('../config/utils.js');
 
 const {  decryptData, generateEncryptedUrl } = require("../common/cryptoFunction"); // Custom functions for cryptographic operations
 
@@ -773,7 +772,7 @@ const cleanUploadFolder = async () => {
 const isDBConnected = async () => {
   try {
     // Attempt to establish a connection to the MongoDB database using the provided URI
-    await mongoose.connect(utils.MONGODB_URI);
+    await mongoose.connect(process.env.MONGODB_URI);
     return true; // Return true if the connection is successful
   } catch (error) {
     console.log(error); // Log any errors that occur during the connection attempt
