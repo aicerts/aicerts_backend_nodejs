@@ -650,12 +650,10 @@ router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers
 
 /**
  * @swagger
- * /api/get-issuer-by-email:
+ * /api/approve-issuer:
  *   post:
- *     summary: Get issuer by email
+ *     summary: Approve a user
  *     tags: [Admin]
- *     security:
- *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -665,10 +663,10 @@ router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers
  *             properties:
  *               email:
  *                 type: string
- *                 description: Issuer's email address
+ *                 description: User's email address
  *     responses:
  *       200:
- *         description: Issuer fetched successfully
+ *         description: User approved successfully
  *         content:
  *           application/json:
  *             schema:
@@ -677,14 +675,11 @@ router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers
  *                 status:
  *                   type: string
  *                   example: SUCCESS
- *                 data:
- *                   type: object
- *                   description: Issuer details
  *                 message:
  *                   type: string
- *                   example: Issuer fetched successfully
+ *                   example: User Approved successfully
  *       400:
- *         description: Bad request or issuer not found
+ *         description: Bad request or user not found
  *         content:
  *           application/json:
  *             schema:
@@ -695,7 +690,7 @@ router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers
  *                   example: FAILED
  *                 message:
  *                   type: string
- *                   example: Issuer not found (or) Bad request!
+ *                   example: User not found (or) User Approved!
  *       500:
  *         description: Internal server error
  *         content:
@@ -708,7 +703,7 @@ router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers
  *                   example: FAILED
  *                 message:
  *                   type: string
- *                   example: An error occurred during the process!
+ *                   example: An error occurred during the user approved process!
  */
 
 router.post('/approve-issuer',ensureAuthenticated, adminController.approveIssuer);
@@ -776,8 +771,7 @@ router.post('/approve-issuer',ensureAuthenticated, adminController.approveIssuer
  *                   example: An error occurred during the process!
  */
 
-
-router.post('/approve-issuer',ensureAuthenticated, adminController.approveIssuer);
+router.post('/get-issuer-by-email', adminController.getIssuerByEmail);
 
 /**
  * @swagger
