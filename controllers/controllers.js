@@ -1,30 +1,55 @@
+// Load environment variables from .env file
 require('dotenv').config();
+
+// Import required modules
 const express = require("express");
-const app = express();
+const app = express(); // Create an instance of the Express application
 const path = require("path");
 const QRCode = require("qrcode");
 const fs = require("fs");
-const {  decryptData, generateEncryptedUrl } = require("../common/cryptoFunction");
-const {  generateJwtToken } = require("../common/authUtils");
 
+// Import custom cryptoFunction module for encryption and decryption
+const { decryptData, generateEncryptedUrl } = require("../common/cryptoFunction");
+// Import custom authUtils module for JWT token generation
+const { generateJwtToken } = require("../common/authUtils");
+
+// Import Web3 library for interacting with the Ethereum blockchain
 const Web3 = require('web3');
-// mongodb admin model
+
+// Import MongoDB models
 const { Admin, User, Issues } = require("../config/schema");
 
-// Password handler
+// Import bcrypt for hashing passwords
 const bcrypt = require("bcrypt");
 
+// Parse environment variables for password length constraints
 const min_length = parseInt(process.env.MIN_LENGTH);
 const max_length = parseInt(process.env.MAX_LENGTH);
 
-const { insertCertificateData, extractQRCodeDataFromPDF, addLinkToPdf, calculateHash, web3i, confirm, simulateIssueCertificate, simulateTrustedOwner, cleanUploadFolder, isDBConncted, sendEmail } = require('../model/tasks');
-let linkUrl;
-let detailsQR;
+// Importing functions from a custom module
+const { 
+  insertCertificateData, // Function to insert certificate data into the database
+  extractQRCodeDataFromPDF, // Function to extract QR code data from a PDF file
+  addLinkToPdf, // Function to add a link to a PDF file
+  calculateHash, // Function to calculate the hash of a file
+  web3i, // Instance of Web3 for interacting with Ethereum
+  confirm, // Function to confirm a certificate
+  simulateIssueCertificate, // Function to simulate issuing a certificate
+  simulateTrustedOwner, // Function to simulate a trusted owner
+  cleanUploadFolder, // Function to clean up the upload folder
+  isDBConncted, // Function to check if the database connection is established
+  sendEmail // Function to send an email
+} = require('../model/tasks'); // Importing functions from the '../model/tasks' module
+
+let linkUrl; // Variable to store a link URL
+let detailsQR; // Variable to store details of a QR code
+
 
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // API call for Certificate issue with pdf template
 const issuePdf = async (req, res) => {
+  // Extracting required data from the request body
   const email = req.body.email;
   const Certificate_Number = req.body.certificateNumber;
   const name = req.body.name;
@@ -32,10 +57,24 @@ const issuePdf = async (req, res) => {
   const Grant_Date = req.body.grantDate;
   const Expiration_Date = req.body.expirationDate;
 
+  // Check if user with provided email exists
   const idExist = await User.findOne({ email });
-  const isNumberExist = await Issues.findOne({certificateNumber: Certificate_Number});
+  // Check if certificate number already exists
+  const isNumberExist = await Issues.findOne({ certificateNumber: Certificate_Number });
 
-  if (!idExist || isNumberExist || !Certificate_Number || !name || !courseName || !Grant_Date || !Expiration_Date || [Certificate_Number, name, courseName, Grant_Date, Expiration_Date].some(value => typeof value !== 'string' || value == 'string') || Certificate_Number.length > max_length || Certificate_Number.length < min_length) {
+  // Validation checks for request data
+  if (
+    !idExist || // User does not exist
+    isNumberExist || // Certificate number already exists
+    !Certificate_Number || // Missing certificate number
+    !name || // Missing name
+    !courseName || // Missing course name
+    !Grant_Date || // Missing grant date
+    !Expiration_Date || // Missing expiration date
+    [Certificate_Number, name, courseName, Grant_Date, Expiration_Date].some(value => typeof value !== 'string' || value == 'string') || // Some values are not strings
+    Certificate_Number.length > max_length || // Certificate number exceeds maximum length
+    Certificate_Number.length < min_length // Certificate number is shorter than minimum length
+  ) {
     // res.status(400).json({ message: "Please provide valid details" });
     let errorMessage = "Please provide valid details";
     
@@ -43,18 +82,20 @@ const issuePdf = async (req, res) => {
     if (isNumberExist) {
       errorMessage = "Certificate number already exists";
     } else if (!Certificate_Number) {
-        errorMessage = "Certificate number is required";
+      errorMessage = "Certificate number is required";
     } else if (Certificate_Number.length > max_length) {
-        errorMessage = `Certificate number should be less than ${max_length} characters`;
+      errorMessage = `Certificate number should be less than ${max_length} characters`;
     } else if (Certificate_Number.length < min_length) {
-        errorMessage = `Certificate number should be at least ${min_length} characters`;
-    } else if(!idExist) {
-        errorMessage = `Invalid Issuer Email`;
+      errorMessage = `Certificate number should be at least ${min_length} characters`;
+    } else if (!idExist) {
+      errorMessage = `Invalid Issuer Email`;
     }
-    
+
+    // Respond with error message
     res.status(400).json({ message: errorMessage });
     return;
   } else {
+    // If validation passes, proceed with certificate issuance
     const fields = {
     Certificate_Number: req.body.certificateNumber,
     name: req.body.name,
@@ -71,21 +112,28 @@ const issuePdf = async (req, res) => {
   //Blockchain processing.
   const contract = await web3i();    
 
+     // Verify certificate on blockchain
     const val = await contract.methods.verifyCertificate(combinedHash).call();
 
       if (val[0] == true && val[1] == Certificate_Number) {
+        // Certificate already issued
         res.status(400).json({ message: "Certificate already issued" });
       } 
       else {
+        // Simulate issuing the certificate
         const simulateIssue = await simulateIssueCertificate(Certificate_Number, combinedHash);
       if (simulateIssue) { 
+        // If simulation successful, issue the certificate on blockchain
         const tx = contract.methods.issueCertificate(
           fields.Certificate_Number,
           combinedHash
         );
         const hash = await confirm(tx);
 
+      // Generate link URL for the certificate on blockchain
       const linkUrl = `https://${process.env.NETWORK}.com/tx/${hash}`;
+
+      // Generate encrypted URL with certificate data
       const dataWithLink = {
         ...fields,polygonLink:linkUrl
               }
@@ -113,8 +161,8 @@ const issuePdf = async (req, res) => {
 
         file = req.file.path;
         const outputPdf = `${fields.Certificate_Number}${name}.pdf`;
-        // linkUrl = `https://${process.env.NETWORK}.com/tx/${hash}`;
-
+       
+        // Add link and QR code to the PDF file
         const opdf = await addLinkToPdf(
           // __dirname + "/" + file,
           path.join(__dirname, '..', file),
@@ -124,6 +172,7 @@ const issuePdf = async (req, res) => {
           combinedHash
         );
     
+        // Read the generated PDF file
         const fileBuffer = fs.readFileSync(outputPdf);
 
         try {
@@ -135,8 +184,8 @@ const issuePdf = async (req, res) => {
             console.log("Database connection is ready");
           }
 
+          // Insert certificate data into database
           const id = idExist.id;
-
           const certificateData = {
             id,
             transactionHash: hash,
@@ -149,6 +198,7 @@ const issuePdf = async (req, res) => {
           };
           await insertCertificateData(certificateData);
       
+          // Set response headers for PDF download
           const certificateName = `${fields.Certificate_Number}_certificate.pdf`;
 
           res.set({
@@ -177,6 +227,7 @@ const issuePdf = async (req, res) => {
                 
       }
       else {
+        // Simulation for issuing certificate failed
         res.status(400).json({ message: "Simulation for the IssueCertificate failed" });
       }
     }
@@ -185,6 +236,7 @@ const issuePdf = async (req, res) => {
 
 // API call for Certificate issue without pdf template
 const issue = async (req, res) => {
+  // Extracting required data from the request body
   const email = req.body.email;
   const Certificate_Number = req.body.certificateNumber;
   const name = req.body.name;
@@ -192,11 +244,25 @@ const issue = async (req, res) => {
   const Grant_Date = req.body.grantDate;
   const Expiration_Date = req.body.expirationDate;
 
+  // Check if user with provided email exists
   const idExist = await User.findOne({ email });
+  // Check if certificate number already exists
   const isNumberExist = await Issues.findOne({certificateNumber: Certificate_Number});
 
-  if (!idExist || isNumberExist || !Certificate_Number || !name || !courseName || !Grant_Date || !Expiration_Date || [Certificate_Number, name, courseName, Grant_Date, Expiration_Date].some(value => typeof value !== 'string' || value == 'string') || Certificate_Number.length > max_length || Certificate_Number.length < min_length) {
-      // res.status(400).json({ message: "Please provide valid details" });
+  // Validation checks for request data
+  if (
+    !idExist || // User does not exist
+    isNumberExist || // Certificate number already exists
+    !Certificate_Number || // Missing certificate number
+    !name || // Missing name
+    !courseName || // Missing course name
+    !Grant_Date || // Missing grant date
+    !Expiration_Date || // Missing expiration date
+    [Certificate_Number, name, courseName, Grant_Date, Expiration_Date].some(value => typeof value !== 'string' || value == 'string') || // Some values are not strings
+    Certificate_Number.length > max_length || // Certificate number exceeds maximum length
+    Certificate_Number.length < min_length // Certificate number is shorter than minimum length
+  ) {
+    // Prepare error message
       let errorMessage = "Please provide valid details";
     
       // Check for specific error conditions and update the error message accordingly
@@ -211,10 +277,13 @@ const issue = async (req, res) => {
       } else if(!idExist) {
           errorMessage = `Invalid Issuer Email`;
       }
+
+      // Respond with error message
       res.status(400).json({ message: errorMessage });
       return;
   } else {
     try {
+      // Prepare fields for the certificate
       const fields = {
         Certificate_Number: Certificate_Number,
         name: name,
@@ -222,6 +291,7 @@ const issue = async (req, res) => {
         Grant_Date: Grant_Date,
         Expiration_Date: Expiration_Date,
       };
+      // Hash sensitive fields
       const hashedFields = {};
       for (const field in fields) {
         hashedFields[field] = calculateHash(fields[field]);
@@ -236,9 +306,10 @@ const issue = async (req, res) => {
       if (val[0] == true && val[1] == Certificate_Number) {
         res.status(400).json({ message: "Certificate already issued" });
       } else {
-        
+        // Simulate issuing the certificate
         const simulateIssue = await simulateIssueCertificate(Certificate_Number, combinedHash);
         if (simulateIssue) {
+          // If simulation successful, issue the certificate on blockchain
           const tx = contract.methods.issueCertificate(
             Certificate_Number,
             combinedHash
@@ -246,11 +317,14 @@ const issue = async (req, res) => {
 
           hash = await confirm(tx);
 
+      // Generate link URL for the certificate on blockchain
       const polygonLink = `https://${process.env.NETWORK}.com/tx/${hash}`;
-     
-      const dataWithLink = {...fields,polygonLink:polygonLink}
 
+      // Generate encrypted URL with certificate data
+      const dataWithLink = {...fields,polygonLink:polygonLink}
       const urlLink = generateEncryptedUrl(dataWithLink);
+
+      // Generate QR code based on the URL
       const legacyQR = false;
       let qrCodeData = '';
       if (legacyQR) {
@@ -294,6 +368,7 @@ const issue = async (req, res) => {
             expirationDate: Expiration_Date
           };
 
+          // Insert certificate data into database
           await insertCertificateData(certificateData);
           
           }catch (error) {
@@ -301,6 +376,7 @@ const issue = async (req, res) => {
           console.error("Internal server error", error);
         }
 
+        // Respond with success message and certificate details
           res.status(200).json({
             message: "Certificate issued successfully",
             qrCodeImage: qrCodeImage,
@@ -309,11 +385,13 @@ const issue = async (req, res) => {
           });
         }
         else {
+          // Simulation for issuing certificate failed
           res.status(400).json({ message: "Simulation for the IssueCertificate failed" });
         }
       }
 
     } catch (error) {
+       // Internal server error
       console.error(error);
       res.status(500).json({ message: "Internal Server Error" });
     }
@@ -327,18 +405,26 @@ const polygonLink = async (req, res) => {
 
 // Verify page with PDF QR - Blockchain URL
 const verify = async (req, res) => {
+  // Extracting file path from the request
   file = req.file.path;
+
   try {
+    // Extract QR code data from the PDF file
     const certificateData = await extractQRCodeDataFromPDF(file);
 
+    // Extract blockchain URL from the certificate data
     const blockchainUrl = certificateData["Polygon URL"];
 
-    if(blockchainUrl && blockchainUrl.length > 0) {
-      res.status(200).json({status: "SUCCESS", message: "Certificate is valid", Details: certificateData});
+    // Check if a blockchain URL exists and is valid
+    if (blockchainUrl && blockchainUrl.length > 0) {
+      // Respond with success status and certificate details
+      res.status(200).json({ status: "SUCCESS", message: "Certificate is valid", Details: certificateData });
     } else {
-      res.status(400).json({status: "FAILED", message: "Certificate is not valid"});
+      // Respond with failure status if no valid blockchain URL is found
+      res.status(400).json({ status: "FAILED", message: "Certificate is not valid" });
     }
   } catch (error) {
+    // If an error occurs during verification, respond with failure status
     const verificationResponse = {
       message: "Certificate is not valid"
     };
@@ -346,14 +432,15 @@ const verify = async (req, res) => {
     res.status(400).json(verificationResponse);
   }
   
-  // Delete files
+  // Delete the uploaded file after verification
   if (fs.existsSync(file)) {
      fs.unlinkSync(file);
   }
 
+  // Clean up the upload folder
   await cleanUploadFolder();
-          
 };
+
 
 // Verify certificate with ID
 
@@ -450,27 +537,35 @@ const decodeCertificate = async (req, res) => {
 
 // Admin Signup
 const signup = async (req, res) => {
+  // Extracting name, email, and password from the request body
   let { name, email, password } = req.body;
+
+  // Trim whitespace from input fields
   name = name.trim();
   email = email.trim();
   password = password.trim();
 
+  // Validation checks for input fields
   if (name == "" || email == "" || password == "") {
+    // Empty input fields
     res.json({
       status: "FAILED",
       message: "Empty input fields!",
     });
   } else if (!/^[a-zA-Z ]*$/.test(name)) {
+    // Invalid name format
     res.json({
       status: "FAILED",
       message: "Invalid name entered",
     });
   } else if (!/^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$/.test(email)) {
+    // Invalid email format
     res.json({
       status: "FAILED",
       message: "Invalid email entered",
     });
   } else if (password.length < 8) {
+    // Password too short
     res.json({
       status: "FAILED",
       message: "Password is too short!",
@@ -488,6 +583,7 @@ const signup = async (req, res) => {
       const existingAdmin = await Admin.findOne({ email });
 
       if (existingAdmin) {
+        // Admin with the provided email already exists
         res.json({
           status: "FAILED",
           message: "Admin with the provided email already exists",
@@ -514,6 +610,7 @@ const signup = async (req, res) => {
         data: savedAdmin,
       });
     } catch (error) {
+      // An error occurred during signup process
       res.json({
         status: "FAILED",
         message: "An error occurred",
@@ -526,13 +623,14 @@ const signup = async (req, res) => {
 const login = async (req, res) => {
   let { email, password } = req.body;
 
+  // Check if email or password is empty
   if (email == "" || password == "") {
     res.json({
       status: "FAILED",
       message: "Empty credentials supplied",
     });
   } else {
-    // Check mongoose connection
+    // Check database connection
       const dbState = await isDBConncted();
       if (dbState === false) {
         console.error("Database connection is not ready");
@@ -542,22 +640,28 @@ const login = async (req, res) => {
     
     // Checking if user exists 
     const adminExist = await Admin.findOne({ email });
+
+    // Finding user by email
     Admin.find({ email })
       .then((data) => {
         if (data.length) {
           
           // User exists
           const hashedPassword = data[0].password;
+          // Compare password hashes
           bcrypt
             .compare(password, hashedPassword)
             .then((result) => {
               if (result) {
-                // Save verification details
+                // Password match
+                // Update admin status to true
                 adminExist.status = true;
                 adminExist.save();
-                // Password match
+
+                // Generate JWT token for authentication
                 const JWTToken = generateJwtToken()
                
+                // Respond with success message and user details
                 res.status(200).json({
                   status: "SUCCESS",
                   message: "Valid User Credentials",
@@ -569,6 +673,7 @@ const login = async (req, res) => {
                   }
                 });
               } else {
+                // Incorrect password
                 res.json({
                   status: "FAILED",
                   message: "Invalid password entered!",
@@ -576,6 +681,7 @@ const login = async (req, res) => {
               }
             })
             .catch((err) => {
+              // Error occurred while comparing passwords
               res.json({
                 status: "FAILED",
                 message: "An error occurred while comparing passwords",
@@ -583,6 +689,7 @@ const login = async (req, res) => {
             });
           
         } else {
+          // User with provided email not found
           res.json({
             status: "FAILED",
             message: "Invalid credentials entered!",
@@ -590,6 +697,7 @@ const login = async (req, res) => {
         }
       })
       .catch((err) => {
+        // Error occurred during login process
         res.json({
           status: "FAILED",
           message: "An error occurred while checking for existing user",
@@ -611,23 +719,27 @@ const logout = async (req, res) => {
     // Checking if Admin already exists
     const existingAdmin = await Admin.findOne({ email });
     
-    if (!existingAdmin) {
+     // If admin doesn't exist, or if they are not logged in, return failure response
+     if (!existingAdmin) {
       return res.json({
         status: 'FAILED',
         message: 'Admin not found (or) Not Logged in!',
       });
 
     }
-    // Save logout details
+
+    // Save logout details by updating admin status to false
     existingAdmin.status = false;
     existingAdmin.save();
 
+    // Respond with success message upon successful logout
     res.json({
         status: "SUCCESS",
         message: "Admin Logged out successfully"
      });
 
   } catch (error) {
+    // Error occurred during logout process, respond with failure message
     res.json({
       status: 'FAILED',
       message: 'An error occurred during the logout!',
@@ -635,10 +747,11 @@ const logout = async (req, res) => {
   }
 };
 
+// Reset Admin Password
 const resetPassword = async (req, res) => {
   let { email, password } = req.body;
   try {
-    // Check mongoose connection
+    // Check database connection
       const dbState = await isDBConncted();
       if (dbState === false) {
         console.error("Database connection is not ready");
@@ -646,29 +759,35 @@ const resetPassword = async (req, res) => {
         console.log("Database connection is ready");
     }
     
+    // Find admin by email
     const admin = await Admin.findOne({ email });
 
+    // If admin doesn't exist, return failure response
     if (!admin) {
       return res.json({
         status: 'FAILED',
         message: 'Admin not found',
       });
     }
-    // password handling
+    // Hash the new password
     const saltRounds = 10;
             bcrypt
               .hash(password, saltRounds)
               .then((hashedPassword) => {
+                // Save hashed password to admin document
                 admin.password = hashedPassword;
+                // Save the admin document
                 admin
                   .save()
                   .then(() => {
+                    // Password reset successful, respond with success message
                     res.json({
                       status: "SUCCESS",
                       message: "Password reset successful"
                     });
                   })
                   .catch((err) => {
+                    // Error occurred while saving user account, respond with failure message
                     res.json({
                       status: "FAILED",
                       message: "An error occurred while saving user account!",
@@ -676,6 +795,7 @@ const resetPassword = async (req, res) => {
                   });
               })
               .catch((err) => {
+                // Error occurred while hashing password, respond with failure message
                 res.json({
                   status: "FAILED",
                   message: "An error occurred while hashing password!",
@@ -683,6 +803,7 @@ const resetPassword = async (req, res) => {
               });
 
   } catch (error) {
+    // Error occurred during password reset process, respond with failure message
     res.json({
       status: 'FAILED',
       message: 'An error occurred during password reset process!',
@@ -700,13 +821,17 @@ const getAllIssuers = async (req, res) => {
         console.log("Database connection is ready");
     }
     
+    // Fetch all users from the database
     const allIssuers = await User.find({});
+
+    // Respond with success and all user details
     res.json({
       status: 'SUCCESS',
       data: allIssuers,
       message: 'All user details fetched successfully'
     });
   } catch (error) {
+    // Error occurred while fetching user details, respond with failure message
     res.json({
       status: 'FAILED',
       message: 'An error occurred while fetching user details'
@@ -748,7 +873,6 @@ const getIssuerByEmail = async (req, res) => {
   }
 };
 
-
 const approveIssuer = async (req, res) => {
   let { email } = req.body;
   try {
@@ -760,7 +884,10 @@ const approveIssuer = async (req, res) => {
         console.log("Database connection is ready");
     }
     
+    // Find user by email
     const user = await User.findOne({ email });
+    
+    // If user doesn't exist, return failure response
     if (!user) {
       return res.json({
         status: 'FAILED',
@@ -768,6 +895,7 @@ const approveIssuer = async (req, res) => {
       });
     }
 
+    // If user is already approved, send email and return success response
     if (user.approved) {
       await sendEmail(user.name, email);
       return res.json({
@@ -776,13 +904,16 @@ const approveIssuer = async (req, res) => {
       });
     }
     
-
+    // If user is not approved yet, send email and update user's approved status
     const mailStatus = await sendEmail(user.name, email);
-    const mailresponse = mailStatus == true ? "sent" : "NA";
+    const mailresponse = (mailStatus === true) ? "sent" : "NA";
 
     // Save verification details
     user.approved = true;
     await user.save();
+    
+
+    // Respond with success message indicating user approval
     res.json({
         status: "SUCCESS",
         email: mailresponse,
@@ -790,14 +921,17 @@ const approveIssuer = async (req, res) => {
      });
 
   } catch (error) {
+    // Error occurred during user approval process, respond with failure message
     res.json({
       status: 'FAILED',
-      message: 'An error occurred during User Approved process!',
+      message: "An error occurred during the Issuer approved process!",
     });
   }
 };
 
+// Add Trusted Owner
 const addTrustedOwner = async (req, res) => {
+  // Initialize Web3 instance with RPC endpoint
   const web3 = await new Web3(
     new Web3.providers.HttpProvider(
       process.env.RPC_ENDPOINT
@@ -805,38 +939,51 @@ const addTrustedOwner = async (req, res) => {
   );
   // const { newOwnerAddress } = req.body;
   try {
+    // Extract new owner's address from request body
     const newOwnerAddress = req.body.address;
 
+    // Validate Ethereum address format
     if (!web3.utils.isAddress(newOwnerAddress)) {
       return res.status(400).json({ message: "Invalid Ethereum address format" });
     }
 
+    // Simulate adding trusted owner
     const simulateOwner = await simulateTrustedOwner(addTrustedOwner, newOwnerAddress);
 
+    // If simulation successful, proceed to add trusted owner to the blockchain
     if (simulateOwner) {
+      // Retrieve contract instance
       const contract = await web3i();
 
+      // Prepare transaction to add trusted owner
       const tx = contract.methods.addTrustedOwner(newOwnerAddress);
 
+      // Confirm transaction
       const hash = await confirm(tx);
 
+      // Prepare success response
       const responseMessage = {
         status: "SUCCESS",
         message: "Trusted owner added successfully",
       };
 
+      // Send success response
       res.status(200).json(responseMessage);
     } else {
+      // Simulation failed, send failure response
       return res.status(400).json({ message: "Simulation failed" });
     }
 
   } catch (error) {
+    // Internal server error occurred, send failure response
     console.error(error);
     res.status(500).json({ message: "Internal Server Error / Address Available" });
   }
 };
 
+// Remove Trusted Owner
 const removeTrustedOwner = async (req, res) => {
+  // Creating a new instance of Web3 with the specified RPC endpoint
   const web3 = await new Web3(
     new Web3.providers.HttpProvider(
       process.env.RPC_ENDPOINT
@@ -844,22 +991,30 @@ const removeTrustedOwner = async (req, res) => {
   );
   // const { ownerToRemove } = req.body;
   try {
+    // Extracting the owner address to remove from the request body
     const ownerToRemove = req.body.address;
 
+    // Checking if the owner address has a valid Ethereum address format
     if (!web3.utils.isAddress(ownerToRemove)) {
       return res.status(400).json({ message: "Invalid Ethereum address format" });
     }
 
+    // Simulating the removal of the trusted owner
     const simulateOwner = await simulateTrustedOwner(removeTrustedOwner, ownerToRemove);
     
+    // If simulation is successful, proceed with removing the trusted owner
     if (simulateOwner) {
 
+    // Accessing the smart contract instance
     const contract = await web3i();
 
+    // Creating a transaction to remove the trusted owner
     const tx = contract.methods.removeTrustedOwner(ownerToRemove);
 
+    // Confirming the transaction
     const hash = await confirm(tx);
 
+    // Responding with success message upon successful removal
     const responseMessage = {
       status: "SUCCESS",
       message: "Trusted owner removed successfully",
@@ -867,60 +1022,101 @@ const removeTrustedOwner = async (req, res) => {
 
       res.status(200).json(responseMessage);
       } else {
+      // If simulation failed, return failure response
       return res.status(400).json({ message: "Simulation failed" });
     }
 
   } catch (error) {
+    // Handling errors and responding with appropriate error message
     console.error(error);
     res.status(500).json({ message: "Internal Server Error / Address Unavailable" });
   }
 };
 
+// Check Balance
 const checkBalance = async (req, res) => {
+  // Initialize Web3 instance with RPC endpoint
   const web3 = await new Web3(
     new Web3.providers.HttpProvider(
       process.env.RPC_ENDPOINT
     )
   );
   try {
+      // Extract the target address from the query parameter
       const targetAddress = req.query.address;
+
+      // Check if the target address is a valid Ethereum address
       if (!web3.utils.isAddress(targetAddress)) {
           return res.status(400).json({ message: "Invalid Ethereum address format" });
       }
 
-      const balanceWei = await web3.eth.getBalance(targetAddress);
+    // Get the balance of the target address in Wei
+    const balanceWei = await web3.eth.getBalance(targetAddress);
+
+    // Convert balance from Wei to Ether
     const balanceEther = web3.utils.fromWei(balanceWei, 'ether');
     
     // Convert balanceEther to fixed number of decimals (e.g., 2 decimals)
     const fixedDecimals = parseFloat(balanceEther).toFixed(3);
 
-      const balanceResponse = {
+    // Prepare balance response
+    const balanceResponse = {
           message: "Balance check successful",
           balance: fixedDecimals,
       };
 
+      // Respond with the balance information
       res.status(200).json(balanceResponse);
   } catch (error) {
+      // Handle errors
       console.error(error);
       res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
 module.exports = {
+  // Function to issue a PDF certificate
   issuePdf,
+
+  // Function to issue a certificate
   issue,
+
+  // Function to generate a Polygon link for a certificate
   polygonLink,
+
+  // Function to verify a certificate with a PDF QR code
   verify,
+
+  // Function to verify a certificate with an ID
   verifyWithId,
+
+  // Function to handle admin signup
   signup,
+
+  // Function to handle admin login
   login,
+
+  // Function to handle admin logout
   logout,
+
+  // Function to reset admin password
   resetPassword,
+
+  // Function to get all issuers (users)
   getAllIssuers,
+
+  // Function to approve an issuer
   approveIssuer,
+
+  // Function to add a trusted owner
   addTrustedOwner,
+
+  // Function to remove a trusted owner
   removeTrustedOwner,
+
+  // Function to check the balance of an Ethereum address
   checkBalance,
   decodeCertificate,
   getIssuerByEmail
 }
+
