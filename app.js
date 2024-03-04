@@ -2,7 +2,10 @@
 require('dotenv').config();
 
 // Connect to the database
-require('./config/db');
+// require('./config/db');
+
+// Initialize scheduler
+require('./config/scheduler');
 
 // Import required modules
 const express = require("express");
@@ -35,7 +38,14 @@ const swaggerOptions = {
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 
+// Configure CORS with whitelisted routes
+// const corsOptions = {
+//   origin: ['https://example.com'], // Add allowed origins
+//   methods: ['GET', 'POST'], // Add allowed methods
+// };
+
 // Middleware
+// app.use(cors(corsOptions)); // Use CORS middleware with custom options
 app.use(cors());
 app.use(bodyParser.json());
 

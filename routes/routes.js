@@ -1,24 +1,21 @@
 const express = require('express');
 const router = express.Router();
-const { ensureAuthenticated } = require("../config/auth"); // Import authentication middleware
+const {ensureAuthenticated} = require("../config/auth")
 const multer = require('multer');
-const { fileFilter } = require('../model/tasks'); // Import file filter function
-const adminController = require('../controllers/controllers'); // Import admin controller
+const { fileFilter } = require('../model/tasks');
 
+const adminController = require('../controllers/controllers');
 
-// Configure multer storage options
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, "uploads"); // Set the destination where files will be saved
   },
   filename: (req, file, cb) => {
-    // Set the filename based on the Certificate_Number from the request body
     const Certificate_Number = req.body.Certificate_Number;
     cb(null, file.originalname);
   },
 });
 
-// Initialize multer with configured storage and file filter
 const _upload = multer({ storage, fileFilter });
 
 /**
@@ -99,7 +96,8 @@ const _upload = multer({ storage, fileFilter });
  *                   description: Error message for internal server error.
  */
 
-router.post('/issue',ensureAuthenticated, _upload.single("pdfFile"), adminController.issue);
+// router.post('/issue',ensureAuthenticated, _upload.single("pdfFile"), adminController.issue);
+router.post('/issue', _upload.single("pdfFile"), adminController.issue);
 
 /**
  * @swagger
@@ -177,7 +175,8 @@ router.post('/issue',ensureAuthenticated, _upload.single("pdfFile"), adminContro
  */
 
 
-router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminController.issuePdf);
+// router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminController.issuePdf);
+router.post('/issue-pdf', _upload.single("file"), adminController.issuePdf);
 
 // /**
 //  * @swagger
@@ -248,7 +247,7 @@ router.post('/verify', _upload.single("pdfFile"), adminController.verify);
  * @swagger
  * /api/verify-with-id:
  *   post:
- *     summary: Verify a certificate ID on the blockchain
+ *     summary: Verify a certificate ID on the blockchain [future scope]
  *     description: Verify the existence and validity of a certificate using its ID on the blockchain.
  *     tags: [Verifier]
  *     requestBody:
@@ -647,6 +646,7 @@ router.post('/reset-password', adminController.resetPassword);
  */
 
 router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers);
+// router.get('/get-all-issuers', adminController.getAllIssuers);
 
 /**
  * @swagger
@@ -707,6 +707,71 @@ router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers
  */
 
 router.post('/approve-issuer',ensureAuthenticated, adminController.approveIssuer);
+
+/**
+ * @swagger
+ * /api/get-issuer-by-email:
+ *   post:
+ *     summary: Get issuer by email
+ *     tags: [Admin]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: Issuer's email address
+ *     responses:
+ *       200:
+ *         description: Issuer fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: SUCCESS
+ *                 data:
+ *                   type: object
+ *                   description: Issuer details
+ *                 message:
+ *                   type: string
+ *                   example: Issuer fetched successfully
+ *       400:
+ *         description: Bad request or issuer not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: Issuer not found (or) Bad request!
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred during the process!
+ */
+
+router.post('/get-issuer-by-email', adminController.getIssuerByEmail);
 
 /**
  * @swagger
@@ -934,5 +999,7 @@ router.get('/check-balance',ensureAuthenticated, adminController.checkBalance);
  */
 
 
-router.post('/verify-encrypted', (req, res) => adminController.decodeCertificate(req, res));
+router.post('/verify-decrypt', (req, res) => adminController.decodeCertificate(req, res));
+
+
 module.exports=router;
