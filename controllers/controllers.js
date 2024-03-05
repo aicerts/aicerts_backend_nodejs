@@ -362,10 +362,12 @@ const issue = async (req, res) => {
           qrCodeData = urlLink;
       }
 
-      // const qrCodeImage = await QRCode.toDataURL(qrCodeData, {
-      //   errorCorrectionLevel: "H",
-      // });
-      const qrCodeImage = await QRCode.toDataURL(qrCodeData, {   errorCorrectionLevel: "H",   width: 480,height:480});
+      const qrCodeImage = await QRCode.toDataURL(qrCodeData, {
+        errorCorrectionLevel: "H",
+        width: 450, // Adjust the width as needed
+        height: 450, // Adjust the height as needed
+      });
+
 
         try {
           // Check mongoose connection
@@ -391,7 +393,7 @@ const issue = async (req, res) => {
 
           // Insert certificate data into database
           await insertCertificateData(certificateData);
-          
+
           }catch (error) {
           // Handle mongoose connection error (log it, throw an error, etc.)
           console.error("Internal server error", error);
@@ -1129,40 +1131,7 @@ const getAllIssuers = async (req, res) => {
   }
 };
 
-const getIssuerByEmail = async (req, res) => {
-  try {
-    // Check mongoose connection
-    const dbState = await isDBConncted();
-    if (dbState === false) {
-      console.error("Database connection is not ready");
-    } else {
-      console.log("Database connection is ready");
-    }
-
-    const { email } = req.body; 
-
-    const issuer = await User.findOne({ email: email }).select('-password');
-
-    if (issuer) {
-      res.json({
-        status: 'SUCCESS',
-        data: issuer,
-        message: `Issuer with email ${email} fetched successfully`
-      });
-    } else {
-      res.json({
-        status: 'FAILED',
-        message: `Issuer with email ${email} not found`
-      });
-    }
-  } catch (error) {
-    res.json({
-      status: 'FAILED',
-      message: 'An error occurred while fetching issuer details by email'
-    });
-  }
-};
-
+// Approve Issuer
 const approveIssuer = async (req, res) => {
   let { email } = req.body;
   try {
