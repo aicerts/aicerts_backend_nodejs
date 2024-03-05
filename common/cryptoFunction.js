@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+require('dotenv').config();
 
 /**
  * Encrypts the provided data using AES-256-CBC encryption.
@@ -70,7 +71,7 @@ function generateEncryptedUrl(data) {
     
     // Implement the logic to generate the encrypted URL
     const encryptedUrl = process.env.ENCRYPTED_URL + encodeURIComponent(encryptedData) + '&iv=' + encodeURIComponent(iv);
-    console.log(encryptedUrl)
+    
     return encryptedUrl;
 }
 
