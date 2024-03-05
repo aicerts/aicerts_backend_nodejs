@@ -102,8 +102,8 @@ const __upload = multer({dest: "uploads/"});
  *                   description: Error message for internal server error.
  */
 
-// router.post('/issue',ensureAuthenticated, _upload.single("pdfFile"), adminController.issue);
-router.post('/issue', _upload.single("pdfFile"), adminController.issue);
+router.post('/issue',ensureAuthenticated, _upload.single("pdfFile"), adminController.issue);
+// router.post('/issue', _upload.single("pdfFile"), adminController.issue);
 
 /**
  * @swagger
@@ -180,8 +180,8 @@ router.post('/issue', _upload.single("pdfFile"), adminController.issue);
  *                   description: Error message for internal server error.
  */
 
-// router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminController.issuePdf);
-router.post('/issue-pdf', _upload.single("file"), adminController.issuePdf);
+router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminController.issuePdf);
+// router.post('/issue-pdf', _upload.single("file"), adminController.issuePdf);
 
 /**
  * @swagger
@@ -256,8 +256,8 @@ router.post('/issue-pdf', _upload.single("file"), adminController.issuePdf);
  *               error: Internal Server Error
  */
 
-// router.post('/batch-certificate-issue', ensureAuthenticated, __upload.single("excelFile"), adminController.batchCertificateIssue);
-router.post('/batch-certificate-issue', __upload.single("excelFile"), adminController.batchCertificateIssue);
+router.post('/batch-certificate-issue', ensureAuthenticated, __upload.single("excelFile"), adminController.batchCertificateIssue);
+// router.post('/batch-certificate-issue', __upload.single("excelFile"), adminController.batchCertificateIssue);
 
 // /**
 //  * @swagger
@@ -837,8 +837,8 @@ router.post('/reset-password', adminController.resetPassword);
  *                   example: An error occurred while fetching user details
  */
 
-// router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers);
-router.get('/get-all-issuers', adminController.getAllIssuers);
+router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers);
+// router.get('/get-all-issuers', adminController.getAllIssuers);
 
 /**
  * @swagger
@@ -898,8 +898,8 @@ router.get('/get-all-issuers', adminController.getAllIssuers);
  *                   example: An error occurred during the user approved process!
  */
 
-// router.post('/approve-issuer',ensureAuthenticated, adminController.approveIssuer);
-router.post('/approve-issuer', adminController.approveIssuer);
+router.post('/approve-issuer',ensureAuthenticated, adminController.approveIssuer);
+// router.post('/approve-issuer', adminController.approveIssuer);
 
 /**
  * @swagger
@@ -959,8 +959,8 @@ router.post('/approve-issuer', adminController.approveIssuer);
  *                   example: An error occurred during the user rejected process!
  */
 
-// router.post('/reject-issuer',ensureAuthenticated, adminController.rejectIssuer);
-router.post('/reject-issuer', adminController.rejectIssuer);
+router.post('/reject-issuer',ensureAuthenticated, adminController.rejectIssuer);
+// router.post('/reject-issuer', adminController.rejectIssuer);
 
 
 /**
@@ -1091,8 +1091,8 @@ router.post('/get-issuer-by-email', adminController.getIssuerByEmail);
  *                   description: Details of the internal server error
  */
 
-// router.post('/add-trusted-owner',ensureAuthenticated, adminController.addTrustedOwner);
-router.post('/add-trusted-owner', adminController.addTrustedOwner);
+router.post('/add-trusted-owner',ensureAuthenticated, adminController.addTrustedOwner);
+// router.post('/add-trusted-owner', adminController.addTrustedOwner);
 
 /**
  * @swagger
@@ -1156,8 +1156,8 @@ router.post('/add-trusted-owner', adminController.addTrustedOwner);
  *                   description: Details of the internal server error
  */
 
-// router.post('/remove-trusted-owner',ensureAuthenticated, adminController.removeTrustedOwner);
-router.post('/remove-trusted-owner', adminController.removeTrustedOwner);
+router.post('/remove-trusted-owner',ensureAuthenticated, adminController.removeTrustedOwner);
+// router.post('/remove-trusted-owner', adminController.removeTrustedOwner);
 
 /**
  * @swagger
