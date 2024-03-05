@@ -1332,6 +1332,42 @@ const addTrustedOwner = async (req, res) => {
   }
 };
 
+
+// Function to fetch details of Issuer
+const getIssuerByEmail = async (req, res) => {
+  try {
+    // Check mongoose connection
+    const dbState = await isDBConnected();
+    if (dbState === false) {
+      console.error("Database connection is not ready");
+    } else {
+      console.log("Database connection is ready");
+    }
+ 
+    const { email } = req.body;
+ 
+    const issuer = await User.findOne({ email: email }).select('-password');
+ 
+    if (issuer) {
+      res.json({
+        status: 'SUCCESS',
+        data: issuer,
+        message: `Issuer with email ${email} fetched successfully`
+      });
+    } else {
+      res.json({
+        status: 'FAILED',
+        message: `Issuer with email ${email} not found`
+      });
+    }
+  } catch (error) {
+    res.json({
+      status: 'FAILED',
+      message: 'An error occurred while fetching issuer details by email'
+    });
+  }
+}
+
 // Remove Trusted Owner
 const removeTrustedOwner = async (req, res) => {
   // Creating a new instance of Web3 with the specified RPC endpoint
@@ -1662,6 +1698,11 @@ module.exports = {
 
   // Function to check the balance of an Ethereum address
   checkBalance,
-  decodeCertificate,
-  getIssuerByEmail
-}
+
+  getIssuerByEmail,
+
+  // Function to decode a certificate
+  decodeCertificate
+
+  // testFunction
+};

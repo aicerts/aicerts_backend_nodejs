@@ -44,9 +44,9 @@ const UserSchema = new Schema({
     phoneNumber: String,
     designation: String,
     username: {
-        type: String,
-        unique: true,
-      }
+      type: String,
+      unique: true
+    },
     rejectedDate: Date,
     certificatesIssued: Number
   });
