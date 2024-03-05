@@ -286,6 +286,8 @@ router.get('/polygonlink', adminController.polygonLink);
  *   post:
  *     summary: Verify the Certificate with QR - Blockchain URL
  *     tags: [Verifier]
+ *     security:
+ *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -331,6 +333,8 @@ router.post('/verify', _upload.single("pdfFile"), adminController.verify);
  *     summary: Verify a certificate ID on the blockchain
  *     description: Verify the existence and validity of a certificate using its ID on the blockchain.
  *     tags: [Verifier]
+ *     security:
+ *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -396,6 +400,8 @@ router.post('/verify-with-id', adminController.verifyWithId);
  *     summary: Verify Single/Batch Certificates by Certification ID
  *     description: Verify single/batch certificates using their certification ID. It checks whether the certification ID exists in the database and validates it against blockchain records if found.
  *     tags: [Single / Batch Verifier]
+ *     security:
+ *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -461,6 +467,8 @@ router.post('/verify-certification-id', adminController.verifyCertificationId);
  *     summary: Verify Certificate ID in Batch Certificates
  *     description: Endpoint to verify if a ID exists in the Batch Certificate
  *     tags: [Batch Certificate Verifier]
+ *     security:
+ *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -842,9 +850,9 @@ router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers
 
 /**
  * @swagger
- * /api/approve-issuer:
+ * /api/validate-issuer:
  *   post:
- *     summary: Approve an Issuer
+ *     summary: Approve or Reject an Issuer
  *     tags: [Admin]
  *     requestBody:
  *       required: true
@@ -853,12 +861,18 @@ router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers
  *           schema:
  *             type: object
  *             properties:
+ *               status:
+ *                 type: integer
+ *                 description: Status code indicating approval (1) or rejection (2)
  *               email:
  *                 type: string
- *                 description: User's email address
+ *                 description: Email of the issuer to be approved or rejected
+ *             example:
+ *               status: 1
+ *               email: issuer@example.com
  *     responses:
- *       200:
- *         description: User approved successfully
+ *       '200':
+ *         description: Successful operation. Returns status of the email and a success message.
  *         content:
  *           application/json:
  *             schema:
@@ -866,12 +880,15 @@ router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers
  *               properties:
  *                 status:
  *                   type: string
- *                   example: SUCCESS
+ *                   description: Status of the operation (SUCCESS).
+ *                 email:
+ *                   type: string
+ *                   description: Status of the email (sent or NA).
  *                 message:
  *                   type: string
- *                   example: User Approved successfully
- *       400:
- *         description: Bad request or user not found
+ *                   description: Success message indicating approval or rejection.
+ *       '400':
+ *         description: Invalid input parameter or issuer status. Returns a failure message.
  *         content:
  *           application/json:
  *             schema:
@@ -879,12 +896,12 @@ router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers
  *               properties:
  *                 status:
  *                   type: string
- *                   example: FAILED
+ *                   description: Status of the operation (FAILED).
  *                 message:
  *                   type: string
- *                   example: User not found!
- *       500:
- *         description: Internal server error
+ *                   description: Error message detailing the issue.
+ *       '500':
+ *         description: Internal server error. Returns a failure message.
  *         content:
  *           application/json:
  *             schema:
@@ -892,75 +909,14 @@ router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers
  *               properties:
  *                 status:
  *                   type: string
- *                   example: FAILED
+ *                   description: Status of the operation (FAILED).
  *                 message:
  *                   type: string
- *                   example: An error occurred during the user approved process!
+ *                   description: Error message indicating an error during the validation process.
  */
 
-router.post('/approve-issuer',ensureAuthenticated, adminController.approveIssuer);
-// router.post('/approve-issuer', adminController.approveIssuer);
-
-/**
- * @swagger
- * /api/reject-issuer:
- *   post:
- *     summary: Reject an Issuer
- *     tags: [Admin]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               email:
- *                 type: string
- *                 description: User's email address
- *     responses:
- *       200:
- *         description: User rejected successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: SUCCESS
- *                 message:
- *                   type: string
- *                   example: User Rejected successfully
- *       400:
- *         description: Bad request or user not found
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: FAILED
- *                 message:
- *                   type: string
- *                   example: User not found!
- *       500:
- *         description: Internal server error
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: FAILED
- *                 message:
- *                   type: string
- *                   example: An error occurred during the user rejected process!
- */
-
-router.post('/reject-issuer',ensureAuthenticated, adminController.rejectIssuer);
-// router.post('/reject-issuer', adminController.rejectIssuer);
+router.post('/validate-issuer',ensureAuthenticated, adminController.validateIssuer);
+// router.post('/validate-issuer', adminController.validateIssuer);
 
 
 /**

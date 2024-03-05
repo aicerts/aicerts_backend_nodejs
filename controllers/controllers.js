@@ -1149,7 +1149,7 @@ const getAllIssuers = async (req, res) => {
     }
     
     // Fetch all users from the database
-    const allIssuers = await User.find({});
+    const allIssuers = await User.find({ approved: false }).select('-password');
 
     // Respond with success and all user details
     res.json({
@@ -1166,67 +1166,25 @@ const getAllIssuers = async (req, res) => {
   }
 };
 
-// Approve Issuer
-const approveIssuer = async (req, res) => {
-  let { email } = req.body;
-  try {
-    // Check mongoose connection
-      const dbState = await isDBConnected();
-      if (dbState === false) {
-        console.error("Database connection is not ready");
-      } else {
-        console.log("Database connection is ready");
-    }
-    
-    // Find user by email
-    const user = await User.findOne({ email });
-    
-    // If user doesn't exist, return failure response
-    if (!user) {
-      return res.json({
-        status: 'FAILED',
-        message: 'User not found!',
-      });
-    }
+// Approve or Reject the Issuer
+const validateIssuer = async (req, res) => {
+  let validationStatus = req.body.status;
+  let email = req.body.email;
 
-    // If user is already approved, send email and return success response
-    if (user.approved) {
-      // await sendEmail(user.name, email);
-      return res.json({
-        status: 'SUCCESS',
-        message: 'User Approved!',
-      });
+  // Find user by email
+  const userExist = await User.findOne({ email });
+
+  if(!email || !userExist || (validationStatus !== 1 && validationStatus !== 2)) {
+    var defaultMessage = "Invalid Input parameter";
+
+    if((validationStatus !== 1 && validationStatus !== 2)) {
+      var defaultMessage = "Invalid Issuer status";
+    } else if (!userExist) {
+      var defaultMessage = "User not found!";
     }
-    
-    // If user is not approved yet, send email and update user's approved status
-    const mailStatus = await sendEmail(user.name, email);
-    const mailresponse = (mailStatus === true) ? "sent" : "NA";
-
-    // Save verification details
-    user.approved = true;
-    user.status = 1;
-    user.rejectedDate = null;
-    await user.save();
-    
-    // Respond with success message indicating user approval
-    res.json({
-        status: "SUCCESS",
-        email: mailresponse,
-        message: "User Approved successfully"
-     });
-
-  } catch (error) {
-    // Error occurred during user approval process, respond with failure message
-    res.json({
-      status: 'FAILED',
-      message: "An error occurred during the Issuer approved process!",
-    });
+    return res.status(400).json({status: "FAILED", message: defaultMessage});
   }
-};
 
-// Reject Issuer
-const rejectIssuer = async (req, res) => {
-  let { email } = req.body;
   try {
     // Check mongoose connection
       const dbState = await isDBConnected();
@@ -1236,50 +1194,48 @@ const rejectIssuer = async (req, res) => {
         console.log("Database connection is ready");
     }
 
-    // Find user by email
-    const user = await User.findOne({ email });
-    
-    // If user doesn't exist, return failure response
-    if (!user) {
-      return res.json({
-        status: 'FAILED',
-        message: 'User not found!',
+    if(validationStatus == 1) {
+      // If user is not approved yet, send email and update user's approved status
+      var mailStatus = await sendEmail(userExist.name, email);
+      var mailresponse = (mailStatus === true) ? "sent" : "NA";
+
+      // Save verification details
+      userExist.approved = true;
+      userExist.status = 1;
+      userExist.rejectedDate = null;
+      await userExist.save();
+      
+      // Respond with success message indicating user approval
+      res.json({
+          status: "SUCCESS",
+          email: mailresponse,
+          message: "User Approved successfully"
       });
-    }
 
-    // If user is already rejected, send email and return success response
-    if (user.status == 2) {
-      // await rejectEmail(user.name, email);
-      return res.json({
-        status: 'SUCCESS',
-        message: 'User Rejected!',
+    } else if (validationStatus == 2) {
+      // If user is not approved yet, send email and update user's approved status
+      var mailStatus = await rejectEmail(userExist.name, email);
+      var mailresponse = (mailStatus === true) ? "sent" : "NA";
+
+      // Save Issuer rejected details
+      userExist.approved = false;
+      userExist.status = 2;
+      userExist.rejectedDate = Date.now();
+      await userExist.save();
+      
+      // Respond with success message indicating user approval
+      res.json({
+          status: "SUCCESS",
+          email: mailresponse,
+          message: "User Rejected successfully"
       });
-    }
-    
-    // If user is not approved yet, send email and update user's approved status
-    const mailStatus = await rejectEmail(user.name, email);
-    const mailresponse = (mailStatus === true) ? "sent" : "NA";
 
-    // Save Issuer rejected details
-    user.approved = false;
-    user.status = 2;
-    user.rejectedDate = Date.now();
-    await user.save();
-    
-    // Respond with success message indicating user approval
-    res.json({
-        status: "SUCCESS",
-        email: mailresponse,
-        message: "User Rejected successfully"
-     });
-
-    // } 
-
+    }   
   } catch (error) {
     // Error occurred during user approval process, respond with failure message
     res.json({
       status: 'FAILED',
-      message: "An error occurred during the Issuer rejected process!",
+      message: "An error occurred during the Issuer validation process!",
     });
   }
 };
@@ -1553,11 +1509,8 @@ module.exports = {
   // Function to get all issuers (users)
   getAllIssuers,
 
-  // Function to approve an issuer
-  approveIssuer,
-
-   // Function to reject an issuer
-  rejectIssuer,
+  // Function to Approve or Reject the Issuer
+  validateIssuer,
 
   // Function to grant role to an address
   addTrustedOwner,
