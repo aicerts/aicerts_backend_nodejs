@@ -41,7 +41,6 @@ const {
   confirm, // Function to confirm a certificate
   simulateIssueCertificate, // Function to simulate issuing a certificate
   simulateIssueBatchCertificates, // Function to simulate issuing a Batch of certificate
-  simulateTrustedOwner, // Function to simulate a trusted owner
   simulateRoleToAddress, // Function to simulate a grant / revoke role to an address
   cleanUploadFolder, // Function to clean up the upload folder
   isDBConnected, // Function to check if the database connection is established
@@ -74,8 +73,8 @@ const issuePdf = async (req, res) => {
 
   // Validation checks for request data
   if (
-    // (!idExist || idExist.status !== 1)|| // User does not exist
-    !idExist ||
+    (!idExist || idExist.status !== 1)|| // User does not exist
+    // !idExist ||
     isNumberExist || // Certificate number already exists 
     isNumberExistInBatch || // Certificate number already exists in Batch
     !Certificate_Number || // Missing certificate number
@@ -101,8 +100,8 @@ const issuePdf = async (req, res) => {
       errorMessage = `Certificate number should be at least ${min_length} characters`;
     } else if (!idExist) {
       errorMessage = `Invalid Issuer Email`;
-    // } else if(idExist.status !== 1) {
-    //   errorMessage = `Unauthorised Issuer Email`;
+    } else if(idExist.status !== 1) {
+      errorMessage = `Unauthorised Issuer Email`;
   }
 
     // Respond with error message
@@ -127,11 +126,22 @@ const issuePdf = async (req, res) => {
   const contract = await web3i();    
 
       // Verify certificate on blockchain
+      const isPaused = await contract.methods.paused().call();
+      const issuerAuthorized = await contract.methods.hasRole(process.env.ISSUER_ROLE, idExist.id).call();
       const val = await contract.methods.verifyCertificateById(Certificate_Number).call();
 
-      if (val === true) {
-        // Certificate already issued
-        res.status(400).json({ message: "Certificate already issued" });
+      if (
+        val === true || 
+        isPaused === true
+        ) {
+        // Certificate already issued / contract paused
+        var messageContent = "Certificate already issued";
+        if(isPaused === true) {
+          messageContent = "Operation restricted by the Blockchain";
+        // } else if (issuerAuthorized === false) {
+        //   messageContent = "Unauthorized Issuer to perform operation in Blockchain";
+        }
+        res.status(400).json({ message: messageContent });
       } 
       else {
         // Simulate issuing the certificate
@@ -267,8 +277,8 @@ const issue = async (req, res) => {
 
   // Validation checks for request data
   if (
-    // (!idExist || idExist.status !== 1)|| // User does not exist
-    !idExist || // User does not exist
+    (!idExist || idExist.status !== 1)|| // User does not exist
+    // !idExist || // User does not exist
     isNumberExist || // Certificate number already exists 
     isNumberExistInBatch || // Certificate number already exists in Batch
     !Certificate_Number || // Missing certificate number
@@ -294,8 +304,8 @@ const issue = async (req, res) => {
           errorMessage = `Certificate number should be at least ${min_length} characters`;
       } else if(!idExist) {
           errorMessage = `Invalid Issuer Email`;
-      // } else if(idExist.status !== 1) {
-      //   errorMessage = `Unauthorised Issuer Email`;
+      } else if(idExist.status !== 1) {
+        errorMessage = `Unauthorised Issuer Email`;
     }
 
       // Respond with error message
@@ -322,11 +332,23 @@ const issue = async (req, res) => {
       const contract = await web3i();
 
       // Verify certificate on blockchain
+      const isPaused = await contract.methods.paused().call();
+      const issuerAuthorized = await contract.methods.hasRole(process.env.ISSUER_ROLE, idExist.id).call();
       const val = await contract.methods.verifyCertificateById(Certificate_Number).call();
 
-      if (val === true) {
-        res.status(400).json({ message: "Certificate already issued" });
-      } else {
+      if (
+        val === true || 
+        isPaused === true
+        ) {
+        // Certificate already issued / contract paused
+        var messageContent = "Certificate already issued";
+        if(isPaused === true) {
+          messageContent = "Operation restricted by the Blockchain";
+        // } else if (issuerAuthorized === false) {
+        //   messageContent = "Unauthorized Issuer to perform operation in Blockchain";
+        }
+        res.status(400).json({ message: messageContent });
+      }else {
         // Simulate issuing the certificate
         const simulateIssue = await simulateIssueCertificate(Certificate_Number, combinedHash);
         if (simulateIssue) {
@@ -362,10 +384,12 @@ const issue = async (req, res) => {
           qrCodeData = urlLink;
       }
 
-      // const qrCodeImage = await QRCode.toDataURL(qrCodeData, {
-      //   errorCorrectionLevel: "H",
-      // });
-      const qrCodeImage = await QRCode.toDataURL(qrCodeData, {   errorCorrectionLevel: "H",   width: 480,height:480});
+      const qrCodeImage = await QRCode.toDataURL(qrCodeData, {
+        errorCorrectionLevel: "H",
+        width: 450, // Adjust the width as needed
+        height: 450, // Adjust the height as needed
+      });
+
 
         try {
           // Check mongoose connection
@@ -391,7 +415,7 @@ const issue = async (req, res) => {
 
           // Insert certificate data into database
           await insertCertificateData(certificateData);
-          
+
           }catch (error) {
           // Handle mongoose connection error (log it, throw an error, etc.)
           console.error("Internal server error", error);
@@ -510,19 +534,32 @@ const batchCertificateIssue = async (req, res) => {
   }
 
   try {
-    // Generate the Merkle tree
-      const tree = StandardMerkleTree.of(values, ['string']);
-
-      // Fetch the root from Tree
-      console.log('Merkle Root:', tree.root);        
 
       // Blockchain processing.
       const contract = await web3i();
 
-    const batchNumber = await contract.methods.getRootLength().call();
-    const allocateBatchId = parseInt(batchNumber) + 1;
-          
-    const simulateIssue = await simulateIssueBatchCertificates(tree.root);
+      // Verify on blockchain
+      const isPaused = await contract.methods.paused().call();
+      const issuerAuthorized = await contract.methods.hasRole(process.env.ISSUER_ROLE, idExist.id).call();
+    
+      if (isPaused === true) {
+        // Certificate contract paused
+        var messageContent = "Operation restricted by the Blockchain";
+
+        // if(issuerAuthorized === flase) {
+        //   messageContent = "Unauthorized Issuer to perform operation in Blockchain";
+        // }
+        
+        res.status(400).json({ message: messageContent});
+      } 
+      
+      // Generate the Merkle tree
+      const tree = StandardMerkleTree.of(values, ['string']);
+
+      const batchNumber = await contract.methods.getRootLength().call();
+      const allocateBatchId = parseInt(batchNumber) + 1;
+            
+      const simulateIssue = await simulateIssueBatchCertificates(tree.root);
           
       if (simulateIssue) {
         const tx = contract.methods.issueBatchOfCertificates(
@@ -1129,40 +1166,7 @@ const getAllIssuers = async (req, res) => {
   }
 };
 
-const getIssuerByEmail = async (req, res) => {
-  try {
-    // Check mongoose connection
-    const dbState = await isDBConncted();
-    if (dbState === false) {
-      console.error("Database connection is not ready");
-    } else {
-      console.log("Database connection is ready");
-    }
-
-    const { email } = req.body; 
-
-    const issuer = await User.findOne({ email: email }).select('-password');
-
-    if (issuer) {
-      res.json({
-        status: 'SUCCESS',
-        data: issuer,
-        message: `Issuer with email ${email} fetched successfully`
-      });
-    } else {
-      res.json({
-        status: 'FAILED',
-        message: `Issuer with email ${email} not found`
-      });
-    }
-  } catch (error) {
-    res.json({
-      status: 'FAILED',
-      message: 'An error occurred while fetching issuer details by email'
-    });
-  }
-};
-
+// Approve Issuer
 const approveIssuer = async (req, res) => {
   let { email } = req.body;
   try {
@@ -1187,7 +1191,7 @@ const approveIssuer = async (req, res) => {
 
     // If user is already approved, send email and return success response
     if (user.approved) {
-      await sendEmail(user.name, email);
+      // await sendEmail(user.name, email);
       return res.json({
         status: 'SUCCESS',
         message: 'User Approved!',
@@ -1245,7 +1249,7 @@ const rejectIssuer = async (req, res) => {
 
     // If user is already rejected, send email and return success response
     if (user.status == 2) {
-      await rejectEmail(user.name, email);
+      // await rejectEmail(user.name, email);
       return res.json({
         status: 'SUCCESS',
         message: 'User Rejected!',
@@ -1279,59 +1283,6 @@ const rejectIssuer = async (req, res) => {
     });
   }
 };
-
-// Add Trusted Owner
-const addTrustedOwner = async (req, res) => {
-  // Initialize Web3 instance with RPC endpoint
-  const web3 = await new Web3(
-    new Web3.providers.HttpProvider(
-      process.env.RPC_ENDPOINT
-    )
-  );
-  // const { newOwnerAddress } = req.body;
-  try {
-    // Extract new owner's address from request body
-    const newOwnerAddress = req.body.address;
-
-    // Validate Ethereum address format
-    if (!web3.utils.isAddress(newOwnerAddress)) {
-      return res.status(400).json({ message: "Invalid Ethereum address format" });
-    }
-
-    // Simulate adding trusted owner
-    const simulateOwner = await simulateTrustedOwner(addTrustedOwner, newOwnerAddress);
-
-    // If simulation successful, proceed to add trusted owner to the blockchain
-    if (simulateOwner) {
-      // Retrieve contract instance
-      const contract = await web3i();
-
-      // Prepare transaction to add trusted owner
-      const tx = contract.methods.addTrustedOwner(newOwnerAddress);
-
-      // Confirm transaction
-      const hash = await confirm(tx);
-
-      // Prepare success response
-      const responseMessage = {
-        status: "SUCCESS",
-        message: "Trusted owner added successfully",
-      };
-
-      // Send success response
-      res.status(200).json(responseMessage);
-    } else {
-      // Simulation failed, send failure response
-      return res.status(400).json({ message: "Simulation failed" });
-    }
-
-  } catch (error) {
-    // Internal server error occurred, send failure response
-    console.error(error);
-    res.status(500).json({ message: "Internal Server Error / Address Available" });
-  }
-};
-
 
 // Function to fetch details of Issuer
 const getIssuerByEmail = async (req, res) => {
@@ -1368,60 +1319,8 @@ const getIssuerByEmail = async (req, res) => {
   }
 }
 
-// Remove Trusted Owner
-const removeTrustedOwner = async (req, res) => {
-  // Creating a new instance of Web3 with the specified RPC endpoint
-  const web3 = await new Web3(
-    new Web3.providers.HttpProvider(
-      process.env.RPC_ENDPOINT
-    )
-  );
-  // const { ownerToRemove } = req.body;
-  try {
-    // Extracting the owner address to remove from the request body
-    const ownerToRemove = req.body.address;
-
-    // Checking if the owner address has a valid Ethereum address format
-    if (!web3.utils.isAddress(ownerToRemove)) {
-      return res.status(400).json({ message: "Invalid Ethereum address format" });
-    }
-
-    // Simulating the removal of the trusted owner
-    const simulateOwner = await simulateTrustedOwner(removeTrustedOwner, ownerToRemove);
-    
-    // If simulation is successful, proceed with removing the trusted owner
-    if (simulateOwner) {
-
-    // Accessing the smart contract instance
-    const contract = await web3i();
-
-    // Creating a transaction to remove the trusted owner
-    const tx = contract.methods.removeTrustedOwner(ownerToRemove);
-
-    // Confirming the transaction
-    const hash = await confirm(tx);
-
-    // Responding with success message upon successful removal
-    const responseMessage = {
-      status: "SUCCESS",
-      message: "Trusted owner removed successfully",
-    };
-
-      res.status(200).json(responseMessage);
-      } else {
-      // If simulation failed, return failure response
-      return res.status(400).json({ message: "Simulation failed" });
-    }
-
-  } catch (error) {
-    // Handling errors and responding with appropriate error message
-    console.error(error);
-    res.status(500).json({ message: "Internal Server Error / Address Unavailable" });
-  }
-};
-
-// Grant Pauser/Owner Role to an Address
-const grantRoleToAddress = async (req, res) => {
+// Grant Issuer/Owner Role to an Address
+const addTrustedOwner = async (req, res) => {
     // Initialize Web3 instance with RPC endpoint
     const web3 = await new Web3(
       new Web3.providers.HttpProvider(
@@ -1432,7 +1331,7 @@ const grantRoleToAddress = async (req, res) => {
       // const { newOwnerAddress } = req.body;
   try {
     // Extract new wallet address from request body
-    const assignRole = req.body.role;
+    const assignRole = 1;
     const newAddress = req.body.address;
 
     // Validate Ethereum address format
@@ -1444,7 +1343,7 @@ const grantRoleToAddress = async (req, res) => {
 
     if(assignRole == 0 || assignRole == 1 ){
 
-      const assigningRole = (assignRole == 0) ? process.env.ADMIN_ROLE : process.env.PAUSER_ROLE;
+      const assigningRole = (assignRole == 0) ? process.env.ADMIN_ROLE : process.env.ISSUER_ROLE;
 
       // Blockchain processing.
       const response = await contract.methods.hasRole(assigningRole, newAddress).call();
@@ -1465,7 +1364,7 @@ const grantRoleToAddress = async (req, res) => {
         // Confirm transaction
         const hash = await confirm(tx);
 
-        const messageInfo = (assignRole == 0) ? "Admin Role Granted" : "Pauser Role Granted";
+        const messageInfo = (assignRole == 0) ? "Admin Role Granted" : "Issuer Role Granted";
 
         // Prepare success response
         const responseMessage = {
@@ -1496,8 +1395,8 @@ const grantRoleToAddress = async (req, res) => {
   }
 };
 
-// Revoke Pauser/Owner Role from the Address
-const revokeRoleFromAddress = async (req, res) => {
+// Revoke Issuer/Owner Role from the Address
+const removeTrustedOwner = async (req, res) => {
   // Initialize Web3 instance with RPC endpoint
   const web3 = await new Web3(
     new Web3.providers.HttpProvider(
@@ -1508,7 +1407,7 @@ const revokeRoleFromAddress = async (req, res) => {
     // const { newOwnerAddress } = req.body;
 try {
   // Extract new wallet address from request body
-  const assignRole = req.body.role;
+  const assignRole = 1;
   const newAddress = req.body.address;
 
   // Validate Ethereum address format
@@ -1520,10 +1419,11 @@ try {
 
   if(assignRole == 0 || assignRole == 1 ){
 
-    const assigningRole = (assignRole == 0) ? process.env.ADMIN_ROLE : process.env.PAUSER_ROLE;
+    const assigningRole = (assignRole == 0) ? process.env.ADMIN_ROLE : process.env.ISSUER_ROLE;
 
     // Blockchain processing.
     const response = await contract.methods.hasRole(assigningRole, newAddress).call();
+    console.log("The role response", response);
     
     if(response === false){
       // Simulation failed, send failure response
@@ -1536,12 +1436,12 @@ try {
     if (simulateGrantRole) {
 
       // Prepare transaction to add trusted owner
-      const tx = contract.methods.grantRole(assigningRole ,newAddress);
+      const tx = contract.methods.revokeRole(assigningRole ,newAddress);
 
       // Confirm transaction
       const hash = await confirm(tx);
 
-      const messageInfo = (assignRole == 0) ? "Admin Role Revoked" : "Pauser Role Revoked";
+      const messageInfo = (assignRole == 0) ? "Admin Role Revoked" : "Issuer Role Revoked";
 
       // Prepare success response
       const responseMessage = {
@@ -1613,31 +1513,6 @@ const checkBalance = async (req, res) => {
   }
 };
 
-// Test Function
-// const testFunction = async (req, res) => {
-//   // Test method
-//   // Extracting required data from the request body
-//   const email = req.body.email;
-//    try {
-//     // Check if user with provided email exists
-//     const user = await User.findOne({ email });
-
-//     if (user) {
-
-//     const targetDate = user.rejectedDate;
-//     console.log("The date", targetDate != null ? targetDate : "Not set");
-
-//       res.status(200).json({ message: "Operation Successful" });
-//     } else {
-//       res.status(400).json({ message: "Invalid Email" });
-//     }
-//   } catch (error) {
-//     console.error('Error deleting user:', error);
-//     res.status(500).json({ message: "Internal Server Error" });
-//   }
-  
-// };
-
 module.exports = {
   // Function to issue a PDF certificate
   issuePdf,
@@ -1684,25 +1559,18 @@ module.exports = {
    // Function to reject an issuer
   rejectIssuer,
 
-  // Function to add a trusted owner
+  // Function to grant role to an address
   addTrustedOwner,
 
-  // Function to remove a trusted owner
-  removeTrustedOwner,
-
-  // Function to grant role to an address
-  grantRoleToAddress,
-
   // Function to revoke role from the address
-  revokeRoleFromAddress,
+  removeTrustedOwner,
 
   // Function to check the balance of an Ethereum address
   checkBalance,
 
+  // Function to fetch issuer details
   getIssuerByEmail,
 
   // Function to decode a certificate
   decodeCertificate
-
-  // testFunction
 };

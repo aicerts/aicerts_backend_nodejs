@@ -1,22 +1,28 @@
 const express = require('express');
 const router = express.Router();
-const {ensureAuthenticated} = require("../config/auth")
+const { ensureAuthenticated } = require("../config/auth"); // Import authentication middleware
 const multer = require('multer');
-const { fileFilter } = require('../model/tasks');
+const { fileFilter } = require('../model/tasks'); // Import file filter function
+const adminController = require('../controllers/controllers'); // Import admin controller
 
-const adminController = require('../controllers/controllers');
 
+// Configure multer storage options
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, "uploads"); // Set the destination where files will be saved
   },
   filename: (req, file, cb) => {
+    // Set the filename based on the Certificate_Number from the request body
     const Certificate_Number = req.body.Certificate_Number;
     cb(null, file.originalname);
   },
 });
 
+// Initialize multer with configured storage and file filter
 const _upload = multer({ storage, fileFilter });
+
+// const __upload = multer({ storage, excelFilter });
+const __upload = multer({dest: "uploads/"});
 
 /**
  * @swagger
@@ -174,9 +180,84 @@ router.post('/issue', _upload.single("pdfFile"), adminController.issue);
  *                   description: Error message for internal server error.
  */
 
-
 // router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminController.issuePdf);
 router.post('/issue-pdf', _upload.single("file"), adminController.issuePdf);
+
+/**
+ * @swagger
+ * /api/batch-certificate-issue:
+ *   post:
+ *     summary: Batch Issue Certificates
+ *     description: Endpoint to batch issue certificates and store data on the blockchain
+ *     tags: [Issue Batch (*Upload Excel)]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: The issuer email.
+ *               excelFile:
+ *                 type: string
+ *                 format: binary
+ *                 description: Excel file to be uploaded
+ *             required:
+ *               - email
+ *     responses:
+ *       '200':
+ *         description: Batch issuance successful
+ *         content:
+ *           application/json:
+ *             example:
+ *               status: "SUCCESS"
+ *               message: Batch of Certificates issued successfully
+ *               polygonLink: https://your-network.com/tx/transactionHash
+ *               details:
+ *                 - issuerId: 2323a323cb
+ *                   batchID: 1
+ *                   proofHash: [3232a12212]
+ *                   transactionHash: 12345678
+ *                   certuficateHash: 122113523
+ *                   certificateNumber: ASD2121
+ *                   name: ABC
+ *                   course: Advanced AI
+ *                   grantDate: 12-12-24
+ *                   expirationDate: 12-12-25
+ *                   issueDate: 12-12-24
+ *                 - issuerId: 2323a323cb
+ *                   batchID: 1
+ *                   proofHash: [3232a12213]
+ *                   transactionHash: 12345673
+ *                   certuficateHash: 122113529
+ *                   certificateNumber: ASD3131
+ *                   name: XYZ
+ *                   course: Advanced AI
+ *                   grantDate: 12-11-24
+ *                   expirationDate: 12-11-25
+ *                   issueDate: 12-11-24
+ *                 # Add more certificates details if needed
+ *       '400':
+ *         description: Bad Request
+ *         content:
+ *           application/json:
+ *             example:
+ *               error: Bad Request
+ *               status: "FAILED"
+ *               message: Please provide valid Certificate details / Simulation for the IssueCertificate failed
+ *       '500':
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             example:
+ *               status: "FAILED"
+ *               error: Internal Server Error
+ */
+
+// router.post('/batch-certificate-issue', ensureAuthenticated, __upload.single("excelFile"), adminController.batchCertificateIssue);
+router.post('/batch-certificate-issue', __upload.single("excelFile"), adminController.batchCertificateIssue);
 
 // /**
 //  * @swagger
@@ -247,7 +328,7 @@ router.post('/verify', _upload.single("pdfFile"), adminController.verify);
  * @swagger
  * /api/verify-with-id:
  *   post:
- *     summary: Verify a certificate ID on the blockchain [future scope]
+ *     summary: Verify a certificate ID on the blockchain
  *     description: Verify the existence and validity of a certificate using its ID on the blockchain.
  *     tags: [Verifier]
  *     requestBody:
@@ -257,53 +338,164 @@ router.post('/verify', _upload.single("pdfFile"), adminController.verify);
  *           schema:
  *             type: object
  *             properties:
- *               hash:
+ *               id:
  *                 type: string
- *                 description: Certificate hash to be verified
-  *     responses:
+ *                 description: Certificate id to be verified
+ *     responses:
  *       200:
- *         description: Successful operation
+ *         description: Successful response
  *         content:
  *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   description: Status of the operation
- *                 response:
- *                   type: object
- *                   properties:
- *                     message:
- *                       type: string
- *                       description: Verification message
- *                     details:
- *                       type: object
- *                       description: Certificate details if available
- *                       properties:
- *                         // Define the properties of the certificate details object here
+ *            schema:
+ *              type: object
+ *              properties:
+ *                status:
+ *                  type: string
+ *                  example: "SUCCESS"
+ *                message:
+ *                  type: string
+ *                  example: "Valid Certificate"
+ *                details:
+ *                  type: object
+ *                  properties:
+ *                    // Define properties of certificate details object here
  *       400:
- *         description: Certificate not found or not valid
- *         schema:
- *           type: object
- *           properties:
- *             message:
- *               type: string
- *               description: Error message
- *             details:
- *               type: string
- *               description: Additional details about the error
+ *         description: Certificate not found
+ *         content:
+ *           application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                status:
+ *                  type: string
+ *                  example: "FAILED"
+ *                message:
+ *                  type: string
+ *                  example: "Certificate doesn't exist"
  *       500:
- *         description: Internal server error
- *         schema:
- *           type: object
- *           properties:
- *             message:
- *               type: string
- *               description: Error message
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                status:
+ *                  type: string
+ *                  example: "FAILED"
+ *                message:
+ *                  type: string
+ *                  example: "Internal Server error"
  */
 
 router.post('/verify-with-id', adminController.verifyWithId);
+
+/**
+ * @swagger
+ * /api/verify-certification-id:
+ *   post:
+ *     summary: Verify Single/Batch Certificates by Certification ID
+ *     description: Verify single/batch certificates using their certification ID. It checks whether the certification ID exists in the database and validates it against blockchain records if found.
+ *     tags: [Single / Batch Verifier]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               id:
+ *                 type: string
+ *                 description: Certificate id to be verified
+ *     responses:
+ *       200:
+ *         description: Successful response
+ *         content:
+ *           application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                status:
+ *                  type: string
+ *                  example: "SUCCESS"
+ *                message:
+ *                  type: string
+ *                  example: "Valid Certificate"
+ *                details:
+ *                  type: object
+ *                  properties:
+ *                    // Define properties of certificate details object here
+ *       400:
+ *         description: Certificate not found
+ *         content:
+ *           application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                status:
+ *                  type: string
+ *                  example: "FAILED"
+ *                message:
+ *                  type: string
+ *                  example: "Certificate doesn't exist"
+ *       500:
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                status:
+ *                  type: string
+ *                  example: "FAILED"
+ *                message:
+ *                  type: string
+ *                  example: "Internal Server error"
+ */
+
+router.post('/verify-certification-id', adminController.verifyCertificationId);
+
+/**
+ * @swagger
+ * /api/verify-batch-certificate:
+ *   post:
+ *     summary: Verify Certificate ID in Batch Certificates
+ *     description: Endpoint to verify if a ID exists in the Batch Certificate
+ *     tags: [Batch Certificate Verifier]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               id:
+ *                 type: string
+ *                 description: ID to be verified in the Batch Certificate
+ *                 example: "1234567efgh"
+ *     responses:
+ *       '200':
+ *         description: ID is verified in the Batch Certificate
+ *         content:
+ *           application/json:
+ *             example:
+ *               status: "SUCCESS"
+ *               Message: "Verified"
+ *       '400':
+ *         description: Hash verification failed
+ *         content:
+ *           application/json:
+ *             example:
+ *               status: "FAILED"
+ *               Message: "Invalid Certificate ID"
+ *       '500':
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             example:
+ *               status: "FAILED"
+ *               error: "Internal Server Error."
+ */
+router.post('/verify-batch-certificate', adminController.verifyBatchCertificate);
 
 /**
  * @swagger
@@ -645,79 +837,14 @@ router.post('/reset-password', adminController.resetPassword);
  *                   example: An error occurred while fetching user details
  */
 
-router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers);
-// router.get('/get-all-issuers', adminController.getAllIssuers);
-
-/**
- * @swagger
- * /api/get-issuer-by-email:
- *   post:
- *     summary: Get issuer by email
- *     tags: [Admin]
- *     security:
- *       - BearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               email:
- *                 type: string
- *                 description: Issuer's email address
- *     responses:
- *       200:
- *         description: Issuer fetched successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: SUCCESS
- *                 data:
- *                   type: object
- *                   description: Issuer details
- *                 message:
- *                   type: string
- *                   example: Issuer fetched successfully
- *       400:
- *         description: Bad request or issuer not found
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: FAILED
- *                 message:
- *                   type: string
- *                   example: Issuer not found (or) Bad request!
- *       500:
- *         description: Internal server error
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: FAILED
- *                 message:
- *                   type: string
- *                   example: An error occurred during the process!
- */
-
-router.post('/get-issuer-by-email', adminController.getIssuerByEmail);
+// router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers);
+router.get('/get-all-issuers', adminController.getAllIssuers);
 
 /**
  * @swagger
  * /api/approve-issuer:
  *   post:
- *     summary: Approve a user
+ *     summary: Approve an Issuer
  *     tags: [Admin]
  *     requestBody:
  *       required: true
@@ -755,7 +882,7 @@ router.post('/get-issuer-by-email', adminController.getIssuerByEmail);
  *                   example: FAILED
  *                 message:
  *                   type: string
- *                   example: User not found (or) User Approved!
+ *                   example: User not found!
  *       500:
  *         description: Internal server error
  *         content:
@@ -771,7 +898,70 @@ router.post('/get-issuer-by-email', adminController.getIssuerByEmail);
  *                   example: An error occurred during the user approved process!
  */
 
-router.post('/approve-issuer',ensureAuthenticated, adminController.approveIssuer);
+// router.post('/approve-issuer',ensureAuthenticated, adminController.approveIssuer);
+router.post('/approve-issuer', adminController.approveIssuer);
+
+/**
+ * @swagger
+ * /api/reject-issuer:
+ *   post:
+ *     summary: Reject an Issuer
+ *     tags: [Admin]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: User's email address
+ *     responses:
+ *       200:
+ *         description: User rejected successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: SUCCESS
+ *                 message:
+ *                   type: string
+ *                   example: User Rejected successfully
+ *       400:
+ *         description: Bad request or user not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: User not found!
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred during the user rejected process!
+ */
+
+// router.post('/reject-issuer',ensureAuthenticated, adminController.rejectIssuer);
+router.post('/reject-issuer', adminController.rejectIssuer);
+
 
 /**
  * @swagger
@@ -838,11 +1028,12 @@ router.post('/approve-issuer',ensureAuthenticated, adminController.approveIssuer
 
 router.post('/get-issuer-by-email', adminController.getIssuerByEmail);
 
+
 /**
  * @swagger
  * /api/add-trusted-owner:
  *   post:
- *     summary: Add a new trusted owner to the smart contract
+ *     summary: Grant Admin / Issuer role to an address
  *     tags: [Blockchain]
  *     requestBody:
  *       required: true
@@ -853,10 +1044,11 @@ router.post('/get-issuer-by-email', adminController.getIssuerByEmail);
  *             properties:
  *               address:
  *                 type: string
- *                 description: Ethereum address of the new trusted owner
+ *                 format: ethereum-address
+ *                 description: Ethereum address to which the role will be assigned
  *     responses:
  *       200:
- *         description: Trusted owner added successfully
+ *         description: Role successfully granted to the address
  *         content:
  *           application/json:
  *             schema:
@@ -864,39 +1056,49 @@ router.post('/get-issuer-by-email', adminController.getIssuerByEmail);
  *               properties:
  *                 status:
  *                   type: string
- *                   description: Success
+ *                   description: Status of the operation
  *                 message:
  *                   type: string
- *                   description: Success message
+ *                   description: Details of the operation result
+ *                 details:
+ *                   type: string
+ *                   description: URL to view transaction details on the blockchain explorer
  *       400:
- *         description: Invalid input or address format
+ *         description: Bad request or invalid role assigned
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the operation
  *                 message:
  *                   type: string
- *                   description: Error message for invalid input
+ *                   description: Reason for the failure
  *       500:
- *         description: An error occurred during the operation
+ *         description: Internal server error
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the operation
  *                 message:
  *                   type: string
- *                   description: Error message for Internal Server Error / Address Available
+ *                   description: Details of the internal server error
  */
 
-router.post('/add-trusted-owner',ensureAuthenticated, adminController.addTrustedOwner);
+// router.post('/add-trusted-owner',ensureAuthenticated, adminController.addTrustedOwner);
+router.post('/add-trusted-owner', adminController.addTrustedOwner);
 
 /**
  * @swagger
  * /api/remove-trusted-owner:
  *   post:
- *     summary: Remove a trusted owner from the smart contract
+ *     summary: Revoke Admin / Issuer role from the address
  *     tags: [Blockchain]
  *     requestBody:
  *       required: true
@@ -907,10 +1109,11 @@ router.post('/add-trusted-owner',ensureAuthenticated, adminController.addTrusted
  *             properties:
  *               address:
  *                 type: string
- *                 description: Ethereum address of the trusted owner to be removed
+ *                 format: ethereum-address
+ *                 description: Ethereum address to which the role will be revoked
  *     responses:
  *       200:
- *         description: Trusted owner removed successfully
+ *         description: Role successfully revoked from the address
  *         content:
  *           application/json:
  *             schema:
@@ -918,33 +1121,43 @@ router.post('/add-trusted-owner',ensureAuthenticated, adminController.addTrusted
  *               properties:
  *                 status:
  *                   type: string
- *                   description: Success
+ *                   description: Status of the operation
  *                 message:
  *                   type: string
- *                   description: Success message
+ *                   description: Details of the operation result
+ *                 details:
+ *                   type: string
+ *                   description: URL to view transaction details on the blockchain explorer
  *       400:
- *         description: Invalid input or address format
+ *         description: Bad request or invalid role assigned
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the operation
  *                 message:
  *                   type: string
- *                   description: Error message for invalid input
+ *                   description: Reason for the failure
  *       500:
- *         description: An error occurred during the operation
+ *         description: Internal server error
  *         content:
  *           application/json:
  *             schema:
  *               type: object
  *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the operation
  *                 message:
  *                   type: string
- *                   description: Error message for Internal Server Error / Address Unavailable
+ *                   description: Details of the internal server error
  */
 
-router.post('/remove-trusted-owner',ensureAuthenticated, adminController.removeTrustedOwner);
+// router.post('/remove-trusted-owner',ensureAuthenticated, adminController.removeTrustedOwner);
+router.post('/remove-trusted-owner', adminController.removeTrustedOwner);
 
 /**
  * @swagger
@@ -1063,8 +1276,6 @@ router.get('/check-balance',ensureAuthenticated, adminController.checkBalance);
  *                   type: string
  */
 
-
-router.post('/verify-decrypt', (req, res) => adminController.decodeCertificate(req, res));
-
+router.post('/verify-encrypted', (req, res) => adminController.decodeCertificate(req, res));
 
 module.exports=router;

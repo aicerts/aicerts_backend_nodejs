@@ -96,6 +96,9 @@ const expectedHeadersSchema = [
 
 // Fetch records from the excel file
 const fetchExcelRecord = async (_path) => {
+  if(_path.length<0){
+    return { status: "FAILED", response: false, message: "Invalid Excel file." };
+  }
   // api to fetch excel data into json
   const newPath = path.join(..._path.split("\\"));
   const sheetNames = await readXlsxFile.readSheetNames(newPath);
@@ -657,40 +660,6 @@ const simulateIssueBatchCertificates = async (hash) => {
   }
 };
 
-const simulateTrustedOwner = async (contractFunction, address) => {
-  // Replace with your actual function name and arguments
-  const functionArguments = [address];
-  try {
-    // const result = await _contract.callStatic.issueCertificate(certificateNumber, hash);
-    // Determine the function to simulate based on the provided contractFunction parameter
-    if (functionName == 'addTrustedOwner') {
-      
-      var functionName = 'addTrustedOwner';
-      var result = await _contract.populateTransaction.addTrustedOwner(address);
-    } else {
-      var functionName = 'removeTrustedOwner';
-      var result = await _contract.populateTransaction.removeTrustedOwner(address);
-    }
-
-    // const gasEstimate = await _contract.estimateGas[functionName](...functionArguments);
-    // console.log(`Estimated gas required for issueCertificate : `, gasEstimate.toString());
-    // Extract data from the result
-    const resultData = result.data;
-
-    // Check if data exists (indicating success) and return true, otherwise return false
-    if (resultData.length > 0) {
-      return true; // Simulation successful
-    } else {
-      return false; // Simulation failed
-    }
-    } catch (e) {
-    // Handle exceptions, such as CALL_EXCEPTION, indicating simulation failure
-    if (e.code == ethers.errors.CALL_EXCEPTION) {
-      console.log("Simulation failed for Trusted Owner.");
-      return false; // Simulation failed
-    }
-  }
-};
 
 // Function to simulate a grant / revoke role to an address
 const simulateRoleToAddress = async (check, role, address) => {
@@ -872,9 +841,6 @@ module.exports = {
 
   // Function for filtering file uploads based on MIME type Excel
   excelFilter,
-
-  // Function to simulate adding or removing a trusted owner
-  simulateTrustedOwner,
 
   // Function to simulate issuing a certificate
   simulateIssueCertificate,
