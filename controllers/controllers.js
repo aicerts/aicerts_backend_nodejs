@@ -91,13 +91,13 @@ const issuePdf = async (req, res) => {
     
     // Check for specific error conditions and update the error message accordingly
     if (isNumberExist || isNumberExistInBatch) {
-      errorMessage = "Certificate number already exists";
+      errorMessage = "Certification number already exists";
     }else if (!Certificate_Number) {
-      errorMessage = "Certificate number is required";
+      errorMessage = "Certification number is required";
     } else if (Certificate_Number.length > max_length) {
-      errorMessage = `Certificate number should be less than ${max_length} characters`;
+      errorMessage = `Certification number should be less than ${max_length} characters`;
     } else if (Certificate_Number.length < min_length) {
-      errorMessage = `Certificate number should be at least ${min_length} characters`;
+      errorMessage = `Certification number should be at least ${min_length} characters`;
     } else if (!idExist) {
       errorMessage = `Invalid Issuer Email`;
     } else if(idExist.status !== 1) {
@@ -135,7 +135,7 @@ const issuePdf = async (req, res) => {
         isPaused === true
         ) {
         // Certificate already issued / contract paused
-        var messageContent = "Certificate already issued";
+        var messageContent = "Certification already issued";
         if(isPaused === true) {
           messageContent = "Operation restricted by the Blockchain";
         // } else if (issuerAuthorized === false) {
@@ -295,13 +295,13 @@ const issue = async (req, res) => {
     
       // Check for specific error conditions and update the error message accordingly
       if (isNumberExist || isNumberExistInBatch) {
-          errorMessage = "Certificate number already exists";
+          errorMessage = "Certification number already exists";
       } else if (!Certificate_Number) {
-          errorMessage = "Certificate number is required";
+          errorMessage = "Certification number is required";
       } else if (Certificate_Number.length > max_length) {
-          errorMessage = `Certificate number should be less than ${max_length} characters`;
+          errorMessage = `Certification number should be less than ${max_length} characters`;
       } else if (Certificate_Number.length < min_length) {
-          errorMessage = `Certificate number should be at least ${min_length} characters`;
+          errorMessage = `Certification number should be at least ${min_length} characters`;
       } else if(!idExist) {
           errorMessage = `Invalid Issuer Email`;
       } else if(idExist.status !== 1) {
@@ -341,7 +341,7 @@ const issue = async (req, res) => {
         isPaused === true
         ) {
         // Certificate already issued / contract paused
-        var messageContent = "Certificate already issued";
+        var messageContent = "Certification already issued";
         if(isPaused === true) {
           messageContent = "Operation restricted by the Blockchain";
         // } else if (issuerAuthorized === false) {
@@ -466,7 +466,6 @@ const batchCertificateIssue = async (req, res) => {
       req.file.filename === 'undefined' || 
       excelData.response === false) {
   
-    console.log("The response is", excelData.message);
     let errorMessage = "Please provide valid details";
     if(!idExist){
       errorMessage = "Invalid Issuer";
@@ -517,7 +516,6 @@ const batchCertificateIssue = async (req, res) => {
 
       res.status(400).json({ status: "FAILED", message: "Excel file has Existing Certification IDs", Details: matchingIDs });
       return;
-
     } 
 
     const hashedBatchData = batchData.map(data => {
@@ -602,7 +600,7 @@ const batchCertificateIssue = async (req, res) => {
 
         res.status(200).json({
           status: "SUCCESS",
-          message: "Batch of Certificates issued successfully",
+          message: "Batch of Certifications issued successfully",
           polygonLink: "polygonLink",
           details: batchDetails,
         });
@@ -615,7 +613,7 @@ const batchCertificateIssue = async (req, res) => {
       }
       }
       else {
-        res.status(400).json({ status: "FAILED", message: "Simulation failed for issue BatchCertificates" });
+        res.status(400).json({ status: "FAILED", message: "Simulation failed for issue BatchCertifications" });
       }
 
   } catch (error) {
@@ -645,10 +643,10 @@ const verify = async (req, res) => {
     // Check if a blockchain URL exists and is valid
     if (blockchainUrl && blockchainUrl.length > 0) {
       // Respond with success status and certificate details
-      res.status(200).json({ status: "SUCCESS", message: "Certificate is valid", Details: certificateData });
+      res.status(200).json({ status: "SUCCESS", message: "Certification is valid", Details: certificateData });
     } else {
       // Respond with failure status if no valid blockchain URL is found
-      res.status(400).json({ status: "FAILED", message: "Certificate is not valid" });
+      res.status(400).json({ status: "FAILED", message: "Certification is not valid" });
     }
   } catch (error) {
     // If an error occurs during verification, respond with failure status
@@ -691,7 +689,7 @@ const verifyWithId = async (req, res) => {
 
       const verificationResponse = {
         status: "SUCCESS",
-        message: "Valid Certificate",
+        message: "Valid Certification",
         details: (certificateExist) ? certificateExist : certificateNumber
       };
       res.status(200).json(verificationResponse);
@@ -700,7 +698,7 @@ const verifyWithId = async (req, res) => {
           console.error("Internal server error", error);
       }
     } else {
-      res.status(400).json({ status: "FAILED", message: "Certificate doesn't exist" });
+      res.status(400).json({ status: "FAILED", message: "Certification doesn't exist" });
     }
   } catch (error) {
     res.status(500).json({
@@ -792,44 +790,41 @@ const verifyCertificationId = async (req, res) => {
   const dbStaus = await isDBConnected();
   console.log("DB connected:", dbStaus);
 
- const singleIssueExist = await Issues.findOne({ certificateNumber : inputId });
- const batchIssueExist = await BatchIssues.findOne({ certificateNumber : inputId });
+  const singleIssueExist = await Issues.findOne({ certificateNumber : inputId });
+  const batchIssueExist = await BatchIssues.findOne({ certificateNumber : inputId });
 
-    // Validation checks for request data
-  if ([inputId].some(value => typeof value !== 'string' || value == 'string') || (!singleIssueExist && !batchIssueExist)) {
+  // Blockchain processing.
+  const contract = await web3i();
+  const response = await contract.methods.verifyCertificateById(inputId).call();
+
+  // Validation checks for request data
+  if ([inputId].some(value => typeof value !== "string" || value == "string") || (!batchIssueExist && response === false)) {
     // res.status(400).json({ message: "Please provide valid details" });
     let errorMessage = "Please provide valid details";
     
     // Check for specific error conditions and update the error message accordingly
-    if (inputId != "string" && singleIssueExist == null && batchIssueExist == null) {
-      errorMessage = "Certificate doesn't exist";
+    if (!batchIssueExist && response === false) {
+      errorMessage = "Certification doesn't exist";
     }
 
     // Respond with error message
     return res.status(400).json({ status: "FAILED", message: errorMessage });
   } else {
 
-  if (singleIssueExist != null) {
+  if (response === true || singleIssueExist != null) {
     
-    // Blockchain processing.
-    const contract = await web3i();
-    const response = await contract.methods.verifyCertificateById(singleIssueExist.certificateNumber).call();
-    if (response === true) {
     try {
-
+      const foundCertification = (singleIssueExist != null) ? singleIssueExist : inputId;
       const verificationResponse = {
         status: "SUCCESS",
-        message: "Valid Certificate",
-        details: singleIssueExist
+        message: "Valid Certification",
+        details: foundCertification
       };
       res.status(200).json(verificationResponse);
       
       }catch (error) {
         res.status(500).json({ status: 'FAILED', message: 'Internal Server Error.' });
       }
-    } else {
-      res.status(400).json({ status: "FAILED", message: "Certificate doesn't exist" });
-    }
 
     } else if(batchIssueExist != null) {
       const batchNumber = (batchIssueExist.batchId)-1;
@@ -846,7 +841,7 @@ const verifyCertificationId = async (req, res) => {
     
           const _verificationResponse = {
             status: "SUCCESS",
-            message: "Valid Certificate",
+            message: "Valid Certification",
             details: batchIssueExist
           };
           res.status(200).json(_verificationResponse);
@@ -855,7 +850,7 @@ const verifyCertificationId = async (req, res) => {
             res.status(500).json({ status: 'FAILED', message: 'Internal Server Error.' });
           }
         } else {
-          res.status(400).json({ status: "FAILED", message: "Certificate doesn't exist" });
+          res.status(400).json({ status: "FAILED", message: "Certification doesn't exist" });
         }
     } 
   }

@@ -58,7 +58,7 @@ app.use((err, req, res, next) => {
   res.status(500).send('Something went wrong!');
 });
 
-app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use('/', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Start the server
 app.listen(port, () => {

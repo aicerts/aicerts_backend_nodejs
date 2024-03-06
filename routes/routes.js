@@ -28,9 +28,10 @@ const __upload = multer({dest: "uploads/"});
  * @swagger
  * /api/issue:
  *   post:
- *     summary: Issue certificate
+ *     summary: Issue certification with details (no pdf required)
+ *     description: Issue certification without providing pdf 
  *     tags:
- *       - Issue Certificate (Details)
+ *       - Issue Certification (Details)
  *     requestBody:
  *       required: true
  *       content:
@@ -203,9 +204,10 @@ router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminContr
  *               excelFile:
  *                 type: string
  *                 format: binary
- *                 description: Excel file to be uploaded
+ *                 description: Excel file to be uploaded. Must not be blank.
  *             required:
  *               - email
+ *               - excelFile
  *     responses:
  *       '200':
  *         description: Batch issuance successful
@@ -845,8 +847,8 @@ router.post('/reset-password', adminController.resetPassword);
  *                   example: An error occurred while fetching user details
  */
 
-router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers);
-// router.get('/get-all-issuers', adminController.getAllIssuers);
+// router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers);
+router.get('/get-all-issuers', adminController.getAllIssuers);
 
 /**
  * @swagger
