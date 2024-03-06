@@ -198,7 +198,7 @@ const insertCertificateData = async (data) => {
               // Add other required fields here if needed
           });
           await newUser.save(); // Save the new user instance
-          console.log("New user created with certificatesIssued count initialized to 1.");
+          console.log("New user created with certificationsIssued count initialized to 1.");
       }
     
     // Logging confirmation message
@@ -245,7 +245,7 @@ if (idExist) {
         // Add other required fields here if needed
     });
     await newUser.save(); // Save the new user instance
-    console.log("New user created with certificatesIssued count initialized to 1.");
+    console.log("New user created with certificationsIssued count initialized to 1.");
 }
 
       } catch (error) {
