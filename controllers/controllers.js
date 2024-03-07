@@ -53,8 +53,13 @@ let detailsQR; // Variable to store details of a QR code
 
 
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
-
-// API call for Certificate issue with pdf template
+ 
+/**
+ * API call for Certificate issue with pdf template.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
 const issuePdf = async (req, res) => {
   // Extracting required data from the request body
   const email = req.body.email;
@@ -258,7 +263,13 @@ const issuePdf = async (req, res) => {
   }
 };
 
-// API call for Certificate issue without pdf template
+
+/**
+ * API call for Certificate issue without pdf template.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
 const issue = async (req, res) => {
   // Extracting required data from the request body
   const email = req.body.email;
@@ -443,7 +454,12 @@ const issue = async (req, res) => {
   }
 };
 
-// API call for Batch Certificates issue 
+/**
+ * API call for Batch Certificates issue.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
 const batchCertificateIssue = async (req, res) => {
   const email = req.body.email;
   
@@ -603,7 +619,7 @@ const batchCertificateIssue = async (req, res) => {
                 courseName: rawBatchData[i].certificationName,
                 Grant_Date: rawBatchData[i].grantDate,
                 Expiration_Date: rawBatchData[i].expirationDate,
-                polygonLink,
+                polygonLink
               }
 
               let encryptLink = await generateEncryptedUrl(_fields);
@@ -657,12 +673,22 @@ const batchCertificateIssue = async (req, res) => {
 }
 };
 
-// Define a route that takes a hash parameter
+/**
+ * Define a route that takes a hash parameter.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
 const polygonLink = async (req, res) => {
   res.json({ linkUrl });
 };
 
-// Verify page with PDF QR - Blockchain URL
+/**
+ * Verify Certification page with PDF QR - Blockchain URL.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
 const verify = async (req, res) => {
   // Extracting file path from the request
   file = req.file.path;
@@ -700,7 +726,12 @@ const verify = async (req, res) => {
   await cleanUploadFolder();
 };
 
-// Verify certificate with ID
+/**
+ * Verify certificate with ID - Blockchain URL.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
 const verifyWithId = async (req, res) => {
   inputId = req.body.id;
 
@@ -787,7 +818,12 @@ const decodeCertificate = async (req, res) => {
   }
 };
 
-// API call for Batch Certificates verify with Certification ID
+/**
+ * API call for Batch Certificates verify with Certification ID.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
 const verifyBatchCertificate = async (req, res) => {
 
   const { id } = req.body;
@@ -818,7 +854,12 @@ const verifyBatchCertificate = async (req, res) => {
   }
 }; 
 
-// API call for Batch Certificates verify with Certification ID
+/**
+ * API call for Single / Batch Certificates verify with Certification ID.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
 const verifyCertificationId = async (req, res) => {
   const inputId = req.body.id;
   const dbStaus = await isDBConnected();
@@ -891,7 +932,12 @@ const verifyCertificationId = async (req, res) => {
 
 }; 
 
-// Admin Signup
+/**
+ * API call for Admin Signup.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
 const signup = async (req, res) => {
   // Extracting name, email, and password from the request body
   let { name, email, password } = req.body;
@@ -975,7 +1021,12 @@ const signup = async (req, res) => {
   }
 };
 
-// Admin Login
+/**
+ * API call for Admin Login.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
 const login = async (req, res) => {
   let { email, password } = req.body;
 
@@ -1062,6 +1113,12 @@ const login = async (req, res) => {
   }
 };
 
+/**
+ * API call for Admin Logout.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
 const logout = async (req, res) => {
   let { email } = req.body;
   try {
@@ -1103,7 +1160,12 @@ const logout = async (req, res) => {
   }
 };
 
-// Reset Admin Password
+/**
+ * API call for Reset Admin Password.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
 const resetPassword = async (req, res) => {
   let { email, password } = req.body;
   try {
@@ -1167,6 +1229,12 @@ const resetPassword = async (req, res) => {
   }
 };
 
+/**
+ * API to fetch all issuer details who are unapproved.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
 const getAllIssuers = async (req, res) => {
   try {
     // Check mongoose connection
@@ -1195,7 +1263,12 @@ const getAllIssuers = async (req, res) => {
   }
 };
 
-// Approve or Reject the Issuer
+/**
+ * API to approve or reject Issuer status.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
 const validateIssuer = async (req, res) => {
   let validationStatus = req.body.status;
   let email = req.body.email;
@@ -1269,7 +1342,12 @@ const validateIssuer = async (req, res) => {
   }
 };
 
-// Function to fetch details of Issuer
+/**
+ * API to fetch details of Issuer.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
 const getIssuerByEmail = async (req, res) => {
   try {
     // Check mongoose connection
@@ -1304,7 +1382,12 @@ const getIssuerByEmail = async (req, res) => {
   }
 }
 
-// Grant Issuer/Owner Role to an Address
+/**
+ * API to Grant Issuer/Owner Role to an Address.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
 const addTrustedOwner = async (req, res) => {
     // Initialize Web3 instance with RPC endpoint
     const web3 = await new Web3(
@@ -1380,7 +1463,12 @@ const addTrustedOwner = async (req, res) => {
   }
 };
 
-// Revoke Issuer/Owner Role from the Address
+/**
+ * API to Revoke Issuer/Owner Role from the Address.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
 const removeTrustedOwner = async (req, res) => {
   // Initialize Web3 instance with RPC endpoint
   const web3 = await new Web3(
@@ -1457,7 +1545,12 @@ try {
 }
 };
 
-// Check Balance
+/**
+ * API to Check the balance of an Ethereum account address.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
 const checkBalance = async (req, res) => {
   // Initialize Web3 instance with RPC endpoint
   const web3 = await new Web3(
