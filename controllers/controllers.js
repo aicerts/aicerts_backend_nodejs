@@ -635,7 +635,7 @@ const batchCertificateIssue = async (req, res) => {
         res.status(200).json({
           status: "SUCCESS",
           message: "Batch of Certifications issued successfully",
-          polygonLink: "polygonLink",
+          polygonLink: polygonLink,
           details: batchDetailsWithQR,
         });
 
