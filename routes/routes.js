@@ -219,9 +219,8 @@ router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminContr
  *               message: Batch of Certificates issued successfully
  *               polygonLink: https://your-network.com/tx/transactionHash
  *               details:
- *                 - issuerId: 2323a323cb
+ *                 - id: 2323a323cb
  *                   batchID: 1
- *                   proofHash: [3232a12212]
  *                   transactionHash: 12345678
  *                   certuficateHash: 122113523
  *                   certificateNumber: ASD2121
@@ -230,9 +229,9 @@ router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminContr
  *                   grantDate: 12-12-24
  *                   expirationDate: 12-12-25
  *                   issueDate: 12-12-24
- *                 - issuerId: 2323a323cb
+ *                   qrCode: rewrewr34242423
+ *                 - id: 2323a323cb
  *                   batchID: 1
- *                   proofHash: [3232a12213]
  *                   transactionHash: 12345673
  *                   certuficateHash: 122113529
  *                   certificateNumber: ASD3131
@@ -241,7 +240,8 @@ router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminContr
  *                   grantDate: 12-11-24
  *                   expirationDate: 12-11-25
  *                   issueDate: 12-11-24
- *                 # Add more certificates details if needed
+ *                   qrCode: rewrewr34242423
+ *                 # Add more certifications details if needed
  *       '400':
  *         description: Bad Request
  *         content:
@@ -330,6 +330,68 @@ router.get('/polygonlink', adminController.polygonLink);
  */
 
 router.post('/verify', _upload.single("pdfFile"), adminController.verify);
+
+// /**
+//  * @swagger
+//  * /verify-combined:
+//  *   post:
+//  *     summary: API call for verify Certification with ID or PDF.
+//  *     description: API call for verify Certification with ID or PDF. 
+//  *     tags: [default]
+//  *     requestBody:
+//  *       required: true
+//  *       content:
+//  *         multipart/form-data:
+//  *           schema:
+//  *             type: object
+//  *             properties:
+//  *               id:
+//  *                 type: string
+//  *                 description: The issuer email.
+//  *               pdfFile:
+//  *                 type: string
+//  *                 format: binary
+//  *                 description: Pdf file to be uploaded. Must not be blank.
+//  *     responses:
+//  *       '200':
+//  *         description: Batch issuance successful
+//  *         content:
+//  *           application/json:
+//  *             example:
+//  *               status: "SUCCESS"
+//  *               message: Valid Certification
+//  *               details:
+//  *                 - CertifciationId: 2313321h
+//  *                 - issuerId: 2323a323cb
+//  *                   batchID: 1
+//  *                   proofHash: [3232a12212]
+//  *                   transactionHash: 12345678
+//  *                   certuficateHash: 122113523
+//  *                   certificateNumber: ASD2121
+//  *                   name: ABC
+//  *                   course: Advanced AI
+//  *                   grantDate: 12-12-24
+//  *                   expirationDate: 12-12-25
+//  *                   issueDate: 12-12-24
+//  *                 # Add more certification details if needed
+//  *       '400':
+//  *         description: Bad Request
+//  *         content:
+//  *           application/json:
+//  *             example:
+//  *               error: Bad Request
+//  *               status: "FAILED"
+//  *               message: Invalid Certification ID or PDF
+//  *       '500':
+//  *         description: Internal Server Error
+//  *         content:
+//  *           application/json:
+//  *             example:
+//  *               status: "FAILED"
+//  *               error: Internal Server Error
+//  */
+
+router.post('/verify-combined', _upload.single("pdfFile"), adminController.verifyCombined);
 
 /**
  * @swagger

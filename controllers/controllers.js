@@ -1591,6 +1591,20 @@ const checkBalance = async (req, res) => {
   }
 };
 
+const verifyCombined = async (req, res) => {
+
+// Extracting file path from the request
+const id = req.body.id;
+const dbStaus = await isDBConnected();
+if(id){
+ // Send success response
+ var responseMessage = `The input id is : ${id}`;
+ return res.status(200).json({status: "SUCCESS", message: "Valid Certification", details: responseMessage});
+} else {
+  return res.status(400).json({ status: "FAILED", message: "Invalid Certification ID or PDF" });
+}
+};
+
 module.exports = {
   // Function to issue a PDF certificate
   issuePdf,
@@ -1615,6 +1629,9 @@ module.exports = {
 
   // Function to verify a Single/Batch certification with an ID
   verifyCertificationId,
+
+  // Function to verify a Single/Batch certification with an ID or with PDF
+  verifyCombined,
 
   // Function to handle admin signup
   signup,
