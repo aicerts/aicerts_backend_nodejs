@@ -556,6 +556,7 @@ const batchCertificateIssue = async (req, res) => {
 
       const batchNumber = await contract.methods.getRootLength().call();
       const allocateBatchId = parseInt(batchNumber) + 1;
+      // const allocateBatchId = 1;
             
       const simulateIssue = await simulateIssueBatchCertificates(tree.root);
           
@@ -567,6 +568,8 @@ const batchCertificateIssue = async (req, res) => {
         hash = await confirm(tx);
 
         const polygonLink = `https://${process.env.NETWORK}.com/tx/${hash}`;
+        
+        // const polygonLink = `polygon`;
 
       try {
         // Check mongoose connection
@@ -578,6 +581,7 @@ const batchCertificateIssue = async (req, res) => {
           }
           
           var batchDetails = [];
+          var batchDetailsWithQR = [];
           for (var i = 0; i < certificatesCount; i++) {
             var _proof = tree.getProof(i);
             batchDetails[i] = {
@@ -592,8 +596,38 @@ const batchCertificateIssue = async (req, res) => {
                   grantDate: rawBatchData[i].grantDate,
                   expirationDate: rawBatchData[i].expirationDate
               }
+
+              let _fields = {
+                Certificate_Number: rawBatchData[i].certificationID,
+                name: rawBatchData[i].name,
+                courseName: rawBatchData[i].certificationName,
+                Grant_Date: rawBatchData[i].grantDate,
+                Expiration_Date: rawBatchData[i].expirationDate,
+                polygonLink,
+              }
+
+              let encryptLink = await generateEncryptedUrl(_fields);
+
+              let qrCodeImage = await QRCode.toDataURL(encryptLink, {
+                errorCorrectionLevel: "H",
+                width: 450, // Adjust the width as needed
+                height: 450, // Adjust the height as needed
+              });
+
+              batchDetailsWithQR[i] = {
+                id: idExist.id,
+                batchId: allocateBatchId,
+                transactionHash: hash,
+                certificateHash: hashedBatchData[i],
+                certificateNumber: rawBatchData[i].certificationID,
+                name: rawBatchData[i].name,
+                course: rawBatchData[i].certificationName,
+                grantDate: rawBatchData[i].grantDate,
+                expirationDate: rawBatchData[i].expirationDate,
+                qrImage: qrCodeImage
+            }
               
-            // console.log("Batch Certificate Details", batchDetails[i]);
+            // console.log("Batch Certificate Details", batchDetailsWithQR[i]);
               await insertBatchCertificateData(batchDetails[i]);
         }
         console.log("Data inserted");
@@ -602,7 +636,7 @@ const batchCertificateIssue = async (req, res) => {
           status: "SUCCESS",
           message: "Batch of Certifications issued successfully",
           polygonLink: "polygonLink",
-          details: batchDetails,
+          details: batchDetailsWithQR,
         });
 
         await cleanUploadFolder();
