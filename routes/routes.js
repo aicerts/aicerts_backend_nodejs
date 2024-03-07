@@ -28,8 +28,8 @@ const __upload = multer({dest: "uploads/"});
  * @swagger
  * /api/issue:
  *   post:
- *     summary: Issue certification with details (no pdf required)
- *     description: Issue certification without providing pdf 
+ *     summary: API call for issuing a certificate (no pdf required)
+ *     description: API call for issuing a certificate with Request Data Extraction, Validation Checks, Blockchain Processing, Certificate Issuance, Response Handling, Blockchain Interaction, Data Encryption, QR Code Generation, Database Interaction, Error Handling and Asynchronous Operation.
  *     tags:
  *       - Issue Certification (Details)
  *     requestBody:
@@ -110,7 +110,8 @@ router.post('/issue',ensureAuthenticated, _upload.single("pdfFile"), adminContro
  * @swagger
  * /api/issue-pdf:
  *   post:
- *     summary: Issue certificate in PDF format
+ *     summary: API call for issuing certificates with a PDF template
+ *     description: API call for issuing certificates with Request Data Extraction, Validation Checks, Blockchain Processing, Certificate Issuance, PDF Generation, Database Interaction, Response Handling, PDF Template, QR Code Integration, File Handling, Asynchronous Operation, Cleanup and Response Format.
  *     tags:
  *       - Issue Certificate (*Upload pdf)
  *     requestBody:
@@ -188,8 +189,8 @@ router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminContr
  * @swagger
  * /api/batch-certificate-issue:
  *   post:
- *     summary: Batch Issue Certificates
- *     description: Endpoint to batch issue certificates and store data on the blockchain
+ *     summary: API call for issuing batch certificates.
+ *     description: API call for issuing batch certificates with Request Data Extraction, Validation Checks, Excel Data Processing, Blockchain Processing, Certificate Issuance, Response Handling, Excel File Processing, Blockchain Verification, Merkle Tree Generation, QR Code Integration, Database Interaction, Error Handling and Asynchronous Operation. 
  *     tags: [Issue Batch (*Upload Excel)]
  *     requestBody:
  *       required: true
@@ -218,9 +219,8 @@ router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminContr
  *               message: Batch of Certificates issued successfully
  *               polygonLink: https://your-network.com/tx/transactionHash
  *               details:
- *                 - issuerId: 2323a323cb
+ *                 - id: 2323a323cb
  *                   batchID: 1
- *                   proofHash: [3232a12212]
  *                   transactionHash: 12345678
  *                   certuficateHash: 122113523
  *                   certificateNumber: ASD2121
@@ -229,9 +229,9 @@ router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminContr
  *                   grantDate: 12-12-24
  *                   expirationDate: 12-12-25
  *                   issueDate: 12-12-24
- *                 - issuerId: 2323a323cb
+ *                   qrCode: rewrewr34242423
+ *                 - id: 2323a323cb
  *                   batchID: 1
- *                   proofHash: [3232a12213]
  *                   transactionHash: 12345673
  *                   certuficateHash: 122113529
  *                   certificateNumber: ASD3131
@@ -240,7 +240,8 @@ router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminContr
  *                   grantDate: 12-11-24
  *                   expirationDate: 12-11-25
  *                   issueDate: 12-11-24
- *                 # Add more certificates details if needed
+ *                   qrCode: rewrewr34242423
+ *                 # Add more certifications details if needed
  *       '400':
  *         description: Bad Request
  *         content:
@@ -266,6 +267,7 @@ router.post('/batch-certificate-issue', ensureAuthenticated, __upload.single("ex
 //  * /api/polygonlink:
 //  *   get:
 //  *     summary: Get Polygon link URL
+//  *     description: API route handler is designed to respond to incoming HTTP.  
 //  *     tags: [Polygon]
 //  *     responses:
 //  *       200:
@@ -286,7 +288,8 @@ router.get('/polygonlink', adminController.polygonLink);
  * @swagger
  * /api/verify:
  *   post:
- *     summary: Verify the Certificate with QR - Blockchain URL
+ *     summary: Verify the Certification with QR  - Blockchain URL
+ *     description: API Verify the Certification with QR in PDF document format - Blockchain URL. 
  *     tags: [Verifier]
  *     security:
  *       - BearerAuth: []
@@ -327,6 +330,68 @@ router.get('/polygonlink', adminController.polygonLink);
  */
 
 router.post('/verify', _upload.single("pdfFile"), adminController.verify);
+
+// /**
+//  * @swagger
+//  * /verify-combined:
+//  *   post:
+//  *     summary: API call for verify Certification with ID or PDF.
+//  *     description: API call for verify Certification with ID or PDF. 
+//  *     tags: [default]
+//  *     requestBody:
+//  *       required: true
+//  *       content:
+//  *         multipart/form-data:
+//  *           schema:
+//  *             type: object
+//  *             properties:
+//  *               id:
+//  *                 type: string
+//  *                 description: The issuer email.
+//  *               pdfFile:
+//  *                 type: string
+//  *                 format: binary
+//  *                 description: Pdf file to be uploaded. Must not be blank.
+//  *     responses:
+//  *       '200':
+//  *         description: Batch issuance successful
+//  *         content:
+//  *           application/json:
+//  *             example:
+//  *               status: "SUCCESS"
+//  *               message: Valid Certification
+//  *               details:
+//  *                 - CertifciationId: 2313321h
+//  *                 - issuerId: 2323a323cb
+//  *                   batchID: 1
+//  *                   proofHash: [3232a12212]
+//  *                   transactionHash: 12345678
+//  *                   certuficateHash: 122113523
+//  *                   certificateNumber: ASD2121
+//  *                   name: ABC
+//  *                   course: Advanced AI
+//  *                   grantDate: 12-12-24
+//  *                   expirationDate: 12-12-25
+//  *                   issueDate: 12-12-24
+//  *                 # Add more certification details if needed
+//  *       '400':
+//  *         description: Bad Request
+//  *         content:
+//  *           application/json:
+//  *             example:
+//  *               error: Bad Request
+//  *               status: "FAILED"
+//  *               message: Invalid Certification ID or PDF
+//  *       '500':
+//  *         description: Internal Server Error
+//  *         content:
+//  *           application/json:
+//  *             example:
+//  *               status: "FAILED"
+//  *               error: Internal Server Error
+//  */
+
+router.post('/verify-combined', _upload.single("pdfFile"), adminController.verifyCombined);
 
 /**
  * @swagger
@@ -512,6 +577,7 @@ router.post('/verify-batch-certificate', adminController.verifyBatchCertificate)
  * /api/signup:
  *   post:
  *     summary: Create a new admin account
+ *     description: API to Create a new admin account
  *     tags: [Authentication]
  *     requestBody:
  *       required: true
@@ -606,6 +672,7 @@ router.post('/signup', adminController.signup);
  * /api/login:
  *   post:
  *     summary: Authenticate user login
+ *     description: API to Login Admin
  *     tags:
  *       - Authentication
  *     requestBody:
@@ -687,6 +754,7 @@ router.post('/login', adminController.login);
  * /api/logout:
  *   post:
  *     summary: Logout admin
+ *     description: API to Logout Admin
  *     tags:
  *       - Authentication
  *     requestBody:
@@ -750,6 +818,7 @@ router.post('/logout',ensureAuthenticated, adminController.logout);
  * /api/reset-password:
  *   post:
  *     summary: Reset admin password
+ *     description: API to reset Admin password
  *     tags: [Admin]
  *     requestBody:
  *       required: true
@@ -813,6 +882,7 @@ router.post('/reset-password', adminController.resetPassword);
  * /api/get-all-issuers:
  *   get:
  *     summary: Get details of all issuers
+ *     description: API to fetch all issuer details who are unapproved
  *     tags: [Issuers]
  *     responses:
  *       200:
@@ -847,14 +917,15 @@ router.post('/reset-password', adminController.resetPassword);
  *                   example: An error occurred while fetching user details
  */
 
-// router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers);
-router.get('/get-all-issuers', adminController.getAllIssuers);
+router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers);
+// router.get('/get-all-issuers', adminController.getAllIssuers);
 
 /**
  * @swagger
  * /api/validate-issuer:
  *   post:
  *     summary: Approve or Reject an Issuer
+ *     description: API to approve or reject Issuer status (to perform the Issuing Certification over the Blockchain)
  *     tags: [Admin]
  *     requestBody:
  *       required: true
@@ -926,6 +997,7 @@ router.post('/validate-issuer',ensureAuthenticated, adminController.validateIssu
  * /api/get-issuer-by-email:
  *   post:
  *     summary: Get issuer by email
+ *     description: API to Fetch Issuer details on email request.
  *     tags: [Admin]
  *     security:
  *       - BearerAuth: []
@@ -992,6 +1064,7 @@ router.post('/get-issuer-by-email', adminController.getIssuerByEmail);
  * /api/add-trusted-owner:
  *   post:
  *     summary: Grant Admin / Issuer role to an address
+ *     description: Add the ISSUER_ROLE to the given Ethereum Address (If it hasn't)
  *     tags: [Blockchain]
  *     requestBody:
  *       required: true
@@ -1057,6 +1130,7 @@ router.post('/add-trusted-owner',ensureAuthenticated, adminController.addTrusted
  * /api/remove-trusted-owner:
  *   post:
  *     summary: Revoke Admin / Issuer role from the address
+ *     descriotion: Revoke the ISSUER_ROLE from the given Ethereum Address (If it has)
  *     tags: [Blockchain]
  *     requestBody:
  *       required: true
@@ -1122,6 +1196,7 @@ router.post('/remove-trusted-owner',ensureAuthenticated, adminController.removeT
  * /api/check-balance:
  *   get:
  *     summary: Check the balance of an Ethereum account address
+ *     description: Check MATIC Balance of the given valid Ethereum address
  *     tags: [Blockchain]
  *     parameters:
  *       - in: query
@@ -1172,7 +1247,8 @@ router.get('/check-balance',ensureAuthenticated, adminController.checkBalance);
  * @swagger
  * /api/verify-encrypted:
  *   post:
- *     summary: Verify a certificate with encryption
+ *     summary: Verify a certification with encryption
+ *     description: API for decode the certiication with encrypted inputs.
  *     tags: [Verifier]
  *     requestBody:
  *       required: true
