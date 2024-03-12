@@ -10,7 +10,13 @@ const { PDFDocument, Rectangle } = pdf;
 const fs = require("fs"); // File system module
 const path = require("path"); // Module for working with file paths
 const { fromPath } = require("pdf2pic"); // Converter from PDF to images
+// const PSPDFKit = require("pspdfkit"); 
+const PDFImage = require("pdf-image").PDFImage;
+const imageSize = require('image-size');
+const { promisify } = require('util');
+const converter = require('pdf2image');
 const pdftopic = require("pdftopic");
+const { Poppler } = require("node-poppler");
 const Jimp = require("jimp");
 const { PNG } = require("pngjs"); // PNG image manipulation library
 const jsQR = require("jsqr"); // JavaScript QR code reader
@@ -19,7 +25,7 @@ const mongoose = require("mongoose"); // MongoDB object modeling tool
 const nodemailer = require('nodemailer'); // Module for sending emails
 const readXlsxFile = require('read-excel-file/node');
 
-const {  decryptData, generateEncryptedUrl } = require("../common/cryptoFunction"); // Custom functions for cryptographic operations
+const { decryptData } = require("../common/cryptoFunction"); // Custom functions for cryptographic operations
 
 
 // Create a nodemailer transporter using the provided configuration
@@ -73,7 +79,7 @@ const account = process.env.ACCOUNT_ADDRESS;
 const _provider = new ethers.providers.getDefaultProvider(process.env.RPC_ENDPOINT);
 
 // Create a new ethers contract instance for read-only operations (using the contract ABI and provider)
-const adminRouter = new ethers.Contract(contractAddress, abi, _provider);
+// const adminRouter = new ethers.Contract(contractAddress, abi, _provider);
 
 // Create a new ethers wallet instance using the private key from environment variable and the provider
 const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, _provider);
@@ -397,7 +403,7 @@ const holdExecution = () => {
   return new Promise(resolve => {
     setTimeout(() => {
       resolve();
-    }, 2500); // 2000 milliseconds = 2 seconds
+    }, 1500); // 1500 milliseconds = 1.5 seconds
   });
 };
 
@@ -528,6 +534,37 @@ const addLinkToPdf = async (
     return pdfBytes;
 };
 
+const verifyPDFDimensions = async (pdfPath) => {
+  const poppler = new Poppler();
+  const options = {
+    pngFile: true,
+  };
+  const outputFile = `./uploads/template`;
+  
+  const res = poppler.pdfToCairo(pdfPath, outputFile, options);
+
+  await holdExecution(); // Wait for few seconds
+  // Converted image 
+  const imagePath = `./uploads/template-1.png`;
+
+  // Get the dimensions of the PNG image
+  const dimensions = imageSize(imagePath);
+
+  // Get the height & width of the image in pixels
+  const height = dimensions.height;
+  const width = dimensions.width;
+
+  // Print the height of the image to the console 2067 X 1477
+  // console.log("The certificate width x height:", width, height);
+  if( (width <= 2090 && width >= 2040) && (height >= 1450 && height <= 1500)){
+    return true;
+  } else {
+    return false;
+  }
+
+};
+
+
 // Function to calculate SHA-256 hash of data
 const calculateHash = (data)=> {
   // Create a hash object using SHA-256 algorithm
@@ -537,19 +574,28 @@ const calculateHash = (data)=> {
 
 // Function to create a new instance of Web3 and connect to a specified RPC endpoint
 const web3i = async () => {
-    // Create a new Web3 instance with the specified RPC endpoint
-    const web3 = await new Web3(
-    new Web3.providers.HttpProvider(
-      process.env.RPC_ENDPOINT
-    )
-  );
-
+  // Create a new instance of Web3 and connect to the RPC endpoint
+  let web3;
   try {
-    // Check if the RPC endpoint is valid by checking if the node is listening
-    const validateEndPoint = await web3.eth.net.isListening();
-    if(!validateEndPoint){
-      return null; // Return null if the endpoint is not valid
+    // Attempt to connect using RPC_ENDPOINT 1
+    web3 = await new Web3(
+      new Web3.providers.HttpProvider(process.env.RPC_ENDPOINT_1)
+    );
+    // Check for the Active web3 connection
+    await web3.eth.net.isListening();
+  } catch (error) {
+    try {
+      // Attempt to connect using RPC_ENDPOINT 2
+      web3 = await new Web3(
+        new Web3.providers.HttpProvider(process.env.RPC_ENDPOINT_2)
+      );
+    } catch (error) {
+      console.error('Error connecting to RPC_ENDPOINT', error.message);
+      // Handle further fallbacks or error scenarios if needed
     }
+  }
+
+  if(web3){
 
     // Get contract ABI from configuration
     const contractABI = abi;
@@ -557,18 +603,35 @@ const web3i = async () => {
     const contract = await new web3.eth.Contract(contractABI, contractAddress);
     return contract; // Return the contract instance
 
-  } catch (error) {
-    console.log("Invalid Endpoint", error);
+  } else {
+    console.log("Invalid Endpoint");
+    return false;
   }
 };
 
 const confirm = async (tx) => {
   // Create a new instance of Web3 and connect to the RPC endpoint
-  const web3 = await new Web3(
-    new Web3.providers.HttpProvider(
-      process.env.RPC_ENDPOINT
-    )
-  );
+  let web3;
+  try {
+    // Attempt to connect using RPC_ENDPOINT 1
+    web3 = await new Web3(
+      new Web3.providers.HttpProvider(process.env.RPC_ENDPOINT_1)
+    );
+    // Check for the Active web3 connection
+    await web3.eth.net.isListening();
+  } catch (error) {
+    try {
+      // Attempt to connect using RPC_ENDPOINT 2
+      web3 = await new Web3(
+        new Web3.providers.HttpProvider(process.env.RPC_ENDPOINT_2)
+      );
+    } catch (error) {
+      console.error('Error connecting to RPC_ENDPOINT', error.message);
+      // Handle further fallbacks or error scenarios if needed
+    }
+  }
+
+  if(web3){
 
   // Get the current gas price from the network
   const gasPrice = await web3.eth.getGasPrice();
@@ -607,6 +670,10 @@ const confirm = async (tx) => {
   hash = signedTransaction.transactionHash;
 
   return hash; // Return the transaction hash
+  } else {
+    console.log("Invalid Endpoint");
+    return false;
+  }
 };
 
 const simulateIssueCertificate = async (certificateNumber, hash) => {
@@ -826,6 +893,9 @@ module.exports = {
 
   // Function to add a link and QR code to a PDF file
   addLinkToPdf,
+
+  //Verify the uploading pdf template dimensions
+  verifyPDFDimensions,
 
   // Function to calculate the hash of data using SHA-256 algorithm
   calculateHash,

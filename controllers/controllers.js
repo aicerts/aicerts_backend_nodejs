@@ -37,6 +37,7 @@ const {
   findRepetitiveIdNumbers,
   extractQRCodeDataFromPDF, // Function to extract QR code data from a PDF file
   addLinkToPdf, // Function to add a link to a PDF file
+  verifyPDFDimensions,
   calculateHash, // Function to calculate the hash of a file
   web3i, // Instance of Web3 for interacting with Ethereum
   confirm, // Function to confirm a certificate
@@ -77,10 +78,22 @@ const issuePdf = async (req, res) => {
   // Check if certificate number already exists in the Batch
   const isNumberExistInBatch = await BatchIssues.findOne({ certificateNumber: Certificate_Number });
 
+  // const tempData = await verifyPDFDimensions(req.file.path);
+
+  var _result = '';
+  const templateData = await verifyPDFDimensions(req.file.path)
+  .then(result => {
+    // console.log("Verification result:", result);
+    _result = result;
+  })
+  .catch(error => {
+    console.error("Error during verification:", error);
+  });
+  // console.log("the file path", _result);
   // Validation checks for request data
   if (
     (!idExist || idExist.status !== 1)|| // User does not exist
-    // !idExist ||
+    !_result||
     isNumberExist || // Certificate number already exists 
     isNumberExistInBatch || // Certificate number already exists in Batch
     !Certificate_Number || // Missing certificate number
@@ -108,6 +121,9 @@ const issuePdf = async (req, res) => {
       errorMessage = `Invalid Issuer Email`;
     } else if(idExist.status !== 1) {
       errorMessage = `Unauthorised Issuer Email`;
+    } else if(!_result) {
+      errorMessage = `Invalid PDF (Certification Template) measurements`;
+      await cleanUploadFolder();
   }
 
     // Respond with error message
@@ -1390,12 +1406,26 @@ const getIssuerByEmail = async (req, res) => {
  * @param {Object} res - Express response object.
  */
 const addTrustedOwner = async (req, res) => {
-    // Initialize Web3 instance with RPC endpoint
-    const web3 = await new Web3(
-      new Web3.providers.HttpProvider(
-        process.env.RPC_ENDPOINT
-      )
+  // Create a new instance of Web3 and connect to the RPC endpoint
+  let web3;
+  try {
+    // Attempt to connect using RPC_ENDPOINT 1
+    web3 = await new Web3(
+      new Web3.providers.HttpProvider(process.env.RPC_ENDPOINT_1)
     );
+    // Check for the Active web3 connection
+    await web3.eth.net.isListening();
+  } catch (error) {
+    try {
+      // Attempt to connect using RPC_ENDPOINT 2
+      web3 = await new Web3(
+        new Web3.providers.HttpProvider(process.env.RPC_ENDPOINT_2)
+      );
+    } catch (error) {
+      console.error('Error connecting to RPC_ENDPOINT', error.message);
+      // Handle further fallbacks or error scenarios if needed
+    }
+  }
 
       // const { newOwnerAddress } = req.body;
   try {
@@ -1409,6 +1439,9 @@ const addTrustedOwner = async (req, res) => {
     }
 
     var contract = await web3i();
+    if(contract === false) {
+      return res.status(400).json({ status: "FAILED", message: "Invalid RPC Endpoint" });
+    }
 
     if(assignRole == 0 || assignRole == 1 ){
 
@@ -1471,12 +1504,26 @@ const addTrustedOwner = async (req, res) => {
  * @param {Object} res - Express response object.
  */
 const removeTrustedOwner = async (req, res) => {
-  // Initialize Web3 instance with RPC endpoint
-  const web3 = await new Web3(
-    new Web3.providers.HttpProvider(
-      process.env.RPC_ENDPOINT
-    )
-  );
+   // Create a new instance of Web3 and connect to the RPC endpoint
+   let web3;
+   try {
+     // Attempt to connect using RPC_ENDPOINT 1
+     web3 = await new Web3(
+       new Web3.providers.HttpProvider(process.env.RPC_ENDPOINT_1)
+     );
+     // Check for the Active web3 connection
+     await web3.eth.net.isListening();
+   } catch (error) {
+     try {
+       // Attempt to connect using RPC_ENDPOINT 2
+       web3 = await new Web3(
+         new Web3.providers.HttpProvider(process.env.RPC_ENDPOINT_2)
+       );
+     } catch (error) {
+       console.error('Error connecting to RPC_ENDPOINT', error.message);
+       // Handle further fallbacks or error scenarios if needed
+     }
+   }
 
     // const { newOwnerAddress } = req.body;
 try {
@@ -1486,10 +1533,13 @@ try {
 
   // Validate Ethereum address format
   if (!web3.utils.isAddress(newAddress)) {
-    return res.status(400).json({ message: "Invalid Ethereum address format" });
+    return res.status(400).json({ status: "FAILED", message: "Invalid Ethereum address format" });
   }
 
   var contract = await web3i();
+  if(contract === false) {
+    return res.status(400).json({ status: "FAILED", message: "Invalid RPC Endpoint" });
+  }
 
   if(assignRole == 0 || assignRole == 1 ){
 
@@ -1553,12 +1603,26 @@ try {
  * @param {Object} res - Express response object.
  */
 const checkBalance = async (req, res) => {
-  // Initialize Web3 instance with RPC endpoint
-  const web3 = await new Web3(
-    new Web3.providers.HttpProvider(
-      process.env.RPC_ENDPOINT
-    )
-  );
+   // Create a new instance of Web3 and connect to the RPC endpoint
+   let web3;
+   try {
+     // Attempt to connect using RPC_ENDPOINT 1
+     web3 = await new Web3(
+       new Web3.providers.HttpProvider(process.env.RPC_ENDPOINT_1)
+     );
+     // Check for the Active web3 connection
+     await web3.eth.net.isListening();
+   } catch (error) {
+     try {
+       // Attempt to connect using RPC_ENDPOINT 2
+       web3 = await new Web3(
+         new Web3.providers.HttpProvider(process.env.RPC_ENDPOINT_2)
+       );
+     } catch (error) {
+       console.error('Error connecting to RPC_ENDPOINT', error.message);
+       // Handle further fallbacks or error scenarios if needed
+     }
+   }
   try {
       // Extract the target address from the query parameter
       const targetAddress = req.query.address;
@@ -1681,9 +1745,6 @@ module.exports = {
 
   // Function to verify a Single/Batch certification with an ID
   verifyCertificationId,
-
-  // Function to verify a Single/Batch certification with an ID or with PDF
-  verifyCombined,
 
   // Function to handle admin signup
   signup,
