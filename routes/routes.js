@@ -4,6 +4,7 @@ const { ensureAuthenticated } = require("../config/auth"); // Import authenticat
 const multer = require('multer');
 const { fileFilter } = require('../model/tasks'); // Import file filter function
 const adminController = require('../controllers/controllers'); // Import admin controller
+const upload = multer({ dest: 'uploads/' });
 
 
 // Configure multer storage options
@@ -1235,5 +1236,48 @@ router.get('/check-balance',ensureAuthenticated, adminController.checkBalance);
  */
 
 router.post('/verify-encrypted', (req, res) => adminController.decodeCertificate(req, res));
+
+
+/**
+ * @swagger
+ * /api/upload:
+ *   post:
+ *     summary: Upload a file to AWS S3 bucket
+ *     tags: [File]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       '200':
+ *         description: File uploaded successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   description: Confirmation message
+ *       '500':
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   description: Error message
+ */
+
+router.post('/upload',upload.single('file'),(req, res)=>  adminController.uploadFileToS3(req, res));
+
 
 module.exports=router;

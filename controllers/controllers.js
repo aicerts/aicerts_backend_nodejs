@@ -7,6 +7,7 @@ const app = express(); // Create an instance of the Express application
 const path = require("path");
 const QRCode = require("qrcode");
 const fs = require("fs");
+const AWS = require('../config/aws-config');
 const _fs = require("fs-extra");
 const { StandardMerkleTree } = require("@openzeppelin/merkle-tree");
 
@@ -1498,6 +1499,32 @@ const checkBalance = async (req, res) => {
   }
 };
 
+async function uploadFileToS3(req, res) {
+  const file = req.file;
+  const filePath = file.path;
+
+  const bucketName = process.env.BUCKET_NAME;
+  const keyName = file.originalname;
+
+  const s3 = new AWS.S3();
+  const fileStream = fs.createReadStream(filePath);
+
+  const uploadParams = {
+    Bucket: bucketName,
+    Key: keyName,
+    Body: fileStream
+  };
+
+  try {
+    const data = await s3.upload(uploadParams).promise();
+    console.log('File uploaded successfully to', data.Location);
+    res.status(200).send({status: "SUCCESS", message: 'File uploaded successfully', fileUrl: data.Location });
+  } catch (err) {
+    console.error('Error uploading file:', err);
+    res.status(500).send({status: "FAILED", error: 'An error occurred while uploading the file' });
+  }
+}
+
 module.exports = {
   // Function to issue a PDF certificate
   issuePdf,
@@ -1554,5 +1581,6 @@ module.exports = {
   getIssuerByEmail,
 
   // Function to decode a certificate
-  decodeCertificate
+  decodeCertificate,
+  uploadFileToS3
 };
