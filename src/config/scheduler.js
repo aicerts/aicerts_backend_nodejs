@@ -1,6 +1,8 @@
 // Load environment variables from a .env file into process.env
 require('dotenv').config();
 const cron = require('node-cron');
+const fs = require('fs');
+const path = require('path');
 
 // Import the mongoose library for MongoDB interaction
 const mongoose = require("mongoose");
@@ -15,8 +17,10 @@ const schedule_days = parseInt(process.env.SCHEDULE_DAYS);
 mongoose
   .connect(process.env.MONGODB_URI)
   .then(() => {
+    createUploadsFolder();
     // Schedule the task to run every day at midnight
     cron.schedule('0 0 * * *', async () => {
+      
       try {
         // Calculate the date scheduled days ago
         const scheduledDaysAgo = new Date();
@@ -49,3 +53,12 @@ mongoose
   .catch((err) => console.log(err)); // Log an error if the connection fails
 
 
+  const createUploadsFolder = async () => {
+    const folderPath = path.join(__dirname, '..', '..', 'uploads');
+
+    // Check if the folder already exists
+    if (!fs.existsSync(folderPath)) {
+        // If not, create it
+        fs.mkdirSync(folderPath);
+    }
+};

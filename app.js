@@ -5,7 +5,7 @@ require('dotenv').config();
 // require('./config/db');
 
 // Initialize scheduler
-require('./config/scheduler');
+require('./src/config/scheduler');
 
 // Import required modules
 const express = require("express");
@@ -21,7 +21,7 @@ const app = express();
 const port = process.env.PORT || 8000;
 
 // Import routes
-const tasksRoutes = require('./routes/routes');
+const tasksRoutes = require('./src/routes/routes');
 
 // Swagger setup
 const swaggerOptions = {
@@ -33,7 +33,7 @@ const swaggerOptions = {
       description: 'API documentation for Blockchain module',
     },
   },
-  apis: ['./routes/*.js'], // Add other paths if needed
+  apis: ['./src/routes/*.js'], // Add other paths if needed
 };
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
