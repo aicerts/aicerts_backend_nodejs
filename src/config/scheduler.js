@@ -16,6 +16,7 @@ const schedule_days = parseInt(process.env.SCHEDULE_DAYS);
 mongoose
   .connect(process.env.MONGODB_URI)
   .then(() => {
+    createUploadsFolder();
     // Schedule the task to run every day at midnight
     cron.schedule('0 0 * * *', async () => {
       
