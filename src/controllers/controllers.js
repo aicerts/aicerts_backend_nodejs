@@ -9,6 +9,7 @@ const QRCode = require("qrcode");
 const fs = require("fs");
 const AWS = require('../config/aws-config');
 const _fs = require("fs-extra");
+const { ethers } = require("ethers"); // Ethereum JavaScript library
 const { StandardMerkleTree } = require("@openzeppelin/merkle-tree");
 
 // Import custom cryptoFunction module for encryption and decryption
@@ -16,11 +17,34 @@ const { decryptData, generateEncryptedUrl } = require("../common/cryptoFunction"
 // Import custom authUtils module for JWT token generation
 const { generateJwtToken } = require("../common/authUtils");
 
-// Import Web3 library for interacting with the Ethereum blockchain
-const Web3 = require('web3');
-
 // Import MongoDB models
 const { Admin, User, Issues, BatchIssues } = require("../config/schema");
+
+// Import ABI (Application Binary Interface) from the JSON file located at "../config/abi.json"
+const abi = require("../config/abi.json");
+
+// Retrieve contract address from environment variable
+const contractAddress = process.env.CONTRACT_ADDRESS;
+
+// Define an array of providers to use as fallbacks
+const providers = [
+  new ethers.JsonRpcProvider(process.env.RPC_ENDPOINT_1),
+  new ethers.JsonRpcProvider(process.env.RPC_ENDPOINT_2)
+  // Add more providers as needed
+];
+
+// Create a new FallbackProvider instance
+const fallbackProvider = new ethers.FallbackProvider(providers);
+
+// const provider = new ethers.providers.getDefaultProvider(process.env.RPC_ENDPOINT);
+const provider = new ethers.JsonRpcProvider(process.env.RPC_ENDPOINT);
+
+// const signer = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
+const signer = new ethers.Wallet(process.env.PRIVATE_KEY, fallbackProvider);
+
+// const new_contract = new ethers.Contract(contractAddress, abi, provider); 
+
+const new_contract = new ethers.Contract(contractAddress, abi, signer); 
 
 // Import bcrypt for hashing passwords
 const bcrypt = require("bcrypt");
@@ -34,16 +58,11 @@ const {
   fetchExcelRecord,
   insertCertificateData, // Function to insert certificate data into the database
   insertBatchCertificateData, // Function to insert Batch certificate data into the database
-  findRepetitiveIdNumbers,
+  findRepetitiveIdNumbers, // Find repetitive Certification ID
   extractQRCodeDataFromPDF, // Function to extract QR code data from a PDF file
   addLinkToPdf, // Function to add a link to a PDF file
-  verifyPDFDimensions,
+  verifyPDFDimensions, //Verify the uploading pdf template dimensions
   calculateHash, // Function to calculate the hash of a file
-  web3i, // Instance of Web3 for interacting with Ethereum
-  confirm, // Function to confirm a certificate
-  simulateIssueCertificate, // Function to simulate issuing a certificate
-  simulateIssueBatchCertificates, // Function to simulate issuing a Batch of certificate
-  simulateRoleToAddress, // Function to simulate a grant / revoke role to an address
   cleanUploadFolder, // Function to clean up the upload folder
   isDBConnected, // Function to check if the database connection is established
   sendEmail, // Function to send an email on approved
@@ -53,8 +72,10 @@ const {
 let linkUrl; // Variable to store a link URL
 let detailsQR; // Variable to store details of a QR code
 
+const currentDir = __dirname;
+const parentDir = path.dirname(path.dirname(currentDir));
 
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("../../uploads", express.static(path.join(__dirname, "uploads")));
  
 /**
  * API call for Certificate issue with pdf template.
@@ -89,7 +110,7 @@ const issuePdf = async (req, res) => {
   .catch(error => {
     console.error("Error during verification:", error);
   });
-  // console.log("the file path", _result);
+  
   // Validation checks for request data
   if (
     (!idExist || idExist.status !== 1)|| // User does not exist
@@ -123,7 +144,6 @@ const issuePdf = async (req, res) => {
       errorMessage = `Unauthorised Issuer Email`;
     } else if(!_result) {
       errorMessage = `Invalid PDF (Certification Template) measurements`;
-      await cleanUploadFolder();
   }
 
     // Respond with error message
@@ -142,15 +162,12 @@ const issuePdf = async (req, res) => {
   for (const field in fields) {
     hashedFields[field] = calculateHash(fields[field]);
   }
-  const combinedHash = calculateHash(JSON.stringify(hashedFields));
-
-  //Blockchain processing.
-  const contract = await web3i();    
+  const combinedHash = calculateHash(JSON.stringify(hashedFields));  
 
       // Verify certificate on blockchain
-      const isPaused = await contract.methods.paused().call();
-      const issuerAuthorized = await contract.methods.hasRole(process.env.ISSUER_ROLE, idExist.id).call();
-      const val = await contract.methods.verifyCertificateById(Certificate_Number).call();
+      const isPaused = await new_contract.paused();
+      const issuerAuthorized = await new_contract.hasRole(process.env.ISSUER_ROLE, idExist.id);
+      const val = await new_contract.verifyCertificateById(Certificate_Number);
 
       if (
         val === true || 
@@ -160,24 +177,29 @@ const issuePdf = async (req, res) => {
         var messageContent = "Certification already issued";
         if(isPaused === true) {
           messageContent = "Operation restricted by the Blockchain";
-        // } else if (issuerAuthorized === false) {
-        //   messageContent = "Unauthorized Issuer to perform operation in Blockchain";
+        } else if (issuerAuthorized === false) {
+          messageContent = "Unauthorized Issuer to perform operation on Blockchain";
         }
         res.status(400).json({ message: messageContent });
       } 
       else {
-        // Simulate issuing the certificate
-        const simulateIssue = await simulateIssueCertificate(Certificate_Number, combinedHash);
-      if (simulateIssue) { 
+       
+        try{ 
         // If simulation successful, issue the certificate on blockchain
-        const tx = contract.methods.issueCertificate(
+        const tx = await new_contract.issueCertificate(
           fields.Certificate_Number,
           combinedHash
         );
-        const hash = await confirm(tx);
+
+        var txHash = tx.hash;
 
       // Generate link URL for the certificate on blockchain
-      const linkUrl = `https://${process.env.NETWORK}.com/tx/${hash}`;
+      var linkUrl = `https://${process.env.NETWORK}.com/tx/${txHash}`;
+
+      } catch (error) {
+        // Handle the error During the transaction
+        console.error('Error occurred during transaction execution:', error.message);
+      }
 
       // Generate encrypted URL with certificate data
       const dataWithLink = {
@@ -210,8 +232,7 @@ const issuePdf = async (req, res) => {
        
         // Add link and QR code to the PDF file
         const opdf = await addLinkToPdf(
-          // __dirname + "/" + file,
-          path.join(__dirname, '..', file),
+          path.join(parentDir, '.', file),
           outputPdf,
           linkUrl,
           qrCodeImage,
@@ -234,7 +255,7 @@ const issuePdf = async (req, res) => {
           const id = idExist.id;
           const certificateData = {
             id,
-            transactionHash: hash,
+            transactionHash: txHash,
             certificateHash: combinedHash,
             certificateNumber: fields.Certificate_Number,
             name: fields.name,
@@ -269,13 +290,7 @@ const issuePdf = async (req, res) => {
         }catch (error) {
           // Handle mongoose connection error (log it, throw an error, etc.)
           console.error("Internal server error", error);
-        }
-                
-      }
-      else {
-        // Simulation for issuing certificate failed
-        res.status(400).json({ message: "Simulation for the IssueCertificate failed" });
-      }
+        }               
     }
   }
 };
@@ -334,7 +349,7 @@ const issue = async (req, res) => {
           errorMessage = `Invalid Issuer Email`;
       } else if(idExist.status !== 1) {
         errorMessage = `Unauthorised Issuer Email`;
-    }
+      }
 
       // Respond with error message
       res.status(400).json({ message: errorMessage });
@@ -356,13 +371,10 @@ const issue = async (req, res) => {
       }
       const combinedHash = calculateHash(JSON.stringify(hashedFields));
 
-      // Blockchain processing.
-      const contract = await web3i();
-
       // Verify certificate on blockchain
-      const isPaused = await contract.methods.paused().call();
-      const issuerAuthorized = await contract.methods.hasRole(process.env.ISSUER_ROLE, idExist.id).call();
-      const val = await contract.methods.verifyCertificateById(Certificate_Number).call();
+      const isPaused = await new_contract.paused();
+      const issuerAuthorized = await new_contract.hasRole(process.env.ISSUER_ROLE, idExist.id);
+      const val = await new_contract.verifyCertificateById(Certificate_Number);
 
       if (
         val === true || 
@@ -372,24 +384,28 @@ const issue = async (req, res) => {
         var messageContent = "Certification already issued";
         if(isPaused === true) {
           messageContent = "Operation restricted by the Blockchain";
-        // } else if (issuerAuthorized === false) {
-        //   messageContent = "Unauthorized Issuer to perform operation in Blockchain";
+        } else if (issuerAuthorized === false) {
+          messageContent = "Unauthorized Issuer to perform operation on Blockchain";
         }
         res.status(400).json({ message: messageContent });
       }else {
-        // Simulate issuing the certificate
-        const simulateIssue = await simulateIssueCertificate(Certificate_Number, combinedHash);
-        if (simulateIssue) {
+          try{
           // If simulation successful, issue the certificate on blockchain
-          const tx = contract.methods.issueCertificate(
+          const tx = await new_contract.issueCertificate(
             Certificate_Number,
             combinedHash
           );
 
-          hash = await confirm(tx);
+          // await tx.wait();
+          var txHash = tx.hash;
 
-      // Generate link URL for the certificate on blockchain
-      const polygonLink = `https://${process.env.NETWORK}.com/tx/${hash}`;
+          // Generate link URL for the certificate on blockchain
+          var polygonLink = `https://${process.env.NETWORK}.com/tx/${txHash}`;
+
+          } catch (error) {
+            // Handle the error During the transaction
+            console.error('Error occurred during transaction execution:', error.message);
+          }
 
       // Generate encrypted URL with certificate data
       const dataWithLink = {...fields,polygonLink:polygonLink}
@@ -432,7 +448,7 @@ const issue = async (req, res) => {
 
           var certificateData = {
             id,
-            transactionHash: hash,
+            transactionHash: txHash,
             certificateHash: combinedHash,
             certificateNumber: Certificate_Number,
             name: name,
@@ -456,11 +472,6 @@ const issue = async (req, res) => {
             polygonLink: polygonLink,
             details: certificateData,
           });
-        }
-        else {
-          // Simulation for issuing certificate failed
-          res.status(400).json({ message: "Simulation for the IssueCertificate failed" });
-        }
       }
 
     } catch (error) {
@@ -492,8 +503,8 @@ const batchCertificateIssue = async (req, res) => {
   await _fs.remove(filePath);
 
     if (
-      // (!idExist || idExist.status !== 1)|| // User does not exist
-      !idExist || 
+      (!idExist || idExist.status !== 1)|| // User does not exist
+      // !idExist || 
       !req.file || 
       !req.file.filename || 
       req.file.filename === 'undefined' || 
@@ -505,8 +516,8 @@ const batchCertificateIssue = async (req, res) => {
     }
     else if(excelData.response == false){
       errorMessage =  excelData.message;
-    // } else if(idExist.status !== 1) {
-    //   errorMessage = `Unauthorised Issuer Email`;
+    } else if(idExist.status !== 1) {
+      errorMessage = `Unauthorised Issuer Email`;
     } 
     
 
@@ -566,20 +577,17 @@ const batchCertificateIssue = async (req, res) => {
 
   try {
 
-      // Blockchain processing.
-      const contract = await web3i();
-
       // Verify on blockchain
-      const isPaused = await contract.methods.paused().call();
-      const issuerAuthorized = await contract.methods.hasRole(process.env.ISSUER_ROLE, idExist.id).call();
+      const isPaused = await new_contract.paused();
+      const issuerAuthorized = await new_contract.hasRole(process.env.ISSUER_ROLE, idExist.id);
     
       if (isPaused === true) {
         // Certificate contract paused
         var messageContent = "Operation restricted by the Blockchain";
 
-        // if(issuerAuthorized === flase) {
-        //   messageContent = "Unauthorized Issuer to perform operation in Blockchain";
-        // }
+        if(issuerAuthorized === flase) {
+          messageContent = "Unauthorized Issuer to perform operation on Blockchain";
+        }
         
         res.status(400).json({ message: messageContent});
       } 
@@ -587,22 +595,24 @@ const batchCertificateIssue = async (req, res) => {
       // Generate the Merkle tree
       const tree = StandardMerkleTree.of(values, ['string']);
 
-      const batchNumber = await contract.methods.getRootLength().call();
+      const batchNumber = await new_contract.getRootLength();
       const allocateBatchId = parseInt(batchNumber) + 1;
       // const allocateBatchId = 1;
             
-      const simulateIssue = await simulateIssueBatchCertificates(tree.root);
-          
-      if (simulateIssue) {
-        const tx = contract.methods.issueBatchOfCertificates(
-          tree.root
-      );
-      
-        hash = await confirm(tx);
-
-        const polygonLink = `https://${process.env.NETWORK}.com/tx/${hash}`;
+      try{
+        // Simulate to Issue Batch Certifications
+          const tx = await new_contract.issueBatchOfCertificates(
+            tree.root
+        );
         
-        // const polygonLink = `polygon`;
+        var txHash = tx.hash;
+
+        var polygonLink = `https://${process.env.NETWORK}.com/tx/${txHash}`;
+        
+      } catch (error) {
+        // Handle the error During the transaction
+        console.error('Error occurred during transaction execution:', error.message);
+      }
 
       try {
         // Check mongoose connection
@@ -621,7 +631,7 @@ const batchCertificateIssue = async (req, res) => {
                   id: idExist.id,
                   batchId: allocateBatchId,
                   proofHash: _proof,
-                  transactionHash: hash,
+                  transactionHash: txHash,
                   certificateHash: hashedBatchData[i],
                   certificateNumber: rawBatchData[i].certificationID,
                   name: rawBatchData[i].name,
@@ -650,7 +660,7 @@ const batchCertificateIssue = async (req, res) => {
               batchDetailsWithQR[i] = {
                 id: idExist.id,
                 batchId: allocateBatchId,
-                transactionHash: hash,
+                transactionHash: txHash,
                 certificateHash: hashedBatchData[i],
                 certificateNumber: rawBatchData[i].certificationID,
                 name: rawBatchData[i].name,
@@ -677,10 +687,6 @@ const batchCertificateIssue = async (req, res) => {
         } catch (error) {
         // Handle mongoose connection error (log it, throw an error, etc.)
         console.error("Internal server error", error);
-      }
-      }
-      else {
-        res.status(400).json({ status: "FAILED", message: "Simulation failed for issue BatchCertifications" });
       }
 
   } catch (error) {
@@ -728,7 +734,7 @@ const verify = async (req, res) => {
   } catch (error) {
     // If an error occurs during verification, respond with failure status
     const verificationResponse = {
-      message: "Certificate is not valid"
+      message: "Certification is not valid"
     };
 
     res.status(400).json(verificationResponse);
@@ -750,12 +756,10 @@ const verify = async (req, res) => {
  * @param {Object} res - Express response object.
  */
 const verifyWithId = async (req, res) => {
-  inputId = req.body.id;
+    inputId = req.body.id;
 
   try {
-    // Blockchain processing.
-    const contract = await web3i();
-    const response = await contract.methods.verifyCertificateById(inputId).call();
+    const response = await new_contract.verifyCertificateById(inputId);
 
     if (response === true) {
       const certificateNumber = inputId;
@@ -782,12 +786,12 @@ const verifyWithId = async (req, res) => {
     } else {
       res.status(400).json({ status: "FAILED", message: "Certification doesn't exist" });
     }
-  } catch (error) {
-    res.status(500).json({
-      status: "FAILED",
-      message: "Internal Server error",
-    });
-  } 
+    } catch (error) {
+      res.status(500).json({
+        status: "FAILED",
+        message: "Internal Server error",
+      });
+    } 
 
 };
 
@@ -854,9 +858,7 @@ const verifyBatchCertificate = async (req, res) => {
       const proof = issueExist.proofHash;
 
       // Blockchain processing.
-      const contract = await web3i();
-
-      const val = await contract.methods.verifyCertificateInBatch(batchNumber, dataHash, proof).call();
+      const val = await new_contract.verifyCertificateInBatch(batchNumber, dataHash, proof);
 
       return res.status(val ? 200 : 400).json({ status: val ? 'SUCCESS' : 'FAILED', Message: val ? "Valid Certification ID" : 'Invalid Certification ID', details: val ? issueExist : 'NA' });
     
@@ -886,8 +888,7 @@ const verifyCertificationId = async (req, res) => {
   const batchIssueExist = await BatchIssues.findOne({ certificateNumber : inputId });
 
   // Blockchain processing.
-  const contract = await web3i();
-  const response = await contract.methods.verifyCertificateById(inputId).call();
+  const response = await new_contract.verifyCertificateById(inputId);
 
   // Validation checks for request data
   if ([inputId].some(value => typeof value !== "string" || value == "string") || (!batchIssueExist && response === false)) {
@@ -924,9 +925,7 @@ const verifyCertificationId = async (req, res) => {
       const proof = batchIssueExist.proofHash;
 
       // Blockchain processing.
-      const contract = await web3i();
-
-      const val = await contract.methods.verifyCertificateInBatch(batchNumber, dataHash, proof).call();
+      const val = await new_contract.verifyCertificateInBatch(batchNumber, dataHash, proof);
 
       if (val === true) {
         try {
@@ -1313,7 +1312,10 @@ const validateIssuer = async (req, res) => {
         console.log("Database connection is ready");
     }
 
+    const roleStatus = await new_contract.hasRole(process.env.ISSUER_ROLE, userExist.id);
+
     if(validationStatus == 1) {
+
       // If user is not approved yet, send email and update user's approved status
       var mailStatus = await sendEmail(userExist.name, email);
       var mailresponse = (mailStatus === true) ? "sent" : "NA";
@@ -1323,15 +1325,30 @@ const validateIssuer = async (req, res) => {
       userExist.status = 1;
       userExist.rejectedDate = null;
       await userExist.save();
-      
+      var grantedStatus;
+      if(roleStatus === false){
+        try{
+          var tx = await new_contract.grantRole(process.env.ISSUER_ROLE, userExist.id);
+          grantedStatus = "SUCCESS";
+
+        } catch (error) {
+          // Handle the error During the transaction
+          console.error('Error occurred during grant Issuer role:', error.message);
+          grantedStatus = "FAILED";
+        }
+      }
+
       // Respond with success message indicating user approval
       res.json({
           status: "SUCCESS",
           email: mailresponse,
+          grant: grantedStatus,
           message: "User Approved successfully"
       });
 
     } else if (validationStatus == 2) {
+      
+     
       // If user is not approved yet, send email and update user's approved status
       var mailStatus = await rejectEmail(userExist.name, email);
       var mailresponse = (mailStatus === true) ? "sent" : "NA";
@@ -1340,12 +1357,24 @@ const validateIssuer = async (req, res) => {
       userExist.approved = false;
       userExist.status = 2;
       userExist.rejectedDate = Date.now();
+      }
       await userExist.save();
+      var revokedStatus;
+      if(roleStatus === true){
+        try{
+          var tx = await new_contract.revokeRole(process.env.ISSUER_ROLE, userExist.id);
+          revokedStatus = "SUCCESS";
+        } catch (error) {
+          // Handle the error During the transaction
+          console.error('Error occurred during revoke Issuer role:', error.message);
+          revokedStatus = "FAILED";
+        }
       
       // Respond with success message indicating user approval
       res.json({
           status: "SUCCESS",
           email: mailresponse,
+          revoke: revokedStatus,
           message: "User Rejected successfully"
       });
 
@@ -1406,26 +1435,6 @@ const getIssuerByEmail = async (req, res) => {
  * @param {Object} res - Express response object.
  */
 const addTrustedOwner = async (req, res) => {
-  // Create a new instance of Web3 and connect to the RPC endpoint
-  let web3;
-  try {
-    // Attempt to connect using RPC_ENDPOINT 1
-    web3 = await new Web3(
-      new Web3.providers.HttpProvider(process.env.RPC_ENDPOINT_1)
-    );
-    // Check for the Active web3 connection
-    await web3.eth.net.isListening();
-  } catch (error) {
-    try {
-      // Attempt to connect using RPC_ENDPOINT 2
-      web3 = await new Web3(
-        new Web3.providers.HttpProvider(process.env.RPC_ENDPOINT_2)
-      );
-    } catch (error) {
-      console.error('Error connecting to RPC_ENDPOINT', error.message);
-      // Handle further fallbacks or error scenarios if needed
-    }
-  }
 
       // const { newOwnerAddress } = req.body;
   try {
@@ -1434,13 +1443,8 @@ const addTrustedOwner = async (req, res) => {
     const newAddress = req.body.address;
 
     // Validate Ethereum address format
-    if (!web3.utils.isAddress(newAddress)) {
-      return res.status(400).json({ message: "Invalid Ethereum address format" });
-    }
-
-    var contract = await web3i();
-    if(contract === false) {
-      return res.status(400).json({ status: "FAILED", message: "Invalid RPC Endpoint" });
+    if (!ethers.isAddress(newAddress)) {
+      return res.status(400).json({ status: "FAILED", message: "Invalid Ethereum address format" });
     }
 
     if(assignRole == 0 || assignRole == 1 ){
@@ -1448,39 +1452,34 @@ const addTrustedOwner = async (req, res) => {
       const assigningRole = (assignRole == 0) ? process.env.ADMIN_ROLE : process.env.ISSUER_ROLE;
 
       // Blockchain processing.
-      const response = await contract.methods.hasRole(assigningRole, newAddress).call();
+      const response = await new_contract.hasRole(assigningRole, newAddress);
       
       if(response === true){
         // Simulation failed, send failure response
         return res.status(400).json({ status: "FAILED", message: "Address Existed in the Blockchain" });
       } else if(response === false) {
-        // Simulate grant Admin role
-        const simulateGrantRole = await simulateRoleToAddress("grant", assigningRole, newAddress);
-
-      // If simulation successful, proceed to grant role to the Address
-      if (simulateGrantRole) {
-
-        // Prepare transaction to add trusted owner
-        const tx = contract.methods.grantRole(assigningRole ,newAddress);
-
-        // Confirm transaction
-        const hash = await confirm(tx);
-
+        
+      try{
+        const tx = await new_contract.grantRole(assigningRole, newAddress);
+      
+        var txHash = tx.hash;
+      } catch (error) {
+        // Handle the error During the transaction
+        console.error('Error occurred during grant Issuer role:', error.message);
+      }
+        
         const messageInfo = (assignRole == 0) ? "Admin Role Granted" : "Issuer Role Granted";
 
         // Prepare success response
         const responseMessage = {
           status: "SUCCESS",
           message: messageInfo,
-          details: `https://${process.env.NETWORK}.com/tx/${hash}`
+          details: `https://${process.env.NETWORK}.com/tx/${txHash}`
         };
 
         // Send success response
         res.status(200).json(responseMessage);
-      } else {
-        // Simulation failed, send failure response
-        return res.status(400).json({ status: "FAILED", message: "Simulation failed" });
-      }
+        
 
       } else {
         return res.status(500).json({ status: "FAILED", message: "Internal Server Error" });
@@ -1504,26 +1503,6 @@ const addTrustedOwner = async (req, res) => {
  * @param {Object} res - Express response object.
  */
 const removeTrustedOwner = async (req, res) => {
-   // Create a new instance of Web3 and connect to the RPC endpoint
-   let web3;
-   try {
-     // Attempt to connect using RPC_ENDPOINT 1
-     web3 = await new Web3(
-       new Web3.providers.HttpProvider(process.env.RPC_ENDPOINT_1)
-     );
-     // Check for the Active web3 connection
-     await web3.eth.net.isListening();
-   } catch (error) {
-     try {
-       // Attempt to connect using RPC_ENDPOINT 2
-       web3 = await new Web3(
-         new Web3.providers.HttpProvider(process.env.RPC_ENDPOINT_2)
-       );
-     } catch (error) {
-       console.error('Error connecting to RPC_ENDPOINT', error.message);
-       // Handle further fallbacks or error scenarios if needed
-     }
-   }
 
     // const { newOwnerAddress } = req.body;
 try {
@@ -1531,39 +1510,32 @@ try {
   const assignRole = 1;
   const newAddress = req.body.address;
 
-  // Validate Ethereum address format
-  if (!web3.utils.isAddress(newAddress)) {
+  // Check if the target address is a valid Ethereum address
+  if (!ethers.isAddress(newAddress)) {
     return res.status(400).json({ status: "FAILED", message: "Invalid Ethereum address format" });
-  }
-
-  var contract = await web3i();
-  if(contract === false) {
-    return res.status(400).json({ status: "FAILED", message: "Invalid RPC Endpoint" });
-  }
+  }  
 
   if(assignRole == 0 || assignRole == 1 ){
 
     const assigningRole = (assignRole == 0) ? process.env.ADMIN_ROLE : process.env.ISSUER_ROLE;
 
     // Blockchain processing.
-    const response = await contract.methods.hasRole(assigningRole, newAddress).call();
+    const response = await new_contract.hasRole(assigningRole, newAddress);
     console.log("The role response", response);
     
     if(response === false){
       // Simulation failed, send failure response
       return res.status(400).json({ status: "FAILED", message: "Address Doesn't Existed in the Blockchain" });
     } else if(response === true) {
-      // Simulate grant Admin role
-      const simulateGrantRole = await simulateRoleToAddress("revoke", assigningRole, newAddress);
 
-    // If simulation successful, proceed to grant role to the Address
-    if (simulateGrantRole) {
-
-      // Prepare transaction to add trusted owner
-      const tx = contract.methods.revokeRole(assigningRole ,newAddress);
-
-      // Confirm transaction
-      const hash = await confirm(tx);
+    try{
+      const tx = await new_contract.revokeRole(assigningRole ,newAddress);
+      
+      var txHash = tx.hash;
+    } catch (error) {
+      // Handle the error During the transaction
+      console.error('Error occurred during revoke Issuer role:', error.message);
+    }
 
       const messageInfo = (assignRole == 0) ? "Admin Role Revoked" : "Issuer Role Revoked";
 
@@ -1571,15 +1543,11 @@ try {
       const responseMessage = {
         status: "SUCCESS",
         message: messageInfo,
-        details: `https://${process.env.NETWORK}.com/tx/${hash}`
+        details: `https://${process.env.NETWORK}.com/tx/${txHash}`
       };
 
       // Send success response
       res.status(200).json(responseMessage);
-    } else {
-      // Simulation failed, send failure response
-      return res.status(400).json({ status: "FAILED", message: "Simulation failed" });
-    }
 
     } else {
       return res.status(500).json({ status: "FAILED", message: "Internal Server Error" });
@@ -1603,40 +1571,21 @@ try {
  * @param {Object} res - Express response object.
  */
 const checkBalance = async (req, res) => {
-   // Create a new instance of Web3 and connect to the RPC endpoint
-   let web3;
-   try {
-     // Attempt to connect using RPC_ENDPOINT 1
-     web3 = await new Web3(
-       new Web3.providers.HttpProvider(process.env.RPC_ENDPOINT_1)
-     );
-     // Check for the Active web3 connection
-     await web3.eth.net.isListening();
-   } catch (error) {
-     try {
-       // Attempt to connect using RPC_ENDPOINT 2
-       web3 = await new Web3(
-         new Web3.providers.HttpProvider(process.env.RPC_ENDPOINT_2)
-       );
-     } catch (error) {
-       console.error('Error connecting to RPC_ENDPOINT', error.message);
-       // Handle further fallbacks or error scenarios if needed
-     }
-   }
+ 
   try {
       // Extract the target address from the query parameter
       const targetAddress = req.query.address;
 
       // Check if the target address is a valid Ethereum address
-      if (!web3.utils.isAddress(targetAddress)) {
+      if (!ethers.isAddress(targetAddress)) {
           return res.status(400).json({ message: "Invalid Ethereum address format" });
       }
 
     // Get the balance of the target address in Wei
-    const balanceWei = await web3.eth.getBalance(targetAddress);
+    const balanceWei = await fallbackProvider.getBalance(targetAddress);
 
     // Convert balance from Wei to Ether
-    const balanceEther = web3.utils.fromWei(balanceWei, 'ether');
+    const balanceEther = ethers.formatEther(balanceWei);
     
     // Convert balanceEther to fixed number of decimals (e.g., 2 decimals)
     const fixedDecimals = parseFloat(balanceEther).toFixed(3);
@@ -1656,45 +1605,12 @@ const checkBalance = async (req, res) => {
   }
 };
 
-async function uploadFileToS3(req, res) {
-  const file = req.file;
-  const filePath = file.path;
-
-  const bucketName = process.env.BUCKET_NAME;
-  const keyName = file.originalname;
-
-  const s3 = new AWS.S3();
-  const fileStream = fs.createReadStream(filePath);
-
-  const uploadParams = {
-    Bucket: bucketName,
-    Key: keyName,
-    Body: fileStream
-  };
-
-  try {
-    const data = await s3.upload(uploadParams).promise();
-    console.log('File uploaded successfully to', data.Location);
-    res.status(200).send({status: "SUCCESS", message: 'File uploaded successfully', fileUrl: data.Location });
-  } catch (err) {
-    console.error('Error uploading file:', err);
-    res.status(500).send({status: "FAILED", error: 'An error occurred while uploading the file' });
-  }
-}
-const verifyCombined = async (req, res) => {
-
-// Extracting file path from the request
-const id = req.body.id;
-const dbStaus = await isDBConnected();
-if(id){
- // Send success response
- var responseMessage = `The input id is : ${id}`;
- return res.status(200).json({status: "SUCCESS", message: "Valid Certification", details: responseMessage});
-} else {
-  return res.status(400).json({ status: "FAILED", message: "Invalid Certification ID or PDF" });
-}
-};
-
+/**
+ * API to Upload Files to AWS-S3 bucket.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
 async function uploadFileToS3(req, res) {
   const file = req.file;
   const filePath = file.path;
@@ -1778,5 +1694,7 @@ module.exports = {
 
   // Function to decode a certificate
   decodeCertificate,
+
+  // Function to Upload Files to AWS-S3 bucket
   uploadFileToS3
 };
