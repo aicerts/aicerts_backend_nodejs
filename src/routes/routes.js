@@ -4,13 +4,12 @@ const { ensureAuthenticated } = require("../config/auth"); // Import authenticat
 const multer = require('multer');
 const { fileFilter } = require('../model/tasks'); // Import file filter function
 const adminController = require('../controllers/controllers'); // Import admin controller
-const upload = multer({ dest: 'uploads/' });
 
 
 // Configure multer storage options
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads"); // Set the destination where files will be saved
+    cb(null, "./uploads"); // Set the destination where files will be saved
   },
   filename: (req, file, cb) => {
     // Set the filename based on the Certificate_Number from the request body
@@ -23,7 +22,7 @@ const storage = multer.diskStorage({
 const _upload = multer({ storage, fileFilter });
 
 // const __upload = multer({ storage, excelFilter });
-const __upload = multer({dest: "uploads/"});
+const __upload = multer({dest: "../../uploads/"});
 
 /**
  * @swagger
@@ -104,8 +103,8 @@ const __upload = multer({dest: "uploads/"});
  *                   description: Error message for internal server error.
  */
 
-router.post('/issue',ensureAuthenticated, _upload.single("pdfFile"), adminController.issue);
-// router.post('/issue', _upload.single("pdfFile"), adminController.issue);
+router.post('/issue',ensureAuthenticated, adminController.issue);
+// router.post('/issue', adminController.issue);
 
 /**
  * @swagger
@@ -927,8 +926,8 @@ router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers
  *                   description: Error message indicating an error during the validation process.
  */
 
-router.post('/validate-issuer',ensureAuthenticated, adminController.validateIssuer);
-// router.post('/validate-issuer', adminController.validateIssuer);
+// router.post('/validate-issuer',ensureAuthenticated, adminController.validateIssuer);
+router.post('/validate-issuer', adminController.validateIssuer);
 
 
 /**
@@ -996,7 +995,6 @@ router.post('/validate-issuer',ensureAuthenticated, adminController.validateIssu
  */
 
 router.post('/get-issuer-by-email', adminController.getIssuerByEmail);
-
 
 /**
  * @swagger
@@ -1181,6 +1179,7 @@ router.post('/remove-trusted-owner',ensureAuthenticated, adminController.removeT
  */
 
 router.get('/check-balance',ensureAuthenticated, adminController.checkBalance);
+// router.get('/check-balance', adminController.checkBalance);
 
 /**
  * @swagger
@@ -1251,13 +1250,15 @@ router.get('/check-balance',ensureAuthenticated, adminController.checkBalance);
 
 router.post('/verify-encrypted', (req, res) => adminController.decodeCertificate(req, res));
 
-
 /**
  * @swagger
  * /api/upload:
  *   post:
  *     summary: Upload a file to AWS S3 bucket
+ *     description: API to Upload a file to AWS (Provider) S3 bucket
  *     tags: [File]
+ *     security:
+ *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -1268,6 +1269,8 @@ router.post('/verify-encrypted', (req, res) => adminController.decodeCertificate
  *               file:
  *                 type: string
  *                 format: binary
+ *             required:
+ *                -file
  *     responses:
  *       '200':
  *         description: File uploaded successfully
@@ -1291,7 +1294,7 @@ router.post('/verify-encrypted', (req, res) => adminController.decodeCertificate
  *                   description: Error message
  */
 
-router.post('/upload',upload.single('file'),(req, res)=>  adminController.uploadFileToS3(req, res));
+router.post('/upload',__upload.single('file'),(req, res)=>  adminController.uploadFileToS3(req, res));
 
 
 module.exports=router;

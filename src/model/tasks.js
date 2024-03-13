@@ -10,17 +10,13 @@ const { PDFDocument, Rectangle } = pdf;
 const fs = require("fs"); // File system module
 const path = require("path"); // Module for working with file paths
 const { fromPath } = require("pdf2pic"); // Converter from PDF to images
-// const PSPDFKit = require("pspdfkit"); 
-const PDFImage = require("pdf-image").PDFImage;
 const imageSize = require('image-size');
-const { promisify } = require('util');
-const converter = require('pdf2image');
 const pdftopic = require("pdftopic");
 const { Poppler } = require("node-poppler");
 const Jimp = require("jimp");
 const { PNG } = require("pngjs"); // PNG image manipulation library
 const jsQR = require("jsqr"); // JavaScript QR code reader
-const { ethers } = require("ethers"); // Ethereum JavaScript library
+const ethers = require("ethers"); // Ethereum JavaScript library
 const mongoose = require("mongoose"); // MongoDB object modeling tool
 const nodemailer = require('nodemailer'); // Module for sending emails
 const readXlsxFile = require('read-excel-file/node');
@@ -72,20 +68,17 @@ const abi = require("../config/abi.json");
 // Retrieve contract address from environment variable
 const contractAddress = process.env.CONTRACT_ADDRESS;
 
-// Retrieve account address from environment variable
-const account = process.env.ACCOUNT_ADDRESS;
-
 // Create a new ethers provider using the default provider and the RPC endpoint from environment variable
-const _provider = new ethers.providers.getDefaultProvider(process.env.RPC_ENDPOINT);
-
-// Create a new ethers contract instance for read-only operations (using the contract ABI and provider)
-// const adminRouter = new ethers.Contract(contractAddress, abi, _provider);
+const _provider = new ethers.JsonRpcProvider(process.env.RPC_ENDPOINT);
 
 // Create a new ethers wallet instance using the private key from environment variable and the provider
-const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, _provider);
+const signer = new ethers.Wallet(process.env.PRIVATE_KEY, _provider);
 
 // Create a new ethers contract instance with a signing capability (using the contract ABI and wallet)
-const _contract = new ethers.Contract(contractAddress, abi, wallet);
+const _contract = new ethers.Contract(contractAddress, abi, signer);
+
+// Connect the wallet to the provider.
+// const signer = wallet.connect(_provider);
 
 
 // Import the Issues models from the schema defined in "../config/schema"
@@ -373,7 +366,7 @@ const _extractQRCodeDataFromPDF = async (pdfFilePath) => {
     });
 
     
-    await holdExecution(); // Wait for 2 seconds
+    await holdExecution(1500); // Wait for 2 seconds
     // Converted image 
     const imagePath = path.join(outputPath, `${options.saveFilename}.1.png`);
     const buffer = fs.readFileSync(imagePath);
@@ -399,11 +392,11 @@ const _extractQRCodeDataFromPDF = async (pdfFilePath) => {
   }
 };
 
-const holdExecution = () => {
+const holdExecution = (delay) => {
   return new Promise(resolve => {
     setTimeout(() => {
       resolve();
-    }, 1500); // 1500 milliseconds = 1.5 seconds
+    }, delay); // 1500 milliseconds = 1.5 seconds
   });
 };
 
@@ -543,7 +536,7 @@ const verifyPDFDimensions = async (pdfPath) => {
   
   const res = poppler.pdfToCairo(pdfPath, outputFile, options);
 
-  await holdExecution(); // Wait for few seconds
+  await holdExecution(1500); // Wait for few seconds
   // Converted image 
   const imagePath = `./uploads/template-1.png`;
 
@@ -564,7 +557,6 @@ const verifyPDFDimensions = async (pdfPath) => {
 
 };
 
-
 // Function to calculate SHA-256 hash of data
 const calculateHash = (data)=> {
   // Create a hash object using SHA-256 algorithm
@@ -574,104 +566,20 @@ const calculateHash = (data)=> {
 
 // Function to create a new instance of Web3 and connect to a specified RPC endpoint
 const web3i = async () => {
-  // Create a new instance of Web3 and connect to the RPC endpoint
-  let web3;
-  try {
-    // Attempt to connect using RPC_ENDPOINT 1
-    web3 = await new Web3(
-      new Web3.providers.HttpProvider(process.env.RPC_ENDPOINT_1)
-    );
-    // Check for the Active web3 connection
-    await web3.eth.net.isListening();
-  } catch (error) {
-    try {
-      // Attempt to connect using RPC_ENDPOINT 2
-      web3 = await new Web3(
-        new Web3.providers.HttpProvider(process.env.RPC_ENDPOINT_2)
-      );
-    } catch (error) {
-      console.error('Error connecting to RPC_ENDPOINT', error.message);
-      // Handle further fallbacks or error scenarios if needed
-    }
-  }
+  var provider = new ethers.providers.getDefaultProvider(process.env.RPC_ENDPOINT);
+  await provider.getNetwork(); // Attempt to detect the network
 
-  if(web3){
+  if(provider){
 
     // Get contract ABI from configuration
     const contractABI = abi;
+    var signer = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
     // Create a new contract instance using the ABI and contract address
-    const contract = await new web3.eth.Contract(contractABI, contractAddress);
+    const contract = new ethers.Contract(contractAddress, contractABI, signer);
     return contract; // Return the contract instance
 
   } else {
-    console.log("Invalid Endpoint");
-    return false;
-  }
-};
-
-const confirm = async (tx) => {
-  // Create a new instance of Web3 and connect to the RPC endpoint
-  let web3;
-  try {
-    // Attempt to connect using RPC_ENDPOINT 1
-    web3 = await new Web3(
-      new Web3.providers.HttpProvider(process.env.RPC_ENDPOINT_1)
-    );
-    // Check for the Active web3 connection
-    await web3.eth.net.isListening();
-  } catch (error) {
-    try {
-      // Attempt to connect using RPC_ENDPOINT 2
-      web3 = await new Web3(
-        new Web3.providers.HttpProvider(process.env.RPC_ENDPOINT_2)
-      );
-    } catch (error) {
-      console.error('Error connecting to RPC_ENDPOINT', error.message);
-      // Handle further fallbacks or error scenarios if needed
-    }
-  }
-
-  if(web3){
-
-  // Get the current gas price from the network
-  const gasPrice = await web3.eth.getGasPrice();
-
-  // Encode the transaction data
-  const encodedTx = tx.encodeABI();
-
-  // Get the current nonce (transaction count) for the sender account
-  const nonce = await web3.eth.getTransactionCount(account);
-
-  // Set a gas limit for the transaction
-  const gasLimit = 1000000;
-
-  // Construct the transaction object
-  const transactionObject = {
-    nonce: web3.utils.toHex(nonce), // Convert nonce to hexadecimal
-    from: account, // Sender account
-    to: contractAddress, // Contract address
-    gasLimit: web3.utils.toHex(gasLimit), // Convert gas limit to hexadecimal
-    gasPrice: web3.utils.toHex(gasPrice), // Convert gas price to hexadecimal
-    data: encodedTx, // Encoded transaction data
-  };
-
-  // Sign the transaction using the sender's private key
-  const signedTransaction = await web3.eth.accounts.signTransaction(
-    transactionObject,
-    process.env.PRIVATE_KEY // Sender's private key
-  );
-
-  // Send the signed transaction to the network
-  const ok = await web3.eth.sendSignedTransaction(
-    signedTransaction.rawTransaction
-  );
-
-  // Get the transaction hash
-  hash = signedTransaction.transactionHash;
-
-  return hash; // Return the transaction hash
-  } else {
-    console.log("Invalid Endpoint");
+    // console.log("Invalid Endpoint");
     return false;
   }
 };
@@ -726,7 +634,6 @@ const simulateIssueBatchCertificates = async (hash) => {
     }
   }
 };
-
 
 // Function to simulate a grant / revoke role to an address
 const simulateRoleToAddress = async (check, role, address) => {
@@ -786,7 +693,7 @@ const excelFilter = (req, file, cb) => {
 };
 
 const cleanUploadFolder = async () => {
-  const uploadFolder = '/uploads'; // Specify the folder path you want
+  const uploadFolder = '../uploads'; // Specify the folder path you want
   const folderPath = path.join(__dirname, '..', uploadFolder);
 
   // Check if the folder is not empty
@@ -882,7 +789,7 @@ module.exports = {
   // Insert Batch certificate data into Database
   insertBatchCertificateData,
 
-  // Find repetitive ID
+  // Find repetitive Certification ID
   findRepetitiveIdNumbers,
 
   // Function to extract certificate information from a QR code text
@@ -903,23 +810,11 @@ module.exports = {
   // Function to initialize and return a web3 instance
   web3i,
 
-  // Function to confirm and send a transaction on the Ethereum blockchain
-  confirm,
-
   // Function for filtering file uploads based on MIME type Pdf
   fileFilter,
 
   // Function for filtering file uploads based on MIME type Excel
   excelFilter,
-
-  // Function to simulate issuing a certificate
-  simulateIssueCertificate,
-
-  // Function to simulate Batch issuing a certificate
-  simulateIssueBatchCertificates,
-
-  // Function to simulate a grant / revoke role to an address
-  simulateRoleToAddress,
 
   // Function to clean up the upload folder
   cleanUploadFolder,
@@ -929,6 +824,9 @@ module.exports = {
 
   // Function to send an email (approved)
   sendEmail,
+
+  // Function to hold an execution for some time
+  holdExecution,
 
   // Function to send an email (rejected)
   rejectEmail
