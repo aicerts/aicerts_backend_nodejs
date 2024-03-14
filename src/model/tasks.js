@@ -467,7 +467,8 @@ const extractQRCodeDataFromPDF = async (pdfFilePath) => {
   } catch (error) {
       // Log and rethrow any errors that occur during the process
       console.error(error);
-      throw error;
+      // throw error;
+      return false;
   }
 };
 
