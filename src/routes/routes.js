@@ -182,8 +182,8 @@ router.post('/issue',ensureAuthenticated, adminController.issue);
  *                   description: Error message for internal server error.
  */
 
-router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminController.issuePdf);
-// router.post('/issue-pdf', _upload.single("file"), adminController.issuePdf);
+// router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminController.issuePdf);
+router.post('/issue-pdf', _upload.single("file"), adminController.issuePdf);
 
 /**
  * @swagger

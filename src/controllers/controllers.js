@@ -719,7 +719,7 @@ const verify = async (req, res) => {
     // Extract QR code data from the PDF file
     const certificateData = await extractQRCodeDataFromPDF(file);
     if(certificateData === false) {
-      return res.status(400).json({ status: "FAILED", message: "Certification is not valid" });
+      res.status(400).json({ status: "FAILED", message: "Certification is not valid" });
     }
 
     // Extract blockchain URL from the certificate data
@@ -728,10 +728,10 @@ const verify = async (req, res) => {
     // Check if a blockchain URL exists and is valid
     if (blockchainUrl && blockchainUrl.length > 0) {
       // Respond with success status and certificate details
-      return res.status(200).json({ status: "SUCCESS", message: "Certification is valid", Details: certificateData });
+      res.status(200).json({ status: "SUCCESS", message: "Certification is valid", Details: certificateData });
     } else {
       // Respond with failure status if no valid blockchain URL is found
-      return res.status(400).json({ status: "FAILED", message: "Certification is not valid" });
+      res.status(400).json({ status: "FAILED", message: "Certification is not valid" });
     }
   } catch (error) {
     // If an error occurs during verification, respond with failure status
@@ -740,7 +740,7 @@ const verify = async (req, res) => {
       message: "Certification is not valid"
     };
 
-    return res.status(400).json(verificationResponse);
+    res.status(400).json(verificationResponse);
   }
   
   // Delete the uploaded file after verification
