@@ -147,7 +147,7 @@ const issuePdf = async (req, res) => {
   }
 
     // Respond with error message
-    res.status(400).json({ message: errorMessage });
+    res.status(400).json({ status: "FAILED", message: errorMessage });
     return;
   } else {
     // If validation passes, proceed with certificate issuance
@@ -180,7 +180,7 @@ const issuePdf = async (req, res) => {
         } else if (issuerAuthorized === false) {
           messageContent = "Unauthorized Issuer to perform operation on Blockchain";
         }
-        res.status(400).json({ message: messageContent });
+        return res.status(400).json({ status: "FAILED", message: messageContent });
       } 
       else {
        
@@ -352,7 +352,7 @@ const issue = async (req, res) => {
       }
 
       // Respond with error message
-      res.status(400).json({ message: errorMessage });
+      res.status(400).json({ status: "FAILED", message: errorMessage });
       return;
   } else {
     try {
@@ -387,7 +387,7 @@ const issue = async (req, res) => {
         } else if (issuerAuthorized === false) {
           messageContent = "Unauthorized Issuer to perform operation on Blockchain";
         }
-        res.status(400).json({ message: messageContent });
+        return res.status(400).json({ status: "FAILED", message: messageContent });
       }else {
           try{
           // If simulation successful, issue the certificate on blockchain
@@ -589,7 +589,7 @@ const batchCertificateIssue = async (req, res) => {
           messageContent = "Unauthorized Issuer to perform operation on Blockchain";
         }
         
-        res.status(400).json({ message: messageContent});
+        return res.status(400).json({ status: "FAILED", message: messageContent});
       } 
       
       // Generate the Merkle tree
@@ -719,6 +719,9 @@ const verify = async (req, res) => {
   try {
     // Extract QR code data from the PDF file
     const certificateData = await extractQRCodeDataFromPDF(file);
+    if(certificateData === false) {
+      return res.status(400).json({ status: "FAILED", message: "Certification is not valid" });
+    }
 
     // Extract blockchain URL from the certificate data
     const blockchainUrl = certificateData["Polygon URL"];
@@ -726,18 +729,19 @@ const verify = async (req, res) => {
     // Check if a blockchain URL exists and is valid
     if (blockchainUrl && blockchainUrl.length > 0) {
       // Respond with success status and certificate details
-      res.status(200).json({ status: "SUCCESS", message: "Certification is valid", Details: certificateData });
+      return res.status(200).json({ status: "SUCCESS", message: "Certification is valid", Details: certificateData });
     } else {
       // Respond with failure status if no valid blockchain URL is found
-      res.status(400).json({ status: "FAILED", message: "Certification is not valid" });
+      return res.status(400).json({ status: "FAILED", message: "Certification is not valid" });
     }
   } catch (error) {
     // If an error occurs during verification, respond with failure status
     const verificationResponse = {
+      status: "FAILED", 
       message: "Certification is not valid"
     };
 
-    res.status(400).json(verificationResponse);
+    return res.status(400).json(verificationResponse);
   }
   
   // Delete the uploaded file after verification
@@ -784,7 +788,7 @@ const verifyWithId = async (req, res) => {
           console.error("Internal server error", error);
       }
     } else {
-      res.status(400).json({ status: "FAILED", message: "Certification doesn't exist" });
+      return res.status(400).json({ status: "FAILED", message: "Certification doesn't exist" });
     }
     } catch (error) {
       res.status(500).json({
@@ -941,7 +945,7 @@ const verifyCertificationId = async (req, res) => {
             res.status(500).json({ status: 'FAILED', message: 'Internal Server Error.' });
           }
         } else {
-          res.status(400).json({ status: "FAILED", message: "Certification doesn't exist" });
+          return res.status(400).json({ status: "FAILED", message: "Certification doesn't exist" });
         }
     } 
   }
@@ -1578,7 +1582,7 @@ const checkBalance = async (req, res) => {
 
       // Check if the target address is a valid Ethereum address
       if (!ethers.isAddress(targetAddress)) {
-          return res.status(400).json({ message: "Invalid Ethereum address format" });
+          return res.status(400).json({ status: "FAILED", message: "Invalid Ethereum address format" });
       }
 
     // Get the balance of the target address in Wei
