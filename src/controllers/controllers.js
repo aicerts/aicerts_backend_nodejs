@@ -36,14 +36,13 @@ const providers = [
 // Create a new FallbackProvider instance
 const fallbackProvider = new ethers.FallbackProvider(providers);
 
-// const provider = new ethers.providers.getDefaultProvider(process.env.RPC_ENDPOINT);
+// Create a new ethers provider using the default provider and the RPC endpoint from environment variable
 const provider = new ethers.JsonRpcProvider(process.env.RPC_ENDPOINT);
 
-// const signer = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
+// Create a new ethers signer instance using the private key from environment variable and the provider(Fallback)
 const signer = new ethers.Wallet(process.env.PRIVATE_KEY, fallbackProvider);
 
-// const new_contract = new ethers.Contract(contractAddress, abi, provider); 
-
+// Create a new ethers contract instance with a signing capability (using the contract Address, ABI and signer)
 const new_contract = new ethers.Contract(contractAddress, abi, signer); 
 
 // Import bcrypt for hashing passwords
@@ -114,7 +113,7 @@ const issuePdf = async (req, res) => {
   // Validation checks for request data
   if (
     (!idExist || idExist.status !== 1)|| // User does not exist
-    !_result||
+    _result == false||
     isNumberExist || // Certificate number already exists 
     isNumberExistInBatch || // Certificate number already exists in Batch
     !Certificate_Number || // Missing certificate number
@@ -142,8 +141,8 @@ const issuePdf = async (req, res) => {
       errorMessage = `Invalid Issuer Email`;
     } else if(idExist.status !== 1) {
       errorMessage = `Unauthorised Issuer Email`;
-    } else if(!_result) {
-      errorMessage = `Invalid PDF (Certification Template) measurements`;
+    } else if(_result == false) {
+      errorMessage = `Invalid PDF (Certification Template) dimensions`;
   }
 
     // Respond with error message
@@ -720,7 +719,7 @@ const verify = async (req, res) => {
     // Extract QR code data from the PDF file
     const certificateData = await extractQRCodeDataFromPDF(file);
     if(certificateData === false) {
-      return res.status(400).json({ status: "FAILED", message: "Certification is not valid" });
+      res.status(400).json({ status: "FAILED", message: "Certification is not valid" });
     }
 
     // Extract blockchain URL from the certificate data
@@ -729,10 +728,10 @@ const verify = async (req, res) => {
     // Check if a blockchain URL exists and is valid
     if (blockchainUrl && blockchainUrl.length > 0) {
       // Respond with success status and certificate details
-      return res.status(200).json({ status: "SUCCESS", message: "Certification is valid", Details: certificateData });
+      res.status(200).json({ status: "SUCCESS", message: "Certification is valid", Details: certificateData });
     } else {
       // Respond with failure status if no valid blockchain URL is found
-      return res.status(400).json({ status: "FAILED", message: "Certification is not valid" });
+      res.status(400).json({ status: "FAILED", message: "Certification is not valid" });
     }
   } catch (error) {
     // If an error occurs during verification, respond with failure status
@@ -741,7 +740,7 @@ const verify = async (req, res) => {
       message: "Certification is not valid"
     };
 
-    return res.status(400).json(verificationResponse);
+    res.status(400).json(verificationResponse);
   }
   
   // Delete the uploaded file after verification
@@ -1525,8 +1524,7 @@ try {
 
     // Blockchain processing.
     const response = await new_contract.hasRole(assigningRole, newAddress);
-    console.log("The role response", response);
-    
+
     if(response === false){
       // Simulation failed, send failure response
       return res.status(400).json({ status: "FAILED", message: "Address Doesn't Existed in the Blockchain" });
@@ -1615,7 +1613,7 @@ const checkBalance = async (req, res) => {
  * @param {Object} req - Express request object.
  * @param {Object} res - Express response object.
  */
-async function uploadFileToS3(req, res) {
+const uploadFileToS3 = async (req, res) => {
   const file = req.file;
   const filePath = file.path;
 
@@ -1639,7 +1637,67 @@ async function uploadFileToS3(req, res) {
     console.error('Error uploading file:', err);
     res.status(500).send({status: "FAILED", error: 'An error occurred while uploading the file' });
   }
-}
+};
+
+/**
+ * API to do Health Check.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
+const healthCheck = async (req, res) => {
+  // Perform checks on the API, such as database connectivity and response times
+  const checks = [
+    {
+      name: 'Database connectivity',
+      check: async () => {
+        // Try to connect to the database
+        const connection = await isDBConnected();
+        // If the connection is successful, return true
+        if (connection) {
+          return true;
+        }
+        // Otherwise, return false
+        return false;
+      },
+    },
+    {
+      name: 'Response times',
+      check: async () => {
+        // Make a request to the API and measure the response time
+        const response = await fetch(`${process.env.HEALTH_URL}/api/health-check`);
+        // const timingInfo = response[0];
+        // const uri = `${process.env.HEALTH_URL}/api/health-check`;
+        console.log("Hosting response", response);
+        // console.log("Hosting response", timingInfo);
+
+        // Calculate response time
+        // const endTime = process.hrtime(startTime);
+        // const responseTimeInMs = endTime[0] * 1000 + endTime[1] / 1000000;
+
+        // console.log("Response time:", responseTimeInMs, "ms");
+
+        // If the response time is less than 100ms, return true
+        if (response) {
+          return true;
+        }
+        // Otherwise, return false
+        return false;
+      },
+    },
+  ];
+
+  // Iterate over the checks and return an error if any of them fail
+    for (const check of checks) {
+      const result = await check.check();
+      if (!result) {
+        return res.status(500).send({status: "FAILED", message: `Health check failed: ${check.name}`});
+      }
+    }
+  
+  // If all of the checks pass, return a success response
+  return res.status(200).send({status: "SUCCESS", message: 'API is healthy'});
+};
 
 module.exports = {
   // Function to issue a PDF certificate
@@ -1700,5 +1758,8 @@ module.exports = {
   decodeCertificate,
 
   // Function to Upload Files to AWS-S3 bucket
-  uploadFileToS3
+  uploadFileToS3,
+
+  // Function to do Health Check
+  healthCheck
 };

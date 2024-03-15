@@ -10,9 +10,7 @@ const { PDFDocument, Rectangle } = pdf;
 const fs = require("fs"); // File system module
 const path = require("path"); // Module for working with file paths
 const { fromPath } = require("pdf2pic"); // Converter from PDF to images
-const imageSize = require('image-size');
 const pdftopic = require("pdftopic");
-const { Poppler } = require("node-poppler");
 const Jimp = require("jimp");
 const { PNG } = require("pngjs"); // PNG image manipulation library
 const jsQR = require("jsqr"); // JavaScript QR code reader
@@ -71,11 +69,21 @@ const contractAddress = process.env.CONTRACT_ADDRESS;
 // Create a new ethers provider using the default provider and the RPC endpoint from environment variable
 const _provider = new ethers.JsonRpcProvider(process.env.RPC_ENDPOINT);
 
+// Define an array of providers to use as fallbacks
+const providers = [
+  new ethers.JsonRpcProvider(process.env.RPC_ENDPOINT_1),
+  new ethers.JsonRpcProvider(process.env.RPC_ENDPOINT_2)
+  // Add more providers as needed
+];
+
+// Create a new FallbackProvider instance
+const fallbackProvider = new ethers.FallbackProvider(providers);
+
 // Create a new ethers wallet instance using the private key from environment variable and the provider
-const signer = new ethers.Wallet(process.env.PRIVATE_KEY, _provider);
+const signer = new ethers.Wallet(process.env.PRIVATE_KEY, fallbackProvider);
 
 // Create a new ethers contract instance with a signing capability (using the contract ABI and wallet)
-const _contract = new ethers.Contract(contractAddress, abi, signer);
+const sim_contract = new ethers.Contract(contractAddress, abi, signer);
 
 // Connect the wallet to the provider.
 // const signer = wallet.connect(_provider);
@@ -529,32 +537,37 @@ const addLinkToPdf = async (
 };
 
 const verifyPDFDimensions = async (pdfPath) => {
-  const poppler = new Poppler();
-  const options = {
-    pngFile: true,
-  };
-  const outputFile = `./uploads/template`;
-  
-  const res = poppler.pdfToCairo(pdfPath, outputFile, options);
+  const pdfBuffer = fs.readFileSync(pdfPath);
+    const pdfDoc = await PDFDocument.load(pdfBuffer);
 
-  await holdExecution(1500); // Wait for few seconds
-  // Converted image 
-  const imagePath = `./uploads/template-1.png`;
+    const firstPage = pdfDoc.getPages()[0];
+    const { width, height } = firstPage.getSize();
 
-  // Get the dimensions of the PNG image
-  const dimensions = imageSize(imagePath);
+    // Assuming PDF resolution is 72 points per inch
+    const dpi = 72;
+    const widthInches = width / dpi;
+    const heightInches = height / dpi;
 
-  // Get the height & width of the image in pixels
-  const height = dimensions.height;
-  const width = dimensions.width;
+    // Convert inches to millimeters (1 inch = 25.4 mm)
+    const widthMillimeters = widthInches * 25.4;
+    const heightMillimeters = heightInches * 25.4;
 
-  // Print the height of the image to the console 2067 X 1477
-  // console.log("The certificate width x height:", width, height);
-  if( (width <= 2090 && width >= 2040) && (height >= 1450 && height <= 1500)){
-    return true;
-  } else {
-    return false;
-  }
+    // Check if dimensions fall within the specified ranges
+    if (
+        (widthMillimeters >= 340 && widthMillimeters <= 360) &&
+        (heightMillimeters >= 240 && heightMillimeters <= 260)
+    ) {
+        // Convert inches to pixels (assuming 1 inch = 96 pixels)
+        // const widthPixels = widthInches * 96;
+        // const heightPixels = heightInches * 96;
+
+        // console.log("The certificate width x height (in mm):", widthMillimeters, heightMillimeters);
+
+        return true;
+    } else {
+        // throw new Error('PDF dimensions must be within 240-260 mm width and 340-360 mm height');
+        return false;
+    }
 
 };
 
@@ -643,14 +656,16 @@ const simulateRoleToAddress = async (check, role, address) => {
 
         // Determine the function to simulate based on the provided role parameter
         if(check == "grant") {
-        var roleResult = await _contract.populateTransaction.grantRole(role ,address);
+          console.log("Testing here");
+        var roleResult = await sim_contract.callStatic.grantRole(role ,address);
         } else if(check == "revoke"){
-        var roleResult = await _contract.populateTransaction.revokeRole(role ,address);
+        var roleResult = await sim_contract.callStatic.revokeRole(role ,address);
         } else {
           return false;
         }
         // Extract data from the result
         const resultData = roleResult.data;
+        console.log("The result data", resultData);
 
         // Check if data exists (indicating success) and return true, otherwise return false
         if (resultData.length > 0) {

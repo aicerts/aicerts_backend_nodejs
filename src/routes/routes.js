@@ -182,8 +182,8 @@ router.post('/issue',ensureAuthenticated, adminController.issue);
  *                   description: Error message for internal server error.
  */
 
-router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminController.issuePdf);
-// router.post('/issue-pdf', _upload.single("file"), adminController.issuePdf);
+// router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminController.issuePdf);
+router.post('/issue-pdf', _upload.single("file"), adminController.issuePdf);
 
 /**
  * @swagger
@@ -926,8 +926,8 @@ router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers
  *                   description: Error message indicating an error during the validation process.
  */
 
-// router.post('/validate-issuer',ensureAuthenticated, adminController.validateIssuer);
-router.post('/validate-issuer', adminController.validateIssuer);
+router.post('/validate-issuer',ensureAuthenticated, adminController.validateIssuer);
+// router.post('/validate-issuer', adminController.validateIssuer);
 
 
 /**
@@ -1296,5 +1296,44 @@ router.post('/verify-encrypted', (req, res) => adminController.decodeCertificate
 
 router.post('/upload',__upload.single('file'),(req, res)=>  adminController.uploadFileToS3(req, res));
 
+// /**
+//  * @swagger
+//  * /api/health-check:
+//  *   get:
+//  *     summary: API to do Health Check
+//  *     description: API to do Perform checks on the API, such as database connectivity and response times
+//  *     tags: [Health]
+//  *     security:
+//  *       - BearerAuth: []
+//  *     responses:
+//  *       200:
+//  *         description: API is healthy
+//  *         content:
+//  *           application/json:
+//  *             schema:
+//  *               type: object
+//  *               properties:
+//  *                 status:
+//  *                   type: string
+//  *                   example: SUCCESS
+//  *                 message:
+//  *                   type: string
+//  *                   example: API is healthy
+//  *       500:
+//  *         description: Health check failed
+//  *         content:
+//  *           application/json:
+//  *             schema:
+//  *               type: object
+//  *               properties:
+//  *                 status:
+//  *                   type: string
+//  *                   example: FAILED
+//  *                 message:
+//  *                   type: string
+//  *                   example: Health check failed
+//  */
+
+router.get('/health-check', adminController.healthCheck);
 
 module.exports=router;
