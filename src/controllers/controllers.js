@@ -1690,7 +1690,7 @@ const healthCheck = async (req, res) => {
     }
   
   // If all of the checks pass, return a success response
-  return res.status(200).send({status: "SUCCESS", message: 'API is healthy', details: healthcheck});
+  return res.status(200).send({status: "SUCCESS", message: 'API is healthy'});
 };
 
 module.exports = {
