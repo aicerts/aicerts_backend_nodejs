@@ -243,7 +243,7 @@ if (idExist) {
     const previousCount = idExist.certificatesIssued || 0; // Initialize to 0 if certificatesIssued field doesn't exist
     idExist.certificatesIssued = previousCount + 1;
     await idExist.save(); // Save the changes to the existing user
-    console.log("Counter updated successfully.");
+    // console.log("Counter updated successfully.");
 } else {
     // If user with given id doesn't exist, create a new user instance
     const newUser = new User({

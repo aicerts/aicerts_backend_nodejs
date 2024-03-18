@@ -624,6 +624,8 @@ const batchCertificateIssue = async (req, res) => {
           
           var batchDetails = [];
           var batchDetailsWithQR = [];
+          var insertPromises = []; // Array to hold all insert promises
+          
           for (var i = 0; i < certificatesCount; i++) {
             var _proof = tree.getProof(i);
             batchDetails[i] = {
@@ -671,7 +673,10 @@ const batchCertificateIssue = async (req, res) => {
               
             // console.log("Batch Certificate Details", batchDetailsWithQR[i]);
               await insertBatchCertificateData(batchDetails[i]);
+              insertPromises.push(insertBatchCertificateData(batchDetails[i]));
         }
+        // Wait for all insert promises to resolve
+        await Promise.all(insertPromises);
         console.log("Data inserted");
 
         res.status(200).json({
