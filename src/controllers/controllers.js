@@ -476,7 +476,7 @@ const issue = async (req, res) => {
     } catch (error) {
        // Internal server error
       console.error(error);
-      res.status(500).json({ message: "Internal Server Error" });
+      res.status(500).json({ status: "FAILED", message: "Internal Server Error" });
     }
   }
 };
@@ -1662,27 +1662,21 @@ const healthCheck = async (req, res) => {
       },
     },
     {
-      name: 'Response times',
+      name: 'Response',
       check: async () => {
-        // Make a request to the API and measure the response time
-        const response = await fetch(`${process.env.HEALTH_URL}/api/health-check`);
-        // const timingInfo = response[0];
-        // const uri = `${process.env.HEALTH_URL}/api/health-check`;
-        console.log("Hosting response", response);
-        // console.log("Hosting response", timingInfo);
-
-        // Calculate response time
-        // const endTime = process.hrtime(startTime);
-        // const responseTimeInMs = endTime[0] * 1000 + endTime[1] / 1000000;
-
-        // console.log("Response time:", responseTimeInMs, "ms");
-
-        // If the response time is less than 100ms, return true
-        if (response) {
-          return true;
+        const healthcheck = {
+            uptime: process.uptime(),
+            message: 'OK',
+            timestamp: Date.now()
+        };
+        try {
+            // res.send(healthcheck);
+            return true;
+        } catch (error) {
+            // healthcheck.message = error;
+            return false;
+            // res.status(503).send();
         }
-        // Otherwise, return false
-        return false;
       },
     },
   ];
@@ -1696,7 +1690,7 @@ const healthCheck = async (req, res) => {
     }
   
   // If all of the checks pass, return a success response
-  return res.status(200).send({status: "SUCCESS", message: 'API is healthy'});
+  return res.status(200).send({status: "SUCCESS", message: 'API is healthy', details: healthcheck});
 };
 
 module.exports = {

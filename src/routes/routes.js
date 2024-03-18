@@ -72,15 +72,19 @@ const __upload = multer({dest: "../../uploads/"});
  *             schema:
  *               type: object
  *               properties:
+ *                 message:
+ *                   type: string
  *                 qrCodeImage:
  *                   type: string
- *                   description: Base64-encoded QR code image.
  *                 polygonLink:
  *                   type: string
- *                   description: Link to the transaction on the Polygon network.
  *                 details:
  *                   type: object
- *                   description: Certificate details.
+ *             example:
+ *               message: Certificate issued successfully.
+ *               qrCodeImage: Base64-encoded QR code image.
+ *               polygonLink: Link to the transaction on the Polygon network.
+ *               details: Certificate details.
  *       '400':
  *         description: Certificate already issued or invalid input
  *         content:
@@ -88,9 +92,13 @@ const __upload = multer({dest: "../../uploads/"});
  *             schema:
  *               type: object
  *               properties:
+ *                 status:
+ *                   type: string
  *                 message:
  *                   type: string
- *                   description: Error message for certificate already issued or invalid input.
+ *             example:
+ *               status: "FAILED"
+ *               message: Error message for certificate already issued or invalid input.
  *       '500':
  *         description: Internal Server Error
  *         content:
@@ -98,9 +106,13 @@ const __upload = multer({dest: "../../uploads/"});
  *             schema:
  *               type: object
  *               properties:
+ *                 status:
+ *                   type: string
  *                 message:
  *                   type: string
- *                   description: Error message for internal server error.
+ *             example:
+ *               status: "FAILED"
+ *               message: Internal server error.
  */
 
 router.post('/issue',ensureAuthenticated, adminController.issue);
@@ -159,7 +171,9 @@ router.post('/issue',ensureAuthenticated, adminController.issue);
  *             schema:
  *               type: string
  *               format: binary
- *               description: PDF file containing the issued certificate.
+ *             example:
+ *               status: "SUCCESS"
+ *               message: PDF file containing the issued certificate.
  *       '400':
  *         description: Certificate already issued or invalid input
  *         content:
@@ -167,9 +181,13 @@ router.post('/issue',ensureAuthenticated, adminController.issue);
  *             schema:
  *               type: object
  *               properties:
+ *                 status:
+ *                   type: string
  *                 message:
  *                   type: string
- *                   description: Error message for certificate already issued or invalid input.
+ *             example:
+ *               status: "FAILED"
+ *               message: Error message for certificate already issued or invalid input.
  *       '500':
  *         description: Internal Server Error
  *         content:
@@ -177,13 +195,17 @@ router.post('/issue',ensureAuthenticated, adminController.issue);
  *             schema:
  *               type: object
  *               properties:
+ *                 status:
+ *                   type: string
  *                 message:
  *                   type: string
- *                   description: Error message for internal server error.
+ *             example:
+ *               status: "FAILED"
+ *               message: Internal Server Error.
  */
 
-// router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminController.issuePdf);
-router.post('/issue-pdf', _upload.single("file"), adminController.issuePdf);
+router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminController.issuePdf);
+// router.post('/issue-pdf', _upload.single("file"), adminController.issuePdf);
 
 /**
  * @swagger
@@ -249,7 +271,7 @@ router.post('/issue-pdf', _upload.single("file"), adminController.issuePdf);
  *             example:
  *               error: Bad Request
  *               status: "FAILED"
- *               message: Please provide valid Certificate details / Simulation for the IssueCertificate failed
+ *               message: Please provide valid Certification(Batch) details.
  *       '500':
  *         description: Internal Server Error
  *         content:
@@ -304,6 +326,9 @@ router.get('/polygonlink', adminController.polygonLink);
  *                 type: string
  *                 format: binary
  *                 description: PDF file containing the certificate to be verified.
+ *           example:
+ *             status: "FAILED"
+ *             error: Internal Server Error
  *     responses:
  *       200:
  *         description: Certificate verified successfully
@@ -314,10 +339,12 @@ router.get('/polygonlink', adminController.polygonLink);
  *               properties:
  *                 message:
  *                   type: string
- *                   description: Verification result message
  *                 detailsQR:
  *                   type: string
- *                   description: Base64-encoded QR code image.
+ *             example:
+ *               status: "SUCCESS"
+ *               message: Verification result message.
+ *               detailsQR: Base64-decoded QR code image Details.
  *       400:
  *         description: Certificate is not valid or other error
  *         content:
@@ -327,6 +354,23 @@ router.get('/polygonlink', adminController.polygonLink);
  *               properties:
  *                 message:
  *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Certificate is not valid or other error.
+ *       '500':
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Internal Server Error.
  */
 
 router.post('/verify', _upload.single("pdfFile"), adminController.verify);
@@ -335,7 +379,7 @@ router.post('/verify', _upload.single("pdfFile"), adminController.verify);
  * @swagger
  * /api/verify-with-id:
  *   post:
- *     summary: Verify a certificate ID on the blockchain
+ *     summary: Verify a certification ID on the blockchain
  *     description: Verify the existence and validity of a certificate using its ID on the blockchain.
  *     tags: [Verifier]
  *     security:
@@ -349,7 +393,7 @@ router.post('/verify', _upload.single("pdfFile"), adminController.verify);
  *             properties:
  *               id:
  *                 type: string
- *                 description: Certificate id to be verified
+ *                 description: Certification id to be verified
  *     responses:
  *       200:
  *         description: Successful response
@@ -367,9 +411,9 @@ router.post('/verify', _upload.single("pdfFile"), adminController.verify);
  *                details:
  *                  type: object
  *                  properties:
- *                    // Define properties of certificate details object here
+ *                    // Define properties of certification details object here
  *       400:
- *         description: Certificate not found
+ *         description: Certification not found
  *         content:
  *           application/json:
  *            schema:
@@ -380,7 +424,7 @@ router.post('/verify', _upload.single("pdfFile"), adminController.verify);
  *                  example: "FAILED"
  *                message:
  *                  type: string
- *                  example: "Certificate doesn't exist"
+ *                  example: "Certification doesn't exist"
  *       500:
  *         description: Internal Server Error
  *         content:
@@ -1296,43 +1340,43 @@ router.post('/verify-encrypted', (req, res) => adminController.decodeCertificate
 
 router.post('/upload',__upload.single('file'),(req, res)=>  adminController.uploadFileToS3(req, res));
 
-// /**
-//  * @swagger
-//  * /api/health-check:
-//  *   get:
-//  *     summary: API to do Health Check
-//  *     description: API to do Perform checks on the API, such as database connectivity and response times
-//  *     tags: [Health]
-//  *     security:
-//  *       - BearerAuth: []
-//  *     responses:
-//  *       200:
-//  *         description: API is healthy
-//  *         content:
-//  *           application/json:
-//  *             schema:
-//  *               type: object
-//  *               properties:
-//  *                 status:
-//  *                   type: string
-//  *                   example: SUCCESS
-//  *                 message:
-//  *                   type: string
-//  *                   example: API is healthy
-//  *       500:
-//  *         description: Health check failed
-//  *         content:
-//  *           application/json:
-//  *             schema:
-//  *               type: object
-//  *               properties:
-//  *                 status:
-//  *                   type: string
-//  *                   example: FAILED
-//  *                 message:
-//  *                   type: string
-//  *                   example: Health check failed
-//  */
+/**
+ * @swagger
+ * /api/health-check:
+ *   get:
+ *     summary: API to do Health Check
+ *     description: API to do Perform checks on the API, such as database connectivity and response times
+ *     tags: [Health]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       200:
+ *         description: API is healthy
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: SUCCESS
+ *                 message:
+ *                   type: string
+ *                   example: API is healthy
+ *       500:
+ *         description: Health check failed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: Health check failed
+ */
 
 router.get('/health-check', adminController.healthCheck);
 
