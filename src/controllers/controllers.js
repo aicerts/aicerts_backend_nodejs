@@ -23,6 +23,22 @@ const { Admin, User, Issues, BatchIssues } = require("../config/schema");
 // Import ABI (Application Binary Interface) from the JSON file located at "../config/abi.json"
 const abi = require("../config/abi.json");
 
+// Importing functions from a custom module
+const {
+  fetchExcelRecord,
+  insertCertificateData, // Function to insert certificate data into the database
+  insertBatchCertificateData, // Function to insert Batch certificate data into the database
+  findRepetitiveIdNumbers, // Find repetitive Certification ID
+  extractQRCodeDataFromPDF, // Function to extract QR code data from a PDF file
+  addLinkToPdf, // Function to add a link to a PDF file
+  verifyPDFDimensions, //Verify the uploading pdf template dimensions
+  calculateHash, // Function to calculate the hash of a file
+  cleanUploadFolder, // Function to clean up the upload folder
+  isDBConnected, // Function to check if the database connection is established
+  sendEmail, // Function to send an email on approved
+  rejectEmail // Function to send an email on rejected
+} = require('../model/tasks'); // Importing functions from the '../model/tasks' module
+
 // Retrieve contract address from environment variable
 const contractAddress = process.env.CONTRACT_ADDRESS;
 
@@ -40,6 +56,7 @@ const fallbackProvider = new ethers.FallbackProvider(providers);
 const provider = new ethers.JsonRpcProvider(process.env.RPC_ENDPOINT);
 
 // Create a new ethers signer instance using the private key from environment variable and the provider(Fallback)
+// const signer = new ethers.Wallet(process.env.PRIVATE_KEY, fallbackProvider);
 const signer = new ethers.Wallet(process.env.PRIVATE_KEY, fallbackProvider);
 
 // Create a new ethers contract instance with a signing capability (using the contract Address, ABI and signer)
@@ -51,22 +68,6 @@ const bcrypt = require("bcrypt");
 // Parse environment variables for password length constraints
 const min_length = parseInt(process.env.MIN_LENGTH);
 const max_length = parseInt(process.env.MAX_LENGTH);
-
-// Importing functions from a custom module
-const {
-  fetchExcelRecord,
-  insertCertificateData, // Function to insert certificate data into the database
-  insertBatchCertificateData, // Function to insert Batch certificate data into the database
-  findRepetitiveIdNumbers, // Find repetitive Certification ID
-  extractQRCodeDataFromPDF, // Function to extract QR code data from a PDF file
-  addLinkToPdf, // Function to add a link to a PDF file
-  verifyPDFDimensions, //Verify the uploading pdf template dimensions
-  calculateHash, // Function to calculate the hash of a file
-  cleanUploadFolder, // Function to clean up the upload folder
-  isDBConnected, // Function to check if the database connection is established
-  sendEmail, // Function to send an email on approved
-  rejectEmail // Function to send an email on rejected
-} = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
 let linkUrl; // Variable to store a link URL
 let detailsQR; // Variable to store details of a QR code
@@ -243,12 +244,9 @@ const issuePdf = async (req, res) => {
 
         try {
           // Check mongoose connection
-          const dbState = await isDBConnected();
-          if (dbState === false) {
-            console.error("Database connection is not ready");
-          } else {
-            console.log("Database connection is ready");
-          }
+          const dbStatus = await isDBConnected();
+          const dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
+          console.log(dbStatusMessage);
 
           // Insert certificate data into database
           const id = idExist.id;
@@ -436,12 +434,9 @@ const issue = async (req, res) => {
 
         try {
           // Check mongoose connection
-          const dbState = await isDBConnected();
-          if (dbState === false) {
-            console.error("Database connection is not ready");
-          } else {
-            console.log("Database connection is ready");
-          }
+          const dbStatus = await isDBConnected();
+          const dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
+          console.log(dbStatusMessage);
 
           const id = idExist.id;
 
@@ -615,12 +610,9 @@ const batchCertificateIssue = async (req, res) => {
 
       try {
         // Check mongoose connection
-        const dbState = await isDBConnected();
-        if (dbState === false) {
-          console.error("Database connection is not ready");
-        } else {
-          console.log("Database connection is ready");
-          }
+        const dbStatus = await isDBConnected();
+        const dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
+        console.log(dbStatusMessage);
           
           var batchDetails = [];
           var batchDetailsWithQR = [];
@@ -773,12 +765,10 @@ const verifyWithId = async (req, res) => {
       const certificateNumber = inputId;
     try {
           // Check mongoose connection
-          const dbState = await isDBConnected();
-          if (dbState === false) {
-            console.error("Database connection is not ready");
-          } else {
-            console.log("Database connection is ready");
-          }
+          const dbStatus = await isDBConnected();
+          const dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
+          console.log(dbStatusMessage);
+
       var certificateExist = await Issues.findOne({ certificateNumber });
 
       const verificationResponse = {
@@ -889,8 +879,9 @@ const verifyBatchCertificate = async (req, res) => {
  */
 const verifyCertificationId = async (req, res) => {
   const inputId = req.body.id;
-  const dbStaus = await isDBConnected();
-  console.log("DB connected:", dbStaus);
+  const dbStatus = await isDBConnected();
+  const dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
+  console.log(dbStatusMessage);
 
   const singleIssueExist = await Issues.findOne({ certificateNumber : inputId });
   const batchIssueExist = await BatchIssues.findOne({ certificateNumber : inputId });
@@ -999,12 +990,10 @@ const signup = async (req, res) => {
   } else {
     try {
       // Check mongoose connection
-      const dbState = await isDBConnected();
-      if (dbState === false) {
-        console.error("Database connection is not ready");
-      } else {
-        console.log("Database connection is ready");
-      }
+      const dbStatus = await isDBConnected();
+      const dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
+      console.log(dbStatusMessage);
+
       // Checking if Admin already exists
       const existingAdmin = await Admin.findOne({ email });
 
@@ -1062,12 +1051,9 @@ const login = async (req, res) => {
     });
   } else {
     // Check database connection
-      const dbState = await isDBConnected();
-      if (dbState === false) {
-        console.error("Database connection is not ready");
-      } else {
-        console.log("Database connection is ready");
-    }
+    const dbStatus = await isDBConnected();
+    const dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
+    console.log(dbStatusMessage);
     
     // Checking if user exists 
     const adminExist = await Admin.findOne({ email });
@@ -1147,12 +1133,10 @@ const logout = async (req, res) => {
   let { email } = req.body;
   try {
     // Check mongoose connection
-      const dbState = await isDBConnected();
-      if (dbState === false) {
-        console.error("Database connection is not ready");
-      } else {
-        console.log("Database connection is ready");
-      }
+    const dbStatus = await isDBConnected();
+    const dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
+    console.log(dbStatusMessage);
+
     // Checking if Admin already exists
     const existingAdmin = await Admin.findOne({ email });
     
@@ -1194,12 +1178,9 @@ const resetPassword = async (req, res) => {
   let { email, password } = req.body;
   try {
     // Check database connection
-      const dbState = await isDBConnected();
-      if (dbState === false) {
-        console.error("Database connection is not ready");
-      } else {
-        console.log("Database connection is ready");
-    }
+    const dbStatus = await isDBConnected();
+    const dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
+    console.log(dbStatusMessage);
     
     // Find admin by email
     const admin = await Admin.findOne({ email });
@@ -1262,12 +1243,9 @@ const resetPassword = async (req, res) => {
 const getAllIssuers = async (req, res) => {
   try {
     // Check mongoose connection
-      const dbState = await isDBConnected();
-      if (dbState === false) {
-        console.error("Database connection is not ready");
-      } else {
-        console.log("Database connection is ready");
-    }
+    const dbStatus = await isDBConnected();
+    const dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
+    console.log(dbStatusMessage);
     
     // Fetch all users from the database
     const allIssuers = await User.find({ approved: false }).select('-password');
@@ -1313,12 +1291,9 @@ const validateIssuer = async (req, res) => {
 
   try {
     // Check mongoose connection
-      const dbState = await isDBConnected();
-      if (dbState === false) {
-        console.error("Database connection is not ready");
-      } else {
-        console.log("Database connection is ready");
-    }
+    const dbStatus = await isDBConnected();
+    const dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
+    console.log(dbStatusMessage);
 
     const roleStatus = await new_contract.hasRole(process.env.ISSUER_ROLE, userExist.id);
 
@@ -1405,12 +1380,9 @@ const validateIssuer = async (req, res) => {
 const getIssuerByEmail = async (req, res) => {
   try {
     // Check mongoose connection
-    const dbState = await isDBConnected();
-    if (dbState === false) {
-      console.error("Database connection is not ready");
-    } else {
-      console.log("Database connection is ready");
-    }
+    const dbStatus = await isDBConnected();
+    const dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
+    console.log(dbStatusMessage);
  
     const { email } = req.body;
  

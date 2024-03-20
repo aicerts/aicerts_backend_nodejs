@@ -10,6 +10,11 @@ const mongoose = require("mongoose");
 // Import the issuer model from the schema defined in "./schema"
 const { User } = require("./schema");
 
+// Importing functions from a custom module
+const {
+  connectToPolygon // Function to check if the database connection is established
+} = require('../model/tasks'); // Importing functions from the '../model/tasks' module
+
 // Parse environment variables for days to be deleted
 const schedule_days = parseInt(process.env.SCHEDULE_DAYS);
 
@@ -61,4 +66,5 @@ mongoose
         // If not, create it
         fs.mkdirSync(folderPath);
     }
+    // await connectToPolygon();
 };

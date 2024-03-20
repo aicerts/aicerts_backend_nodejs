@@ -21,6 +21,8 @@ const readXlsxFile = require('read-excel-file/node');
 
 const { decryptData } = require("../common/cryptoFunction"); // Custom functions for cryptographic operations
 
+const retryDelay = parseInt(process.env.TIME_DELAY);
+const maxRetries = 3; // Maximum number of retries
 
 // Create a nodemailer transporter using the provided configuration
 const transporter = nodemailer.createTransport({
@@ -101,6 +103,22 @@ const expectedHeadersSchema = [
   'expirationDate'
 ];
 
+//Connect to polygon
+const connectToPolygon = async () => {
+  try {
+    const provider = new ethers.FallbackProvider(providers);
+    await provider.getNetwork(); // Attempt to detect the network
+    // console.log('Connected to Polygon node successfully!');
+    return provider;
+
+  } catch (error) {
+      console.error('Failed to connect to Polygon node:', error.message);
+      console.log(`Retrying connection in ${retryDelay / 1000} seconds...`);
+      await new Promise(resolve => setTimeout(resolve, retryDelay)); // Wait before retrying
+      return connectToPolygon(providers); // Retry connecting recursively
+  }
+};
+
 // Fetch records from the excel file
 const fetchExcelRecord = async (_path) => {
   if(_path.length<0){
@@ -144,7 +162,7 @@ const fetchExcelRecord = async (_path) => {
 // Verify Certification ID from both collections (single / batch)
 const isCertificationIdExisted = async (id) => {
   const dbStaus = await isDBConnected();
-  console.log("DB connected:", dbStaus);
+  // console.log("DB connected:", dbStaus);
 
   if(id == null || id == ""){
     return [{status: "FAILED", message: "Invalid Data"}];
@@ -196,7 +214,7 @@ const insertCertificateData = async (data) => {
           const previousCount = idExist.certificatesIssued || 0; // Initialize to 0 if certificatesIssued field doesn't exist
           idExist.certificatesIssued = previousCount + 1;
           await idExist.save(); // Save the changes to the existing user
-          console.log("Counter updated successfully.");
+          // console.log("Counter updated successfully.");
       } else {
           // If user with given id doesn't exist, create a new user instance
           const newUser = new User({
@@ -205,7 +223,7 @@ const insertCertificateData = async (data) => {
               // Add other required fields here if needed
           });
           await newUser.save(); // Save the new user instance
-          console.log("New user created with certificationsIssued count initialized to 1.");
+          // console.log("New user created with certificationsIssued count initialized to 1.");
       }
     
     // Logging confirmation message
@@ -252,7 +270,7 @@ if (idExist) {
         // Add other required fields here if needed
     });
     await newUser.save(); // Save the new user instance
-    console.log("New user created with certificationsIssued count initialized to 1.");
+    // console.log("New user created with certificationsIssued count initialized to 1.");
 }
 
       } catch (error) {
@@ -367,7 +385,7 @@ const _extractQRCodeDataFromPDF = async (pdfFilePath) => {
     .then(imageBuffer => {
       // Write the image buffer to a file
       fs.writeFileSync(path.join(outputPath, `${options.saveFilename}.png`), imageBuffer);
-      console.log(`PDF is now converted to a single image`);
+      // console.log(`PDF is now converted to a single image`);
     })
     .catch(error => {
       // console.log(error);
@@ -462,16 +480,21 @@ const extractQRCodeDataFromPDF = async (pdfFilePath) => {
       const qrCodeText = code?.data;
 
       // Throw error if QR code text is not available
-      if (!qrCodeText)
-          throw new Error("QR Code Text could not be extracted from PNG image");
+      if (!qrCodeText){
+          // throw new Error("QR Code Text could not be extracted from PNG image");
+          console.log("QR Code Not Found / QR Code Text could not be extracted");
 
-      detailsQR = qrCodeText;
+          return false;
+        } else {
+        detailsQR = qrCodeText;
 
-      // Extract certificate information from QR code text
-      const certificateInfo = extractCertificateInfo(qrCodeText);
+        // Extract certificate information from QR code text
+        const certificateInfo = extractCertificateInfo(qrCodeText);
 
-      // Return the extracted certificate information
-      return certificateInfo;
+        // Return the extracted certificate information
+        return certificateInfo;
+        }
+
   } catch (error) {
       // Log and rethrow any errors that occur during the process
       console.error(error);
@@ -537,6 +560,8 @@ const addLinkToPdf = async (
 };
 
 const verifyPDFDimensions = async (pdfPath) => {
+  // Extract QR code data from the PDF file
+  const certificateData = await extractQRCodeDataFromPDF(pdfPath);
   const pdfBuffer = fs.readFileSync(pdfPath);
     const pdfDoc = await PDFDocument.load(pdfBuffer);
 
@@ -555,7 +580,8 @@ const verifyPDFDimensions = async (pdfPath) => {
     // Check if dimensions fall within the specified ranges
     if (
         (widthMillimeters >= 340 && widthMillimeters <= 360) &&
-        (heightMillimeters >= 240 && heightMillimeters <= 260)
+        (heightMillimeters >= 240 && heightMillimeters <= 260) &&
+        (certificateData == false)
     ) {
         // Convert inches to pixels (assuming 1 inch = 96 pixels)
         // const widthPixels = widthInches * 96;
@@ -596,92 +622,6 @@ const web3i = async () => {
     // console.log("Invalid Endpoint");
     return false;
   }
-};
-
-const simulateIssueCertificate = async (certificateNumber, hash) => {
-  // console.log("Passing hash & certiicate", certificateNumber, hash);
-  // Replace with your actual function name and arguments
-  // const functionName = 'issueCertificate';
-  // const functionArguments = [certificateNumber, hash];
-  try {
-    // const result = await _contract.callStatic.issueCertificate(certificateNumber, hash);
-    const result = await _contract.populateTransaction.issueCertificate(certificateNumber, hash);
-    // const gasEstimate = await _contract.estimateGas[functionName](...functionArguments);
-    // console.log(`Estimated gas required for issueCertificate : `, gasEstimate.toString());
-
-    // Extract data from the result
-    const resultData = result.data;
-    // Check if data exists (indicating success) and return true, otherwise return false
-    if (resultData.length > 0) {
-      return true; // Simulation successful
-    } else {
-      return false; // Simulation failed
-    }
-    } catch (e) {
-      // Handle exceptions, such as CALL_EXCEPTION, indicating simulation failure
-    if (e.code == ethers.errors.CALL_EXCEPTION) {
-      console.log("Simulation failed for issue Certificate.");
-      return false;
-    }
-  }
-};
-
-const simulateIssueBatchCertificates = async (hash) => {
-  // Replace with your actual function name and arguments
-  const functionName = 'formRoot';
-  const functionArguments = [hash];
-  try {
-    const result = await _contract.populateTransaction.issueBatchOfCertificates(hash);
-
-    // const gasEstimate = await _contract.estimateGas[functionName](...functionArguments);
-    // console.log(`Estimated gas required for issueBatchCertificate : `, gasEstimate.toString());
-    const resultData = result.data;
-    if (resultData.length > 0) {
-      return true;
-    } else {
-      return false;
-    }
-    } catch (e) {
-    if (e.code == ethers.errors.CALL_EXCEPTION) {
-      console.log("Simulation failed for issue BatchCertificates.");
-      return false;
-    }
-  }
-};
-
-// Function to simulate a grant / revoke role to an address
-const simulateRoleToAddress = async (check, role, address) => {
-  // const functionArguments = [address];
-  try{
-
-        // Determine the function to simulate based on the provided role parameter
-        if(check == "grant") {
-          console.log("Testing here");
-        var roleResult = await sim_contract.callStatic.grantRole(role ,address);
-        } else if(check == "revoke"){
-        var roleResult = await sim_contract.callStatic.revokeRole(role ,address);
-        } else {
-          return false;
-        }
-        // Extract data from the result
-        const resultData = roleResult.data;
-        console.log("The result data", resultData);
-
-        // Check if data exists (indicating success) and return true, otherwise return false
-        if (resultData.length > 0) {
-          return true; // Simulation successful
-        } else {
-          return false; // Simulation failed
-        }
-
-  }catch (e) {
-    // Handle exceptions, such as CALL_EXCEPTION, indicating simulation failure
-    if (e.code == ethers.errors.CALL_EXCEPTION) {
-      console.log("Simulation failed for Grant Role to an address.");
-      return false; // Simulation failed
-    }
-  }
-
 };
 
 const fileFilter = (req, file, cb) => {
@@ -729,14 +669,22 @@ const cleanUploadFolder = async () => {
 };
 
 const isDBConnected = async () => {
+  let retryCount = 0; // Initialize retry count
+  while (retryCount < maxRetries) {
   try {
     // Attempt to establish a connection to the MongoDB database using the provided URI
     await mongoose.connect(process.env.MONGODB_URI);
+    // console.log('Connected to MongoDB successfully!');
     return true; // Return true if the connection is successful
   } catch (error) {
-    console.log(error); // Log any errors that occur during the connection attempt
-    return false; // Return false if there's an error connecting to the database
+    console.error('Error connecting to MongoDB:', error.message);
+    retryCount++; // Increment retry count
+    console.log(`Retrying connection (${retryCount}/${maxRetries}) in 1.5 seconds...`);
+    await new Promise(resolve => setTimeout(resolve, retryDelay)); // Wait for 1.5 seconds before retrying
   }
+}
+console.error('Failed to connect to MongoDB after maximum retries.');
+return false; // Return false if unable to connect after maximum retries
 };
 
 // Email Approved Notfication function
@@ -793,6 +741,9 @@ const rejectEmail = async (name, email) => {
 
 
 module.exports = {
+  // Connect to Polygon 
+  connectToPolygon,
+
   // Fetch & validate excel file records
   fetchExcelRecord,
 
