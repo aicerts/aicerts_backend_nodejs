@@ -716,7 +716,8 @@ const verify = async (req, res) => {
     // Extract QR code data from the PDF file
     const certificateData = await extractQRCodeDataFromPDF(file);
     if(certificateData === false) {
-      res.status(400).json({ status: "FAILED", message: "Certification is not valid" });
+      await cleanUploadFolder();
+      return res.status(400).json({ status: "FAILED", message: "Certification is not valid" });
     }
 
     // Extract blockchain URL from the certificate data
