@@ -44,8 +44,8 @@ const contractAddress = process.env.CONTRACT_ADDRESS;
 
 // Define an array of providers to use as fallbacks
 const providers = [
-  new ethers.JsonRpcProvider(process.env.RPC_ENDPOINT_1),
-  new ethers.JsonRpcProvider(process.env.RPC_ENDPOINT_2)
+  new ethers.AlchemyProvider(process.env.RPC_NETWORK, process.env.ALCHEMY_API_KEY),
+  new ethers.InfuraProvider(process.env.RPC_NETWORK, process.env.INFURA_API_KEY)
   // Add more providers as needed
 ];
 
@@ -1291,7 +1291,7 @@ const validateIssuer = async (req, res) => {
   }
 
   try {
-    // Check mongoose connection
+    // Check mongo DB connection
     const dbStatus = await isDBConnected();
     const dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
     console.log(dbStatusMessage);
@@ -1300,21 +1300,33 @@ const validateIssuer = async (req, res) => {
 
     if(validationStatus == 1) {
 
-      // If user is not approved yet, send email and update user's approved status
-      var mailStatus = await sendEmail(userExist.name, email);
-      var mailresponse = (mailStatus === true) ? "sent" : "NA";
+      if((userExist.status == validationStatus) && (roleStatus == true)){
+        res.status(400).json({status: "FAILED", message: "Existed Verified Issuer"});
+      }
 
-      // Save verification details
-      userExist.approved = true;
-      userExist.status = 1;
-      userExist.rejectedDate = null;
-      await userExist.save();
       var grantedStatus;
       if(roleStatus === false){
-        try{
-          var tx = await new_contract.grantRole(process.env.ISSUER_ROLE, userExist.id);
-          grantedStatus = "SUCCESS";
+        try {
+            var tx = await new_contract.grantRole(process.env.ISSUER_ROLE, userExist.id);
+            grantedStatus = "SUCCESS";
 
+            // Save verification details
+            userExist.approved = true;
+            userExist.status = 1;
+            userExist.rejectedDate = null;
+            await userExist.save();
+
+            // If user is not approved yet, send email and update user's approved status
+            var mailStatus = await sendEmail(userExist.name, email);
+            var mailresponse = (mailStatus === true) ? "sent" : "NA";
+
+            // Respond with success message indicating user approval
+            res.json({
+                status: "SUCCESS",
+                email: mailresponse,
+                grant: grantedStatus,
+                message: "User Approved successfully"
+            });
         } catch (error) {
           // Handle the error During the transaction
           console.error('Error occurred during grant Issuer role:', error.message);
@@ -1322,46 +1334,41 @@ const validateIssuer = async (req, res) => {
         }
       }
 
-      // Respond with success message indicating user approval
-      res.json({
-          status: "SUCCESS",
-          email: mailresponse,
-          grant: grantedStatus,
-          message: "User Approved successfully"
-      });
-
     } else if (validationStatus == 2) {
       
-     
-      // If user is not approved yet, send email and update user's approved status
-      var mailStatus = await rejectEmail(userExist.name, email);
-      var mailresponse = (mailStatus === true) ? "sent" : "NA";
-
-      // Save Issuer rejected details
-      userExist.approved = false;
-      userExist.status = 2;
-      userExist.rejectedDate = Date.now();
+      if((userExist.status == validationStatus) && (roleStatus == false)){
+        res.status(400).json({status: "FAILED", message: "Existed Rejected Issuer"});
       }
-      await userExist.save();
+
       var revokedStatus;
       if(roleStatus === true){
         try{
           var tx = await new_contract.revokeRole(process.env.ISSUER_ROLE, userExist.id);
           revokedStatus = "SUCCESS";
+
+          // Save Issuer rejected details
+          userExist.approved = false;
+          userExist.status = 2;
+          userExist.rejectedDate = Date.now();
+          await userExist.save();
+          
+          // If user is not rejected yet, send email and update user's rejected status
+          var mailStatus = await rejectEmail(userExist.name, email);
+          var mailresponse = (mailStatus === true) ? "sent" : "NA";
+          
+          // Respond with success message indicating user rejected
+          res.json({
+              status: "SUCCESS",
+              email: mailresponse,
+              revoke: revokedStatus,
+              message: "User Rejected successfully"
+      });
         } catch (error) {
           // Handle the error During the transaction
           console.error('Error occurred during revoke Issuer role:', error.message);
           revokedStatus = "FAILED";
         }
-      
-      // Respond with success message indicating user approval
-      res.json({
-          status: "SUCCESS",
-          email: mailresponse,
-          revoke: revokedStatus,
-          message: "User Rejected successfully"
-      });
-
+     }
     }   
   } catch (error) {
     // Error occurred during user approval process, respond with failure message
@@ -1438,17 +1445,11 @@ const addTrustedOwner = async (req, res) => {
       if(response === true){
         // Simulation failed, send failure response
         return res.status(400).json({ status: "FAILED", message: "Address Existed in the Blockchain" });
-      } else if(response === false) {
+      }
         
       try{
         const tx = await new_contract.grantRole(assigningRole, newAddress);
-      
         var txHash = tx.hash;
-      } catch (error) {
-        // Handle the error During the transaction
-        console.error('Error occurred during grant Issuer role:', error.message);
-      }
-        
         const messageInfo = (assignRole == 0) ? "Admin Role Granted" : "Issuer Role Granted";
 
         // Prepare success response
@@ -1460,20 +1461,18 @@ const addTrustedOwner = async (req, res) => {
 
         // Send success response
         res.status(200).json(responseMessage);
-        
-
-      } else {
-        return res.status(500).json({ status: "FAILED", message: "Internal Server Error" });
+       
+      } catch (error) {
+        // Handle the error During the transaction
+        console.error('Error occurred during grant Issuer role:', error.message);
       }
 
-    } else{
-      return res.status(400).json({ status: "FAILED", message: "Invalid Role assigned" });
     }
 
   } catch (error) {
     // Internal server error occurred, send failure response
     console.error(error);
-    res.status(500).json({ message: "Internal Server Error" });
+    res.status(500).json({ status: "FAILED", message: "Internal Server Error" });
   }
 };
 
@@ -1506,16 +1505,12 @@ try {
     if(response === false){
       // Simulation failed, send failure response
       return res.status(400).json({ status: "FAILED", message: "Address Doesn't Existed in the Blockchain" });
-    } else if(response === true) {
+    } 
 
     try{
       const tx = await new_contract.revokeRole(assigningRole ,newAddress);
       
       var txHash = tx.hash;
-    } catch (error) {
-      // Handle the error During the transaction
-      console.error('Error occurred during revoke Issuer role:', error.message);
-    }
 
       const messageInfo = (assignRole == 0) ? "Admin Role Revoked" : "Issuer Role Revoked";
 
@@ -1525,23 +1520,18 @@ try {
         message: messageInfo,
         details: `https://${process.env.NETWORK}.com/tx/${txHash}`
       };
-
       // Send success response
       res.status(200).json(responseMessage);
-
-    } else {
-      return res.status(500).json({ status: "FAILED", message: "Internal Server Error" });
+    } catch (error) {
+      // Handle the error During the transaction
+      console.error('Error occurred during revoke Issuer role:', error.message);
     }
-
-  } else{
-    return res.status(400).json({ status: "FAILED", message: "Invalid Role assigned" });
   }
-
-} catch (error) {
-  // Internal server error occurred, send failure response
-  console.error(error);
-  res.status(500).json({ message: "Internal Server Error" });
-}
+  } catch (error) {
+    // Internal server error occurred, send failure response
+    console.error(error);
+    res.status(500).json({ status: "FAILED", message: "Internal Server Error" });
+  }
 };
 
 /**

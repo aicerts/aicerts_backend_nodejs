@@ -73,8 +73,8 @@ const _provider = new ethers.JsonRpcProvider(process.env.RPC_ENDPOINT);
 
 // Define an array of providers to use as fallbacks
 const providers = [
-  new ethers.JsonRpcProvider(process.env.RPC_ENDPOINT_1),
-  new ethers.JsonRpcProvider(process.env.RPC_ENDPOINT_2)
+  new ethers.AlchemyProvider(process.env.RPC_NETWORK, process.env.ALCHEMY_API_KEY),
+  new ethers.InfuraProvider(process.env.RPC_NETWORK, process.env.INFURA_API_KEY)
   // Add more providers as needed
 ];
 
@@ -720,9 +720,9 @@ const rejectEmail = async (name, email) => {
       // Update the mailOptions object with the recipient's email address and email body
       mailOptions.to = email;
       mailOptions.text = `Hi ${name}, 
-      We regret to inform you that your account registration has been declined by the admin. 
-      If you have any questions or concerns, please feel free to contact us. 
-      Thank you for your interest.`;
+    We regret to inform you that your account registration has been declined by the admin. 
+    If you have any questions or concerns, please feel free to contact us. 
+    Thank you for your interest.`;
   
       // Send the email using the configured transporter
       transporter.sendMail(mailOptions);
