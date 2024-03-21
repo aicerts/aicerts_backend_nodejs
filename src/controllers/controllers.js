@@ -23,35 +23,6 @@ const { Admin, User, Issues, BatchIssues } = require("../config/schema");
 // Import ABI (Application Binary Interface) from the JSON file located at "../config/abi.json"
 const abi = require("../config/abi.json");
 
-// Retrieve contract address from environment variable
-const contractAddress = process.env.CONTRACT_ADDRESS;
-
-// Define an array of providers to use as fallbacks
-const providers = [
-  new ethers.JsonRpcProvider(process.env.RPC_ENDPOINT_1),
-  new ethers.JsonRpcProvider(process.env.RPC_ENDPOINT_2)
-  // Add more providers as needed
-];
-
-// Create a new FallbackProvider instance
-const fallbackProvider = new ethers.FallbackProvider(providers);
-
-// Create a new ethers provider using the default provider and the RPC endpoint from environment variable
-const provider = new ethers.JsonRpcProvider(process.env.RPC_ENDPOINT);
-
-// Create a new ethers signer instance using the private key from environment variable and the provider(Fallback)
-const signer = new ethers.Wallet(process.env.PRIVATE_KEY, fallbackProvider);
-
-// Create a new ethers contract instance with a signing capability (using the contract Address, ABI and signer)
-const new_contract = new ethers.Contract(contractAddress, abi, signer); 
-
-// Import bcrypt for hashing passwords
-const bcrypt = require("bcrypt");
-
-// Parse environment variables for password length constraints
-const min_length = parseInt(process.env.MIN_LENGTH);
-const max_length = parseInt(process.env.MAX_LENGTH);
-
 // Importing functions from a custom module
 const {
   fetchExcelRecord,
@@ -67,6 +38,36 @@ const {
   sendEmail, // Function to send an email on approved
   rejectEmail // Function to send an email on rejected
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
+
+// Retrieve contract address from environment variable
+const contractAddress = process.env.CONTRACT_ADDRESS;
+
+// Define an array of providers to use as fallbacks
+const providers = [
+  new ethers.AlchemyProvider(process.env.RPC_NETWORK, process.env.ALCHEMY_API_KEY),
+  new ethers.InfuraProvider(process.env.RPC_NETWORK, process.env.INFURA_API_KEY)
+  // Add more providers as needed
+];
+
+// Create a new FallbackProvider instance
+const fallbackProvider = new ethers.FallbackProvider(providers);
+
+// Create a new ethers provider using the default provider and the RPC endpoint from environment variable
+const provider = new ethers.JsonRpcProvider(process.env.RPC_ENDPOINT);
+
+// Create a new ethers signer instance using the private key from environment variable and the provider(Fallback)
+// const signer = new ethers.Wallet(process.env.PRIVATE_KEY, fallbackProvider);
+const signer = new ethers.Wallet(process.env.PRIVATE_KEY, fallbackProvider);
+
+// Create a new ethers contract instance with a signing capability (using the contract Address, ABI and signer)
+const new_contract = new ethers.Contract(contractAddress, abi, signer); 
+
+// Import bcrypt for hashing passwords
+const bcrypt = require("bcrypt");
+
+// Parse environment variables for password length constraints
+const min_length = parseInt(process.env.MIN_LENGTH);
+const max_length = parseInt(process.env.MAX_LENGTH);
 
 let linkUrl; // Variable to store a link URL
 let detailsQR; // Variable to store details of a QR code
@@ -243,12 +244,9 @@ const issuePdf = async (req, res) => {
 
         try {
           // Check mongoose connection
-          const dbState = await isDBConnected();
-          if (dbState === false) {
-            console.error("Database connection is not ready");
-          } else {
-            console.log("Database connection is ready");
-          }
+          const dbStatus = await isDBConnected();
+          const dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
+          console.log(dbStatusMessage);
 
           // Insert certificate data into database
           const id = idExist.id;
@@ -436,12 +434,9 @@ const issue = async (req, res) => {
 
         try {
           // Check mongoose connection
-          const dbState = await isDBConnected();
-          if (dbState === false) {
-            console.error("Database connection is not ready");
-          } else {
-            console.log("Database connection is ready");
-          }
+          const dbStatus = await isDBConnected();
+          const dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
+          console.log(dbStatusMessage);
 
           const id = idExist.id;
 
@@ -476,7 +471,7 @@ const issue = async (req, res) => {
     } catch (error) {
        // Internal server error
       console.error(error);
-      res.status(500).json({ message: "Internal Server Error" });
+      res.status(500).json({ status: "FAILED", message: "Internal Server Error" });
     }
   }
 };
@@ -615,15 +610,14 @@ const batchCertificateIssue = async (req, res) => {
 
       try {
         // Check mongoose connection
-        const dbState = await isDBConnected();
-        if (dbState === false) {
-          console.error("Database connection is not ready");
-        } else {
-          console.log("Database connection is ready");
-          }
+        const dbStatus = await isDBConnected();
+        const dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
+        console.log(dbStatusMessage);
           
           var batchDetails = [];
           var batchDetailsWithQR = [];
+          var insertPromises = []; // Array to hold all insert promises
+          
           for (var i = 0; i < certificatesCount; i++) {
             var _proof = tree.getProof(i);
             batchDetails[i] = {
@@ -671,7 +665,10 @@ const batchCertificateIssue = async (req, res) => {
               
             // console.log("Batch Certificate Details", batchDetailsWithQR[i]);
               await insertBatchCertificateData(batchDetails[i]);
+              insertPromises.push(insertBatchCertificateData(batchDetails[i]));
         }
+        // Wait for all insert promises to resolve
+        await Promise.all(insertPromises);
         console.log("Data inserted");
 
         res.status(200).json({
@@ -719,7 +716,8 @@ const verify = async (req, res) => {
     // Extract QR code data from the PDF file
     const certificateData = await extractQRCodeDataFromPDF(file);
     if(certificateData === false) {
-      res.status(400).json({ status: "FAILED", message: "Certification is not valid" });
+      await cleanUploadFolder();
+      return res.status(400).json({ status: "FAILED", message: "Certification is not valid" });
     }
 
     // Extract blockchain URL from the certificate data
@@ -768,12 +766,10 @@ const verifyWithId = async (req, res) => {
       const certificateNumber = inputId;
     try {
           // Check mongoose connection
-          const dbState = await isDBConnected();
-          if (dbState === false) {
-            console.error("Database connection is not ready");
-          } else {
-            console.log("Database connection is ready");
-          }
+          const dbStatus = await isDBConnected();
+          const dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
+          console.log(dbStatusMessage);
+
       var certificateExist = await Issues.findOne({ certificateNumber });
 
       const verificationResponse = {
@@ -863,7 +859,11 @@ const verifyBatchCertificate = async (req, res) => {
       // Blockchain processing.
       const val = await new_contract.verifyCertificateInBatch(batchNumber, dataHash, proof);
 
-      return res.status(val ? 200 : 400).json({ status: val ? 'SUCCESS' : 'FAILED', Message: val ? "Valid Certification ID" : 'Invalid Certification ID', details: val ? issueExist : 'NA' });
+      var _polygonLink = `https://${process.env.NETWORK}.com/tx/${issueExist.transactionHash}`;
+
+      var completeResponse = {issueExist,polygonLink:_polygonLink};
+
+      return res.status(val ? 200 : 400).json({ status: val ? 'SUCCESS' : 'FAILED', Message: val ? "Valid Certification ID" : 'Invalid Certification ID', details: val ? completeResponse : 'NA' });
     
     } else {
         
@@ -884,8 +884,9 @@ const verifyBatchCertificate = async (req, res) => {
  */
 const verifyCertificationId = async (req, res) => {
   const inputId = req.body.id;
-  const dbStaus = await isDBConnected();
-  console.log("DB connected:", dbStaus);
+  const dbStatus = await isDBConnected();
+  const dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
+  console.log(dbStatusMessage);
 
   const singleIssueExist = await Issues.findOne({ certificateNumber : inputId });
   const batchIssueExist = await BatchIssues.findOne({ certificateNumber : inputId });
@@ -938,7 +939,12 @@ const verifyCertificationId = async (req, res) => {
             message: "Valid Certification",
             details: batchIssueExist
           };
-          res.status(200).json(_verificationResponse);
+
+          var _polygonLink = `https://${process.env.NETWORK}.com/tx/${batchIssueExist.transactionHash}`;
+
+          var completeResponse = {..._verificationResponse,polygonLink:_polygonLink};
+
+          res.status(200).json(completeResponse);
           
           }catch (error) {
             res.status(500).json({ status: 'FAILED', message: 'Internal Server Error.' });
@@ -994,12 +1000,10 @@ const signup = async (req, res) => {
   } else {
     try {
       // Check mongoose connection
-      const dbState = await isDBConnected();
-      if (dbState === false) {
-        console.error("Database connection is not ready");
-      } else {
-        console.log("Database connection is ready");
-      }
+      const dbStatus = await isDBConnected();
+      const dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
+      console.log(dbStatusMessage);
+
       // Checking if Admin already exists
       const existingAdmin = await Admin.findOne({ email });
 
@@ -1057,12 +1061,9 @@ const login = async (req, res) => {
     });
   } else {
     // Check database connection
-      const dbState = await isDBConnected();
-      if (dbState === false) {
-        console.error("Database connection is not ready");
-      } else {
-        console.log("Database connection is ready");
-    }
+    const dbStatus = await isDBConnected();
+    const dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
+    console.log(dbStatusMessage);
     
     // Checking if user exists 
     const adminExist = await Admin.findOne({ email });
@@ -1142,12 +1143,10 @@ const logout = async (req, res) => {
   let { email } = req.body;
   try {
     // Check mongoose connection
-      const dbState = await isDBConnected();
-      if (dbState === false) {
-        console.error("Database connection is not ready");
-      } else {
-        console.log("Database connection is ready");
-      }
+    const dbStatus = await isDBConnected();
+    const dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
+    console.log(dbStatusMessage);
+
     // Checking if Admin already exists
     const existingAdmin = await Admin.findOne({ email });
     
@@ -1189,12 +1188,9 @@ const resetPassword = async (req, res) => {
   let { email, password } = req.body;
   try {
     // Check database connection
-      const dbState = await isDBConnected();
-      if (dbState === false) {
-        console.error("Database connection is not ready");
-      } else {
-        console.log("Database connection is ready");
-    }
+    const dbStatus = await isDBConnected();
+    const dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
+    console.log(dbStatusMessage);
     
     // Find admin by email
     const admin = await Admin.findOne({ email });
@@ -1257,12 +1253,9 @@ const resetPassword = async (req, res) => {
 const getAllIssuers = async (req, res) => {
   try {
     // Check mongoose connection
-      const dbState = await isDBConnected();
-      if (dbState === false) {
-        console.error("Database connection is not ready");
-      } else {
-        console.log("Database connection is ready");
-    }
+    const dbStatus = await isDBConnected();
+    const dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
+    console.log(dbStatusMessage);
     
     // Fetch all users from the database
     const allIssuers = await User.find({ approved: false }).select('-password');
@@ -1307,33 +1300,42 @@ const validateIssuer = async (req, res) => {
   }
 
   try {
-    // Check mongoose connection
-      const dbState = await isDBConnected();
-      if (dbState === false) {
-        console.error("Database connection is not ready");
-      } else {
-        console.log("Database connection is ready");
-    }
+    // Check mongo DB connection
+    const dbStatus = await isDBConnected();
+    const dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
+    console.log(dbStatusMessage);
 
     const roleStatus = await new_contract.hasRole(process.env.ISSUER_ROLE, userExist.id);
 
     if(validationStatus == 1) {
 
-      // If user is not approved yet, send email and update user's approved status
-      var mailStatus = await sendEmail(userExist.name, email);
-      var mailresponse = (mailStatus === true) ? "sent" : "NA";
+      if((userExist.status == validationStatus) && (roleStatus == true)){
+        res.status(400).json({status: "FAILED", message: "Existed Verified Issuer"});
+      }
 
-      // Save verification details
-      userExist.approved = true;
-      userExist.status = 1;
-      userExist.rejectedDate = null;
-      await userExist.save();
       var grantedStatus;
       if(roleStatus === false){
-        try{
-          var tx = await new_contract.grantRole(process.env.ISSUER_ROLE, userExist.id);
-          grantedStatus = "SUCCESS";
+        try {
+            var tx = await new_contract.grantRole(process.env.ISSUER_ROLE, userExist.id);
+            grantedStatus = "SUCCESS";
 
+            // Save verification details
+            userExist.approved = true;
+            userExist.status = 1;
+            userExist.rejectedDate = null;
+            await userExist.save();
+
+            // If user is not approved yet, send email and update user's approved status
+            var mailStatus = await sendEmail(userExist.name, email);
+            var mailresponse = (mailStatus === true) ? "sent" : "NA";
+
+            // Respond with success message indicating user approval
+            res.json({
+                status: "SUCCESS",
+                email: mailresponse,
+                grant: grantedStatus,
+                message: "User Approved successfully"
+            });
         } catch (error) {
           // Handle the error During the transaction
           console.error('Error occurred during grant Issuer role:', error.message);
@@ -1341,46 +1343,41 @@ const validateIssuer = async (req, res) => {
         }
       }
 
-      // Respond with success message indicating user approval
-      res.json({
-          status: "SUCCESS",
-          email: mailresponse,
-          grant: grantedStatus,
-          message: "User Approved successfully"
-      });
-
     } else if (validationStatus == 2) {
       
-     
-      // If user is not approved yet, send email and update user's approved status
-      var mailStatus = await rejectEmail(userExist.name, email);
-      var mailresponse = (mailStatus === true) ? "sent" : "NA";
-
-      // Save Issuer rejected details
-      userExist.approved = false;
-      userExist.status = 2;
-      userExist.rejectedDate = Date.now();
+      if((userExist.status == validationStatus) && (roleStatus == false)){
+        res.status(400).json({status: "FAILED", message: "Existed Rejected Issuer"});
       }
-      await userExist.save();
+
       var revokedStatus;
       if(roleStatus === true){
         try{
           var tx = await new_contract.revokeRole(process.env.ISSUER_ROLE, userExist.id);
           revokedStatus = "SUCCESS";
+
+          // Save Issuer rejected details
+          userExist.approved = false;
+          userExist.status = 2;
+          userExist.rejectedDate = Date.now();
+          await userExist.save();
+          
+          // If user is not rejected yet, send email and update user's rejected status
+          var mailStatus = await rejectEmail(userExist.name, email);
+          var mailresponse = (mailStatus === true) ? "sent" : "NA";
+          
+          // Respond with success message indicating user rejected
+          res.json({
+              status: "SUCCESS",
+              email: mailresponse,
+              revoke: revokedStatus,
+              message: "User Rejected successfully"
+      });
         } catch (error) {
           // Handle the error During the transaction
           console.error('Error occurred during revoke Issuer role:', error.message);
           revokedStatus = "FAILED";
         }
-      
-      // Respond with success message indicating user approval
-      res.json({
-          status: "SUCCESS",
-          email: mailresponse,
-          revoke: revokedStatus,
-          message: "User Rejected successfully"
-      });
-
+     }
     }   
   } catch (error) {
     // Error occurred during user approval process, respond with failure message
@@ -1400,12 +1397,9 @@ const validateIssuer = async (req, res) => {
 const getIssuerByEmail = async (req, res) => {
   try {
     // Check mongoose connection
-    const dbState = await isDBConnected();
-    if (dbState === false) {
-      console.error("Database connection is not ready");
-    } else {
-      console.log("Database connection is ready");
-    }
+    const dbStatus = await isDBConnected();
+    const dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
+    console.log(dbStatusMessage);
  
     const { email } = req.body;
  
@@ -1460,17 +1454,11 @@ const addTrustedOwner = async (req, res) => {
       if(response === true){
         // Simulation failed, send failure response
         return res.status(400).json({ status: "FAILED", message: "Address Existed in the Blockchain" });
-      } else if(response === false) {
+      }
         
       try{
         const tx = await new_contract.grantRole(assigningRole, newAddress);
-      
         var txHash = tx.hash;
-      } catch (error) {
-        // Handle the error During the transaction
-        console.error('Error occurred during grant Issuer role:', error.message);
-      }
-        
         const messageInfo = (assignRole == 0) ? "Admin Role Granted" : "Issuer Role Granted";
 
         // Prepare success response
@@ -1482,20 +1470,18 @@ const addTrustedOwner = async (req, res) => {
 
         // Send success response
         res.status(200).json(responseMessage);
-        
-
-      } else {
-        return res.status(500).json({ status: "FAILED", message: "Internal Server Error" });
+       
+      } catch (error) {
+        // Handle the error During the transaction
+        console.error('Error occurred during grant Issuer role:', error.message);
       }
 
-    } else{
-      return res.status(400).json({ status: "FAILED", message: "Invalid Role assigned" });
     }
 
   } catch (error) {
     // Internal server error occurred, send failure response
     console.error(error);
-    res.status(500).json({ message: "Internal Server Error" });
+    res.status(500).json({ status: "FAILED", message: "Internal Server Error" });
   }
 };
 
@@ -1528,16 +1514,12 @@ try {
     if(response === false){
       // Simulation failed, send failure response
       return res.status(400).json({ status: "FAILED", message: "Address Doesn't Existed in the Blockchain" });
-    } else if(response === true) {
+    } 
 
     try{
       const tx = await new_contract.revokeRole(assigningRole ,newAddress);
       
       var txHash = tx.hash;
-    } catch (error) {
-      // Handle the error During the transaction
-      console.error('Error occurred during revoke Issuer role:', error.message);
-    }
 
       const messageInfo = (assignRole == 0) ? "Admin Role Revoked" : "Issuer Role Revoked";
 
@@ -1547,23 +1529,18 @@ try {
         message: messageInfo,
         details: `https://${process.env.NETWORK}.com/tx/${txHash}`
       };
-
       // Send success response
       res.status(200).json(responseMessage);
-
-    } else {
-      return res.status(500).json({ status: "FAILED", message: "Internal Server Error" });
+    } catch (error) {
+      // Handle the error During the transaction
+      console.error('Error occurred during revoke Issuer role:', error.message);
     }
-
-  } else{
-    return res.status(400).json({ status: "FAILED", message: "Invalid Role assigned" });
   }
-
-} catch (error) {
-  // Internal server error occurred, send failure response
-  console.error(error);
-  res.status(500).json({ message: "Internal Server Error" });
-}
+  } catch (error) {
+    // Internal server error occurred, send failure response
+    console.error(error);
+    res.status(500).json({ status: "FAILED", message: "Internal Server Error" });
+  }
 };
 
 /**
@@ -1662,27 +1639,21 @@ const healthCheck = async (req, res) => {
       },
     },
     {
-      name: 'Response times',
+      name: 'Response',
       check: async () => {
-        // Make a request to the API and measure the response time
-        const response = await fetch(`${process.env.HEALTH_URL}/api/health-check`);
-        // const timingInfo = response[0];
-        // const uri = `${process.env.HEALTH_URL}/api/health-check`;
-        console.log("Hosting response", response);
-        // console.log("Hosting response", timingInfo);
-
-        // Calculate response time
-        // const endTime = process.hrtime(startTime);
-        // const responseTimeInMs = endTime[0] * 1000 + endTime[1] / 1000000;
-
-        // console.log("Response time:", responseTimeInMs, "ms");
-
-        // If the response time is less than 100ms, return true
-        if (response) {
-          return true;
+        const healthcheck = {
+            uptime: process.uptime(),
+            message: 'OK',
+            timestamp: Date.now()
+        };
+        try {
+            // res.send(healthcheck);
+            return true;
+        } catch (error) {
+            // healthcheck.message = error;
+            return false;
+            // res.status(503).send();
         }
-        // Otherwise, return false
-        return false;
       },
     },
   ];
