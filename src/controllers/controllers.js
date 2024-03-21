@@ -859,7 +859,11 @@ const verifyBatchCertificate = async (req, res) => {
       // Blockchain processing.
       const val = await new_contract.verifyCertificateInBatch(batchNumber, dataHash, proof);
 
-      return res.status(val ? 200 : 400).json({ status: val ? 'SUCCESS' : 'FAILED', Message: val ? "Valid Certification ID" : 'Invalid Certification ID', details: val ? issueExist : 'NA' });
+      var _polygonLink = `https://${process.env.NETWORK}.com/tx/${issueExist.transactionHash}`;
+
+      var completeResponse = {issueExist,polygonLink:_polygonLink};
+
+      return res.status(val ? 200 : 400).json({ status: val ? 'SUCCESS' : 'FAILED', Message: val ? "Valid Certification ID" : 'Invalid Certification ID', details: val ? completeResponse : 'NA' });
     
     } else {
         
@@ -935,7 +939,12 @@ const verifyCertificationId = async (req, res) => {
             message: "Valid Certification",
             details: batchIssueExist
           };
-          res.status(200).json(_verificationResponse);
+
+          var _polygonLink = `https://${process.env.NETWORK}.com/tx/${batchIssueExist.transactionHash}`;
+
+          var completeResponse = {..._verificationResponse,polygonLink:_polygonLink};
+
+          res.status(200).json(completeResponse);
           
           }catch (error) {
             res.status(500).json({ status: 'FAILED', message: 'Internal Server Error.' });
