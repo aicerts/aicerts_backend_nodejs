@@ -143,6 +143,7 @@ const issuePdf = async (req, res) => {
     } else if(idExist.status !== 1) {
       errorMessage = `Unauthorised Issuer Email`;
     } else if(_result == false) {
+      await cleanUploadFolder();
       errorMessage = `Invalid PDF (Certification Template) dimensions`;
   }
 
@@ -911,10 +912,21 @@ const verifyCertificationId = async (req, res) => {
   if (response === true || singleIssueExist != null) {
     
     try {
-      const foundCertification = (singleIssueExist != null) ? singleIssueExist : inputId;
+      var _polygonLink = `https://${process.env.NETWORK}.com/tx/${singleIssueExist.transactionHash}`;
+
+      var completeResponse = {
+      'Certificate Number': singleIssueExist.certificateNumber,
+      'Course Name': singleIssueExist.course,
+      'Expiration Date': singleIssueExist.expirationDate,
+      'Grant Date': singleIssueExist.expirationDate,
+      'Name': singleIssueExist.name,
+      'Polygon URL':_polygonLink};
+
+      const foundCertification = (singleIssueExist != null) ? completeResponse : inputId;
+
       const verificationResponse = {
         status: "SUCCESS",
-        message: "Valid Certification",
+        message: "Certification is valid",
         details: foundCertification
       };
       res.status(200).json(verificationResponse);
@@ -933,18 +945,24 @@ const verifyCertificationId = async (req, res) => {
 
       if (val === true) {
         try {
-    
-          const _verificationResponse = {
-            status: "SUCCESS",
-            message: "Valid Certification",
-            details: batchIssueExist
-          };
 
           var _polygonLink = `https://${process.env.NETWORK}.com/tx/${batchIssueExist.transactionHash}`;
 
-          var completeResponse = {..._verificationResponse,polygonLink:_polygonLink};
+          var completeResponse = {
+            'Certificate Number': batchIssueExist.certificateNumber,
+            'Course Name': batchIssueExist.course,
+            'Expiration Date': batchIssueExist.expirationDate,
+            'Grant Date': batchIssueExist.expirationDate,
+            'Name': batchIssueExist.name,
+            'Polygon URL':_polygonLink};
+    
+          const _verificationResponse = {
+            status: "SUCCESS",
+            message: "Certification is valid",
+            details: completeResponse
+          };
 
-          res.status(200).json(completeResponse);
+          res.status(200).json(_verificationResponse);
           
           }catch (error) {
             res.status(500).json({ status: 'FAILED', message: 'Internal Server Error.' });
