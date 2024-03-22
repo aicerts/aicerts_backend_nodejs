@@ -454,21 +454,54 @@ const extractQRCodeDataFromPDF = async (pdfFilePath) => {
           width: 2000,
           height: 2000,
     };
+
+      const _pdf2picOptions = {
+          quality: 100,
+          density: 350,
+          format: "png",
+          width: 3000,
+          height: 3000,
+    };
     
-      /**
-       * Initialize PDF to image conversion by supplying a file path
-       */
-      const base64Response = await fromPath(pdfFilePath, pdf2picOptions)(
-          1, // page number to be converted to image
-          true // returns base64 output
-    );
-
-    // Extract base64 data URI from response
-      const dataUri = base64Response?.base64;
-
-      // Throw error if base64 data URI is not available
-      if (!dataUri)
-          throw new Error("PDF could not be converted to Base64 string");
+      try {
+        // Attempt to convert PDF to image using pdf2picOptions
+        var base64Response = await fromPath(pdfFilePath, pdf2picOptions)(
+            1, // page number to be converted to image
+            true // returns base64 output
+        );
+    
+        // Extract base64 data URI from response
+        var dataUri = base64Response?.base64;
+    
+        // Throw error if base64 data URI is not available
+        if (!dataUri){
+            // throw new Error("PDF could not be converted to Base64 string");
+            try {
+              // Attempt to convert PDF to image using _pdf2picOptions
+              var base64Response = await fromPath(pdfFilePath, _pdf2picOptions)(
+                  1, // page number to be converted to image
+                  true // returns base64 output
+              );
+      
+              // Extract base64 data URI from response
+              var dataUri = base64Response?.base64;
+      
+              // Throw error if base64 data URI is not available with _pdf2picOptions
+              if (!dataUri)
+                  throw new Error("PDF could not be converted to Base64 string with alternative options");
+      
+              // If successful with alternative options, use the data
+              console.log("Converted successfully with alternative options.");
+          } catch (errorAlt) {
+              // If alternative options also fail, throw an error
+              console.error("Error occurred with alternative options:", errorAlt.message);
+              throw new Error("PDF could not be converted to Base64 string with any options");
+          }
+        }
+        } catch (error) {
+            // Handle error by attempting with _pdf2picOptions
+            console.error("Error occurred:", error.message);
+        }
 
       // Convert base64 string to buffer
       const buffer = Buffer.from(dataUri, "base64");
@@ -487,7 +520,6 @@ const extractQRCodeDataFromPDF = async (pdfFilePath) => {
           return false;
         } else {
         detailsQR = qrCodeText;
-
         // Extract certificate information from QR code text
         const certificateInfo = extractCertificateInfo(qrCodeText);
 
@@ -581,7 +613,7 @@ const verifyPDFDimensions = async (pdfPath) => {
     if (
         (widthMillimeters >= 340 && widthMillimeters <= 360) &&
         (heightMillimeters >= 240 && heightMillimeters <= 260) &&
-        (certificateData == false)
+        (certificateData === false)
     ) {
         // Convert inches to pixels (assuming 1 inch = 96 pixels)
         // const widthPixels = widthInches * 96;
