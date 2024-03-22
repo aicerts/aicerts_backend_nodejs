@@ -143,6 +143,7 @@ const issuePdf = async (req, res) => {
     } else if(idExist.status !== 1) {
       errorMessage = `Unauthorised Issuer Email`;
     } else if(_result == false) {
+      await cleanUploadFolder();
       errorMessage = `Invalid PDF (Certification Template) dimensions`;
   }
 
