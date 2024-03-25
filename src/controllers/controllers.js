@@ -26,6 +26,8 @@ const abi = require("../config/abi.json");
 // Importing functions from a custom module
 const {
   fetchExcelRecord,
+  convertDateFormat,
+  findInvalidDates,
   insertCertificateData, // Function to insert certificate data into the database
   insertBatchCertificateData, // Function to insert Batch certificate data into the database
   findRepetitiveIdNumbers, // Find repetitive Certification ID
@@ -89,8 +91,11 @@ const issuePdf = async (req, res) => {
   const Certificate_Number = req.body.certificateNumber;
   const name = req.body.name;
   const courseName = req.body.course;
-  const Grant_Date = req.body.grantDate;
-  const Expiration_Date = req.body.expirationDate;
+  var _Grant_Date = req.body.grantDate;
+  var _Expiration_Date = req.body.expirationDate;
+
+  const Grant_Date = await convertDateFormat(_Grant_Date);
+  const Expiration_Date = await convertDateFormat(_Expiration_Date);
 
   // Check if user with provided email exists
   const idExist = await User.findOne({ email });
@@ -132,6 +137,8 @@ const issuePdf = async (req, res) => {
     // Check for specific error conditions and update the error message accordingly
     if (isNumberExist || isNumberExistInBatch) {
       errorMessage = "Certification number already exists";
+    } else if (!Grant_Date || !Expiration_Date) {
+          errorMessage = "Please provide valid Dates";
     }else if (!Certificate_Number) {
       errorMessage = "Certification number is required";
     } else if (Certificate_Number.length > max_length) {
@@ -156,8 +163,8 @@ const issuePdf = async (req, res) => {
     Certificate_Number: req.body.certificateNumber,
     name: req.body.name,
     courseName: req.body.course,
-    Grant_Date: req.body.grantDate,
-    Expiration_Date: req.body.expirationDate,
+    Grant_Date: Grant_Date,
+    Expiration_Date: Expiration_Date,
   };
   const hashedFields = {};
   for (const field in fields) {
@@ -306,8 +313,11 @@ const issue = async (req, res) => {
   const Certificate_Number = req.body.certificateNumber;
   const name = req.body.name;
   const courseName = req.body.course;
-  const Grant_Date = req.body.grantDate;
-  const Expiration_Date = req.body.expirationDate;
+  var _Grant_Date = req.body.grantDate;
+  var _Expiration_Date = req.body.expirationDate;
+
+  const Grant_Date = await convertDateFormat(_Grant_Date);
+  const Expiration_Date = await convertDateFormat(_Expiration_Date);
 
   // Check if user with provided email exists
   const idExist = await User.findOne({ email });
@@ -337,6 +347,8 @@ const issue = async (req, res) => {
       // Check for specific error conditions and update the error message accordingly
       if (isNumberExist || isNumberExistInBatch) {
           errorMessage = "Certification number already exists";
+      } else if (!Grant_Date || !Expiration_Date) {
+            errorMessage = "Please provide valid Dates";
       } else if (!Certificate_Number) {
           errorMessage = "Certification number is required";
       } else if (Certificate_Number.length > max_length) {
@@ -532,13 +544,24 @@ const batchCertificateIssue = async (req, res) => {
 
     const certificationIDs = rawBatchData.map(item => item.certificationID);
 
+    const certificationGrantDates = rawBatchData.map(item => item.grantDate);
+
+    const certificationExpirationDates = rawBatchData.map(item => item.expirationDate);
+
     // Initialize an empty list to store matching IDs
     const matchingIDs = [];
-
     const repetitiveNumbers = await findRepetitiveIdNumbers(certificationIDs);
 
     if(repetitiveNumbers.length > 0){
       res.status(400).json({ status: "FAILED", message: "Excel file has Repetition in Certification IDs", Details: repetitiveNumbers });
+      return;
+    }
+
+    const invalidGrantDateFormat = await findInvalidDates(certificationGrantDates);
+    const invalidExpirationDateFormat = await findInvalidDates(certificationExpirationDates);
+
+    if(invalidGrantDateFormat.length > 0 && invalidExpirationDateFormat.length > 0){
+      res.status(400).json({ status: "FAILED", message: "Excel file has Invalid Date Format", Details: [invalidGrantDateFormat, invalidExpirationDateFormat] });
       return;
     }
 
@@ -595,7 +618,7 @@ const batchCertificateIssue = async (req, res) => {
       // const allocateBatchId = 1;
             
       try{
-        // Simulate to Issue Batch Certifications
+        // Issue Batch Certifications on Blockchain
           const tx = await new_contract.issueBatchOfCertificates(
             tree.root
         );
@@ -621,6 +644,8 @@ const batchCertificateIssue = async (req, res) => {
           
           for (var i = 0; i < certificatesCount; i++) {
             var _proof = tree.getProof(i);
+            let _grantDate = await convertDateFormat(rawBatchData[i].grantDate);
+            let _expirationDate = await convertDateFormat(rawBatchData[i].expirationDate);
             batchDetails[i] = {
                   id: idExist.id,
                   batchId: allocateBatchId,
@@ -630,16 +655,16 @@ const batchCertificateIssue = async (req, res) => {
                   certificateNumber: rawBatchData[i].certificationID,
                   name: rawBatchData[i].name,
                   course: rawBatchData[i].certificationName,
-                  grantDate: rawBatchData[i].grantDate,
-                  expirationDate: rawBatchData[i].expirationDate
+                  grantDate: _grantDate,
+                  expirationDate: _expirationDate
               }
 
               let _fields = {
                 Certificate_Number: rawBatchData[i].certificationID,
                 name: rawBatchData[i].name,
                 courseName: rawBatchData[i].certificationName,
-                Grant_Date: rawBatchData[i].grantDate,
-                Expiration_Date: rawBatchData[i].expirationDate,
+                Grant_Date: _grantDate,
+                Expiration_Date: _expirationDate,
                 polygonLink
               }
 
@@ -659,8 +684,8 @@ const batchCertificateIssue = async (req, res) => {
                 certificateNumber: rawBatchData[i].certificationID,
                 name: rawBatchData[i].name,
                 course: rawBatchData[i].certificationName,
-                grantDate: rawBatchData[i].grantDate,
-                expirationDate: rawBatchData[i].expirationDate,
+                grantDate: _grantDate,
+                expirationDate: _expirationDate,
                 qrImage: qrCodeImage
             }
               
@@ -910,7 +935,15 @@ const verifyCertificationId = async (req, res) => {
   } else {
 
   if (response === true || singleIssueExist != null) {
-    
+    if(singleIssueExist == null) {
+      const _verificationResponse = {
+        status: "FAILED",
+        message: "Certification is valid but No Details found",
+        details: inputId
+      };
+
+      return res.status(400).json(_verificationResponse);
+    }
     try {
       var _polygonLink = `https://${process.env.NETWORK}.com/tx/${singleIssueExist.transactionHash}`;
 
