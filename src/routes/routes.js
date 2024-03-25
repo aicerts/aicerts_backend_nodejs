@@ -326,6 +326,8 @@ router.get('/polygonlink', adminController.polygonLink);
  *                 type: string
  *                 format: binary
  *                 description: PDF file containing the certificate to be verified.
+ *             required:
+ *                - pdfFile
  *           example:
  *             status: "FAILED"
  *             error: Internal Server Error
