@@ -18,6 +18,7 @@ const ethers = require("ethers"); // Ethereum JavaScript library
 const mongoose = require("mongoose"); // MongoDB object modeling tool
 const nodemailer = require('nodemailer'); // Module for sending emails
 const readXlsxFile = require('read-excel-file/node');
+const moment = require('moment');
 
 const { decryptData } = require("../common/cryptoFunction"); // Custom functions for cryptographic operations
 
@@ -159,6 +160,72 @@ const fetchExcelRecord = async (_path) => {
   }
 }
 
+const findRepetitiveIdNumbers = async (data) => {
+  const countMap = {};
+  const repetitiveNumbers = [];
+
+  // Count occurrences of each number
+  data.forEach((number) => {
+    countMap[number] = (countMap[number] || 0) + 1;
+  });
+
+  // Iterate through the count map to find repetitive numbers
+  for (const [key, value] of Object.entries(countMap)) {
+    if (value > 1) {
+      repetitiveNumbers.push(key);
+    }
+  }
+
+  return repetitiveNumbers;
+};
+
+const findInvalidDates = async(dates) => {
+     // Initialize an array to store invalid dates
+     const invalidDates = [];
+
+     // Iterate through the array
+     for (let dateString of dates) {
+         // Convert the date format
+         const formattedDate = await convertDateFormat(dateString);
+         // If the formatted date is null or exists in the other array, add it to the invalidDates array
+         if (!formattedDate) {
+             invalidDates.push(dateString);
+         }
+     }
+ 
+     // Return the array of invalid dates
+     return invalidDates;
+};
+
+// Function to convert the Date format
+const convertDateFormat = async (dateString) => {
+  // Define the possible date formats
+  const formats = ['MM/DD/YYYY', 'DD/MM/YYYY', 'DD MMMM, YYYY', 'DD MMM, YYYY', 'DD MMMM, YYYY', 'MM/DD/YY'];
+
+  // Attempt to parse the input date string using each format
+  let dateObject;
+  for (const format of formats) {
+      dateObject = moment(dateString, format, true);
+      if (dateObject.isValid()) {
+          break;
+      }
+  }
+
+  // Check if a valid date object was obtained
+  if (dateObject && dateObject.isValid()) {
+      // Convert the dateObject to moment (if it's not already)
+      const momentDate = moment(dateObject);
+
+      // Format the date to 'YY/MM/DD'
+      const formattedDate = momentDate.format('MM/DD/YY');
+
+      return formattedDate;
+  } else {
+      // Return null or throw an error based on your preference for handling invalid dates
+      return null;
+  }
+}
+
 // Verify Certification ID from both collections (single / batch)
 const isCertificationIdExisted = async (id) => {
   const dbStaus = await isDBConnected();
@@ -188,7 +255,7 @@ const isCertificationIdExisted = async (id) => {
   }
 };
 
-// Function to insert certificate data into MongoDB
+// Function to insert certification data into MongoDB
 const insertCertificateData = async (data) => {
   try {
     // Create a new Issues document with the provided data
@@ -234,6 +301,7 @@ const insertCertificateData = async (data) => {
   }
 };
 
+// Function to insert certification data into MongoDB
 const insertBatchCertificateData = async (data) => {
   try {
     
@@ -278,6 +346,7 @@ if (idExist) {
     }
 };
 
+// Function to extract certificate information from a QR code text
 const extractCertificateInfo = (qrCodeText) => {
   // console.log("QR Code Text", qrCodeText);
   // Check if the data starts with 'http://' or 'https://'
@@ -424,25 +493,6 @@ const holdExecution = (delay) => {
       resolve();
     }, delay); // 1500 milliseconds = 1.5 seconds
   });
-};
-
-const findRepetitiveIdNumbers = async (data) => {
-  const countMap = {};
-  const repetitiveNumbers = [];
-
-  // Count occurrences of each number
-  data.forEach((number) => {
-    countMap[number] = (countMap[number] || 0) + 1;
-  });
-
-  // Iterate through the count map to find repetitive numbers
-  for (const [key, value] of Object.entries(countMap)) {
-    if (value > 1) {
-      repetitiveNumbers.push(key);
-    }
-  }
-
-  return repetitiveNumbers;
 };
 
 const extractQRCodeDataFromPDF = async (pdfFilePath) => {
@@ -793,6 +843,11 @@ module.exports = {
 
   // Function to extract certificate information from a QR code text
   extractCertificateInfo,
+
+  // Function to convert the Date format
+  convertDateFormat,
+
+  findInvalidDates,
 
   // Function to extract QR code data from a PDF file
   extractQRCodeDataFromPDF,
