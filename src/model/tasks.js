@@ -199,8 +199,10 @@ const findInvalidDates = async(dates) => {
 
 // Function to convert the Date format
 const convertDateFormat = async (dateString) => {
+  // console.log("Input date", dateString);
+  var formatString = 'ddd MMM DD YYYY HH:mm:ss [GMT]ZZ';
   // Define the possible date formats
-  const formats = ['MM/DD/YYYY', 'DD/MM/YYYY', 'DD MMMM, YYYY', 'DD MMM, YYYY', 'DD MMMM, YYYY', 'MM/DD/YY'];
+  const formats = ['MM/DD/YYYY', 'DD/MM/YYYY', 'DD MMMM, YYYY', 'DD MMM, YYYY', 'DD MMMM, YYYY', 'MMMM d, yyyy', 'MM/DD/YY'];
 
   // Attempt to parse the input date string using each format
   let dateObject;
@@ -217,10 +219,17 @@ const convertDateFormat = async (dateString) => {
       const momentDate = moment(dateObject);
 
       // Format the date to 'YY/MM/DD'
-      const formattedDate = momentDate.format('MM/DD/YY');
+      var formattedDate = momentDate.format('MM/DD/YY');
 
       return formattedDate;
-  } else {
+  } else if(formattedDate == null){
+    // Format the parsed date to 'MM/DD/YY'
+    var formattedDate = moment(dateString, formatString).format('MM/DD/YY');
+    if(formattedDate){
+      return formattedDate;
+    }
+  } 
+  else {
       // Return null or throw an error based on your preference for handling invalid dates
       return null;
   }
@@ -505,63 +514,44 @@ const extractQRCodeDataFromPDF = async (pdfFilePath) => {
           height: 2000,
     };
 
-      const _pdf2picOptions = {
-          quality: 100,
-          density: 350,
-          format: "png",
-          width: 3000,
-          height: 3000,
+    const _pdf2picOptions = {
+      quality: 100,
+      density: 350,
+      format: "png",
+      width: 3000,
+      height: 3000,
     };
-    
-      try {
-        // Attempt to convert PDF to image using pdf2picOptions
-        var base64Response = await fromPath(pdfFilePath, pdf2picOptions)(
-            1, // page number to be converted to image
-            true // returns base64 output
-        );
-    
-        // Extract base64 data URI from response
-        var dataUri = base64Response?.base64;
-    
-        // Throw error if base64 data URI is not available
-        if (!dataUri){
-            // throw new Error("PDF could not be converted to Base64 string");
-            try {
-              // Attempt to convert PDF to image using _pdf2picOptions
-              var base64Response = await fromPath(pdfFilePath, _pdf2picOptions)(
-                  1, // page number to be converted to image
-                  true // returns base64 output
-              );
-      
-              // Extract base64 data URI from response
-              var dataUri = base64Response?.base64;
-      
-              // Throw error if base64 data URI is not available with _pdf2picOptions
-              if (!dataUri)
-                  throw new Error("PDF could not be converted to Base64 string with alternative options");
-      
-              // If successful with alternative options, use the data
-              console.log("Converted successfully with alternative options.");
-          } catch (errorAlt) {
-              // If alternative options also fail, throw an error
-              console.error("Error occurred with alternative options:", errorAlt.message);
-              throw new Error("PDF could not be converted to Base64 string with any options");
-          }
-        }
-        } catch (error) {
-            // Handle error by attempting with _pdf2picOptions
-            console.error("Error occurred:", error.message);
-        }
+
+    var base64Response = await fromPath(pdfFilePath, pdf2picOptions)(
+      1, // page number to be converted to image
+      true // returns base64 output
+    );
+
+    // Extract base64 data URI from response
+    var dataUri = base64Response?.base64;
 
       // Convert base64 string to buffer
-      const buffer = Buffer.from(dataUri, "base64");
+      var buffer = Buffer.from(dataUri, "base64");
       // Read PNG data from buffer
-      const png = PNG.sync.read(buffer);
+      var png = PNG.sync.read(buffer);
 
       // Decode QR code from PNG data
-      const code = jsQR(Uint8ClampedArray.from(png.data), png.width, png.height);
+      var code = jsQR(Uint8ClampedArray.from(png.data), png.width, png.height);
+      if(!code){
+        var base64Response = await fromPath(pdfFilePath, _pdf2picOptions)(
+          1, // page number to be converted to image
+          true // returns base64 output
+        );
+        // Extract base64 data URI from response
+        var dataUri = base64Response?.base64;
+        // Convert base64 string to buffer
+        var buffer = Buffer.from(dataUri, "base64");
+        // Read PNG data from buffer
+        var png = PNG.sync.read(buffer);
+        // Decode QR code from PNG data
+        var code = jsQR(Uint8ClampedArray.from(png.data), png.width, png.height);
+      }
       const qrCodeText = code?.data;
-
       // Throw error if QR code text is not available
       if (!qrCodeText){
           // throw new Error("QR Code Text could not be extracted from PNG image");
@@ -625,7 +615,7 @@ const addLinkToPdf = async (
     const pngDims = pngImage.scale(0.36); // Scale QR code image
 
     page.drawImage(pngImage, {
-        x: width - pngDims.width - 117,
+        x: width - pngDims.width - 108,
         y: 135,
         width: pngDims.width,
         height: pngDims.height,

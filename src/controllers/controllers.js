@@ -93,7 +93,6 @@ const issuePdf = async (req, res) => {
   const courseName = req.body.course;
   var _Grant_Date = req.body.grantDate;
   var _Expiration_Date = req.body.expirationDate;
-
   const Grant_Date = await convertDateFormat(_Grant_Date);
   const Expiration_Date = await convertDateFormat(_Expiration_Date);
 
@@ -139,7 +138,7 @@ const issuePdf = async (req, res) => {
       errorMessage = "Certification number already exists";
     } else if (!Grant_Date || !Expiration_Date) {
           errorMessage = "Please provide valid Dates";
-    }else if (!Certificate_Number) {
+    } else if (!Certificate_Number) {
       errorMessage = "Certification number is required";
     } else if (Certificate_Number.length > max_length) {
       errorMessage = `Certification number should be less than ${max_length} characters`;
@@ -147,7 +146,7 @@ const issuePdf = async (req, res) => {
       errorMessage = `Certification number should be at least ${min_length} characters`;
     } else if (!idExist) {
       errorMessage = `Invalid Issuer Email`;
-    } else if(idExist.status !== 1) {
+    } else if(idExist.status != 1) {
       errorMessage = `Unauthorised Issuer Email`;
     } else if(_result == false) {
       await cleanUploadFolder();
