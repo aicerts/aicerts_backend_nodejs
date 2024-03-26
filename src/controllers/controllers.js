@@ -28,6 +28,7 @@ const {
   fetchExcelRecord,
   convertDateFormat,
   findInvalidDates,
+  convertDateOnVerification,
   insertCertificateData, // Function to insert certificate data into the database
   insertBatchCertificateData, // Function to insert Batch certificate data into the database
   findRepetitiveIdNumbers, // Find repetitive Certification ID
@@ -949,8 +950,8 @@ const verifyCertificationId = async (req, res) => {
       var completeResponse = {
       'Certificate Number': singleIssueExist.certificateNumber,
       'Course Name': singleIssueExist.course,
-      'Expiration Date': singleIssueExist.expirationDate,
-      'Grant Date': singleIssueExist.expirationDate,
+      'Expiration Date': await convertDateOnVerification(singleIssueExist.expirationDate),
+      'Grant Date': await convertDateOnVerification(singleIssueExist.grantDate),
       'Name': singleIssueExist.name,
       'Polygon URL':_polygonLink};
 
@@ -983,8 +984,8 @@ const verifyCertificationId = async (req, res) => {
           var completeResponse = {
             'Certificate Number': batchIssueExist.certificateNumber,
             'Course Name': batchIssueExist.course,
-            'Expiration Date': batchIssueExist.expirationDate,
-            'Grant Date': batchIssueExist.expirationDate,
+            'Expiration Date': await convertDateOnVerification(batchIssueExist.expirationDate),
+            'Grant Date': await convertDateOnVerification(batchIssueExist.grantDate),
             'Name': batchIssueExist.name,
             'Polygon URL':_polygonLink};
     
