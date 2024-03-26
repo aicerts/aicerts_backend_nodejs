@@ -950,7 +950,7 @@ const verifyCertificationId = async (req, res) => {
       'Certificate Number': singleIssueExist.certificateNumber,
       'Course Name': singleIssueExist.course,
       'Expiration Date': singleIssueExist.expirationDate,
-      'Grant Date': singleIssueExist.expirationDate,
+      'Grant Date': singleIssueExist.grantDate,
       'Name': singleIssueExist.name,
       'Polygon URL':_polygonLink};
 
@@ -984,7 +984,7 @@ const verifyCertificationId = async (req, res) => {
             'Certificate Number': batchIssueExist.certificateNumber,
             'Course Name': batchIssueExist.course,
             'Expiration Date': batchIssueExist.expirationDate,
-            'Grant Date': batchIssueExist.expirationDate,
+            'Grant Date': batchIssueExist.grantDate,
             'Name': batchIssueExist.name,
             'Polygon URL':_polygonLink};
     
