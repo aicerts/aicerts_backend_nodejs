@@ -213,25 +213,27 @@ const convertDateFormat = async (dateString) => {
       }
   }
 
-  // Check if a valid date object was obtained
-  if (dateObject && dateObject.isValid()) {
-      // Convert the dateObject to moment (if it's not already)
-      const momentDate = moment(dateObject);
+// Check if a valid date object was obtained
+if (dateObject && dateObject.isValid()) {
+  // Convert the dateObject to moment (if it's not already)
+  const momentDate = moment(dateObject);
 
-      // Format the date to 'YY/MM/DD'
-      var formattedDate = momentDate.format('MM/DD/YY');
-
-      return formattedDate;
+  // Format the date to 'YY/MM/DD'
+  var formattedDate = momentDate.format('MM/DD/YY');
+  return formattedDate;
   } else if(formattedDate == null){
-    // Format the parsed date to 'MM/DD/YY'
-    var formattedDate = moment(dateString, formatString).format('MM/DD/YY');
-    if(formattedDate){
+  // Format the parsed date to 'MM/DD/YY'
+  var formattedDate = moment(dateString, formatString).format('MM/DD/YY');
+    if(formattedDate != 'Invalid date'){
+      return formattedDate;
+    } else {
+      var formattedDate = moment(dateString).utc().format('MM/DD/YY');
       return formattedDate;
     }
-  } 
+  }
   else {
-      // Return null or throw an error based on your preference for handling invalid dates
-      return null;
+    // Return null or throw an error based on your preference for handling invalid dates
+    return null;
   }
 };
 
