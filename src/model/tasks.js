@@ -199,6 +199,7 @@ const findInvalidDates = async(dates) => {
 
 // Function to convert the Date format
 const convertDateFormat = async (dateString) => {
+  const parsedDate = moment(dateString);
   // Define the possible date formats
   const formats = ['MM/DD/YYYY', 'DD/MM/YYYY', 'DD MMMM, YYYY', 'DD MMM, YYYY', 'DD MMMM, YYYY', 'MM/DD/YY'];
 
@@ -220,7 +221,12 @@ const convertDateFormat = async (dateString) => {
       const formattedDate = momentDate.format('MM/DD/YY');
 
       return formattedDate;
-  } else {
+  } else if(parsedDate.isValid()){
+    // Format the parsed date to 'MM/DD/YY'
+    var formattedDate = parsedDate.format('DD/MM/YY');
+    return formattedDate;
+  }
+  else {
       // Return null or throw an error based on your preference for handling invalid dates
       return null;
   }
