@@ -201,7 +201,7 @@ const findInvalidDates = async(dates) => {
 const convertDateFormat = async (dateString) => {
   const parsedDate = moment(dateString);
   // Define the possible date formats
-  const formats = ['MM/DD/YYYY', 'DD/MM/YYYY', 'DD MMMM, YYYY', 'DD MMM, YYYY', 'DD MMMM, YYYY', 'MM/DD/YY'];
+  const formats = ['MM/DD/YYYY', 'DD/MM/YYYY', 'DD MMMM, YYYY', 'DD MMM, YYYY', 'DD MMMM, YYYY', 'MMMM d, yyyy', 'MM/DD/YY'];
 
   // Attempt to parse the input date string using each format
   let dateObject;
