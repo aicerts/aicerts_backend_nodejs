@@ -93,10 +93,8 @@ const issuePdf = async (req, res) => {
   const courseName = req.body.course;
   var _Grant_Date = req.body.grantDate;
   var _Expiration_Date = req.body.expirationDate;
-  console.log("Dates before", _Expiration_Date, _Grant_Date);
   const Grant_Date = await convertDateFormat(_Grant_Date);
   const Expiration_Date = await convertDateFormat(_Expiration_Date);
-  console.log("Dates after", Expiration_Date, Grant_Date);
 
   // Check if user with provided email exists
   const idExist = await User.findOne({ email });
