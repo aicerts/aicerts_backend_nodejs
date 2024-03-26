@@ -537,7 +537,6 @@ const extractQRCodeDataFromPDF = async (pdfFilePath) => {
 
       // Decode QR code from PNG data
       var code = jsQR(Uint8ClampedArray.from(png.data), png.width, png.height);
-      console.log("Testing 00", code);
       if(!code){
         var base64Response = await fromPath(pdfFilePath, _pdf2picOptions)(
           1, // page number to be converted to image
@@ -551,10 +550,8 @@ const extractQRCodeDataFromPDF = async (pdfFilePath) => {
         var png = PNG.sync.read(buffer);
         // Decode QR code from PNG data
         var code = jsQR(Uint8ClampedArray.from(png.data), png.width, png.height);
-        console.log("Testing 0", code);
       }
       const qrCodeText = code?.data;
-      console.log("Testing 1", qrCodeText);
       // Throw error if QR code text is not available
       if (!qrCodeText){
           // throw new Error("QR Code Text could not be extracted from PNG image");
