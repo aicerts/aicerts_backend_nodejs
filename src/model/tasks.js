@@ -233,7 +233,18 @@ const convertDateFormat = async (dateString) => {
       // Return null or throw an error based on your preference for handling invalid dates
       return null;
   }
-}
+};
+
+// Convert Date format for the Display on Verification
+const convertDateOnVerification = async (dateString) => {
+
+  var formatString = 'MM/DD/YY';
+
+  var formattedDate = moment(dateString, formatString).format('DD MMMM, YYYY');
+
+  return formattedDate;
+
+};
 
 // Verify Certification ID from both collections (single / batch)
 const isCertificationIdExisted = async (id) => {
@@ -356,7 +367,7 @@ if (idExist) {
 };
 
 // Function to extract certificate information from a QR code text
-const extractCertificateInfo = (qrCodeText) => {
+const extractCertificateInfo = async (qrCodeText) => {
   // console.log("QR Code Text", qrCodeText);
   // Check if the data starts with 'http://' or 'https://'
   if (qrCodeText.startsWith('http://') ||  qrCodeText.startsWith('https://')) {
@@ -376,8 +387,8 @@ const extractCertificateInfo = (qrCodeText) => {
     const convertedData = {
         "Certificate Number": parsedData.Certificate_Number,
         "Course Name": parsedData.courseName,
-        "Expiration Date": parsedData.Expiration_Date,
-        "Grant Date": parsedData.Grant_Date,
+        "Expiration Date": await convertDateOnVerification(parsedData.Expiration_Date),
+        "Grant Date": await convertDateOnVerification(parsedData.Grant_Date),
         "Name": parsedData.name,
         "Polygon URL": parsedData.polygonLink
       };
@@ -386,7 +397,6 @@ const extractCertificateInfo = (qrCodeText) => {
   } else {
     // If it's not an encrypted URL, assume it's plain text and split by new lines
     const lines = qrCodeText.split("\n");
-
     // Initialize an object to store certificate information
     const certificateInfo = {
         "Verify On Blockchain": "",
@@ -838,6 +848,8 @@ module.exports = {
   convertDateFormat,
 
   findInvalidDates,
+
+  convertDateOnVerification,
 
   // Function to extract QR code data from a PDF file
   extractQRCodeDataFromPDF,
