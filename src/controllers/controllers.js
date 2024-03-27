@@ -315,7 +315,7 @@ const issue = async (req, res) => {
   const courseName = req.body.course;
   var _Grant_Date = req.body.grantDate;
   var _Expiration_Date = req.body.expirationDate;
-
+  
   const Grant_Date = await convertDateFormat(_Grant_Date);
   const Expiration_Date = await convertDateFormat(_Expiration_Date);
 
@@ -335,8 +335,8 @@ const issue = async (req, res) => {
     !Certificate_Number || // Missing certificate number
     !name || // Missing name
     !courseName || // Missing course name
-    !Grant_Date || // Missing grant date
-    !Expiration_Date || // Missing expiration date
+    (!Grant_Date || Grant_Date == 'Invalid date') || // Missing grant date
+    (!Expiration_Date || Expiration_Date == 'Invalid date')|| // Missing expiration date
     [Certificate_Number, name, courseName, Grant_Date, Expiration_Date].some(value => typeof value !== 'string' || value == 'string') || // Some values are not strings
     Certificate_Number.length > max_length || // Certificate number exceeds maximum length
     Certificate_Number.length < min_length // Certificate number is shorter than minimum length
@@ -347,7 +347,7 @@ const issue = async (req, res) => {
       // Check for specific error conditions and update the error message accordingly
       if (isNumberExist || isNumberExistInBatch) {
           errorMessage = "Certification number already exists";
-      } else if (!Grant_Date || !Expiration_Date) {
+      } else if ((!Grant_Date || Grant_Date == 'Invalid date') || (!Expiration_Date || Expiration_Date == 'Invalid date')) {
             errorMessage = "Please provide valid Dates";
       } else if (!Certificate_Number) {
           errorMessage = "Certification number is required";
