@@ -4,7 +4,6 @@ require('dotenv').config();
 // Import required modules
 const crypto = require('crypto'); // Module for cryptographic functions
 const multer = require("multer"); // Middleware for handling multipart/form-data
-const Web3 = require("web3"); // Ethereum JavaScript API
 const pdf = require("pdf-lib"); // Library for creating and modifying PDF documents
 const { PDFDocument, Rectangle } = pdf;
 const fs = require("fs"); // File system module

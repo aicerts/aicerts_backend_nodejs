@@ -48,7 +48,6 @@
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.0",
     "uuid": "^8.3.2",
-    "web3": "^1.8.1",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

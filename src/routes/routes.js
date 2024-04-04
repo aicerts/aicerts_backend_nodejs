@@ -1229,7 +1229,7 @@ router.get('/check-balance',ensureAuthenticated, adminController.checkBalance);
 
 /**
  * @swagger
- * /api/verify-encrypted:
+ * /api/verify-decrypt:
  *   post:
  *     summary: Verify a certification with encryption
  *     description: API for decode the certiication with encrypted inputs.
@@ -1294,7 +1294,7 @@ router.get('/check-balance',ensureAuthenticated, adminController.checkBalance);
  *                   type: string
  */
 
-router.post('/verify-encrypted', (req, res) => adminController.decodeCertificate(req, res));
+router.post('/verify-decrypt', (req, res) => adminController.decodeCertificate(req, res));
 
 /**
  * @swagger
