@@ -302,6 +302,7 @@ const issuePdf = async (req, res) => {
         } catch (error) {
           // Handle mongoose connection error (log it, throw an error, etc.)
           console.error("Internal server error", error);
+          return res.status(500).json({ status: "FAILED", message: "Internal server error", details: error });
         }
       }
     } catch (error) {
@@ -490,6 +491,7 @@ const issue = async (req, res) => {
           } catch (error) {
             // Handle mongoose connection error (log it, throw an error, etc.)
             console.error("Internal server error", error);
+            return res.status(500).json({ status: "FAILED", message: "Internal server error", details: error });
           }
 
           // Respond with success message and certificate details
@@ -504,7 +506,7 @@ const issue = async (req, res) => {
       } catch (error) {
         // Internal server error
         console.error(error);
-        res.status(500).json({ status: "FAILED", message: "Internal Server Error" });
+        res.status(500).json({ status: "FAILED", message: "Internal Server Error", details: error });
       }
     } catch (error) {
       // Internal server error
@@ -742,6 +744,7 @@ const batchCertificateIssue = async (req, res) => {
       } catch (error) {
         // Handle mongoose connection error (log it, throw an error, etc.)
         console.error("Internal server error", error);
+        return res.status(500).json({ status: "FAILED", message: "Internal server error", details: error });
       }
 
     } catch (error) {
@@ -840,6 +843,7 @@ const verifyWithId = async (req, res) => {
 
       } catch (error) {
         console.error("Internal server error", error);
+        return res.status(500).json({ status: "FAILED", message: "Internal server error", details: error });
       }
     } else {
       return res.status(400).json({ status: "FAILED", message: "Certification doesn't exist" });
@@ -930,7 +934,7 @@ const verifyBatchCertificate = async (req, res) => {
   }
   catch (error) {
     console.error('Error:', error);
-    return res.status(500).json({ status: 'FAILED', error: 'Internal Server Error.' });
+    return res.status(500).json({ status: "FAILED", message: "Internal server error", details: error });
   }
 };
 
@@ -998,7 +1002,7 @@ const verifyCertificationId = async (req, res) => {
         res.status(200).json(verificationResponse);
 
       } catch (error) {
-        res.status(500).json({ status: 'FAILED', message: 'Internal Server Error.' });
+        return res.status(500).json({ status: "FAILED", message: "Internal server error", details: error });
       }
 
     } else if (batchIssueExist != null) {
@@ -1032,7 +1036,7 @@ const verifyCertificationId = async (req, res) => {
           res.status(200).json(_verificationResponse);
 
         } catch (error) {
-          res.status(500).json({ status: 'FAILED', message: 'Internal Server Error.' });
+          return res.status(500).json({ status: "FAILED", message: "Internal server error", details: error });
         }
       } else {
         return res.status(400).json({ status: "FAILED", message: "Certification doesn't exist" });
@@ -1121,10 +1125,7 @@ const signup = async (req, res) => {
       });
     } catch (error) {
       // An error occurred during signup process
-      res.json({
-        status: "FAILED",
-        message: "An error occurred",
-      });
+      return res.status(500).json({ status: "FAILED", message: "Internal server error", details: error });
     }
   }
 };
@@ -1489,6 +1490,7 @@ const validateIssuer = async (req, res) => {
     res.json({
       status: 'FAILED',
       message: "An error occurred during the Issuer validation process!",
+      details: error
     });
   }
 };
@@ -1597,7 +1599,7 @@ const addTrustedOwner = async (req, res) => {
   } catch (error) {
     // Internal server error occurred, send failure response
     console.error(error);
-    res.status(500).json({ status: "FAILED", message: "Internal Server Error" });
+    return res.status(500).json({ status: "FAILED", message: "Internal server error", details: error });
   }
 };
 
@@ -1669,7 +1671,7 @@ const removeTrustedOwner = async (req, res) => {
   } catch (error) {
     // Internal server error occurred, send failure response
     console.error(error);
-    res.status(500).json({ status: "FAILED", message: "Internal Server Error" });
+    return res.status(500).json({ status: "FAILED", message: "Internal server error", details: error });
   }
 };
 
@@ -1710,7 +1712,7 @@ const checkBalance = async (req, res) => {
   } catch (error) {
     // Handle errors
     console.error(error);
-    res.status(500).json({ message: "Internal Server Error" });
+    return res.status(500).json({ status: "FAILED", message: "Internal server error", details: error });
   }
 };
 
@@ -1740,9 +1742,9 @@ const uploadFileToS3 = async (req, res) => {
     const data = await s3.upload(uploadParams).promise();
     console.log('File uploaded successfully to', data.Location);
     res.status(200).send({ status: "SUCCESS", message: 'File uploaded successfully', fileUrl: data.Location });
-  } catch (err) {
-    console.error('Error uploading file:', err);
-    res.status(500).send({ status: "FAILED", error: 'An error occurred while uploading the file' });
+  } catch (error) {
+    console.error('Error uploading file:', error);
+    res.status(500).send({ status: "FAILED", error: 'An error occurred while uploading the file', details: error });
   }
 };
 
