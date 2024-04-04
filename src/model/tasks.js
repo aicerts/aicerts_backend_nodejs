@@ -25,6 +25,9 @@ const { decryptData } = require("../common/cryptoFunction"); // Custom functions
 const retryDelay = parseInt(process.env.TIME_DELAY);
 const maxRetries = 3; // Maximum number of retries
 
+// Regular expression to match MM/DD/YY format
+const regex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/\d{2}$/;
+
 // Create a nodemailer transporter using the provided configuration
 const transporter = nodemailer.createTransport({
   // Specify the email service provider (e.g., Gmail, Outlook)
@@ -180,21 +183,26 @@ const findRepetitiveIdNumbers = async (data) => {
 };
 
 const findInvalidDates = async(dates) => {
-     // Initialize an array to store invalid dates
-     const invalidDates = [];
+  const validDates = [];
+  const invalidDates = [];
 
-     // Iterate through the array
-     for (let dateString of dates) {
-         // Convert the date format
-         const formattedDate = await convertDateFormat(dateString);
-         // If the formatted date is null or exists in the other array, add it to the invalidDates array
-         if (!formattedDate) {
-             invalidDates.push(dateString);
-         }
-     }
- 
-     // Return the array of invalid dates
-     return invalidDates;
+  for (let dateString of dates) {
+    // const formattedDate = await convertDateFormat(dateString);
+      // Check if the date matches the regex for valid dates with 2-digit years
+      if (regex.test(dateString)) {
+          validDates.push(dateString);
+      } else {
+          // Check if the year component has 3 digits, indicating an invalid date
+          const year = parseInt(dateString.split('/')[2]);
+          if (year >= 98) {
+              invalidDates.push(dateString);
+          } else {
+              validDates.push(dateString);
+          }
+      }
+  }
+
+  return { validDates, invalidDates };
 };
 
 // Function to convert the Date format
@@ -442,78 +450,32 @@ const extractCertificateInfo = async (qrCodeText) => {
   
 };
 
-const _extractQRCodeDataFromPDF = async (pdfFilePath) => {
-  // console.log("pdf path", pdfFilePath);
-  try {
-    const options = {
-      density: 100,
-      saveFilename: "certificate",
-      savePath: "./uploads",
-      format: "png",
-      width: 2756,
-      height: 1969
-    };
-    
-    // Function to convert the entire PDF to a single image
-    const convertPDFToImage = async (pdfPath, options) => {
-      const storeAsImage = fromPath(pdfPath, options);
-      const imageBuffer = await storeAsImage();
-      return imageBuffer;
-    };
-
-    // Path to the PDF file
-    const pdfPath = pdfFilePath;
-    const outputPath = options.savePath; // Output directory
-    
-    // Ensure output directory exists, create it if it doesn't
-    if (!fs.existsSync(outputPath)) {
-      fs.mkdirSync(outputPath, { recursive: true });
-    }
-
-    // Convert PDF to a single image
-    convertPDFToImage(pdfPath, options)
-    .then(imageBuffer => {
-      // Write the image buffer to a file
-      fs.writeFileSync(path.join(outputPath, `${options.saveFilename}.png`), imageBuffer);
-      // console.log(`PDF is now converted to a single image`);
-    })
-    .catch(error => {
-      // console.log(error);
-    });
-
-    
-    await holdExecution(1500); // Wait for 2 seconds
-    // Converted image 
-    const imagePath = path.join(outputPath, `${options.saveFilename}.1.png`);
-    const buffer = fs.readFileSync(imagePath);
-    
-    // Assuming Jimp.read returns a Promise
-    const image = await Jimp.read(buffer);
-
-    const value = jsQR(image.bitmap.data, image.bitmap.width, image.bitmap.height);
-    if (value) {
-        // Call your other function here and pass value.result to it
-        const certificateInfo = extractCertificateInfo(value.data);
-        return certificateInfo;
-    } else {
-        console.log('No QR code found in the image.');
-        // throw new Error("QR Code not found in image.");
-        return;
-    }
-
-  } catch (error) {
-      // Log and rethrow any errors that occur during the process
-      console.error(error);
-      throw error;
-  }
-};
-
 const holdExecution = (delay) => {
   return new Promise(resolve => {
     setTimeout(() => {
       resolve();
     }, delay); // 1500 milliseconds = 1.5 seconds
   });
+};
+
+const baseCodeResponse = async (pdfFilePath, pdf2PicOptions) => {
+
+  var base64Response = await fromPath(pdfFilePath, pdf2PicOptions)(
+    1, // page number to be converted to image
+    true // returns base64 output
+  );
+  
+  // Extract base64 data URI from response
+  var dataUri = base64Response?.base64;
+
+  // Convert base64 string to buffer
+  var buffer = Buffer.from(dataUri, "base64");
+  // Read PNG data from buffer
+  var png = PNG.sync.read(buffer);
+
+  // Decode QR code from PNG data
+  return _code = jsQR(Uint8ClampedArray.from(png.data), png.width, png.height);
+
 };
 
 const extractQRCodeDataFromPDF = async (pdfFilePath) => {
@@ -524,51 +486,36 @@ const extractQRCodeDataFromPDF = async (pdfFilePath) => {
           format: "png",
           width: 2000,
           height: 2000,
-    };
+      };
 
-    const _pdf2picOptions = {
-      quality: 100,
-      density: 350,
-      format: "png",
-      width: 3000,
-      height: 3000,
-    };
+      const pdf2picOptions2 = {
+          quality: 100,
+          density: 350,
+          format: "png",
+          width: 3000,
+          height: 3000,
+      };
 
-    var base64Response = await fromPath(pdfFilePath, pdf2picOptions)(
-      1, // page number to be converted to image
-      true // returns base64 output
-    );
-
-    // Extract base64 data URI from response
-    var dataUri = base64Response?.base64;
-
-      // Convert base64 string to buffer
-      var buffer = Buffer.from(dataUri, "base64");
-      // Read PNG data from buffer
-      var png = PNG.sync.read(buffer);
-
+      const pdf2picOptions3 = {
+          quality: 100,
+          density: 350,
+          format: "png",
+          width: 4000,
+          height: 4000,
+      };
       // Decode QR code from PNG data
-      var code = jsQR(Uint8ClampedArray.from(png.data), png.width, png.height);
+      var code = await baseCodeResponse(pdfFilePath, pdf2picOptions);
       if(!code){
-        var base64Response = await fromPath(pdfFilePath, _pdf2picOptions)(
-          1, // page number to be converted to image
-          true // returns base64 output
-        );
-        // Extract base64 data URI from response
-        var dataUri = base64Response?.base64;
-        // Convert base64 string to buffer
-        var buffer = Buffer.from(dataUri, "base64");
-        // Read PNG data from buffer
-        var png = PNG.sync.read(buffer);
-        // Decode QR code from PNG data
-        var code = jsQR(Uint8ClampedArray.from(png.data), png.width, png.height);
+        var code = await baseCodeResponse(pdfFilePath, pdf2picOptions2);
+        if(!code) {
+          var code = await baseCodeResponse(pdfFilePath, pdf2picOptions3);
+        }
       }
       const qrCodeText = code?.data;
       // Throw error if QR code text is not available
       if (!qrCodeText){
           // throw new Error("QR Code Text could not be extracted from PNG image");
           console.log("QR Code Not Found / QR Code Text could not be extracted");
-
           return false;
         } else {
         detailsQR = qrCodeText;

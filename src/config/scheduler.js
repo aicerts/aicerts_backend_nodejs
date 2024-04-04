@@ -18,11 +18,33 @@ const {
 // Parse environment variables for days to be deleted
 const schedule_days = parseInt(process.env.SCHEDULE_DAYS);
 
+const MONGODB_OPTIONS = {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  // Add more MongoDB connection options as needed
+};
+
+// Function to connect to MongoDB with retry logic
+const connectWithRetry = async () => {
+  return mongoose.connect(process.env.MONGODB_URI, MONGODB_OPTIONS)
+    .then(() => {
+      // console.log("DB Connected & Scheduler initialised");
+      createUploadsFolder();
+    })
+    .catch((err) => {
+      console.error("Error connecting to MongoDB:", err.message);
+      console.log("Retrying connection in 5 seconds...");
+      setTimeout(connectWithRetry, 5000); // Retry connection after 5 seconds
+    });
+};
+
 // Connect to MongoDB using the MONGODB_URI environment variable
 mongoose
   .connect(process.env.MONGODB_URI)
   .then(() => {
     createUploadsFolder();
+    // Connect to MongoDB
+    connectWithRetry();
     // Schedule the task to run every day at midnight
     cron.schedule('0 0 * * *', async () => {
       
