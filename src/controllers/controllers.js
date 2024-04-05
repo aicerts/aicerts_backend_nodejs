@@ -303,13 +303,13 @@ const issuePdf = async (req, res) => {
           await cleanUploadFolder();
 
         } catch (error) {
-          // Handle mongoose connection error (log it, throw an error, etc.)
+          // Handle mongoose connection error (log it, response an error, etc.)
           console.error("Internal server error", error);
           return res.status(500).json({ status: "FAILED", message: "Internal server error", details: error });
         }
       }
     } catch (error) {
-      // Handle mongoose connection error (log it, throw an error, etc.)
+      // Handle mongoose connection error (log it, response an error, etc.)
       console.error("Internal server error", error);
       return res.status(400).json({ status: "FAILED", message: "Failed to interact with Blockchain", details: error });
     }
@@ -492,7 +492,7 @@ const issue = async (req, res) => {
             await insertCertificateData(certificateData);
 
           } catch (error) {
-            // Handle mongoose connection error (log it, throw an error, etc.)
+            // Handle mongoose connection error (log it, response an error, etc.)
             console.error("Internal server error", error);
             return res.status(500).json({ status: "FAILED", message: "Internal server error", details: error });
           }
@@ -525,7 +525,7 @@ const issue = async (req, res) => {
  * @param {Object} req - Express request object.
  * @param {Object} res - Express response object.
  */
-const batchCertificateIssue = async (req, res) => {
+const batchIssueCertificate = async (req, res) => {
   const email = req.body.email;
 
   file = req.file.path;
@@ -763,7 +763,7 @@ const batchCertificateIssue = async (req, res) => {
         await cleanUploadFolder();
 
       } catch (error) {
-        // Handle mongoose connection error (log it, throw an error, etc.)
+        // Handle mongoose connection error (log it, response an error, etc.)
         console.error("Internal server error", error);
         return res.status(500).json({ status: "FAILED", message: "Internal server error", details: error });
       }
@@ -1844,7 +1844,7 @@ module.exports = {
   issue,
 
   // Function to issue a Batch of certificates
-  batchCertificateIssue,
+  batchIssueCertificate,
 
   // Function to generate a Polygon link for a certificate
   polygonLink,

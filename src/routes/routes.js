@@ -295,7 +295,7 @@ router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminContr
  *               error: Internal Server Error
  */
 
-router.post('/batch-certificate-issue', ensureAuthenticated, __upload.single("excelFile"), adminController.batchCertificateIssue);
+router.post('/batch-certificate-issue', ensureAuthenticated, __upload.single("excelFile"), adminController.batchIssueCertificate);
 // router.post('/batch-certificate-issue', __upload.single("excelFile"), adminController.batchCertificateIssue);
 
 // /**
