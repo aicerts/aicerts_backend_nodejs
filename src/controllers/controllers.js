@@ -29,6 +29,7 @@ const abi = require("../config/abi.json");
 // Importing functions from a custom module
 const {
   fetchExcelRecord,
+  validateBatchCertificateIDs,
   convertDateFormat,
   findInvalidDates,
   compareEpochDates,
@@ -538,6 +539,9 @@ const batchCertificateIssue = async (req, res) => {
 
   await _fs.remove(filePath);
 
+  try{
+    // const _filePath = filePath;
+
   if (
     (!idExist || idExist.status !== 1) || // User does not exist
     // !idExist || 
@@ -561,8 +565,6 @@ const batchCertificateIssue = async (req, res) => {
 
   } else {
 
-    // console.log("The certificates details", excelData.message[0]);
-
     // Batch Certification Formated Details
     const rawBatchData = excelData.message[0];
     // Certification count
@@ -579,6 +581,12 @@ const batchCertificateIssue = async (req, res) => {
     // Initialize an empty list to store matching IDs
     const matchingIDs = [];
     const repetitiveNumbers = await findRepetitiveIdNumbers(certificationIDs);
+    const invalidIdList = await validateBatchCertificateIDs(certificationIDs);
+
+    if(invalidIdList != false) {
+      res.status(400).json({ status: "FAILED", message: "Excel file has invalid Certification IDs length (each: min 12 - max 20)", Details: invalidIdList });
+      return;
+    }
 
     if (repetitiveNumbers.length > 0) {
       res.status(400).json({ status: "FAILED", message: "Excel file has Repetition in Certification IDs", Details: repetitiveNumbers });
@@ -765,6 +773,11 @@ const batchCertificateIssue = async (req, res) => {
       return res.status(400).json({ status: "FAILED", message: "Failed to interact with Blockchain", details: error });
     }
   }
+} catch (error) {
+  console.error('Error:', error);
+  return res.status(400).json({ status: "FAILED", message: "Failed to Get Excel File, Upload again and try", details: error });
+}
+
 };
 
 /**
@@ -1418,8 +1431,11 @@ const validateIssuer = async (req, res) => {
         try {
           var tx = await new_contract.grantRole(process.env.ISSUER_ROLE, userExist.id);
           grantedStatus = "SUCCESS";
+          var txHash = tx.hash;
+          var polygonLink = `https://${process.env.NETWORK}.com/tx/${txHash}`;
 
         } catch (error) {
+          grantedStatus = "FAILED";
           if (error.reason) {
             // Extract and handle the error reason
             console.log("Error reason:", error.reason);
@@ -1440,13 +1456,15 @@ const validateIssuer = async (req, res) => {
         // If user is not approved yet, send email and update user's approved status
         var mailStatus = await sendEmail(userExist.name, email);
         var mailresponse = (mailStatus === true) ? "sent" : "NA";
+        var _details = grantedStatus == "SUCCESS" ? _details = polygonLink : _details = "";
 
         // Respond with success message indicating user approval
         res.json({
           status: "SUCCESS",
           email: mailresponse,
           grant: grantedStatus,
-          message: "User Approved successfully"
+          message: "User Approved successfully",
+          details: _details
         });
       }
 
@@ -1461,6 +1479,8 @@ const validateIssuer = async (req, res) => {
         try {
           var tx = await new_contract.revokeRole(process.env.ISSUER_ROLE, userExist.id);
           revokedStatus = "SUCCESS";
+          var txHash = tx.hash;
+          var polygonLink = `https://${process.env.NETWORK}.com/tx/${txHash}`;
         } catch (error) {
           revokedStatus = "FAILED";
           if (error.reason) {
@@ -1474,7 +1494,6 @@ const validateIssuer = async (req, res) => {
           }
         }
 
-
         // Save Issuer rejected details
         userExist.approved = false;
         userExist.status = 2;
@@ -1484,13 +1503,15 @@ const validateIssuer = async (req, res) => {
         // If user is not rejected yet, send email and update user's rejected status
         var mailStatus = await rejectEmail(userExist.name, email);
         var mailresponse = (mailStatus === true) ? "sent" : "NA";
+        var _details = revokedStatus == "SUCCESS" ? _details = polygonLink : _details = "";
 
         // Respond with success message indicating user rejected
         res.json({
           status: "SUCCESS",
           email: mailresponse,
           revoke: revokedStatus,
-          message: "User Rejected successfully"
+          message: "User Rejected successfully",
+          details: _details
         });
       }
     }

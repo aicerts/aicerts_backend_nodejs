@@ -20,7 +20,11 @@ const moment = require('moment');
 const { decryptData } = require("../common/cryptoFunction"); // Custom functions for cryptographic operations
 
 const retryDelay = parseInt(process.env.TIME_DELAY);
+const _thresholdYear = parseInt(process.env.THRESHOLD_YEAR);
 const maxRetries = 3; // Maximum number of retries
+// Parse environment variables for password length constraints
+const min_length = parseInt(process.env.MIN_LENGTH);
+const max_length = parseInt(process.env.MAX_LENGTH);
 
 // Regular expression to match MM/DD/YY format
 const regex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/\d{2}$/;
@@ -86,10 +90,7 @@ const fallbackProvider = new ethers.FallbackProvider(providers);
 const signer = new ethers.Wallet(process.env.PRIVATE_KEY, fallbackProvider);
 
 // Create a new ethers contract instance with a signing capability (using the contract ABI and wallet)
-const sim_contract = new ethers.Contract(contractAddress, abi, signer);
-
-// Connect the wallet to the provider.
-// const signer = wallet.connect(_provider);
+const sin_contract = new ethers.Contract(contractAddress, abi, signer);
 
 
 // Import the Issues models from the schema defined in "../config/schema"
@@ -109,7 +110,6 @@ const connectToPolygon = async () => {
   try {
     const provider = new ethers.FallbackProvider(providers);
     await provider.getNetwork(); // Attempt to detect the network
-    // console.log('Connected to Polygon node successfully!');
     return provider;
 
   } catch (error) {
@@ -158,7 +158,25 @@ const fetchExcelRecord = async (_path) => {
       throw error; // Rethrow the error for handling it in the caller function
       
   }
-}
+};
+
+const validateBatchCertificateIDs = async (data) => {
+  console.log("Data", data);
+  const invalidStrings = [];
+    
+  data.forEach(num => {
+    const str = num.toString(); // Convert number to string
+    if (str.length < 12 || str.length > 20) {
+        invalidStrings.push(str);
+    }
+  });
+  
+  if (invalidStrings.length > 0) {
+      return invalidStrings; // Return array of invalid strings
+  } else {
+      return false; // Return false if all strings are valid
+  }
+};
 
 const findRepetitiveIdNumbers = async (data) => {
   const countMap = {};
@@ -184,7 +202,6 @@ const findInvalidDates = async(dates) => {
   const invalidDates = [];
 
   for (let dateString of dates) {
-    // const formattedDate = await convertDateFormat(dateString);
       // Check if the date matches the regex for valid dates with 2-digit years
       if (regex.test(dateString)) {
           validDates.push(dateString);
@@ -229,7 +246,6 @@ for (const date of datesList) {
 
 // Function to convert the Date format
 const convertDateFormat = async (dateString) => {
-  // console.log("Input date", dateString);
   var formatString = 'ddd MMM DD YYYY HH:mm:ss [GMT]ZZ';
   // Define the possible date formats
   const formats = ['MM/DD/YYYY', 'DD/MM/YYYY', 'DD MMMM, YYYY', 'DD MMM, YYYY', 'MMMM d, yyyy', 'MM/DD/YY'];
@@ -282,7 +298,6 @@ const compareGrantExpiredSetDates = async (grantList, expirationList) => {
       
       if (grantDate > expirationDate) {
           dateSets.push(grantList[i], expirationList[i] + " at index " + i);
-          // console.log(`${grantList[i]} is greater than ${expirationList[i]}`);
       }
   }
   
@@ -303,7 +318,6 @@ const convertDateOnVerification = async (dateString) => {
 // Verify Certification ID from both collections (single / batch)
 const isCertificationIdExisted = async (id) => {
   const dbStaus = await isDBConnected();
-  // console.log("DB connected:", dbStaus);
 
   if(id == null || id == ""){
     return [{status: "FAILED", message: "Invalid Data"}];
@@ -355,7 +369,6 @@ const insertCertificateData = async (data) => {
           const previousCount = idExist.certificatesIssued || 0; // Initialize to 0 if certificatesIssued field doesn't exist
           idExist.certificatesIssued = previousCount + 1;
           await idExist.save(); // Save the changes to the existing user
-          // console.log("Counter updated successfully.");
       } else {
           // If user with given id doesn't exist, create a new user instance
           const newUser = new User({
@@ -364,7 +377,6 @@ const insertCertificateData = async (data) => {
               // Add other required fields here if needed
           });
           await newUser.save(); // Save the new user instance
-          // console.log("New user created with certificationsIssued count initialized to 1.");
       }
     
     // Logging confirmation message
@@ -403,7 +415,6 @@ if (idExist) {
     const previousCount = idExist.certificatesIssued || 0; // Initialize to 0 if certificatesIssued field doesn't exist
     idExist.certificatesIssued = previousCount + 1;
     await idExist.save(); // Save the changes to the existing user
-    // console.log("Counter updated successfully.");
 } else {
     // If user with given id doesn't exist, create a new user instance
     const newUser = new User({
@@ -412,7 +423,6 @@ if (idExist) {
         // Add other required fields here if needed
     });
     await newUser.save(); // Save the new user instance
-    // console.log("New user created with certificationsIssued count initialized to 1.");
 }
 
       } catch (error) {
@@ -498,7 +508,7 @@ const holdExecution = (delay) => {
   return new Promise(resolve => {
     setTimeout(() => {
       resolve();
-    }, delay); // 1500 milliseconds = 1.5 seconds
+    }, delay); // If 1500 milliseconds = 1.5 seconds
   });
 };
 
@@ -713,8 +723,11 @@ const fileFilter = (req, file, cb) => {
 };
 
 const excelFilter = (req, file, cb) => {
-  if (file.mimetype === "application/vnd.ms-excel" || file.mimetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") {
-    cb(null, true);
+  if (file.mimetype === "application/vnd.ms-excel" || // For XLS files
+  file.mimetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" || // For XLSX files
+  (file.originalname && file.originalname.endsWith(".xlsx")) // For XLSX files based on file extension
+) {
+  cb(null, true); // Accept the file
   } else {
     cb(
       new Error("Invalid file type. Only Excel files (XLS, XLSX) are allowed."),
@@ -765,7 +778,6 @@ return false; // Return false if unable to connect after maximum retries
 // Email Approved Notfication function
 const sendEmail = async (name, email) => {
   // Log the details of the email recipient (name and email address)
-  // console.log("Details", name, email);
   try {
       // Update the mailOptions object with the recipient's email address and email body
       mailOptions.to = email;
@@ -790,7 +802,6 @@ You can now log in to your profile. With username ${email}`;
 
 // Email Rejected Notfication function
 const rejectEmail = async (name, email) => {
-  // console.log("Details", name, email);
   try {
       // Update the mailOptions object with the recipient's email address and email body
       mailOptions.to = email;
@@ -821,6 +832,8 @@ module.exports = {
 
   // Fetch & validate excel file records
   fetchExcelRecord,
+
+  validateBatchCertificateIDs,
 
   // Verify Certification ID from both collections (single / batch)
   isCertificationIdExisted,
