@@ -4,14 +4,11 @@ require('dotenv').config();
 // Import required modules
 const crypto = require('crypto'); // Module for cryptographic functions
 const multer = require("multer"); // Middleware for handling multipart/form-data
-const Web3 = require("web3"); // Ethereum JavaScript API
 const pdf = require("pdf-lib"); // Library for creating and modifying PDF documents
 const { PDFDocument, Rectangle } = pdf;
 const fs = require("fs"); // File system module
 const path = require("path"); // Module for working with file paths
 const { fromPath } = require("pdf2pic"); // Converter from PDF to images
-const pdftopic = require("pdftopic");
-const Jimp = require("jimp");
 const { PNG } = require("pngjs"); // PNG image manipulation library
 const jsQR = require("jsqr"); // JavaScript QR code reader
 const ethers = require("ethers"); // Ethereum JavaScript library

@@ -19,8 +19,7 @@ const {
 const schedule_days = parseInt(process.env.SCHEDULE_DAYS);
 
 const MONGODB_OPTIONS = {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
+  connectTimeoutMS: 6000000 
   // Add more MongoDB connection options as needed
 };
 

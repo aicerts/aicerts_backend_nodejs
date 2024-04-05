@@ -54,6 +54,7 @@ app.use('/api', tasksRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
+  setTimeout(function() { next(); }, 120000); // 120 seconds
   console.error(err.stack);
   res.status(500).send('Something went wrong!');
 });
