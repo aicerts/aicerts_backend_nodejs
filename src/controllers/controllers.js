@@ -716,7 +716,7 @@ const batchIssueCertificate = async (req, res) => {
           let _grantDate = await convertDateFormat(rawBatchData[i].grantDate);
           let _expirationDate = await convertDateFormat(rawBatchData[i].expirationDate);
           batchDetails[i] = {
-            id: idExist.id,
+            issuerId: idExist.issuerId,
             batchId: allocateBatchId,
             proofHash: _proof,
             encodedProof: _proofHash,
@@ -747,7 +747,7 @@ const batchIssueCertificate = async (req, res) => {
           });
 
           batchDetailsWithQR[i] = {
-            id: idExist.id,
+            issuerId: idExist.issuerId,
             batchId: allocateBatchId,
             transactionHash: txHash,
             certificateHash: hashedBatchData[i],
