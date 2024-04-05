@@ -3,7 +3,6 @@ require('dotenv').config();
 
 // Import required modules
 const crypto = require('crypto'); // Module for cryptographic functions
-const multer = require("multer"); // Middleware for handling multipart/form-data
 const pdf = require("pdf-lib"); // Library for creating and modifying PDF documents
 const { PDFDocument, Rectangle } = pdf;
 const fs = require("fs"); // File system module
@@ -113,28 +112,28 @@ const connectToPolygon = async () => {
     return provider;
 
   } catch (error) {
-      console.error('Failed to connect to Polygon node:', error.message);
-      console.log(`Retrying connection in ${retryDelay / 1000} seconds...`);
-      await new Promise(resolve => setTimeout(resolve, retryDelay)); // Wait before retrying
-      return connectToPolygon(providers); // Retry connecting recursively
+    console.error('Failed to connect to Polygon node:', error.message);
+    console.log(`Retrying connection in ${retryDelay / 1000} seconds...`);
+    await new Promise(resolve => setTimeout(resolve, retryDelay)); // Wait before retrying
+    return connectToPolygon(providers); // Retry connecting recursively
   }
 };
 
 // Fetch records from the excel file
 const fetchExcelRecord = async (_path) => {
-  if(!_path || _path.length<0){
+  if (!_path || _path.length < 0) {
     return { status: "FAILED", response: false, message: "Invalid Excel file." };
   }
   // api to fetch excel data into json
   const newPath = path.join(..._path.split("\\"));
   const sheetNames = await readXlsxFile.readSheetNames(newPath);
   try {
-    if(sheetNames == "Batch" || sheetNames.includes("Batch")){
+    if (sheetNames == "Batch" || sheetNames.includes("Batch")) {
       // api to fetch excel data into json
-      const rows = await readXlsxFile(newPath, {sheet: 'Batch'});
+      const rows = await readXlsxFile(newPath, { sheet: 'Batch' });
       // Check if the extracted headers match the expected pattern
       const isValidHeaders = JSON.stringify(rows[0]) === JSON.stringify(expectedHeadersSchema);
-      if(isValidHeaders){
+      if (isValidHeaders) {
         const headers = rows.shift();
         const targetData = rows.map(row => {
           const obj = {};
@@ -143,7 +142,7 @@ const fetchExcelRecord = async (_path) => {
           });
           return obj; // Return the fetched rows
         });
-  
+
         return { status: "SUCCESS", response: true, message: [targetData, rows.length, rows] };
 
       } else {
@@ -152,28 +151,28 @@ const fetchExcelRecord = async (_path) => {
     } else {
       return { status: "FAILED", response: false, message: "The Excel Sheet name should be - Batch." };
     }
-      
+
   } catch (error) {
-      console.error('Error fetching record:', error);
-      throw error; // Rethrow the error for handling it in the caller function
-      
+    console.error('Error fetching record:', error);
+    throw error; // Rethrow the error for handling it in the caller function
+
   }
 };
 
 const validateBatchCertificateIDs = async (data) => {
   const invalidStrings = [];
-    
+
   data.forEach(num => {
     const str = num.toString(); // Convert number to string
     if (str.length < 12 || str.length > 20) {
-        invalidStrings.push(str);
+      invalidStrings.push(str);
     }
   });
-  
+
   if (invalidStrings.length > 0) {
-      return invalidStrings; // Return array of invalid strings
+    return invalidStrings; // Return array of invalid strings
   } else {
-      return false; // Return false if all strings are valid
+    return false; // Return false if all strings are valid
   }
 };
 
@@ -196,50 +195,50 @@ const findRepetitiveIdNumbers = async (data) => {
   return repetitiveNumbers;
 };
 
-const findInvalidDates = async(dates) => {
+const findInvalidDates = async (dates) => {
   const validDates = [];
   const invalidDates = [];
 
   for (let dateString of dates) {
-      // Check if the date matches the regex for valid dates with 2-digit years
-      if (regex.test(dateString)) {
-          validDates.push(dateString);
+    // Check if the date matches the regex for valid dates with 2-digit years
+    if (regex.test(dateString)) {
+      validDates.push(dateString);
+    } else {
+      // Check if the year component has 3 digits, indicating an invalid date
+      const year = parseInt(dateString.split('/')[2]);
+      if (year >= 98) {
+        invalidDates.push(dateString);
       } else {
-          // Check if the year component has 3 digits, indicating an invalid date
-          const year = parseInt(dateString.split('/')[2]);
-          if (year >= 98) {
-              invalidDates.push(dateString);
-          } else {
-              validDates.push(dateString);
-          }
+        validDates.push(dateString);
       }
+    }
   }
 
   return { validDates, invalidDates };
 };
 
 const compareEpochDates = async (datesList) => {
-  const thresholdYear= _thresholdYear;
+  const thresholdYear = _thresholdYear;
   const invalidDates = [];
   // Get today's date
   const currentDate = new Date();
   // Function to convert date string to Date object using the provided pattern
-const convertToDate = (dateString) => {
-  const [month, day, year] = dateString.split('/');
-  return new Date(2000 + parseInt(year), parseInt(month) - 1, parseInt(day));
-};
+  const convertToDate = (dateString) => {
+    const [month, day, year] = dateString.split('/');
+    return new Date(2000 + parseInt(year), parseInt(month) - 1, parseInt(day));
+  };
 
-// Compare each date in the list with today's date
-for (const date of datesList) {
-  const comparisonDate = convertToDate(date);
-  if(comparisonDate.getFullYear() < thresholdYear){
-    if (comparisonDate < currentDate) {
+  // Compare each date in the list with today's date
+  for (const date of datesList) {
+    const comparisonDate = convertToDate(date);
+    if (comparisonDate.getFullYear() < thresholdYear) {
+      if (comparisonDate < currentDate) {
         invalidDates.push(moment(comparisonDate).format('MM/DD/YY'));
-    } 
-} else {
-  invalidDates.push(moment(comparisonDate).format('MM/DD/YY'));
-}
-}
+      }
+    } else {
+      invalidDates.push(moment(comparisonDate).format('MM/DD/YY'));
+    }
+  }
   return invalidDates;
 }
 
@@ -252,10 +251,10 @@ const convertDateFormat = async (dateString) => {
   // Attempt to parse the input date string using each format
   let dateObject;
   for (const format of formats) {
-      dateObject = moment(dateString, format, true);
-      if (dateObject.isValid()) {
-          break;
-      }
+    dateObject = moment(dateString, format, true);
+    if (dateObject.isValid()) {
+      break;
+    }
   }
 
   // Check if a valid date object was obtained
@@ -266,40 +265,40 @@ const convertDateFormat = async (dateString) => {
     // Format the date to 'YY/MM/DD'
     var formattedDate = momentDate.format('MM/DD/YY');
     return formattedDate;
-    } else if(!formattedDate){
+  } else if (!formattedDate) {
     // Format the parsed date to 'MM/DD/YY'
     var formattedDate = moment(dateString, formatString).format('MM/DD/YY');
-      if(formattedDate != 'Invalid date'){
-        return formattedDate;
-      } else {
-        var formattedDate = moment(dateString).utc().format('MM/DD/YY');
-        return formattedDate;
-      }
+    if (formattedDate != 'Invalid date') {
+      return formattedDate;
+    } else {
+      var formattedDate = moment(dateString).utc().format('MM/DD/YY');
+      return formattedDate;
     }
-    else {
-      // Return null or throw an error based on your preference for handling invalid dates
-      return null;
-    }
+  }
+  else {
+    // Return null or throw an error based on your preference for handling invalid dates
+    return null;
+  }
 };
 
 // Function to compare two grant & expiration of dates
 const compareGrantExpiredSetDates = async (grantList, expirationList) => {
   const dateSets = [];
   const length = Math.min(grantList.length, expirationList.length);
-  
+
   for (let i = 0; i < length; i++) {
-      const grantDateParts = grantList[i].split('/');
-      const expirationDateParts = expirationList[i].split('/');
-      
-      // Create Date objects for comparison
-      const grantDate = new Date(`20${grantDateParts[2]}`, grantDateParts[0] - 1, grantDateParts[1]);
-      const expirationDate = new Date(`20${expirationDateParts[2]}`, expirationDateParts[0] - 1, expirationDateParts[1]);
-      
-      if (grantDate > expirationDate) {
-          dateSets.push(grantList[i], expirationList[i] + " at index " + i);
-      }
+    const grantDateParts = grantList[i].split('/');
+    const expirationDateParts = expirationList[i].split('/');
+
+    // Create Date objects for comparison
+    const grantDate = new Date(`20${grantDateParts[2]}`, grantDateParts[0] - 1, grantDateParts[1]);
+    const expirationDate = new Date(`20${expirationDateParts[2]}`, expirationDateParts[0] - 1, expirationDateParts[1]);
+
+    if (grantDate > expirationDate) {
+      dateSets.push(grantList[i], expirationList[i] + " at index " + i);
+    }
   }
-  
+
   return dateSets;
 };
 
@@ -315,30 +314,30 @@ const convertDateOnVerification = async (dateString) => {
 };
 
 // Verify Certification ID from both collections (single / batch)
-const isCertificationIdExisted = async (id) => {
+const isCertificationIdExisted = async (certId) => {
   const dbStaus = await isDBConnected();
 
-  if(id == null || id == ""){
-    return [{status: "FAILED", message: "Invalid Data"}];
+  if (certId == null || certId == "") {
+    return [{ status: "FAILED", message: "Invalid Data" }];
   }
 
-  const singleIssueExist = await Issues.findOne({ certificateNumber: id });
-  const batchIssueExist = await BatchIssues.findOne({ certificateNumber: id });
+  const singleIssueExist = await Issues.findOne({ certificateNumber: certId });
+  const batchIssueExist = await BatchIssues.findOne({ certificateNumber: certId });
 
-  try{
-      if(singleIssueExist){
+  try {
+    if (singleIssueExist) {
 
-        return [{status: "SUCCESS", message: "unit", details: singleIssueExist}];
-      } else if (batchIssueExist) {
+      return [{ status: "SUCCESS", message: "unit", details: singleIssueExist }];
+    } else if (batchIssueExist) {
 
-        return [{status: "SUCCESS", message: "batch", details: batchIssueExist}];
-      } else {
+      return [{ status: "SUCCESS", message: "batch", details: batchIssueExist }];
+    } else {
 
-        return [{status: "FAILED", message: "Certification ID not found"}];
-      }
+      return [{ status: "FAILED", message: "Certification ID not found" }];
+    }
 
-  }catch (error) {
-        console.error("Error during validation:", error);
+  } catch (error) {
+    console.error("Error during validation:", error);
   }
 };
 
@@ -346,38 +345,39 @@ const isCertificationIdExisted = async (id) => {
 const insertCertificateData = async (data) => {
   try {
     // Create a new Issues document with the provided data
-      const newIssue = new Issues({ 
-              id: data.id,
-              transactionHash: data.transactionHash,
-              certificateHash: data.certificateHash,
-              certificateNumber: data.certificateNumber,
-              name: data.name,
-              course: data.course,
-              grantDate: data.grantDate,
-              expirationDate: data.expirationDate,
-              issueDate: Date.now() // Set the issue date to the current timestamp
-      });
-      
+    const newIssue = new Issues({
+      issuerId: data.issuerId,
+      transactionHash: data.transactionHash,
+      certificateHash: data.certificateHash,
+      certificateNumber: data.certificateNumber,
+      name: data.name,
+      course: data.course,
+      grantDate: data.grantDate,
+      expirationDate: data.expirationDate,
+      certificateStatus: 1,
+      issueDate: Date.now() // Set the issue date to the current timestamp
+    });
+
     // Save the new Issues document to the database
     const result = await newIssue.save();
 
-    const idExist = await User.findOne({ id: data.id });
+    const idExist = await User.findOne({ issuerId: data.issuerId });
 
-      if (idExist) {
-          // If user with given id exists, update certificatesIssued count
-          const previousCount = idExist.certificatesIssued || 0; // Initialize to 0 if certificatesIssued field doesn't exist
-          idExist.certificatesIssued = previousCount + 1;
-          await idExist.save(); // Save the changes to the existing user
-      } else {
-          // If user with given id doesn't exist, create a new user instance
-          const newUser = new User({
-              id: data.id,
-              certificatesIssued: 1 // Initialize certificatesIssued count to 1 for the new user
-              // Add other required fields here if needed
-          });
-          await newUser.save(); // Save the new user instance
-      }
-    
+    if (idExist) {
+      // If user with given id exists, update certificatesIssued count
+      const previousCount = idExist.certificatesIssued || 0; // Initialize to 0 if certificatesIssued field doesn't exist
+      idExist.certificatesIssued = previousCount + 1;
+      await idExist.save(); // Save the changes to the existing user
+    } else {
+      // If user with given id doesn't exist, create a new user instance
+      const newUser = new User({
+        issuerId: data.issuerId,
+        certificatesIssued: 1 // Initialize certificatesIssued count to 1 for the new user
+        // Add other required fields here if needed
+      });
+      await newUser.save(); // Save the new user instance
+    }
+
     // Logging confirmation message
     console.log("Certificate data inserted");
   } catch (error) {
@@ -389,51 +389,51 @@ const insertCertificateData = async (data) => {
 // Function to insert certification data into MongoDB
 const insertBatchCertificateData = async (data) => {
   try {
-    
-      // Insert data into MongoDB
-      const newBatchIssue = new BatchIssues({ 
-              issuerId: data.id,
-              batchId: data.batchId,
-              proofHash: data.proofHash,
-              transactionHash: data.transactionHash,
-              certificateHash: data.certificateHash,
-              certificateNumber: data.certificateNumber,
-              name: data.name,
-              course: data.course,
-              grantDate: data.grantDate,
-              expirationDate: data.expirationDate,
-              issueDate: Date.now()
-      });
-      
-      const result = await newBatchIssue.save();
 
-const idExist = await User.findOne({ id: data.id });
+    // Insert data into MongoDB
+    const newBatchIssue = new BatchIssues({
+      issuerId: data.issuerId,
+      batchId: data.batchId,
+      proofHash: data.proofHash,
+      transactionHash: data.transactionHash,
+      certificateHash: data.certificateHash,
+      certificateNumber: data.certificateNumber,
+      name: data.name,
+      course: data.course,
+      grantDate: data.grantDate,
+      expirationDate: data.expirationDate,
+      issueDate: Date.now()
+    });
 
-if (idExist) {
-    // If user with given id exists, update certificatesIssued count
-    const previousCount = idExist.certificatesIssued || 0; // Initialize to 0 if certificatesIssued field doesn't exist
-    idExist.certificatesIssued = previousCount + 1;
-    await idExist.save(); // Save the changes to the existing user
-} else {
-    // If user with given id doesn't exist, create a new user instance
-    const newUser = new User({
-        id: data.id,
+    const result = await newBatchIssue.save();
+
+    const idExist = await User.findOne({ issuerId: data.issuerId });
+
+    if (idExist) {
+      // If user with given id exists, update certificatesIssued count
+      const previousCount = idExist.certificatesIssued || 0; // Initialize to 0 if certificatesIssued field doesn't exist
+      idExist.certificatesIssued = previousCount + 1;
+      await idExist.save(); // Save the changes to the existing user
+    } else {
+      // If user with given id doesn't exist, create a new user instance
+      const newUser = new User({
+        issuerId: data.issuerId,
         certificatesIssued: 1 // Initialize certificatesIssued count to 1 for the new user
         // Add other required fields here if needed
-    });
-    await newUser.save(); // Save the new user instance
-}
-
-      } catch (error) {
-        console.error("Error connecting to MongoDB:", error);
+      });
+      await newUser.save(); // Save the new user instance
     }
+
+  } catch (error) {
+    console.error("Error connecting to MongoDB:", error);
+  }
 };
 
 // Function to extract certificate information from a QR code text
 const extractCertificateInfo = async (qrCodeText) => {
   // console.log("QR Code Text", qrCodeText);
   // Check if the data starts with 'http://' or 'https://'
-  if (qrCodeText.startsWith('http://') ||  qrCodeText.startsWith('https://')) {
+  if (qrCodeText.startsWith('http://') || qrCodeText.startsWith('https://')) {
     // If it's an encrypted URL, extract the query string parameters q and iv
     const url = decodeURIComponent(qrCodeText);
     const qIndex = url.indexOf("q=");
@@ -443,32 +443,32 @@ const extractCertificateInfo = async (qrCodeText) => {
 
     // Decrypt the data using the provided q and iv parameters
     const fetchDetails = decryptData(q, iv);
-    
-      // Parse the JSON string into a JavaScript object
-      const parsedData = JSON.parse(fetchDetails);
+
+    // Parse the JSON string into a JavaScript object
+    const parsedData = JSON.parse(fetchDetails);
     // Create a new object with desired key-value mappings for certificate information
     const convertedData = {
-        "Certificate Number": parsedData.Certificate_Number,
-        "Course Name": parsedData.courseName,
-        "Expiration Date": await convertDateOnVerification(parsedData.Expiration_Date),
-        "Grant Date": await convertDateOnVerification(parsedData.Grant_Date),
-        "Name": parsedData.name,
-        "Polygon URL": parsedData.polygonLink
-      };
-      // console.log("Data of Redirect", convertedData);
-      return convertedData;
+      "Certificate Number": parsedData.Certificate_Number,
+      "Course Name": parsedData.courseName,
+      "Expiration Date": await convertDateOnVerification(parsedData.Expiration_Date),
+      "Grant Date": await convertDateOnVerification(parsedData.Grant_Date),
+      "Name": parsedData.name,
+      "Polygon URL": parsedData.polygonLink
+    };
+    // console.log("Data of Redirect", convertedData);
+    return convertedData;
   } else {
     // If it's not an encrypted URL, assume it's plain text and split by new lines
     const lines = qrCodeText.split("\n");
     // Initialize an object to store certificate information
     const certificateInfo = {
-        "Verify On Blockchain": "",
-        "Certification Number": "",
-        "Name": "",
-        "Certification Name": "",
-        "Grant Date": "",
-        "Expiration Date": ""
-      };
+      "Verify On Blockchain": "",
+      "Certification Number": "",
+      "Name": "",
+      "Certification Name": "",
+      "Grant Date": "",
+      "Expiration Date": ""
+    };
 
     // Loop through each line of the text
     for (const line of lines) {
@@ -477,30 +477,30 @@ const extractCertificateInfo = async (qrCodeText) => {
       if (parts.length === 2) {
         const key = parts[0].trim();
         let value = parts[1].trim();
-  
+
         // Remove commas from the value (if any)
         value = value.replace(/,/g, "");
 
         // Map the key-value pairs to corresponding fields in the certificateInfo object
-        if(key === "Verify On Blockchain") {
-                certificateInfo["Polygon URL"] = value;
-            } else if (key === "Certification Number") {
-                certificateInfo["Certificate Number"] = value;
-            } else if (key === "Name") {
-                certificateInfo["Name"] = value;
-            } else if (key === "Certification Name") {
-                certificateInfo["Course Name"] = value;
-            } else if (key === "Grant Date") {
-                certificateInfo["Grant Date"] = value;
-            } else if (key === "Expiration Date") {
-                certificateInfo["Expiration Date"] = value;
-            }
+        if (key === "Verify On Blockchain") {
+          certificateInfo["Polygon URL"] = value;
+        } else if (key === "Certification Number") {
+          certificateInfo["Certificate Number"] = value;
+        } else if (key === "Name") {
+          certificateInfo["Name"] = value;
+        } else if (key === "Certification Name") {
+          certificateInfo["Course Name"] = value;
+        } else if (key === "Grant Date") {
+          certificateInfo["Grant Date"] = value;
+        } else if (key === "Expiration Date") {
+          certificateInfo["Expiration Date"] = value;
         }
+      }
     }
     // console.log("Data LMS ", certificateInfo);
     return certificateInfo;
   }
-  
+
 };
 
 const holdExecution = (delay) => {
@@ -517,7 +517,7 @@ const baseCodeResponse = async (pdfFilePath, pdf2PicOptions) => {
     1, // page number to be converted to image
     true // returns base64 output
   );
-  
+
   // Extract base64 data URI from response
   var dataUri = base64Response?.base64;
 
@@ -533,57 +533,57 @@ const baseCodeResponse = async (pdfFilePath, pdf2PicOptions) => {
 
 const extractQRCodeDataFromPDF = async (pdfFilePath) => {
   try {
-      const pdf2picOptions = {
-          quality: 100,
-          density: 300,
-          format: "png",
-          width: 2000,
-          height: 2000,
-      };
+    const pdf2picOptions = {
+      quality: 100,
+      density: 300,
+      format: "png",
+      width: 2000,
+      height: 2000,
+    };
 
-      const pdf2picOptions2 = {
-          quality: 100,
-          density: 350,
-          format: "png",
-          width: 3000,
-          height: 3000,
-      };
+    const pdf2picOptions2 = {
+      quality: 100,
+      density: 350,
+      format: "png",
+      width: 3000,
+      height: 3000,
+    };
 
-      const pdf2picOptions3 = {
-          quality: 100,
-          density: 350,
-          format: "png",
-          width: 4000,
-          height: 4000,
-      };
-      // Decode QR code from PNG data
-      var code = await baseCodeResponse(pdfFilePath, pdf2picOptions);
-      if(!code){
-        var code = await baseCodeResponse(pdfFilePath, pdf2picOptions2);
-        if(!code) {
-          var code = await baseCodeResponse(pdfFilePath, pdf2picOptions3);
-        }
+    const pdf2picOptions3 = {
+      quality: 100,
+      density: 350,
+      format: "png",
+      width: 4000,
+      height: 4000,
+    };
+    // Decode QR code from PNG data
+    var code = await baseCodeResponse(pdfFilePath, pdf2picOptions);
+    if (!code) {
+      var code = await baseCodeResponse(pdfFilePath, pdf2picOptions2);
+      if (!code) {
+        var code = await baseCodeResponse(pdfFilePath, pdf2picOptions3);
       }
-      const qrCodeText = code?.data;
-      // Throw error if QR code text is not available
-      if (!qrCodeText){
-          // throw new Error("QR Code Text could not be extracted from PNG image");
-          console.log("QR Code Not Found / QR Code Text could not be extracted");
-          return false;
-        } else {
-        detailsQR = qrCodeText;
-        // Extract certificate information from QR code text
-        const certificateInfo = extractCertificateInfo(qrCodeText);
+    }
+    const qrCodeText = code?.data;
+    // Throw error if QR code text is not available
+    if (!qrCodeText) {
+      // throw new Error("QR Code Text could not be extracted from PNG image");
+      console.log("QR Code Not Found / QR Code Text could not be extracted");
+      return false;
+    } else {
+      detailsQR = qrCodeText;
+      // Extract certificate information from QR code text
+      const certificateInfo = extractCertificateInfo(qrCodeText);
 
-        // Return the extracted certificate information
-        return certificateInfo;
-        }
+      // Return the extracted certificate information
+      return certificateInfo;
+    }
 
   } catch (error) {
-      // Log and rethrow any errors that occur during the process
-      console.error(error);
-      // throw error;
-      return false;
+    // Log and rethrow any errors that occur during the process
+    console.error(error);
+    // throw error;
+    return false;
   }
 };
 
@@ -594,95 +594,95 @@ const addLinkToPdf = async (
   qrCode, // QR code image to be added to the PDF
   combinedHash // Combined hash value to be displayed (optional)
 ) => {
-    // Read existing PDF file bytes
-    const existingPdfBytes = fs.readFileSync(inputPath);
+  // Read existing PDF file bytes
+  const existingPdfBytes = fs.readFileSync(inputPath);
 
-    // Load existing PDF document
-    const pdfDoc = await pdf.PDFDocument.load(existingPdfBytes);
+  // Load existing PDF document
+  const pdfDoc = await pdf.PDFDocument.load(existingPdfBytes);
 
-    // Get the first page of the PDF document
-    const page = pdfDoc.getPage(0);
+  // Get the first page of the PDF document
+  const page = pdfDoc.getPage(0);
 
-    // Get page width and height
-    const width = page.getWidth();
-    const height = page.getHeight();
+  // Get page width and height
+  const width = page.getWidth();
+  const height = page.getHeight();
 
-    // Add link URL to the PDF page
-    page.drawText(linkUrl, {
-      x: 62, // X coordinate of the text
-      y: 30, // Y coordinate of the text
-      size: 8, // Font size
+  // Add link URL to the PDF page
+  page.drawText(linkUrl, {
+    x: 62, // X coordinate of the text
+    y: 30, // Y coordinate of the text
+    size: 8, // Font size
   });
 
-    // page.drawText(combinedHash, {
-    //   x: 5,
-    //   y: 10,
-    //   size: 3
-    // });
+  // page.drawText(combinedHash, {
+  //   x: 5,
+  //   y: 10,
+  //   size: 3
+  // });
 
-    //Adding qr code
-    const pdfDc = await PDFDocument.create();
-    // Adding QR code to the PDF page
-    const pngImage = await pdfDoc.embedPng(qrCode); // Embed QR code image
-    const pngDims = pngImage.scale(0.36); // Scale QR code image
+  //Adding qr code
+  const pdfDc = await PDFDocument.create();
+  // Adding QR code to the PDF page
+  const pngImage = await pdfDoc.embedPng(qrCode); // Embed QR code image
+  const pngDims = pngImage.scale(0.36); // Scale QR code image
 
-    page.drawImage(pngImage, {
-        x: width - pngDims.width - 108,
-        y: 135,
-        width: pngDims.width,
-        height: pngDims.height,
-    });
-    qrX = width - pngDims.width - 75;
-    qrY = 75;
-    qrWidth = pngDims.width;
-    qrHeight = pngDims.height;
+  page.drawImage(pngImage, {
+    x: width - pngDims.width - 108,
+    y: 135,
+    width: pngDims.width,
+    height: pngDims.height,
+  });
+  qrX = width - pngDims.width - 75;
+  qrY = 75;
+  qrWidth = pngDims.width;
+  qrHeight = pngDims.height;
 
-    const pdfBytes = await pdfDoc.save();
+  const pdfBytes = await pdfDoc.save();
 
-    fs.writeFileSync(outputPath, pdfBytes);
-    return pdfBytes;
+  fs.writeFileSync(outputPath, pdfBytes);
+  return pdfBytes;
 };
 
 const verifyPDFDimensions = async (pdfPath) => {
   // Extract QR code data from the PDF file
   const certificateData = await extractQRCodeDataFromPDF(pdfPath);
   const pdfBuffer = fs.readFileSync(pdfPath);
-    const pdfDoc = await PDFDocument.load(pdfBuffer);
+  const pdfDoc = await PDFDocument.load(pdfBuffer);
 
-    const firstPage = pdfDoc.getPages()[0];
-    const { width, height } = firstPage.getSize();
+  const firstPage = pdfDoc.getPages()[0];
+  const { width, height } = firstPage.getSize();
 
-    // Assuming PDF resolution is 72 points per inch
-    const dpi = 72;
-    const widthInches = width / dpi;
-    const heightInches = height / dpi;
+  // Assuming PDF resolution is 72 points per inch
+  const dpi = 72;
+  const widthInches = width / dpi;
+  const heightInches = height / dpi;
 
-    // Convert inches to millimeters (1 inch = 25.4 mm)
-    const widthMillimeters = widthInches * 25.4;
-    const heightMillimeters = heightInches * 25.4;
+  // Convert inches to millimeters (1 inch = 25.4 mm)
+  const widthMillimeters = widthInches * 25.4;
+  const heightMillimeters = heightInches * 25.4;
 
-    // Check if dimensions fall within the specified ranges
-    if (
-        (widthMillimeters >= 340 && widthMillimeters <= 360) &&
-        (heightMillimeters >= 240 && heightMillimeters <= 260) &&
-        (certificateData === false)
-    ) {
-        // Convert inches to pixels (assuming 1 inch = 96 pixels)
-        // const widthPixels = widthInches * 96;
-        // const heightPixels = heightInches * 96;
+  // Check if dimensions fall within the specified ranges
+  if (
+    (widthMillimeters >= 340 && widthMillimeters <= 360) &&
+    (heightMillimeters >= 240 && heightMillimeters <= 260) &&
+    (certificateData === false)
+  ) {
+    // Convert inches to pixels (assuming 1 inch = 96 pixels)
+    // const widthPixels = widthInches * 96;
+    // const heightPixels = heightInches * 96;
 
-        // console.log("The certificate width x height (in mm):", widthMillimeters, heightMillimeters);
+    // console.log("The certificate width x height (in mm):", widthMillimeters, heightMillimeters);
 
-        return true;
-    } else {
-        // throw new Error('PDF dimensions must be within 240-260 mm width and 340-360 mm height');
-        return false;
-    }
+    return true;
+  } else {
+    // throw new Error('PDF dimensions must be within 240-260 mm width and 340-360 mm height');
+    return false;
+  }
 
 };
 
 // Function to calculate SHA-256 hash of data
-const calculateHash = (data)=> {
+const calculateHash = (data) => {
   // Create a hash object using SHA-256 algorithm
   // Update the hash object with input data and digest the result as hexadecimal string
   return crypto.createHash('sha256').update(data).digest('hex').toString();
@@ -693,7 +693,7 @@ const web3i = async () => {
   var provider = new ethers.providers.getDefaultProvider(process.env.RPC_ENDPOINT);
   await provider.getNetwork(); // Attempt to detect the network
 
-  if(provider){
+  if (provider) {
 
     // Get contract ABI from configuration
     const contractABI = abi;
@@ -723,10 +723,10 @@ const fileFilter = (req, file, cb) => {
 
 const excelFilter = (req, file, cb) => {
   if (file.mimetype === "application/vnd.ms-excel" || // For XLS files
-  file.mimetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" || // For XLSX files
-  (file.originalname && file.originalname.endsWith(".xlsx")) // For XLSX files based on file extension
-) {
-  cb(null, true); // Accept the file
+    file.mimetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" || // For XLSX files
+    (file.originalname && file.originalname.endsWith(".xlsx")) // For XLSX files based on file extension
+  ) {
+    cb(null, true); // Accept the file
   } else {
     cb(
       new Error("Invalid file type. Only Excel files (XLS, XLSX) are allowed."),
@@ -758,69 +758,69 @@ const cleanUploadFolder = async () => {
 const isDBConnected = async () => {
   let retryCount = 0; // Initialize retry count
   while (retryCount < maxRetries) {
-  try {
-    // Attempt to establish a connection to the MongoDB database using the provided URI
-    await mongoose.connect(process.env.MONGODB_URI);
-    // console.log('Connected to MongoDB successfully!');
-    return true; // Return true if the connection is successful
-  } catch (error) {
-    console.error('Error connecting to MongoDB:', error.message);
-    retryCount++; // Increment retry count
-    console.log(`Retrying connection (${retryCount}/${maxRetries}) in 1.5 seconds...`);
-    await new Promise(resolve => setTimeout(resolve, retryDelay)); // Wait for 1.5 seconds before retrying
+    try {
+      // Attempt to establish a connection to the MongoDB database using the provided URI
+      await mongoose.connect(process.env.MONGODB_URI);
+      // console.log('Connected to MongoDB successfully!');
+      return true; // Return true if the connection is successful
+    } catch (error) {
+      console.error('Error connecting to MongoDB:', error.message);
+      retryCount++; // Increment retry count
+      console.log(`Retrying connection (${retryCount}/${maxRetries}) in 1.5 seconds...`);
+      await new Promise(resolve => setTimeout(resolve, retryDelay)); // Wait for 1.5 seconds before retrying
+    }
   }
-}
-console.error('Failed to connect to MongoDB after maximum retries.');
-return false; // Return false if unable to connect after maximum retries
+  console.error('Failed to connect to MongoDB after maximum retries.');
+  return false; // Return false if unable to connect after maximum retries
 };
 
 // Email Approved Notfication function
 const sendEmail = async (name, email) => {
   // Log the details of the email recipient (name and email address)
   try {
-      // Update the mailOptions object with the recipient's email address and email body
-      mailOptions.to = email;
-      mailOptions.text = `Hi ${name}, 
+    // Update the mailOptions object with the recipient's email address and email body
+    mailOptions.to = email;
+    mailOptions.text = `Hi ${name}, 
 Congratulations! You've been approved by the admin. 
 You can now log in to your profile. With username ${email}`;
-  
-      // Send the email using the configured transporter
-      transporter.sendMail(mailOptions);
-      console.log('Email sent successfully');
 
-      // Return true to indicate that the email was sent successfully
-      return true;
+    // Send the email using the configured transporter
+    transporter.sendMail(mailOptions);
+    console.log('Email sent successfully');
+
+    // Return true to indicate that the email was sent successfully
+    return true;
   } catch (error) {
-      // Log an error message if there was an error sending the email
-      console.error('Error sending email:', error);
+    // Log an error message if there was an error sending the email
+    console.error('Error sending email:', error);
 
-      // Return false to indicate that the email sending failed
-      return false;
+    // Return false to indicate that the email sending failed
+    return false;
   }
 };
 
 // Email Rejected Notfication function
 const rejectEmail = async (name, email) => {
   try {
-      // Update the mailOptions object with the recipient's email address and email body
-      mailOptions.to = email;
-      mailOptions.text = `Hi ${name}, 
+    // Update the mailOptions object with the recipient's email address and email body
+    mailOptions.to = email;
+    mailOptions.text = `Hi ${name}, 
     We regret to inform you that your account registration has been declined by the admin. 
     If you have any questions or concerns, please feel free to contact us. 
     Thank you for your interest.`;
-  
-      // Send the email using the configured transporter
-      transporter.sendMail(mailOptions);
-      console.log('Email sent successfully');
 
-      // Return true to indicate that the email was sent successfully
-      return true;
+    // Send the email using the configured transporter
+    transporter.sendMail(mailOptions);
+    console.log('Email sent successfully');
+
+    // Return true to indicate that the email was sent successfully
+    return true;
   } catch (error) {
-      // Log an error message if there was an error sending the email
-      console.error('Error sending email:', error);
+    // Log an error message if there was an error sending the email
+    console.error('Error sending email:', error);
 
-      // Return false to indicate that the email sending failed
-      return false;
+    // Return false to indicate that the email sending failed
+    return false;
   }
 };
 

@@ -11,6 +11,7 @@ const AWS = require('../config/aws-config');
 const _fs = require("fs-extra");
 const { ethers } = require("ethers"); // Ethereum JavaScript library
 const { StandardMerkleTree } = require("@openzeppelin/merkle-tree");
+const keccak256 = require('keccak256');
 
 // Import bcrypt for hashing passwords
 const bcrypt = require("bcrypt");
@@ -68,7 +69,7 @@ const provider = new ethers.JsonRpcProvider(process.env.RPC_ENDPOINT);
 const signer = new ethers.Wallet(process.env.PRIVATE_KEY, fallbackProvider);
 
 // Create a new ethers contract instance with a signing capability (using the contract Address, ABI and signer)
-const new_contract = new ethers.Contract(contractAddress, abi, signer);
+const newContract = new ethers.Contract(contractAddress, abi, signer);
 
 // Parse environment variables for password length constraints
 const min_length = parseInt(process.env.MIN_LENGTH);
@@ -91,20 +92,20 @@ app.use("../../uploads", express.static(path.join(__dirname, "uploads")));
 const issuePdf = async (req, res) => {
   // Extracting required data from the request body
   const email = req.body.email;
-  const Certificate_Number = req.body.certificateNumber;
+  const certificateNumber = req.body.certificateNumber;
   const name = req.body.name;
   const courseName = req.body.course;
-  var _Grant_Date = req.body.grantDate;
-  var _Expiration_Date = req.body.expirationDate;
-  const Grant_Date = await convertDateFormat(_Grant_Date);
-  const Expiration_Date = await convertDateFormat(_Expiration_Date);
+  var _grantDate = req.body.grantDate;
+  var _expirationDate = req.body.expirationDate;
+  const grantDate = await convertDateFormat(_grantDate);
+  const expirationDate = await convertDateFormat(_expirationDate);
 
   // Check if user with provided email exists
   const idExist = await User.findOne({ email });
   // Check if certificate number already exists
-  const isNumberExist = await Issues.findOne({ certificateNumber: Certificate_Number });
+  const isNumberExist = await Issues.findOne({ certificateNumber: certificateNumber });
   // Check if certificate number already exists in the Batch
-  const isNumberExistInBatch = await BatchIssues.findOne({ certificateNumber: Certificate_Number });
+  const isNumberExistInBatch = await BatchIssues.findOne({ certificateNumber: certificateNumber });
 
   // const tempData = await verifyPDFDimensions(req.file.path);
 
@@ -124,14 +125,14 @@ const issuePdf = async (req, res) => {
     _result == false ||
     isNumberExist || // Certificate number already exists 
     isNumberExistInBatch || // Certificate number already exists in Batch
-    !Certificate_Number || // Missing certificate number
+    !certificateNumber || // Missing certificate number
     !name || // Missing name
     !courseName || // Missing course name
-    !Grant_Date || // Missing grant date
-    !Expiration_Date || // Missing expiration date
-    [Certificate_Number, name, courseName, Grant_Date, Expiration_Date].some(value => typeof value !== 'string' || value == 'string') || // Some values are not strings
-    Certificate_Number.length > max_length || // Certificate number exceeds maximum length
-    Certificate_Number.length < min_length // Certificate number is shorter than minimum length
+    !grantDate || // Missing grant date
+    !expirationDate || // Missing expiration date
+    [certificateNumber, name, courseName, grantDate, expirationDate].some(value => typeof value !== 'string' || value == 'string') || // Some values are not strings
+    certificateNumber.length > max_length || // Certificate number exceeds maximum length
+    certificateNumber.length < min_length // Certificate number is shorter than minimum length
   ) {
     // res.status(400).json({ message: "Please provide valid details" });
     let errorMessage = "Please provide valid details";
@@ -139,19 +140,19 @@ const issuePdf = async (req, res) => {
     // Check for specific error conditions and update the error message accordingly
     if (isNumberExist || isNumberExistInBatch) {
       errorMessage = "Certification number already exists";
-    } else if (!Grant_Date || !Expiration_Date) {
+    } else if (!grantDate || !expirationDate) {
       errorMessage = "Please provide valid Dates";
-    } else if (!Certificate_Number) {
+    } else if (!certificateNumber) {
       errorMessage = "Certification number is required";
-    } else if (Certificate_Number.length > max_length) {
+    } else if (certificateNumber.length > max_length) {
       errorMessage = `Certification number should be less than ${max_length} characters`;
-    } else if (Certificate_Number.length < min_length) {
+    } else if (certificateNumber.length < min_length) {
       errorMessage = `Certification number should be at least ${min_length} characters`;
     } else if (!idExist) {
       errorMessage = `Invalid Issuer Email`;
     } else if (idExist.status != 1) {
       errorMessage = `Unauthorised Issuer Email`;
-    } else if (_result == false) {
+    }else if (_result == false) {
       await cleanUploadFolder();
       errorMessage = `Invalid PDF (Certification Template) dimensions`;
     }
@@ -162,11 +163,11 @@ const issuePdf = async (req, res) => {
   } else {
     // If validation passes, proceed with certificate issuance
     const fields = {
-      Certificate_Number: req.body.certificateNumber,
+      certificateNumber: req.body.certificateNumber,
       name: req.body.name,
       courseName: req.body.course,
-      Grant_Date: Grant_Date,
-      Expiration_Date: Expiration_Date,
+      grantDate: grantDate,
+      expirationDate: expirationDate,
     };
     const hashedFields = {};
     for (const field in fields) {
@@ -176,9 +177,13 @@ const issuePdf = async (req, res) => {
 
     try {
       // Verify certificate on blockchain
-      const isPaused = await new_contract.paused();
-      const issuerAuthorized = await new_contract.hasRole(process.env.ISSUER_ROLE, idExist.id);
-      const val = await new_contract.verifyCertificateById(Certificate_Number);
+      const isPaused = await newContract.paused();
+      // Check if the Issuer wallet address is a valid Ethereum address
+      if (!ethers.isAddress(idExist.issuerId)) {
+        return res.status(400).json({ status: "FAILED", message: "Invalid Ethereum address format" });
+      }
+      const issuerAuthorized = await newContract.hasRole(process.env.ISSUER_ROLE, idExist.issuerId);
+      const val = await newContract.verifyCertificateById(certificateNumber);
 
       if (
         val === true ||
@@ -197,8 +202,8 @@ const issuePdf = async (req, res) => {
 
         try {
           // If simulation successful, issue the certificate on blockchain
-          const tx = await new_contract.issueCertificate(
-            fields.Certificate_Number,
+          const tx = await newContract.issueCertificate(
+            fields.certificateNumber,
             combinedHash
           );
 
@@ -230,11 +235,11 @@ const issuePdf = async (req, res) => {
         if (legacyQR) {
           // Include additional data in QR code
           qrCodeData = `Verify On Blockchain: ${linkUrl},
-          Certification Number: ${Certificate_Number},
+          Certification Number: ${certificateNumber},
           Name: ${name},
           Certification Name: ${courseName},
-          Grant Date: ${Grant_Date},
-          Expiration Date: ${Expiration_Date}`;
+          Grant Date: ${grantDate},
+          Expiration Date: ${expirationDate}`;
 
         } else {
           // Directly include the URL in QR code
@@ -246,7 +251,7 @@ const issuePdf = async (req, res) => {
         });
 
         file = req.file.path;
-        const outputPdf = `${fields.Certificate_Number}${name}.pdf`;
+        const outputPdf = `${fields.certificateNumber}${name}.pdf`;
 
         // Add link and QR code to the PDF file
         const opdf = await addLinkToPdf(
@@ -267,21 +272,21 @@ const issuePdf = async (req, res) => {
           console.log(dbStatusMessage);
 
           // Insert certificate data into database
-          const id = idExist.id;
+          const issuerId = idExist.issuerId;
           const certificateData = {
-            id,
+            issuerId,
             transactionHash: txHash,
             certificateHash: combinedHash,
-            certificateNumber: fields.Certificate_Number,
+            certificateNumber: fields.certificateNumber,
             name: fields.name,
             course: fields.courseName,
-            grantDate: fields.Grant_Date,
-            expirationDate: fields.Expiration_Date
+            grantDate: fields.grantDate,
+            expirationDate: fields.expirationDate
           };
           await insertCertificateData(certificateData);
 
           // Set response headers for PDF download
-          const certificateName = `${fields.Certificate_Number}_certificate.pdf`;
+          const certificateName = `${fields.certificateNumber}_certificate.pdf`;
 
           res.set({
             "Content-Type": "application/pdf",
@@ -326,21 +331,21 @@ const issuePdf = async (req, res) => {
 const issue = async (req, res) => {
   // Extracting required data from the request body
   const email = req.body.email;
-  const Certificate_Number = req.body.certificateNumber;
+  const certificateNumber = req.body.certificateNumber;
   const name = req.body.name;
   const courseName = req.body.course;
-  var _Grant_Date = req.body.grantDate;
-  var _Expiration_Date = req.body.expirationDate;
+  var _grantDate = req.body.grantDate;
+  var _expirationDate = req.body.expirationDate;
 
-  const Grant_Date = await convertDateFormat(_Grant_Date);
-  const Expiration_Date = await convertDateFormat(_Expiration_Date);
+  const grantDate = await convertDateFormat(_grantDate);
+  const expirationDate = await convertDateFormat(_expirationDate);
 
   // Check if user with provided email exists
   const idExist = await User.findOne({ email });
   // Check if certificate number already exists
-  const isNumberExist = await Issues.findOne({ certificateNumber: Certificate_Number });
+  const isNumberExist = await Issues.findOne({ certificateNumber: certificateNumber });
   // Check if certificate number already exists in the Batch
-  const isNumberExistInBatch = await BatchIssues.findOne({ certificateNumber: Certificate_Number });
+  const isNumberExistInBatch = await BatchIssues.findOne({ certificateNumber: certificateNumber });
 
   // Validation checks for request data
   if (
@@ -348,14 +353,14 @@ const issue = async (req, res) => {
     // !idExist || // User does not exist
     isNumberExist || // Certificate number already exists 
     isNumberExistInBatch || // Certificate number already exists in Batch
-    !Certificate_Number || // Missing certificate number
+    !certificateNumber || // Missing certificate number
     !name || // Missing name
     !courseName || // Missing course name
-    (!Grant_Date || Grant_Date == 'Invalid date') || // Missing grant date
-    (!Expiration_Date || Expiration_Date == 'Invalid date') || // Missing expiration date
-    [Certificate_Number, name, courseName, Grant_Date, Expiration_Date].some(value => typeof value !== 'string' || value == 'string') || // Some values are not strings
-    Certificate_Number.length > max_length || // Certificate number exceeds maximum length
-    Certificate_Number.length < min_length // Certificate number is shorter than minimum length
+    (!grantDate || grantDate == 'Invalid date') || // Missing grant date
+    (!expirationDate || expirationDate == 'Invalid date') || // Missing expiration date
+    [certificateNumber, name, courseName, grantDate, expirationDate].some(value => typeof value !== 'string' || value == 'string') || // Some values are not strings
+    certificateNumber.length > max_length || // Certificate number exceeds maximum length
+    certificateNumber.length < min_length // Certificate number is shorter than minimum length
   ) {
     // Prepare error message
     let errorMessage = "Please provide valid details";
@@ -363,13 +368,13 @@ const issue = async (req, res) => {
     // Check for specific error conditions and update the error message accordingly
     if (isNumberExist || isNumberExistInBatch) {
       errorMessage = "Certification number already exists";
-    } else if ((!Grant_Date || Grant_Date == 'Invalid date') || (!Expiration_Date || Expiration_Date == 'Invalid date')) {
+    } else if ((!grantDate || grantDate == 'Invalid date') || (!expirationDate || expirationDate == 'Invalid date')) {
       errorMessage = "Please provide valid Dates";
-    } else if (!Certificate_Number) {
+    } else if (!certificateNumber) {
       errorMessage = "Certification number is required";
-    } else if (Certificate_Number.length > max_length) {
+    } else if (certificateNumber.length > max_length) {
       errorMessage = `Certification number should be less than ${max_length} characters`;
-    } else if (Certificate_Number.length < min_length) {
+    } else if (certificateNumber.length < min_length) {
       errorMessage = `Certification number should be at least ${min_length} characters`;
     } else if (!idExist) {
       errorMessage = `Invalid Issuer Email`;
@@ -384,11 +389,11 @@ const issue = async (req, res) => {
     try {
       // Prepare fields for the certificate
       const fields = {
-        Certificate_Number: Certificate_Number,
+        certificateNumber: certificateNumber,
         name: name,
         courseName: courseName,
-        Grant_Date: Grant_Date,
-        Expiration_Date: Expiration_Date,
+        grantDate: grantDate,
+        expirationDate: expirationDate,
       };
       // Hash sensitive fields
       const hashedFields = {};
@@ -399,9 +404,13 @@ const issue = async (req, res) => {
 
       try {
         // Verify certificate on blockchain
-        const isPaused = await new_contract.paused();
-        const issuerAuthorized = await new_contract.hasRole(process.env.ISSUER_ROLE, idExist.id);
-        const val = await new_contract.verifyCertificateById(Certificate_Number);
+        const isPaused = await newContract.paused();
+        // Check if the Issuer wallet address is a valid Ethereum address
+        if (!ethers.isAddress(idExist.issuerId)) {
+          return res.status(400).json({ status: "FAILED", message: "Invalid Ethereum address format" });
+        }
+        const issuerAuthorized = await newContract.hasRole(process.env.ISSUER_ROLE, idExist.issuerId);
+        const val = await newContract.verifyCertificateById(certificateNumber);
 
         if (
           val === true ||
@@ -418,8 +427,8 @@ const issue = async (req, res) => {
         } else {
           try {
             // If simulation successful, issue the certificate on blockchain
-            const tx = await new_contract.issueCertificate(
-              Certificate_Number,
+            const tx = await newContract.issueCertificate(
+              certificateNumber,
               combinedHash
             );
 
@@ -451,11 +460,11 @@ const issue = async (req, res) => {
           if (legacyQR) {
             // Include additional data in QR code
             qrCodeData = `Verify On Blockchain: ${polygonLink},
-          Certification Number: ${Certificate_Number},
+          Certification Number: ${certificateNumber},
           Name: ${name},
           Certification Name: ${courseName},
-          Grant Date: ${Grant_Date},
-          Expiration Date: ${Expiration_Date}`;
+          Grant Date: ${grantDate},
+          Expiration Date: ${expirationDate}`;
 
           } else {
             // Directly include the URL in QR code
@@ -475,17 +484,17 @@ const issue = async (req, res) => {
             const dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
             console.log(dbStatusMessage);
 
-            const id = idExist.id;
+            const issuerId = idExist.issuerId;
 
             var certificateData = {
-              id,
+              issuerId,
               transactionHash: txHash,
               certificateHash: combinedHash,
-              certificateNumber: Certificate_Number,
+              certificateNumber: certificateNumber,
               name: name,
               course: courseName,
-              grantDate: Grant_Date,
-              expirationDate: Expiration_Date
+              grantDate: grantDate,
+              expirationDate: expirationDate
             };
 
             // Insert certificate data into database
@@ -643,10 +652,13 @@ const batchIssueCertificate = async (req, res) => {
     }
 
     try {
-
       // Verify on blockchain
-      const isPaused = await new_contract.paused();
-      const issuerAuthorized = await new_contract.hasRole(process.env.ISSUER_ROLE, idExist.id);
+      const isPaused = await newContract.paused();
+      // Check if the Issuer wallet address is a valid Ethereum address
+      if (!ethers.isAddress(idExist.issuerId)) {
+        return res.status(400).json({ status: "FAILED", message: "Invalid Ethereum address format" });
+      }
+      const issuerAuthorized = await newContract.hasRole(process.env.ISSUER_ROLE, idExist.issuerId);
 
       if (isPaused === true) {
         // Certificate contract paused
@@ -662,13 +674,13 @@ const batchIssueCertificate = async (req, res) => {
       // Generate the Merkle tree
       const tree = StandardMerkleTree.of(values, ['string']);
 
-      const batchNumber = await new_contract.getRootLength();
+      const batchNumber = await newContract.getRootLength();
       const allocateBatchId = parseInt(batchNumber) + 1;
       // const allocateBatchId = 1;
 
       try {
         // Issue Batch Certifications on Blockchain
-        const tx = await new_contract.issueBatchOfCertificates(
+        const tx = await newContract.issueBatchOfCertificates(
           tree.root
         );
 
@@ -700,12 +712,14 @@ const batchIssueCertificate = async (req, res) => {
 
         for (var i = 0; i < certificatesCount; i++) {
           var _proof = tree.getProof(i);
+          let _proofHash = await keccak256(Buffer.from(_proof)).toString('hex');
           let _grantDate = await convertDateFormat(rawBatchData[i].grantDate);
           let _expirationDate = await convertDateFormat(rawBatchData[i].expirationDate);
           batchDetails[i] = {
             id: idExist.id,
             batchId: allocateBatchId,
             proofHash: _proof,
+            encodedProof: _proofHash,
             transactionHash: txHash,
             certificateHash: hashedBatchData[i],
             certificateNumber: rawBatchData[i].certificationID,
@@ -848,7 +862,7 @@ const verifyWithId = async (req, res) => {
   inputId = req.body.id;
 
   try {
-    const response = await new_contract.verifyCertificateById(inputId);
+    const response = await newContract.verifyCertificateById(inputId);
 
     if (response === true) {
       const certificateNumber = inputId;
@@ -942,7 +956,7 @@ const verifyBatchCertificate = async (req, res) => {
       const proof = issueExist.proofHash;
       try {
         // Blockchain processing.
-        const val = await new_contract.verifyCertificateInBatch(batchNumber, dataHash, proof);
+        const val = await newContract.verifyCertificateInBatch(batchNumber, dataHash, proof);
 
         var _polygonLink = `https://${process.env.NETWORK}.com/tx/${issueExist.transactionHash}`;
 
@@ -980,7 +994,7 @@ const verifyCertificationId = async (req, res) => {
   const batchIssueExist = await BatchIssues.findOne({ certificateNumber: inputId });
 
   // Blockchain processing.
-  const response = await new_contract.verifyCertificateById(inputId);
+  const response = await newContract.verifyCertificateById(inputId);
 
   // Validation checks for request data
   if ([inputId].some(value => typeof value !== "string" || value == "string") || (!batchIssueExist && response === false)) {
@@ -1037,7 +1051,7 @@ const verifyCertificationId = async (req, res) => {
       const proof = batchIssueExist.proofHash;
 
       // Blockchain processing.
-      const val = await new_contract.verifyCertificateInBatch(batchNumber, dataHash, proof);
+      const val = await newContract.verifyCertificateInBatch(batchNumber, dataHash, proof);
 
       if (val === true) {
         try {
@@ -1418,7 +1432,7 @@ const validateIssuer = async (req, res) => {
     console.log(dbStatusMessage);
 
   try{
-    const roleStatus = await new_contract.hasRole(process.env.ISSUER_ROLE, userExist.id);
+    const roleStatus = await newContract.hasRole(process.env.ISSUER_ROLE, userExist.issuerId);
 
     if (validationStatus == 1) {
 
@@ -1429,7 +1443,7 @@ const validateIssuer = async (req, res) => {
       var grantedStatus;
       if (roleStatus === false) {
         try {
-          var tx = await new_contract.grantRole(process.env.ISSUER_ROLE, userExist.id);
+          var tx = await newContract.grantRole(process.env.ISSUER_ROLE, userExist.issuerId);
           grantedStatus = "SUCCESS";
           var txHash = tx.hash;
           var polygonLink = `https://${process.env.NETWORK}.com/tx/${txHash}`;
@@ -1477,7 +1491,7 @@ const validateIssuer = async (req, res) => {
       var revokedStatus;
       if (roleStatus === true) {
         try {
-          var tx = await new_contract.revokeRole(process.env.ISSUER_ROLE, userExist.id);
+          var tx = await newContract.revokeRole(process.env.ISSUER_ROLE, userExist.issuerId);
           revokedStatus = "SUCCESS";
           var txHash = tx.hash;
           var polygonLink = `https://${process.env.NETWORK}.com/tx/${txHash}`;
@@ -1591,7 +1605,7 @@ const addTrustedOwner = async (req, res) => {
 
     try{
       // Blockchain processing.
-      const response = await new_contract.hasRole(assigningRole, newAddress);
+      const response = await newContract.hasRole(assigningRole, newAddress);
 
       if (response === true) {
         // Simulation failed, send failure response
@@ -1599,7 +1613,7 @@ const addTrustedOwner = async (req, res) => {
       }
 
       try {
-        const tx = await new_contract.grantRole(assigningRole, newAddress);
+        const tx = await newContract.grantRole(assigningRole, newAddress);
         var txHash = tx.hash;
       } catch (error) {
         // Handle the error During the transaction
@@ -1662,7 +1676,7 @@ const removeTrustedOwner = async (req, res) => {
 
     try{
       // Blockchain processing.
-      const response = await new_contract.hasRole(assigningRole, newAddress);
+      const response = await newContract.hasRole(assigningRole, newAddress);
 
       if (response === false) {
         // Simulation failed, send failure response
@@ -1670,7 +1684,7 @@ const removeTrustedOwner = async (req, res) => {
       }
 
       try {
-        const tx = await new_contract.revokeRole(assigningRole, newAddress);
+        const tx = await newContract.revokeRole(assigningRole, newAddress);
 
         var txHash = tx.hash;
 
