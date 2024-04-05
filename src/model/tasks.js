@@ -161,7 +161,6 @@ const fetchExcelRecord = async (_path) => {
 };
 
 const validateBatchCertificateIDs = async (data) => {
-  console.log("Data", data);
   const invalidStrings = [];
     
   data.forEach(num => {
