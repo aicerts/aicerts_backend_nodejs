@@ -122,14 +122,14 @@ const connectToPolygon = async () => {
 
 // Fetch records from the excel file
 const fetchExcelRecord = async (_path) => {
-  if(_path.length<0){
+  if(!_path || _path.length<0){
     return { status: "FAILED", response: false, message: "Invalid Excel file." };
   }
   // api to fetch excel data into json
   const newPath = path.join(..._path.split("\\"));
   const sheetNames = await readXlsxFile.readSheetNames(newPath);
   try {
-    if(sheetNames == "Batch"){
+    if(sheetNames == "Batch" || sheetNames.includes("Batch")){
       // api to fetch excel data into json
       const rows = await readXlsxFile(newPath, {sheet: 'Batch'});
       // Check if the extracted headers match the expected pattern
@@ -202,12 +202,37 @@ const findInvalidDates = async(dates) => {
   return { validDates, invalidDates };
 };
 
+const compareEpochDates = async (datesList) => {
+  const thresholdYear= _thresholdYear;
+  const invalidDates = [];
+  // Get today's date
+  const currentDate = new Date();
+  // Function to convert date string to Date object using the provided pattern
+const convertToDate = (dateString) => {
+  const [month, day, year] = dateString.split('/');
+  return new Date(2000 + parseInt(year), parseInt(month) - 1, parseInt(day));
+};
+
+// Compare each date in the list with today's date
+for (const date of datesList) {
+  const comparisonDate = convertToDate(date);
+  if(comparisonDate.getFullYear() < thresholdYear){
+    if (comparisonDate < currentDate) {
+        invalidDates.push(moment(comparisonDate).format('MM/DD/YY'));
+    } 
+} else {
+  invalidDates.push(moment(comparisonDate).format('MM/DD/YY'));
+}
+}
+  return invalidDates;
+}
+
 // Function to convert the Date format
 const convertDateFormat = async (dateString) => {
   // console.log("Input date", dateString);
   var formatString = 'ddd MMM DD YYYY HH:mm:ss [GMT]ZZ';
   // Define the possible date formats
-  const formats = ['MM/DD/YYYY', 'DD/MM/YYYY', 'DD MMMM, YYYY', 'DD MMM, YYYY', 'DD MMMM, YYYY', 'MMMM d, yyyy', 'MM/DD/YY'];
+  const formats = ['MM/DD/YYYY', 'DD/MM/YYYY', 'DD MMMM, YYYY', 'DD MMM, YYYY', 'MMMM d, yyyy', 'MM/DD/YY'];
 
   // Attempt to parse the input date string using each format
   let dateObject;
@@ -218,28 +243,50 @@ const convertDateFormat = async (dateString) => {
       }
   }
 
-// Check if a valid date object was obtained
-if (dateObject && dateObject.isValid()) {
-  // Convert the dateObject to moment (if it's not already)
-  const momentDate = moment(dateObject);
+  // Check if a valid date object was obtained
+  if (dateObject && dateObject.isValid()) {
+    // Convert the dateObject to moment (if it's not already)
+    const momentDate = moment(dateObject);
 
-  // Format the date to 'YY/MM/DD'
-  var formattedDate = momentDate.format('MM/DD/YY');
-  return formattedDate;
-  } else if(formattedDate == null){
-  // Format the parsed date to 'MM/DD/YY'
-  var formattedDate = moment(dateString, formatString).format('MM/DD/YY');
-    if(formattedDate != 'Invalid date'){
-      return formattedDate;
-    } else {
-      var formattedDate = moment(dateString).utc().format('MM/DD/YY');
-      return formattedDate;
+    // Format the date to 'YY/MM/DD'
+    var formattedDate = momentDate.format('MM/DD/YY');
+    return formattedDate;
+    } else if(!formattedDate){
+    // Format the parsed date to 'MM/DD/YY'
+    var formattedDate = moment(dateString, formatString).format('MM/DD/YY');
+      if(formattedDate != 'Invalid date'){
+        return formattedDate;
+      } else {
+        var formattedDate = moment(dateString).utc().format('MM/DD/YY');
+        return formattedDate;
+      }
     }
+    else {
+      // Return null or throw an error based on your preference for handling invalid dates
+      return null;
+    }
+};
+
+// Function to compare two grant & expiration of dates
+const compareGrantExpiredSetDates = async (grantList, expirationList) => {
+  const dateSets = [];
+  const length = Math.min(grantList.length, expirationList.length);
+  
+  for (let i = 0; i < length; i++) {
+      const grantDateParts = grantList[i].split('/');
+      const expirationDateParts = expirationList[i].split('/');
+      
+      // Create Date objects for comparison
+      const grantDate = new Date(`20${grantDateParts[2]}`, grantDateParts[0] - 1, grantDateParts[1]);
+      const expirationDate = new Date(`20${expirationDateParts[2]}`, expirationDateParts[0] - 1, expirationDateParts[1]);
+      
+      if (grantDate > expirationDate) {
+          dateSets.push(grantList[i], expirationList[i] + " at index " + i);
+          // console.log(`${grantList[i]} is greater than ${expirationList[i]}`);
+      }
   }
-  else {
-    // Return null or throw an error based on your preference for handling invalid dates
-    return null;
-  }
+  
+  return dateSets;
 };
 
 // Convert Date format for the Display on Verification
@@ -581,7 +628,7 @@ const addLinkToPdf = async (
     qrWidth = pngDims.width;
     qrHeight = pngDims.height;
 
-    pdfBytes = await pdfDoc.save();
+    const pdfBytes = await pdfDoc.save();
 
     fs.writeFileSync(outputPath, pdfBytes);
     return pdfBytes;
@@ -629,7 +676,7 @@ const verifyPDFDimensions = async (pdfPath) => {
 const calculateHash = (data)=> {
   // Create a hash object using SHA-256 algorithm
   // Update the hash object with input data and digest the result as hexadecimal string
-  return crypto.createHash('sha256').update(data).digest('hex');
+  return crypto.createHash('sha256').update(data).digest('hex').toString();
 };
 
 // Function to create a new instance of Web3 and connect to a specified RPC endpoint
@@ -659,7 +706,7 @@ const fileFilter = (req, file, cb) => {
   } else {
     // If the file type is not PDF, reject the file upload with an error message
     cb(
-      new Error("Invalid file type. Only JPEG and PNG files are allowed."),
+      new Error("Invalid file type. Only PDF files are allowed."),
       false
     );
   }
@@ -794,6 +841,10 @@ module.exports = {
   convertDateFormat,
 
   findInvalidDates,
+
+  compareEpochDates,
+
+  compareGrantExpiredSetDates,
 
   convertDateOnVerification,
 

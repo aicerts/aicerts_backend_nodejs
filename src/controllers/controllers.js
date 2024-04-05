@@ -31,6 +31,8 @@ const {
   fetchExcelRecord,
   convertDateFormat,
   findInvalidDates,
+  compareEpochDates,
+  compareGrantExpiredSetDates,
   convertDateOnVerification,
   insertCertificateData, // Function to insert certificate data into the database
   insertBatchCertificateData, // Function to insert Batch certificate data into the database
@@ -554,7 +556,6 @@ const batchCertificateIssue = async (req, res) => {
       errorMessage = `Unauthorised Issuer Email`;
     }
 
-
     res.status(400).json({ status: "FAILED", message: errorMessage });
     return;
 
@@ -589,7 +590,19 @@ const batchCertificateIssue = async (req, res) => {
 	
     if((invalidGrantDateFormat.invalidDates).length > 0 && (invalidExpirationDateFormat.invalidDates).length > 0){
       res.status(400).json({ status: "FAILED", message: "Excel file has Invalid Date Format", Details: `Grant Dates ${invalidGrantDateFormat.invalidDates}, Issued Dates ${invalidExpirationDateFormat.invalidDates}` });
+      return;
+    }
 
+    const validateGrantDates = await compareEpochDates(invalidGrantDateFormat.validDates);
+    const validateExpirationDates = await compareEpochDates(invalidExpirationDateFormat.validDates);
+    if((validateGrantDates).length > 0 || (validateExpirationDates).length > 0){
+      res.status(400).json({ status: "FAILED", message: "Excel file has Invalid Dates", Details: `Grant Dates ${validateGrantDates}, Issued Dates ${validateExpirationDates}` });
+      return;
+    }
+
+    const validateCertificateDates = await compareGrantExpiredSetDates(invalidGrantDateFormat.validDates, invalidExpirationDateFormat.validDates);
+    if(validateCertificateDates.length > 0){
+      res.status(400).json({ status: "FAILED", message: "Excel file has Older Grant date than Expiration Date", Details: `${validateCertificateDates}` });
       return;
     }
 
