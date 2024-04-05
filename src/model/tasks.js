@@ -395,6 +395,7 @@ const insertBatchCertificateData = async (data) => {
       issuerId: data.issuerId,
       batchId: data.batchId,
       proofHash: data.proofHash,
+      encodedProof: data.encodedProof,
       transactionHash: data.transactionHash,
       certificateHash: data.certificateHash,
       certificateNumber: data.certificateNumber,
