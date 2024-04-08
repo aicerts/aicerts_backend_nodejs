@@ -383,11 +383,11 @@ const issue = async (req, res) => {
     try {
       // Prepare fields for the certificate
       const fields = {
-        certificateNumber: certificateNumber,
+        Certificate_Number: certificateNumber,
         name: name,
         courseName: courseName,
-        grantDate: grantDate,
-        expirationDate: expirationDate,
+        Grant_Date: grantDate,
+        Expiration_Date: expirationDate,
       };
       // Hash sensitive fields
       const hashedFields = {};
@@ -484,11 +484,11 @@ const issue = async (req, res) => {
               issuerId,
               transactionHash: txHash,
               certificateHash: combinedHash,
-              certificateNumber: certificateNumber,
-              name: name,
-              course: courseName,
-              grantDate: grantDate,
-              expirationDate: expirationDate
+              certificateNumber: fields.Certificate_Number,
+              name: fields.name,
+              course: fields.courseName,
+              grantDate: fields.Grant_Date,
+              expirationDate: fields.Expiration_Date
             };
 
             // Insert certificate data into database
