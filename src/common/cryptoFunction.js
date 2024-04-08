@@ -8,24 +8,29 @@ require('dotenv').config();
  * @returns {Object} An object containing the encrypted data and initialization vector (IV).
  */
 function encryptData(data) {
-    // Load the encryption key from environment variables
-    const key = Buffer.from(process.env.KEY_HEX_STRING, 'hex');
-    
-    // Generate a random Initialization Vector (IV)
-    const iv = crypto.randomBytes(16); // Initialization Vector, 128 bits for AES
-    
-    // Create a cipher using AES-256-CBC algorithm
-    const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
-    
-    // Encrypt the data
-    let encryptedData = cipher.update(data, 'utf-8', 'base64');
-    encryptedData += cipher.final('base64');
-    
-    // Return both the encrypted data and the IV for later decryption
-    return {
-        encryptedData,
-        iv: iv.toString('base64')
-    };
+    try{
+        // Load the encryption key from environment variables
+        const key = Buffer.from(process.env.KEY_HEX_STRING, 'hex');
+        
+        // Generate a random Initialization Vector (IV)
+        const iv = crypto.randomBytes(16); // Initialization Vector, 128 bits for AES
+        
+        // Create a cipher using AES-256-CBC algorithm
+        const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+        
+        // Encrypt the data
+        let encryptedData = cipher.update(data, 'utf-8', 'base64');
+        encryptedData += cipher.final('base64');
+        
+        // Return both the encrypted data and the IV for later decryption
+        return {
+            encryptedData,
+            iv: iv.toString('base64')
+        };
+    } catch (error) {
+        console.error("Encryption error:", error.message);
+        return null;
+    }
 }
 
 /**
@@ -66,13 +71,18 @@ function decryptData(encryptedData, iv) {
  * @returns {string} The generated encrypted URL.
  */
 function generateEncryptedUrl(data) {
-    // Encrypt the data and retrieve the encrypted data and IV
-    const { encryptedData, iv } = encryptData(JSON.stringify(data));
-    
-    // Implement the logic to generate the encrypted URL
-    const encryptedUrl = process.env.ENCRYPTED_URL + encodeURIComponent(encryptedData) + '&iv=' + encodeURIComponent(iv);
-    
-    return encryptedUrl;
+    try{
+        // Encrypt the data and retrieve the encrypted data and IV
+        const { encryptedData, iv } = encryptData(JSON.stringify(data));
+        
+        // Implement the logic to generate the encrypted URL
+        const encryptedUrl = process.env.ENCRYPTED_URL + encodeURIComponent(encryptedData) + '&iv=' + encodeURIComponent(iv);
+        
+        return encryptedUrl;
+    } catch (error) {
+        console.error("URL generation error:", error.message);
+        return null;
+    }
 }
 
 // Export the functions for use in other modules

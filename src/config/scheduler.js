@@ -87,10 +87,10 @@ try {
       console.error("MongoDB connection error:", err); // Log an error if the connection fails
       process.exit(1);
     });
-} catch (error) {
-  console.error("Error:", error.message);
-  process.exit(1);
-}
+  } catch (error) {
+    console.error("Error:", error.message);
+    process.exit(1);
+};
 
 const createUploadsFolder = async () => {
 

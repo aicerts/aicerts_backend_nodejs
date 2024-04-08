@@ -535,7 +535,6 @@ const batchIssueCertificate = async (req, res) => {
   const email = req.body.email;
 
   file = req.file.path;
-  console.log("The path", file);
 
   const idExist = await User.findOne({ email });
 
@@ -543,7 +542,6 @@ const batchIssueCertificate = async (req, res) => {
 
   // Fetch the records from the Excel file
   const excelData = await handleExcelFile(filePath);
-  // const __excelData = await fetchExcelRecord(filePath);
   await _fs.remove(filePath);
 
   try{
@@ -1167,7 +1165,7 @@ const login = async (req, res) => {
                 adminExist.save();
 
                 // Generate JWT token for authentication
-                const JWTToken = generateJwtToken()
+                const JWTToken = generateJwtToken();
 
                 // Respond with success message and user details
                 res.status(200).json({

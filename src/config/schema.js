@@ -10,7 +10,6 @@ const AdminSchema = new mongoose.Schema({
 });
 
 // Define the schema for the User/Isseur model
-// Define the schema for the User/Isseur model
 const UserSchema = new Schema({
   name: { type: String, required: true },
   organization: { type: String, required: true },

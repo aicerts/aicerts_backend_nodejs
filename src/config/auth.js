@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 
 // Middleware function to ensure authentication using JWT token
 module.exports.ensureAuthenticated = (req, res, next) => {
+    try{
     // Extract the authorization header from the request
     const authorizationHeader = req.headers["authorization"];
 
@@ -34,5 +35,9 @@ module.exports.ensureAuthenticated = (req, res, next) => {
         // If the token is valid, call the next middleware or route handler
         next();
     });
+    } catch (error) {
+        console.error("Error in ensureAuthenticated middleware:", error);
+        return res.status(500).send({ status: false, err: "Internal server error." });
+    }
 };
 
