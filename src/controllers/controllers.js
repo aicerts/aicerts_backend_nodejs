@@ -502,6 +502,7 @@ const issue = async (req, res) => {
 
           // Respond with success message and certificate details
           res.status(200).json({
+            status: "SUCCESS",
             message: "Certificate issued successfully",
             qrCodeImage: qrCodeImage,
             polygonLink: polygonLink,
