@@ -321,7 +321,6 @@ const extractCertificateInfo = async (qrCodeText) => {
       "Grant Date": "",
       "Expiration Date": ""
     };
-
     // Loop through each line of the text
     for (const line of lines) {
       const parts = line.trim().split(/:\s+/); // Use a regular expression to split by colon followed by optional whitespace

@@ -160,11 +160,11 @@ const issuePdf = async (req, res) => {
   } else {
     // If validation passes, proceed with certificate issuance
     const fields = {
-      certificateNumber: req.body.certificateNumber,
+      Certificate_Number: req.body.certificateNumber,
       name: req.body.name,
       courseName: req.body.course,
-      grantDate: grantDate,
-      expirationDate: expirationDate,
+      Grant_Date: grantDate,
+      Expiration_Date: expirationDate,
     };
     const hashedFields = {};
     for (const field in fields) {
@@ -200,7 +200,7 @@ const issuePdf = async (req, res) => {
         try {
           // If simulation successful, issue the certificate on blockchain
           const tx = await newContract.issueCertificate(
-            fields.certificateNumber,
+            fields.Certificate_Number,
             combinedHash
           );
 
@@ -212,7 +212,6 @@ const issuePdf = async (req, res) => {
         } catch (error) {
           if (error.reason) {
             // Extract and handle the error reason
-            console.log("Error reason:", error.reason);
             return res.status(400).json({ status: "FAILED", message: error.reason });
           } else {
             // If there's no specific reason provided, handle the error generally
@@ -232,12 +231,11 @@ const issuePdf = async (req, res) => {
         if (legacyQR) {
           // Include additional data in QR code
           qrCodeData = `Verify On Blockchain: ${linkUrl},
-          Certification Number: ${certificateNumber},
-          Name: ${name},
-          Certification Name: ${courseName},
-          Grant Date: ${grantDate},
-          Expiration Date: ${expirationDate}`;
-
+          Certification Number: ${dataWithLink.Certificate_Number},
+          Name: ${dataWithLink.name},
+          Certification Name: ${dataWithLink.courseName},
+          Grant Date: ${dataWithLink.Grant_Date},
+          Expiration Date: ${dataWithLink.Expiration_Date}`;
         } else {
           // Directly include the URL in QR code
           qrCodeData = urlLink;
@@ -248,7 +246,7 @@ const issuePdf = async (req, res) => {
         });
 
         file = req.file.path;
-        const outputPdf = `${fields.certificateNumber}${name}.pdf`;
+        const outputPdf = `${fields.Certificate_Number}${name}.pdf`;
 
         // Add link and QR code to the PDF file
         const opdf = await addLinkToPdf(
@@ -266,7 +264,6 @@ const issuePdf = async (req, res) => {
           // Check mongoose connection
           const dbStatus = await isDBConnected();
           const dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
-          console.log(dbStatusMessage);
 
           // Insert certificate data into database
           const issuerId = idExist.issuerId;
@@ -274,16 +271,16 @@ const issuePdf = async (req, res) => {
             issuerId,
             transactionHash: txHash,
             certificateHash: combinedHash,
-            certificateNumber: fields.certificateNumber,
+            certificateNumber: fields.Certificate_Number,
             name: fields.name,
             course: fields.courseName,
-            grantDate: fields.grantDate,
-            expirationDate: fields.expirationDate
+            grantDate: fields.Grant_Date,
+            expirationDate: fields.Expiration_Date
           };
           await insertCertificateData(certificateData);
 
           // Set response headers for PDF download
-          const certificateName = `${fields.certificateNumber}_certificate.pdf`;
+          const certificateName = `${fields.Certificate_Number}_certificate.pdf`;
 
           res.set({
             "Content-Type": "application/pdf",
