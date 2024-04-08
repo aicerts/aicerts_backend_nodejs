@@ -29,16 +29,10 @@ const abi = require("../config/abi.json");
 
 // Importing functions from a custom module
 const {
-  fetchExcelRecord,
-  validateBatchCertificateIDs,
   convertDateFormat,
-  findInvalidDates,
-  compareEpochDates,
-  compareGrantExpiredSetDates,
   convertDateOnVerification,
   insertCertificateData, // Function to insert certificate data into the database
   insertBatchCertificateData, // Function to insert Batch certificate data into the database
-  findRepetitiveIdNumbers, // Find repetitive Certification ID
   extractQRCodeDataFromPDF, // Function to extract QR code data from a PDF file
   addLinkToPdf, // Function to add a link to a PDF file
   verifyPDFDimensions, //Verify the uploading pdf template dimensions
@@ -48,6 +42,9 @@ const {
   sendEmail, // Function to send an email on approved
   rejectEmail // Function to send an email on rejected
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
+
+const { handleExcelFile } = require('../model/handleExcel');
+const e = require('express');
 
 // Retrieve contract address from environment variable
 const contractAddress = process.env.CONTRACT_ADDRESS;
@@ -219,8 +216,8 @@ const issuePdf = async (req, res) => {
             return res.status(400).json({ status: "FAILED", message: error.reason });
           } else {
             // If there's no specific reason provided, handle the error generally
-            console.error("Failed to perform opertaion at Blockchain:", error);
-            return res.status(400).json({ status: "FAILED", message: "Failed to perform opertaion at Blockchain", details: error });
+            console.error("Failed to perform opertaion at Blockchain / Try again ...:", error);
+            return res.status(400).json({ status: "FAILED", message: "Failed to perform opertaion at Blockchain / Try again ...", details: error });
           }
         }
 
@@ -445,8 +442,8 @@ const issue = async (req, res) => {
               return res.status(400).json({ status: "FAILED", message: error.reason });
             } else {
               // If there's no specific reason provided, handle the error generally
-              console.error("Failed to perform opertaion at Blockchain:", error);
-              return res.status(400).json({ status: "FAILED", message: "Failed to perform opertaion at Blockchain", details: error });
+              console.error("Failed to perform opertaion at Blockchain / Try again ...:", error);
+              return res.status(400).json({ status: "FAILED", message: "Failed to perform opertaion at Blockchain / Try again ...", details: error });
             }
           }
 
@@ -538,14 +535,15 @@ const batchIssueCertificate = async (req, res) => {
   const email = req.body.email;
 
   file = req.file.path;
+  console.log("The path", file);
 
   const idExist = await User.findOne({ email });
 
   var filePath = req.file.path;
 
   // Fetch the records from the Excel file
-  const excelData = await fetchExcelRecord(filePath);
-
+  const excelData = await handleExcelFile(filePath);
+  // const __excelData = await fetchExcelRecord(filePath);
   await _fs.remove(filePath);
 
   try{
@@ -560,8 +558,10 @@ const batchIssueCertificate = async (req, res) => {
     excelData.response === false) {
 
     let errorMessage = "Please provide valid details";
+    var _details = excelData.Details;
     if (!idExist) {
       errorMessage = "Invalid Issuer";
+      var _details = idExist.email;
     }
     else if (excelData.response == false) {
       errorMessage = excelData.message;
@@ -569,10 +569,11 @@ const batchIssueCertificate = async (req, res) => {
       errorMessage = `Unauthorised Issuer Email`;
     }
 
-    res.status(400).json({ status: "FAILED", message: errorMessage });
+    res.status(400).json({ status: "FAILED", message: errorMessage, details: _details  });
     return;
 
   } else {
+
 
     // Batch Certification Formated Details
     const rawBatchData = excelData.message[0];
@@ -583,46 +584,6 @@ const batchIssueCertificate = async (req, res) => {
 
     const certificationIDs = rawBatchData.map(item => item.certificationID);
 
-    const certificationGrantDates = rawBatchData.map(item => item.grantDate);
-
-    const certificationExpirationDates = rawBatchData.map(item => item.expirationDate);
-
-    // Initialize an empty list to store matching IDs
-    const matchingIDs = [];
-    const repetitiveNumbers = await findRepetitiveIdNumbers(certificationIDs);
-    const invalidIdList = await validateBatchCertificateIDs(certificationIDs);
-
-    if(invalidIdList != false) {
-      res.status(400).json({ status: "FAILED", message: "Excel file has invalid Certification IDs length (each: min 12 - max 20)", Details: invalidIdList });
-      return;
-    }
-
-    if (repetitiveNumbers.length > 0) {
-      res.status(400).json({ status: "FAILED", message: "Excel file has Repetition in Certification IDs", Details: repetitiveNumbers });
-      return;
-    }
-
-    const invalidGrantDateFormat = await findInvalidDates(certificationGrantDates);
-    const invalidExpirationDateFormat = await findInvalidDates(certificationExpirationDates);
-	
-    if((invalidGrantDateFormat.invalidDates).length > 0 && (invalidExpirationDateFormat.invalidDates).length > 0){
-      res.status(400).json({ status: "FAILED", message: "Excel file has Invalid Date Format", Details: `Grant Dates ${invalidGrantDateFormat.invalidDates}, Issued Dates ${invalidExpirationDateFormat.invalidDates}` });
-      return;
-    }
-
-    const validateGrantDates = await compareEpochDates(invalidGrantDateFormat.validDates);
-    const validateExpirationDates = await compareEpochDates(invalidExpirationDateFormat.validDates);
-    if((validateGrantDates).length > 0 || (validateExpirationDates).length > 0){
-      res.status(400).json({ status: "FAILED", message: "Excel file has Invalid Dates", Details: `Grant Dates ${validateGrantDates}, Issued Dates ${validateExpirationDates}` });
-      return;
-    }
-
-    const validateCertificateDates = await compareGrantExpiredSetDates(invalidGrantDateFormat.validDates, invalidExpirationDateFormat.validDates);
-    if(validateCertificateDates.length > 0){
-      res.status(400).json({ status: "FAILED", message: "Excel file has Older Grant date than Expiration Date", Details: `${validateCertificateDates}` });
-      return;
-    }
-
     // Assuming BatchIssues is your MongoDB model
     for (const id of certificationIDs) {
       const issueExist = await Issues.findOne({ certificateNumber: id });
@@ -630,12 +591,6 @@ const batchIssueCertificate = async (req, res) => {
       if (issueExist || _issueExist) {
         matchingIDs.push(id);
       }
-    }
-
-    if (matchingIDs.length > 0) {
-
-      res.status(400).json({ status: "FAILED", message: "Excel file has Existing Certification IDs", Details: matchingIDs });
-      return;
     }
 
     const hashedBatchData = batchData.map(data => {
@@ -695,8 +650,8 @@ const batchIssueCertificate = async (req, res) => {
           return res.status(400).json({ status: "FAILED", message: error.reason });
         } else {
           // If there's no specific reason provided, handle the error generally
-          console.error("Failed to perform opertaion at Blockchain:", error);
-          return res.status(400).json({ status: "FAILED", message: "Failed to perform opertaion at Blockchain" });
+          console.error("Failed to perform opertaion at Blockchain / Try again ...:", error);
+          return res.status(400).json({ status: "FAILED", message: "Failed to perform opertaion at Blockchain / Try again ..." });
         }
       }
 
@@ -1414,10 +1369,10 @@ const validateIssuer = async (req, res) => {
   // Find user by email
   const userExist = await User.findOne({ email });
 
-  if (!email || !userExist || (validationStatus !== 1 && validationStatus !== 2)) {
+  if (!email || !userExist || (validationStatus != 1 && validationStatus != 2)) {
     var defaultMessage = "Invalid Input parameter";
 
-    if ((validationStatus !== 1 && validationStatus !== 2)) {
+    if ((validationStatus != 1 && validationStatus != 2)) {
       var defaultMessage = "Invalid Issuer status";
     } else if (!userExist) {
       var defaultMessage = "User not found!";
@@ -1434,7 +1389,31 @@ const validateIssuer = async (req, res) => {
   try{
     const roleStatus = await newContract.hasRole(process.env.ISSUER_ROLE, userExist.issuerId);
 
-    if (validationStatus == 1) {
+    if(roleStatus === false && validationStatus == 2){
+      if( userExist.status != 2){
+        // Save Issuer rejected details
+        userExist.approved = false;
+        userExist.status = 2;
+        userExist.rejectedDate = Date.now();
+        await userExist.save();
+
+        // If user is not rejected yet, send email and update user's rejected status
+        var mailStatus = await rejectEmail(userExist.name, email);
+        var mailresponse = (mailStatus === true) ? "sent" : "NA";
+
+        // Respond with success message indicating user rejected
+        res.json({
+          status: "SUCCESS",
+          email: mailresponse,
+          message: "User Rejected successfully",
+          details: userExist
+        });
+      } else {
+        return res.status(400).json({ status: "FAILED", message: "User Rejected already" });
+      }
+    }
+
+    else if (validationStatus == 1 && roleStatus === false) {
 
       if ((userExist.status == validationStatus) && (roleStatus == true)) {
         res.status(400).json({ status: "FAILED", message: "Existed Verified Issuer" });
@@ -1456,8 +1435,8 @@ const validateIssuer = async (req, res) => {
             return res.status(400).json({ status: "FAILED", message: error.reason });
           } else {
             // If there's no specific reason provided, handle the error generally
-            console.error("Failed to perform opertaion at Blockchain:", error);
-            return res.status(400).json({ status: "FAILED", message: "Failed to perform opertaion at Blockchain" });
+            console.error("Failed to perform opertaion at Blockchain / Try again ...:", error);
+            return res.status(400).json({ status: "FAILED", message: "Failed to perform opertaion at Blockchain / Try again ..." });
           }
         }
 
@@ -1482,7 +1461,7 @@ const validateIssuer = async (req, res) => {
         });
       }
 
-    } else if (validationStatus == 2) {
+    } else if (validationStatus == 2 && roleStatus === true) {
 
       if ((userExist.status == validationStatus) && (roleStatus == false)) {
         res.status(400).json({ status: "FAILED", message: "Existed Rejected Issuer" });
@@ -1503,8 +1482,8 @@ const validateIssuer = async (req, res) => {
             return res.status(400).json({ status: "FAILED", message: error.reason });
           } else {
             // If there's no specific reason provided, handle the error generally
-            console.error("Failed to perform opertaion at Blockchain:", error);
-            return res.status(400).json({ status: "FAILED", message: "Failed to perform opertaion at Blockchain" });
+            console.error("Failed to perform opertaion at Blockchain / Try again ...:", error);
+            return res.status(400).json({ status: "FAILED", message: "Failed to perform opertaion at Blockchain / Try again ..." });
           }
         }
 
@@ -1623,8 +1602,8 @@ const addTrustedOwner = async (req, res) => {
           return res.status(400).json({ status: "FAILED", message: error.reason });
         } else {
           // If there's no specific reason provided, handle the error generally
-          console.error("Failed to perform opertaion at Blockchain:", error);
-          return res.status(400).json({ status: "FAILED", message: "Failed to perform opertaion at Blockchain" });
+          console.error("Failed to perform opertaion at Blockchain / Try again ...:", error);
+          return res.status(400).json({ status: "FAILED", message: "Failed to perform opertaion at Blockchain / Try again ..." });
         }
       }
 
@@ -1696,8 +1675,8 @@ const removeTrustedOwner = async (req, res) => {
           return res.status(400).json({ status: "FAILED", message: error.reason });
         } else {
           // If there's no specific reason provided, handle the error generally
-          console.error("Failed to perform opertaion at Blockchain:", error);
-          return res.status(400).json({ status: "FAILED", message: "Failed to perform opertaion at Blockchain" });
+          console.error("Failed to perform opertaion at Blockchain / Try again ...:", error);
+          return res.status(400).json({ status: "FAILED", message: "Failed to perform opertaion at Blockchain / Try again ..." });
         }
       }
 

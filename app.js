@@ -1,9 +1,6 @@
 // Load environment variables from .env file
 require('dotenv').config();
 
-// Connect to the database
-// require('./config/db');
-
 // Initialize scheduler
 require('./src/config/scheduler');
 
