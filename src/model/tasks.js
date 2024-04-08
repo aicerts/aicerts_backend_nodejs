@@ -13,17 +13,12 @@ const jsQR = require("jsqr"); // JavaScript QR code reader
 const ethers = require("ethers"); // Ethereum JavaScript library
 const mongoose = require("mongoose"); // MongoDB object modeling tool
 const nodemailer = require('nodemailer'); // Module for sending emails
-const readXlsxFile = require('read-excel-file/node');
 const moment = require('moment');
 
 const { decryptData } = require("../common/cryptoFunction"); // Custom functions for cryptographic operations
 
 const retryDelay = parseInt(process.env.TIME_DELAY);
-const _thresholdYear = parseInt(process.env.THRESHOLD_YEAR);
 const maxRetries = 3; // Maximum number of retries
-// Parse environment variables for password length constraints
-const min_length = parseInt(process.env.MIN_LENGTH);
-const max_length = parseInt(process.env.MAX_LENGTH);
 
 // Regular expression to match MM/DD/YY format
 const regex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/\d{2}$/;
