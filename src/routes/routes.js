@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { ensureAuthenticated } = require("../config/auth"); // Import authentication middleware
 const multer = require('multer');
-const { fileFilter } = require('../model/tasks'); // Import file filter function
+const { fileFilter, excelFilter } = require('../model/tasks'); // Import file filter function
 const adminController = require('../controllers/controllers'); // Import admin controller
 
 
@@ -18,10 +18,22 @@ const storage = multer.diskStorage({
   },
 });
 
+const _storage = multer.diskStorage({
+  destination: (req, excelFile, cb) => {
+    cb(null, "./uploads"); // Set the destination where files will be saved
+  },
+  filename: (req, excelFile, cb) => {
+    // Generate a unique filename
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(excelFile.originalname);
+    cb(null, uniqueSuffix + ext);
+  },
+});
+
 // Initialize multer with configured storage and file filter
 const _upload = multer({ storage, fileFilter });
 
-// const __upload = multer({ storage, excelFilter });
+// const __upload = multer({ _storage, excelFilter });
 const __upload = multer({dest: "../../uploads/"});
 
 /**
@@ -155,6 +167,8 @@ router.post('/issue',ensureAuthenticated, adminController.issue);
  *                 type: string
  *                 format: binary
  *                 description: PDF file to be uploaded.
+ *                 x-parser:
+ *                   expression: file.originalname.endsWith('.pdf') // Allow only PDF files
  *             required:
  *               - email
  *               - certificateNumber
@@ -281,7 +295,7 @@ router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminContr
  *               error: Internal Server Error
  */
 
-router.post('/batch-certificate-issue', ensureAuthenticated, __upload.single("excelFile"), adminController.batchCertificateIssue);
+router.post('/batch-certificate-issue', ensureAuthenticated, __upload.single("excelFile"), adminController.batchIssueCertificate);
 // router.post('/batch-certificate-issue', __upload.single("excelFile"), adminController.batchCertificateIssue);
 
 // /**
