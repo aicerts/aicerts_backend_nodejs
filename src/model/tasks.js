@@ -3,7 +3,6 @@ require('dotenv').config();
 
 // Import required modules
 const crypto = require('crypto'); // Module for cryptographic functions
-const multer = require("multer"); // Middleware for handling multipart/form-data
 const pdf = require("pdf-lib"); // Library for creating and modifying PDF documents
 const { PDFDocument, Rectangle } = pdf;
 const fs = require("fs"); // File system module
@@ -20,9 +19,6 @@ const { decryptData } = require("../common/cryptoFunction"); // Custom functions
 
 const retryDelay = parseInt(process.env.TIME_DELAY);
 const maxRetries = 3; // Maximum number of retries
-
-// Regular expression to match MM/DD/YY format
-const regex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/\d{2}$/;
 
 // Create a nodemailer transporter using the provided configuration
 const transporter = nodemailer.createTransport({

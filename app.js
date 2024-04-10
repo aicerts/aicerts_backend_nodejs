@@ -19,7 +19,7 @@ const app = express();
 const port = process.env.PORT || 8000;
 
 // Import routes
-const tasksRoutes = require('./src/routes/routes');
+const tasksRoutes = require('./src/routes/index');
 
 // Swagger setup
 const swaggerOptions = {
