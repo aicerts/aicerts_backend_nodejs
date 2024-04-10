@@ -29,7 +29,6 @@ const connectWithRetry = async () => {
   return mongoose.connect(process.env.MONGODB_URI, MONGODB_OPTIONS)
     .then(() => {
       // console.log("DB Connected & Scheduler initialised");
-      createUploadsFolder();
     })
     .catch((err) => {
       console.error("Error connecting to MongoDB:", err.message);
@@ -48,9 +47,9 @@ try {
   mongoose
     .connect(process.env.MONGODB_URI)
     .then(() => {
-      createUploadsFolder();
       // Connect to MongoDB
       connectWithRetry();
+      createUploadsFolder();
       // Schedule the task to run every day at midnight
       cron.schedule('0 0 * * *', async () => {
 
