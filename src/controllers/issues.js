@@ -61,11 +61,9 @@ const newContract = new ethers.Contract(contractAddress, abi, signer);
 const min_length = parseInt(process.env.MIN_LENGTH);
 const max_length = parseInt(process.env.MAX_LENGTH);
 
-let linkUrl; // Variable to store a link URL
-let detailsQR; // Variable to store details of a QR code
-
 const currentDir = __dirname;
 const parentDir = path.dirname(path.dirname(currentDir));
+const fileType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"; // File type
 
 app.use("../../uploads", express.static(path.join(__dirname, "uploads")));
 
@@ -253,6 +251,7 @@ const issuePdf = async (req, res) => {
           // Check mongoose connection
           const dbStatus = await isDBConnected();
           const dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
+          console.log(dbStatusMessage);
 
           // Insert certificate data into database
           const issuerId = idExist.issuerId;
@@ -520,219 +519,231 @@ const issue = async (req, res) => {
  */
 const batchIssueCertificate = async (req, res) => {
   const email = req.body.email;
-
-  file = req.file.path;
-
-  const idExist = await User.findOne({ email });
-
-  var filePath = req.file.path;
-
-  // Fetch the records from the Excel file
-  const excelData = await handleExcelFile(filePath);
-  await _fs.remove(filePath);
-
-  try{
-    // const _filePath = filePath;
-
-  if (
-    (!idExist || idExist.status !== 1) || // User does not exist
-    // !idExist || 
-    !req.file ||
-    !req.file.filename ||
-    req.file.filename === 'undefined' ||
-    excelData.response === false) {
-
-    let errorMessage = "Please provide valid details";
-    var _details = excelData.Details;
-    if (!idExist) {
-      errorMessage = "Invalid Issuer";
-      var _details = idExist.email;
-    }
-    else if (excelData.response == false) {
-      errorMessage = excelData.message;
-    } else if (idExist.status !== 1) {
-      errorMessage = `Unauthorised Issuer Email`;
-    }
-
-    res.status(400).json({ status: "FAILED", message: errorMessage, details: _details  });
+  // file = req.file.path;
+  // Check if the file path matches the pattern
+  if (req.file.mimetype != fileType) {
+    // File path does not match the pattern
+    const errorMessage = 'Invalid file uploaded';
+    res.status(400).json({ status: "FAILED", message: errorMessage });
     return;
+  }
 
-  } else {
+try
+{
+  await isDBConnected();
+    const idExist = await User.findOne({ email });
 
+    var filePath = req.file.path;
 
-    // Batch Certification Formated Details
-    const rawBatchData = excelData.message[0];
-    // Certification count
-    const certificatesCount = excelData.message[1];
-    // certification unformated details
-    const batchData = excelData.message[2];
+    // Fetch the records from the Excel file
+    const excelData = await handleExcelFile(filePath);
+    await _fs.remove(filePath);
 
-    const certificationIDs = rawBatchData.map(item => item.certificationID);
+    try{
 
-    // Assuming BatchIssues is your MongoDB model
-    for (const id of certificationIDs) {
-      const issueExist = await Issues.findOne({ certificateNumber: id });
-      const _issueExist = await BatchIssues.findOne({ certificateNumber: id });
-      if (issueExist || _issueExist) {
-        matchingIDs.push(id);
+    if (
+      (!idExist || idExist.status !== 1) || // User does not exist
+      // !idExist || 
+      !req.file ||
+      !req.file.filename ||
+      req.file.filename === 'undefined' ||
+      excelData.response === false) {
+
+      let errorMessage = "Please provide valid details";
+      var _details = excelData.Details;
+      if (!idExist) {
+        errorMessage = "Invalid Issuer";
+        var _details = idExist.email;
       }
-    }
-
-    const hashedBatchData = batchData.map(data => {
-      // Convert data to string and calculate hash
-      const dataString = data.map(item => item.toString()).join('');
-      const _hash = calculateHash(dataString);
-      return _hash;
-    });
-
-    // // Format as arrays with corresponding elements using a loop
-    const values = [];
-    for (let i = 0; i < certificatesCount; i++) {
-      values.push([hashedBatchData[i]]);
-    }
-
-    try {
-      // Verify on blockchain
-      const isPaused = await newContract.paused();
-      // Check if the Issuer wallet address is a valid Ethereum address
-      if (!ethers.isAddress(idExist.issuerId)) {
-        return res.status(400).json({ status: "FAILED", message: "Invalid Ethereum address format" });
-      }
-      const issuerAuthorized = await newContract.hasRole(process.env.ISSUER_ROLE, idExist.issuerId);
-
-      if (isPaused === true) {
-        // Certificate contract paused
-        var messageContent = "Operation restricted by the Blockchain";
-
-        if (issuerAuthorized === flase) {
-          messageContent = "Unauthorized Issuer to perform operation on Blockchain";
-        }
-
-        return res.status(400).json({ status: "FAILED", message: messageContent });
+      else if (excelData.response == false) {
+        errorMessage = excelData.message;
+      } else if (idExist.status !== 1) {
+        errorMessage = `Unauthorised Issuer Email`;
       }
 
-      // Generate the Merkle tree
-      const tree = StandardMerkleTree.of(values, ['string']);
+      res.status(400).json({ status: "FAILED", message: errorMessage, details: _details  });
+      return;
 
-      const batchNumber = await newContract.getRootLength();
-      const allocateBatchId = parseInt(batchNumber) + 1;
-      // const allocateBatchId = 1;
+    } else {
 
-      try {
-        // Issue Batch Certifications on Blockchain
-        const tx = await newContract.issueBatchOfCertificates(
-          tree.root
-        );
 
-        var txHash = tx.hash;
+      // Batch Certification Formated Details
+      const rawBatchData = excelData.message[0];
+      // Certification count
+      const certificatesCount = excelData.message[1];
+      // certification unformated details
+      const batchData = excelData.message[2];
 
-        var polygonLink = `https://${process.env.NETWORK}.com/tx/${txHash}`;
+      const certificationIDs = rawBatchData.map(item => item.certificationID);
 
-      } catch (error) {
-        if (error.reason) {
-          // Extract and handle the error reason
-          console.log("Error reason:", error.reason);
-          return res.status(400).json({ status: "FAILED", message: error.reason });
-        } else {
-          // If there's no specific reason provided, handle the error generally
-          console.error("Failed to perform opertaion at Blockchain / Try again ...:", error);
-          return res.status(400).json({ status: "FAILED", message: "Failed to perform opertaion at Blockchain / Try again ..." });
+      // Assuming BatchIssues is your MongoDB model
+      for (const id of certificationIDs) {
+        const issueExist = await Issues.findOne({ certificateNumber: id });
+        const _issueExist = await BatchIssues.findOne({ certificateNumber: id });
+        if (issueExist || _issueExist) {
+          matchingIDs.push(id);
         }
       }
 
+      const hashedBatchData = batchData.map(data => {
+        // Convert data to string and calculate hash
+        const dataString = data.map(item => item.toString()).join('');
+        const _hash = calculateHash(dataString);
+        return _hash;
+      });
+
+      // // Format as arrays with corresponding elements using a loop
+      const values = [];
+      for (let i = 0; i < certificatesCount; i++) {
+        values.push([hashedBatchData[i]]);
+      }
+
       try {
-        // Check mongoose connection
-        const dbStatus = await isDBConnected();
-        const dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
-        console.log(dbStatusMessage);
+        // Verify on blockchain
+        const isPaused = await newContract.paused();
+        // Check if the Issuer wallet address is a valid Ethereum address
+        if (!ethers.isAddress(idExist.issuerId)) {
+          return res.status(400).json({ status: "FAILED", message: "Invalid Ethereum address format" });
+        }
+        const issuerAuthorized = await newContract.hasRole(process.env.ISSUER_ROLE, idExist.issuerId);
 
-        var batchDetails = [];
-        var batchDetailsWithQR = [];
-        var insertPromises = []; // Array to hold all insert promises
+        if (isPaused === true) {
+          // Certificate contract paused
+          var messageContent = "Operation restricted by the Blockchain";
 
-        for (var i = 0; i < certificatesCount; i++) {
-          var _proof = tree.getProof(i);
-          let _proofHash = await keccak256(Buffer.from(_proof)).toString('hex');
-          let _grantDate = await convertDateFormat(rawBatchData[i].grantDate);
-          let _expirationDate = await convertDateFormat(rawBatchData[i].expirationDate);
-          batchDetails[i] = {
-            issuerId: idExist.issuerId,
-            batchId: allocateBatchId,
-            proofHash: _proof,
-            encodedProof: _proofHash,
-            transactionHash: txHash,
-            certificateHash: hashedBatchData[i],
-            certificateNumber: rawBatchData[i].certificationID,
-            name: rawBatchData[i].name,
-            course: rawBatchData[i].certificationName,
-            grantDate: _grantDate,
-            expirationDate: _expirationDate
+          if (issuerAuthorized === flase) {
+            messageContent = "Unauthorized Issuer to perform operation on Blockchain";
           }
 
-          let _fields = {
-            Certificate_Number: rawBatchData[i].certificationID,
-            name: rawBatchData[i].name,
-            courseName: rawBatchData[i].certificationName,
-            Grant_Date: _grantDate,
-            Expiration_Date: _expirationDate,
-            polygonLink
+          return res.status(400).json({ status: "FAILED", message: messageContent });
+        }
+
+        // Generate the Merkle tree
+        const tree = StandardMerkleTree.of(values, ['string']);
+
+        const batchNumber = await newContract.getRootLength();
+        const allocateBatchId = parseInt(batchNumber) + 1;
+        // const allocateBatchId = 1;
+
+        try {
+          // Issue Batch Certifications on Blockchain
+          const tx = await newContract.issueBatchOfCertificates(
+            tree.root
+          );
+
+          var txHash = tx.hash;
+
+          var polygonLink = `https://${process.env.NETWORK}.com/tx/${txHash}`;
+
+        } catch (error) {
+          if (error.reason) {
+            // Extract and handle the error reason
+            console.log("Error reason:", error.reason);
+            return res.status(400).json({ status: "FAILED", message: error.reason });
+          } else {
+            // If there's no specific reason provided, handle the error generally
+            console.error("Failed to perform opertaion at Blockchain / Try again ...:", error);
+            return res.status(400).json({ status: "FAILED", message: "Failed to perform opertaion at Blockchain / Try again ..." });
           }
+        }
 
-          let encryptLink = await generateEncryptedUrl(_fields);
+        try {
+          // Check mongoose connection
+          const dbStatus = await isDBConnected();
+          const dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
+          console.log(dbStatusMessage);
 
-          let qrCodeImage = await QRCode.toDataURL(encryptLink, {
-            errorCorrectionLevel: "H",
-            width: 450, // Adjust the width as needed
-            height: 450, // Adjust the height as needed
+          var batchDetails = [];
+          var batchDetailsWithQR = [];
+          var insertPromises = []; // Array to hold all insert promises
+
+          for (var i = 0; i < certificatesCount; i++) {
+            var _proof = tree.getProof(i);
+            let _proofHash = await keccak256(Buffer.from(_proof)).toString('hex');
+            let _grantDate = await convertDateFormat(rawBatchData[i].grantDate);
+            let _expirationDate = await convertDateFormat(rawBatchData[i].expirationDate);
+            batchDetails[i] = {
+              issuerId: idExist.issuerId,
+              batchId: allocateBatchId,
+              proofHash: _proof,
+              encodedProof: _proofHash,
+              transactionHash: txHash,
+              certificateHash: hashedBatchData[i],
+              certificateNumber: rawBatchData[i].certificationID,
+              name: rawBatchData[i].name,
+              course: rawBatchData[i].certificationName,
+              grantDate: _grantDate,
+              expirationDate: _expirationDate
+            }
+
+            let _fields = {
+              Certificate_Number: rawBatchData[i].certificationID,
+              name: rawBatchData[i].name,
+              courseName: rawBatchData[i].certificationName,
+              Grant_Date: _grantDate,
+              Expiration_Date: _expirationDate,
+              polygonLink
+            }
+
+            let encryptLink = await generateEncryptedUrl(_fields);
+
+            let qrCodeImage = await QRCode.toDataURL(encryptLink, {
+              errorCorrectionLevel: "H",
+              width: 450, // Adjust the width as needed
+              height: 450, // Adjust the height as needed
+            });
+
+            batchDetailsWithQR[i] = {
+              issuerId: idExist.issuerId,
+              batchId: allocateBatchId,
+              transactionHash: txHash,
+              certificateHash: hashedBatchData[i],
+              certificateNumber: rawBatchData[i].certificationID,
+              name: rawBatchData[i].name,
+              course: rawBatchData[i].certificationName,
+              grantDate: _grantDate,
+              expirationDate: _expirationDate,
+              qrImage: qrCodeImage
+            }
+
+            // console.log("Batch Certificate Details", batchDetailsWithQR[i]);
+            // await insertBatchCertificateData(batchDetails[i]);
+            insertPromises.push(insertBatchCertificateData(batchDetails[i]));
+          }
+          // Wait for all insert promises to resolve
+          await Promise.all(insertPromises);
+          var newCount = certificatesCount;
+          var oldCount = idExist.certificatesIssued;
+          idExist.certificatesIssued = newCount + oldCount;
+          await idExist.save();
+
+          res.status(200).json({
+            status: "SUCCESS",
+            message: "Batch of Certifications issued successfully",
+            polygonLink: polygonLink,
+            details: batchDetailsWithQR,
           });
 
-          batchDetailsWithQR[i] = {
-            issuerId: idExist.issuerId,
-            batchId: allocateBatchId,
-            transactionHash: txHash,
-            certificateHash: hashedBatchData[i],
-            certificateNumber: rawBatchData[i].certificationID,
-            name: rawBatchData[i].name,
-            course: rawBatchData[i].certificationName,
-            grantDate: _grantDate,
-            expirationDate: _expirationDate,
-            qrImage: qrCodeImage
-          }
+          await cleanUploadFolder();
 
-          // console.log("Batch Certificate Details", batchDetailsWithQR[i]);
-          // await insertBatchCertificateData(batchDetails[i]);
-          insertPromises.push(insertBatchCertificateData(batchDetails[i]));
+        } catch (error) {
+          // Handle mongoose connection error (log it, response an error, etc.)
+          console.error("Internal server error", error);
+          return res.status(500).json({ status: "FAILED", message: "Internal server error", details: error });
         }
-        // Wait for all insert promises to resolve
-        await Promise.all(insertPromises);
-        var newCount = certificatesCount;
-        var oldCount = idExist.certificatesIssued;
-        idExist.certificatesIssued = newCount + oldCount;
-        await idExist.save();
-
-        res.status(200).json({
-          status: "SUCCESS",
-          message: "Batch of Certifications issued successfully",
-          polygonLink: polygonLink,
-          details: batchDetailsWithQR,
-        });
-
-        await cleanUploadFolder();
 
       } catch (error) {
-        // Handle mongoose connection error (log it, response an error, etc.)
-        console.error("Internal server error", error);
-        return res.status(500).json({ status: "FAILED", message: "Internal server error", details: error });
+        console.error('Error:', error);
+        return res.status(400).json({ status: "FAILED", message: "Failed to interact with Blockchain", details: error });
       }
-
-    } catch (error) {
-      console.error('Error:', error);
-      return res.status(400).json({ status: "FAILED", message: "Failed to interact with Blockchain", details: error });
     }
+  } catch (error) {
+    console.error('Error:', error);
+    return res.status(400).json({ status: "FAILED", message: "Failed to Get Excel File, Upload again and try", details: error });
   }
 } catch (error) {
   console.error('Error:', error);
-  return res.status(400).json({ status: "FAILED", message: "Failed to Get Excel File, Upload again and try", details: error });
+  return res.status(400).json({ status: "FAILED", message: "Internal Server error", details: error });
 }
 };
 

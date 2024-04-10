@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { ensureAuthenticated } = require("../config/auth"); // Import authentication middleware
 const multer = require('multer');
-const { fileFilter } = require('../model/tasks'); // Import file filter function
+const { fileFilter,excelFilter } = require('../model/tasks'); // Import file filter function
 const adminController = require('../controllers/issues');
 
 // Configure multer storage options
@@ -16,11 +16,10 @@ const storage = multer.diskStorage({
       cb(null, file.originalname);
     },
   });
-  
+
   // Initialize multer with configured storage and file filter
   const _upload = multer({ storage, fileFilter });
   
-  // const __upload = multer({ storage : _storage });
   const __upload = multer({dest: "../../uploads/"});
 
 /**
@@ -280,6 +279,6 @@ router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminContr
  *               error: Internal Server Error
  */
 
-router.post('/batch-certificate-issue', ensureAuthenticated, __upload.single("excelFile"), adminController.batchIssueCertificate);
+router.post('/batch-certificate-issue', __upload.single("excelFile"), adminController.batchIssueCertificate);
 
 module.exports=router;

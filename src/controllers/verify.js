@@ -148,104 +148,107 @@ const decodeCertificate = async (req, res) => {
  */
 const verifyCertificationId = async (req, res) => {
   const inputId = req.body.id;
-  const dbStatus = await isDBConnected();
-  const dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
-  console.log(dbStatusMessage);
+  try {
+    const dbStatus = await isDBConnected();
+    const dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
+    console.log(dbStatusMessage);
 
-  const singleIssueExist = await Issues.findOne({ certificateNumber: inputId });
-  const batchIssueExist = await BatchIssues.findOne({ certificateNumber: inputId });
+    const singleIssueExist = await Issues.findOne({ certificateNumber: inputId });
+    const batchIssueExist = await BatchIssues.findOne({ certificateNumber: inputId });
 
-  // Blockchain processing.
-  const response = await newContract.verifyCertificateById(inputId);
+    // Blockchain processing.
+    const response = await newContract.verifyCertificateById(inputId);
 
-  // Validation checks for request data
-  if ([inputId].some(value => typeof value !== "string" || value == "string") || (!batchIssueExist && response === false)) {
-    // res.status(400).json({ message: "Please provide valid details" });
-    let errorMessage = "Please provide valid details";
+    // Validation checks for request data
+    if ([inputId].some(value => typeof value !== "string" || value == "string") || (!batchIssueExist && response === false)) {
+      // res.status(400).json({ message: "Please provide valid details" });
+      let errorMessage = "Please provide valid details";
 
-    // Check for specific error conditions and update the error message accordingly
-    if (!batchIssueExist && response === false) {
-      errorMessage = "Certification doesn't exist";
-    }
-
-    // Respond with error message
-    return res.status(400).json({ status: "FAILED", message: errorMessage });
-  } else {
-
-    if (response === true || singleIssueExist != null) {
-      if (singleIssueExist == null) {
-        const _verificationResponse = {
-          status: "FAILED",
-          message: "Certification is valid but No Details found",
-          details: inputId
-        };
-
-        return res.status(400).json(_verificationResponse);
-      }
-      try {
-        var _polygonLink = `https://${process.env.NETWORK}.com/tx/${singleIssueExist.transactionHash}`;
-
-        var completeResponse = {
-          'Certificate Number': singleIssueExist.certificateNumber,
-          'Course Name': singleIssueExist.course,
-          'Expiration Date': await convertDateOnVerification(singleIssueExist.expirationDate),
-          'Grant Date': await convertDateOnVerification(singleIssueExist.grantDate),
-          'Name': singleIssueExist.name,
-          'Polygon URL': _polygonLink
-        };
-
-        const foundCertification = (singleIssueExist != null) ? completeResponse : inputId;
-
-        const verificationResponse = {
-          status: "SUCCESS",
-          message: "Certification is valid",
-          details: foundCertification
-        };
-        res.status(200).json(verificationResponse);
-
-      } catch (error) {
-        return res.status(500).json({ status: "FAILED", message: "Internal server error", details: error });
+      // Check for specific error conditions and update the error message accordingly
+      if (!batchIssueExist && response === false) {
+        errorMessage = "Certification doesn't exist";
       }
 
-    } else if (batchIssueExist != null) {
-      const batchNumber = (batchIssueExist.batchId) - 1;
-      const dataHash = batchIssueExist.certificateHash;
-      const proof = batchIssueExist.proofHash;
+      // Respond with error message
+      return res.status(400).json({ status: "FAILED", message: errorMessage });
+    } else {
 
-      // Blockchain processing.
-      const val = await newContract.verifyCertificateInBatch(batchNumber, dataHash, proof);
+      if (response === true || singleIssueExist != null) {
+        if (singleIssueExist == null) {
+          const _verificationResponse = {
+            status: "FAILED",
+            message: "Certification is valid but No Details found",
+            details: inputId
+          };
 
-      if (val === true) {
+          return res.status(400).json(_verificationResponse);
+        }
         try {
-
-          var _polygonLink = `https://${process.env.NETWORK}.com/tx/${batchIssueExist.transactionHash}`;
+          var _polygonLink = `https://${process.env.NETWORK}.com/tx/${singleIssueExist.transactionHash}`;
 
           var completeResponse = {
-            'Certificate Number': batchIssueExist.certificateNumber,
-            'Course Name': batchIssueExist.course,
-            'Expiration Date': await convertDateOnVerification(batchIssueExist.expirationDate),
-            'Grant Date': await convertDateOnVerification(batchIssueExist.grantDate),
-            'Name': batchIssueExist.name,
+            'Certificate Number': singleIssueExist.certificateNumber,
+            'Course Name': singleIssueExist.course,
+            'Expiration Date': await convertDateOnVerification(singleIssueExist.expirationDate),
+            'Grant Date': await convertDateOnVerification(singleIssueExist.grantDate),
+            'Name': singleIssueExist.name,
             'Polygon URL': _polygonLink
           };
 
-          const _verificationResponse = {
+          const foundCertification = (singleIssueExist != null) ? completeResponse : inputId;
+
+          const verificationResponse = {
             status: "SUCCESS",
             message: "Certification is valid",
-            details: completeResponse
+            details: foundCertification
           };
-
-          res.status(200).json(_verificationResponse);
+          res.status(200).json(verificationResponse);
 
         } catch (error) {
           return res.status(500).json({ status: "FAILED", message: "Internal server error", details: error });
         }
-      } else {
-        return res.status(400).json({ status: "FAILED", message: "Certification doesn't exist" });
+
+      } else if (batchIssueExist != null) {
+        const batchNumber = (batchIssueExist.batchId) - 1;
+        const dataHash = batchIssueExist.certificateHash;
+        const proof = batchIssueExist.proofHash;
+
+        // Blockchain processing.
+        const val = await newContract.verifyCertificateInBatch(batchNumber, dataHash, proof);
+
+        if (val === true) {
+          try {
+
+            var _polygonLink = `https://${process.env.NETWORK}.com/tx/${batchIssueExist.transactionHash}`;
+
+            var completeResponse = {
+              'Certificate Number': batchIssueExist.certificateNumber,
+              'Course Name': batchIssueExist.course,
+              'Expiration Date': await convertDateOnVerification(batchIssueExist.expirationDate),
+              'Grant Date': await convertDateOnVerification(batchIssueExist.grantDate),
+              'Name': batchIssueExist.name,
+              'Polygon URL': _polygonLink
+            };
+
+            const _verificationResponse = {
+              status: "SUCCESS",
+              message: "Certification is valid",
+              details: completeResponse
+            };
+
+            res.status(200).json(_verificationResponse);
+
+          } catch (error) {
+            return res.status(500).json({ status: "FAILED", message: "Internal server error", details: error });
+          }
+        } else {
+          return res.status(400).json({ status: "FAILED", message: "Certification doesn't exist" });
+        }
       }
     }
+    } catch (error) {
+    return res.status(500).json({ status: "FAILED", message: "Internal server error", details: error });
   }
-
 };
 
 
