@@ -61,11 +61,11 @@ const newContract = new ethers.Contract(contractAddress, abi, signer);
 const min_length = parseInt(process.env.MIN_LENGTH);
 const max_length = parseInt(process.env.MAX_LENGTH);
 
-const currentDir = __dirname;
-const parentDir = path.dirname(path.dirname(currentDir));
+// const currentDir = __dirname;
+// const parentDir = path.dirname(path.dirname(currentDir));
 const fileType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"; // File type
 
-app.use("../../uploads", express.static(path.join(__dirname, "uploads")));
+// app.use("../../uploads", express.static(path.join(__dirname, "uploads")));
 
 /**
  * API call for Certificate issue with pdf template.
@@ -239,7 +239,7 @@ try{
 
         // Add link and QR code to the PDF file
         const opdf = await addLinkToPdf(
-          path.join(parentDir, '.', file),
+          path.join("./", '.', file),
           outputPdf,
           linkUrl,
           qrCodeImage,
@@ -534,11 +534,11 @@ const issue = async (req, res) => {
  */
 const batchIssueCertificate = async (req, res) => {
   const email = req.body.email;
-  // file = req.file.path;
   // Check if the file path matches the pattern
   if (req.file.mimetype != fileType) {
     // File path does not match the pattern
     const errorMessage = 'Invalid file uploaded';
+    await cleanUploadFolder();
     res.status(400).json({ status: "FAILED", message: errorMessage });
     return;
   }
@@ -547,7 +547,6 @@ try
 {
   await isDBConnected();
     const idExist = await User.findOne({ email });
-
     var filePath = req.file.path;
 
     // Fetch the records from the Excel file

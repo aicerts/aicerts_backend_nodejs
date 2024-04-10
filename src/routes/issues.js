@@ -20,7 +20,7 @@ const storage = multer.diskStorage({
   // Initialize multer with configured storage and file filter
   const _upload = multer({ storage, fileFilter });
   
-  const __upload = multer({dest: "../../uploads/"});
+  const __upload = multer({dest: "./uploads/"});
 
 /**
  * @swagger
