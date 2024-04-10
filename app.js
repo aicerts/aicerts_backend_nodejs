@@ -65,6 +65,13 @@ app.use((err, req, res, next) => {
   }
 });
 
+// Handling uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  // Perform cleanup tasks if needed
+  process.exit(1); // Exit the process with a failure code
+});
+
 app.use('/', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Start the server
