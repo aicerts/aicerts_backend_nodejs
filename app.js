@@ -74,6 +74,16 @@ process.on('uncaughtException', (error) => {
 
 app.use('/', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
+// Graceful Shutdown
+process.on('SIGINT', () => {
+  console.log('Received SIGINT. Closing server gracefully.');
+  // Close the server gracefully
+  server.close(() => {
+    console.log('Server closed.');
+    process.exit(0); // Exit the process with a success code
+  });
+});
+
 // Start the server
 app.listen(port, () => {
   console.log(`Server listening on http://localhost:${port}`);
