@@ -84,6 +84,8 @@ const issuePdf = async (req, res) => {
   const grantDate = await convertDateFormat(_grantDate);
   const expirationDate = await convertDateFormat(_expirationDate);
 
+try{
+  await isDBConnected();
   // Check if user with provided email exists
   const idExist = await User.findOne({ email });
   // Check if certificate number already exists
@@ -301,6 +303,11 @@ const issuePdf = async (req, res) => {
       return res.status(400).json({ status: "FAILED", message: "Failed to interact with Blockchain", details: error });
     }
   }
+} catch (error) {
+  // Handle mongoose connection error (log it, response an error, etc.)
+  console.error("Internal server error", error);
+  return res.status(400).json({ status: "FAILED", message: "Internal server error", details: error });
+}
 };
 
 
@@ -322,6 +329,9 @@ const issue = async (req, res) => {
   const grantDate = await convertDateFormat(_grantDate);
   const expirationDate = await convertDateFormat(_expirationDate);
 
+  try
+  {
+    await isDBConnected();
   // Check if user with provided email exists
   const idExist = await User.findOne({ email });
   // Check if certificate number already exists
@@ -509,6 +519,11 @@ const issue = async (req, res) => {
       return res.status(400).json({ status: "FAILED", message: "Failed to interact with Blockchain", details: error });
     }
   }
+} catch (error) {
+  // Internal server error
+  console.error(error);
+  return res.status(400).json({ status: "FAILED", message: "Internal Server Error", details: error });
+}
 };
 
 /**

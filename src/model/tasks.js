@@ -4,7 +4,7 @@ require('dotenv').config();
 // Import required modules
 const crypto = require('crypto'); // Module for cryptographic functions
 const pdf = require("pdf-lib"); // Library for creating and modifying PDF documents
-const { PDFDocument, Rectangle } = pdf;
+const { PDFDocument } = pdf;
 const fs = require("fs"); // File system module
 const path = require("path"); // Module for working with file paths
 const { fromPath } = require("pdf2pic"); // Converter from PDF to images
@@ -64,9 +64,6 @@ const abi = require("../config/abi.json");
 // Retrieve contract address from environment variable
 const contractAddress = process.env.CONTRACT_ADDRESS;
 
-// Create a new ethers provider using the default provider and the RPC endpoint from environment variable
-const _provider = new ethers.JsonRpcProvider(process.env.RPC_ENDPOINT);
-
 // Define an array of providers to use as fallbacks
 const providers = [
   new ethers.AlchemyProvider(process.env.RPC_NETWORK, process.env.ALCHEMY_API_KEY),
@@ -81,20 +78,10 @@ const fallbackProvider = new ethers.FallbackProvider(providers);
 const signer = new ethers.Wallet(process.env.PRIVATE_KEY, fallbackProvider);
 
 // Create a new ethers contract instance with a signing capability (using the contract ABI and wallet)
-const sin_contract = new ethers.Contract(contractAddress, abi, signer);
-
+const sim_contract = new ethers.Contract(contractAddress, abi, signer);
 
 // Import the Issues models from the schema defined in "../config/schema"
 const { User, Issues, BatchIssues } = require("../config/schema");
-
-// Example usage: Excel Headers
-const expectedHeadersSchema = [
-  'certificationID',
-  'name',
-  'certificationName',
-  'grantDate',
-  'expirationDate'
-];
 
 //Connect to polygon
 const connectToPolygon = async () => {
@@ -442,53 +429,53 @@ const addLinkToPdf = async (
   qrCode, // QR code image to be added to the PDF
   combinedHash // Combined hash value to be displayed (optional)
 ) => {
-  // Read existing PDF file bytes
-  const existingPdfBytes = fs.readFileSync(inputPath);
+    // Read existing PDF file bytes
+    const existingPdfBytes = fs.readFileSync(inputPath);
 
-  // Load existing PDF document
-  const pdfDoc = await pdf.PDFDocument.load(existingPdfBytes);
+    // Load existing PDF document
+    const pdfDoc = await pdf.PDFDocument.load(existingPdfBytes);
 
-  // Get the first page of the PDF document
-  const page = pdfDoc.getPage(0);
+    // Get the first page of the PDF document
+    const page = pdfDoc.getPage(0);
 
-  // Get page width and height
-  const width = page.getWidth();
-  const height = page.getHeight();
+    // Get page width and height
+    const width = page.getWidth();
+    const height = page.getHeight();
 
-  // Add link URL to the PDF page
-  page.drawText(linkUrl, {
-    x: 62, // X coordinate of the text
-    y: 30, // Y coordinate of the text
-    size: 8, // Font size
-  });
+    // Add link URL to the PDF page
+    page.drawText(linkUrl, {
+      x: 62, // X coordinate of the text
+      y: 30, // Y coordinate of the text
+      size: 8, // Font size
+    });
 
-  // page.drawText(combinedHash, {
-  //   x: 5,
-  //   y: 10,
-  //   size: 3
-  // });
+    // page.drawText(combinedHash, {
+    //   x: 5,
+    //   y: 10,
+    //   size: 3
+    // });
 
-  //Adding qr code
-  const pdfDc = await PDFDocument.create();
-  // Adding QR code to the PDF page
-  const pngImage = await pdfDoc.embedPng(qrCode); // Embed QR code image
-  const pngDims = pngImage.scale(0.36); // Scale QR code image
+    //Adding qr code
+    const pdfDc = await PDFDocument.create();
+    // Adding QR code to the PDF page
+    const pngImage = await pdfDoc.embedPng(qrCode); // Embed QR code image
+    const pngDims = pngImage.scale(0.36); // Scale QR code image
 
-  page.drawImage(pngImage, {
-    x: width - pngDims.width - 108,
-    y: 135,
-    width: pngDims.width,
-    height: pngDims.height,
-  });
-  qrX = width - pngDims.width - 75;
-  qrY = 75;
-  qrWidth = pngDims.width;
-  qrHeight = pngDims.height;
+    page.drawImage(pngImage, {
+      x: width - pngDims.width - 108,
+      y: 135,
+      width: pngDims.width,
+      height: pngDims.height,
+    });
+    qrX = width - pngDims.width - 75;
+    qrY = 75;
+    qrWidth = pngDims.width;
+    qrHeight = pngDims.height;
 
-  const pdfBytes = await pdfDoc.save();
+    const pdfBytes = await pdfDoc.save();
 
-  fs.writeFileSync(outputPath, pdfBytes);
-  return pdfBytes;
+    fs.writeFileSync(outputPath, pdfBytes);
+    return pdfBytes;
 };
 
 const verifyPDFDimensions = async (pdfPath) => {
@@ -564,20 +551,6 @@ const fileFilter = (req, file, cb) => {
     // If the file type is not PDF, reject the file upload with an error message
     cb(
       new Error("Invalid file type. Only PDF files are allowed."),
-      false
-    );
-  }
-};
-
-const excelFilter = (req, file, cb) => {
-  if (file.mimetype === "application/vnd.ms-excel" || // For XLS files
-    file.mimetype === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" || // For XLSX files
-    (file.originalname && file.originalname.endsWith(".xlsx")) // For XLSX files based on file extension
-  ) {
-    cb(null, true); // Accept the file
-  } else {
-    cb(
-      new Error("Invalid file type. Only Excel files (XLS, XLSX) are allowed."),
       false
     );
   }
@@ -711,9 +684,6 @@ module.exports = {
 
   // Function for filtering file uploads based on MIME type Pdf
   fileFilter,
-
-  // Function for filtering file uploads based on MIME type Excel
-  excelFilter,
 
   // Function to clean up the upload folder
   cleanUploadFolder,

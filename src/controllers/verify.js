@@ -149,8 +149,8 @@ const decodeCertificate = async (req, res) => {
 const verifyCertificationId = async (req, res) => {
   const inputId = req.body.id;
   try {
-    const dbStatus = await isDBConnected();
-    const dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
+    var dbStatus = await isDBConnected();
+    var dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
     console.log(dbStatusMessage);
 
     const singleIssueExist = await Issues.findOne({ certificateNumber: inputId });
