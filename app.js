@@ -19,7 +19,7 @@ const app = express();
 const port = process.env.PORT || 8000;
 
 // Import routes
-const tasksRoutes = require('./src/routes/routes');
+const tasksRoutes = require('./src/routes/index');
 
 // Swagger setup
 const swaggerOptions = {
@@ -52,7 +52,7 @@ app.use('/api', tasksRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  setTimeout(function() { next(); }, 120000); // 120 seconds
+  setTimeout(function () { next(); }, 120000); // 120 seconds
   console.error(err.stack);
   if (err instanceof multer.MulterError) {
     // Multer error occurred (e.g., file size limit exceeded)
@@ -65,7 +65,24 @@ app.use((err, req, res, next) => {
   }
 });
 
+// Handling uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  // Perform cleanup tasks if needed
+  process.exit(1); // Exit the process with a failure code
+});
+
 app.use('/', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+// Graceful Shutdown
+process.on('SIGINT', () => {
+  console.log('Received SIGINT. Closing server gracefully.');
+  // Close the server gracefully
+  server.close(() => {
+    console.log('Server closed.');
+    process.exit(0); // Exit the process with a success code
+  });
+});
 
 // Start the server
 app.listen(port, () => {

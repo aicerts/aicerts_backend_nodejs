@@ -10,11 +10,6 @@ const mongoose = require("mongoose");
 // Import the issuer model from the schema defined in "./schema"
 const { User } = require("./schema");
 
-// Importing functions from a custom module
-const {
-  connectToPolygon // Function to check if the database connection is established
-} = require('../model/tasks'); // Importing functions from the '../model/tasks' module
-
 // Parse environment variables for days to be deleted
 const schedule_days = parseInt(process.env.SCHEDULE_DAYS);
 
@@ -29,7 +24,6 @@ const connectWithRetry = async () => {
   return mongoose.connect(process.env.MONGODB_URI, MONGODB_OPTIONS)
     .then(() => {
       // console.log("DB Connected & Scheduler initialised");
-      createUploadsFolder();
     })
     .catch((err) => {
       console.error("Error connecting to MongoDB:", err.message);
@@ -48,9 +42,9 @@ try {
   mongoose
     .connect(process.env.MONGODB_URI)
     .then(() => {
-      createUploadsFolder();
       // Connect to MongoDB
       connectWithRetry();
+      createUploadsFolder();
       // Schedule the task to run every day at midnight
       cron.schedule('0 0 * * *', async () => {
 
@@ -102,9 +96,7 @@ const createUploadsFolder = async () => {
     } else {
       console.log("Uploads folder already exists.");
     }
-    // await connectToPolygon();
   } catch (error) {
     console.error("Error creating uploads folder:", error);
   }
-  // await connectToPolygon();
 };
