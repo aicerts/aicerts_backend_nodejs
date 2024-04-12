@@ -13,6 +13,9 @@ const { StandardMerkleTree } = require("@openzeppelin/merkle-tree");
 const keccak256 = require('keccak256');
 const { validationResult } = require("express-validator");
 
+const pdf = require("pdf-lib"); // Library for creating and modifying PDF documents
+const { PDFDocument } = pdf;
+
 // Import custom cryptoFunction module for encryption and decryption
 const { generateEncryptedUrl } = require("../common/cryptoFunction");
 
@@ -80,6 +83,15 @@ const issuePdf = async (req, res) => {
   var validResult = validationResult(req);
   if (!validResult.isEmpty()) {
     return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid ,details: validResult.array() });
+  }
+
+  var fileBuffer = fs.readFileSync(req.file.path);
+  var pdfDoc = await PDFDocument.load(fileBuffer);
+
+  if (pdfDoc.getPageCount() > 1) {
+    // Respond with success status and certificate details
+    await cleanUploadFolder();
+    return res.status(400).json({ status: "FAILED", message: messageCode.msgMultiPagePdf});
   }
   // Extracting required data from the request body
   const email = req.body.email;

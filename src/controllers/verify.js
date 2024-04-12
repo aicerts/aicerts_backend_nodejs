@@ -11,6 +11,9 @@ const { validationResult } = require("express-validator");
 // Import custom cryptoFunction module for encryption and decryption
 const { decryptData } = require("../common/cryptoFunction");
 
+const pdf = require("pdf-lib"); // Library for creating and modifying PDF documents
+const { PDFDocument } = pdf;
+
 // Import MongoDB models
 const { Issues, BatchIssues } = require("../config/schema");
 
@@ -54,6 +57,15 @@ var messageCode = require("../common/codes");
 const verify = async (req, res) => {
   // Extracting file path from the request
   file = req.file.path;
+
+  var fileBuffer = fs.readFileSync(file);
+  var pdfDoc = await PDFDocument.load(fileBuffer);
+
+  if (pdfDoc.getPageCount() > 1) {
+    // Respond with success status and certificate details
+    await cleanUploadFolder();
+    return res.status(400).json({ status: "FAILED", message: messageCode.msgMultiPagePdf});
+  }
 
   try {
     // Extract QR code data from the PDF file

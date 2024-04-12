@@ -49,7 +49,8 @@ module.exports = {
     msgIssuerUnauthrized : "Unauthorized Issuer to perform operation on Blockchain",
     msgFailedAtBlockchain : "Failed to interact with Blockchain / Please Try again ...",
     msgFailedOpsAtBlockchain : "Failed to perform opertaion at Blockchain / Please Try again ...",
-    
+    msgMultiPagePdf : "Multiple Pages PDF document is not allowed, Please try again with valid single page PDF...",
+
     // Admin controller messages
     msgAdminMailExist : "Admin with the provided email already exists",
     msgSignupSuccess : "Signup successful",
