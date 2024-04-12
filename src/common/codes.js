@@ -1,36 +1,92 @@
-
 module.exports = {
 
-// Tasks Messages
-msgDbReady: "Database connection is Ready",
-msgDbNotReady : "Database connection is Not Ready",
+    // Tasks Messages
+    msgDbReady: "Database connection is Ready",
+    msgDbNotReady : "Database connection is Not Ready",
+    
+    // Response code messages
+    msgInternalError : "Internal server error",
 
-// Response code messages
-msgInternalError : "Internal server error",
-
-// Validation Error codes Issues (Route)
-msgInvalidFile : "Invalid file uploaded / Please Try again ...",
-msgEnterInvalid : "Entered invalid input",
-msgInvalidEmail: "Entered invalid Email",
-msgNonEmpty : "Input field cannot be empty",
-msgInputProvide : "Input should be provided",
-msgInvalidFormat : "Entered input format is invalid ",
-msgInvalidDate : "Entered date format is invalid",
-msgCertLength : "Certification ID must between 12 to 20 characters",
-
-// API response codes in Issues (Controller)
-msgPlsEnterValid : "Please provide valid details",
-msgInvalidIssuer : "Invalid Issuer",
-msgUnauthIssuer : "Unauthorised Issuer Email",
-msgInvalidEthereum : "Invalid Ethereum address format",
-msgCertIssuedSuccess : "Certification issued successfully",
-msgBatchIssuedSuccess: "Batch of Certifications issued successfully",
-msgCertIssued : "Certification already issued",
-msgOpsRestricted : "Operation restricted by the Blockchain",
-msgIssuerUnauthrized : "Unauthorized Issuer to perform operation on Blockchain",
-msgFailedAtBlockchain : "Failed to interact with Blockchain / Please Try again ...",
-msgFailedOpsAtBlockchain : "Failed to perform opertaion at Blockchain / Please Try again ...",
+    // Handle Excel File messages
+    msgInvalidExcel : "Invalid Excel file, Please try again",
+    msgExcelLimit : "Application can support upto 150 (Excel file should have 150 certifications maximum)",
+    msgInvalidCertIds : "Excel file has invalid certification IDs length (each: min 12 - max 20)",
+    msgExcelRepetetionIds : "Excel file has repetition in certification IDs",
+    msgInvalidDateFormat: "File has invalid Date format",
+    msgInvalidDates: "File has invalid Dates",
+    msgOlderDateThanNewDate : "File has Future grant date than Expiration Date",
+    msgExcelHasExistingIds : "Excel file has Existing Certification IDs",
+    msgInvalidHeaders : "Invalid headers in the Excel file.",
+    msgExcelSheetname : "The Excel file Sheet name should be - Batch.",
 
 
+    // Validation Error codes Issues (Route)
+    msgInvalidFile : "Invalid file uploaded / Please Try again ...",
+    msgEnterInvalid : "Entered invalid input / Please check and try again...",
+    msgInvalidEmail: "Entered invalid Email",
+    msgNonEmpty : "Input field cannot be empty",
+    msgInputProvide : "Input should be provided",
+    msgInvalidFormat : "Entered input format is invalid ",
+    msgInvalidDate : "Entered date format is invalid",
+    msgCertLength : "Certification ID must between 12 to 20 characters",
+    msgMaxLength : "Entered Input must between 8 to 30 characters",
 
-}
+    // API response codes in Issues (Controller)
+    msgInvalidFilePath : "Provided invalid file path",
+    msgMustPdf : "Must upload PDF file format",
+    msgMustExcel : "Must upload Excel file format",
+    msgPlsEnterValid : "Please provide valid details",
+    msgInvalidIssuer : "Invalid Issuer email",
+    msgCertIdRequired : "Certification ID is required",
+    msgUnauthIssuer : "Unauthorised Issuer Email",
+    msgProvideValidDates : "Please provide valid dates",
+    msgInvalidEthereum : "Invalid Ethereum address format",
+    msgCertIssuedSuccess : "Certification issued successfully",
+    msgBatchIssuedSuccess: "Batch of Certifications issued successfully",
+    msgInvalidPdfTemplate : "Invalid PDF (Certification Template) dimensions",
+    msgCertIssued : "Certification ID already issued",
+    msgOpsRestricted : "Operation restricted by the Blockchain",
+    msgIssuerUnauthrized : "Unauthorized Issuer to perform operation on Blockchain",
+    msgFailedAtBlockchain : "Failed to interact with Blockchain / Please Try again ...",
+    msgFailedOpsAtBlockchain : "Failed to perform opertaion at Blockchain / Please Try again ...",
+    
+    // Admin controller messages
+    msgAdminMailExist : "Admin with the provided email already exists",
+    msgSignupSuccess : "Signup successful",
+    msgValidCredentials: "Provided valid credentials",
+    msgInvalidCredentials : "Provided invalid credentials!",
+    msgInvalidPassword : "Invalid password entered!",
+    msgErrorOnPwdCompare : "An error occurred while comparing passwords",
+    msgErrorOnExistUser : "An error occurred while checking for existing user",
+    msgAdminNotFound : "Admin not found (or) Not Logged in!",
+    msgLogoutSuccess : "Admin Logged out successfully",
+    msgErrorInLogout : "An error occurred during the logout!",
+    msgPwdSuccess : "Password reset successful",
+    msgErrorOnUser : "An error occurred while saving user account!",
+    msgErrorOnHashing : "An error occurred while hashing password!",
+    msgErrorOnPwdReset : "An error occurred during password reset process!",
+    msgCertNotValid: "Certification is not valid",
+    msgCertValid: "Certification is Valid",
+    msgCertNotExist : "Certification doesn't exist",
+    msgCertValidNoDetails: "Certification is valid but No Details found",
+    msgAllIssuersFetched : "All user details fetched successfully",
+    msgErrorOnFetching : "An error occurred while fetching Issuer details",
+    msgProvideValidStatus : "Please provide valid status as 1 : approve or 2 : reject",
+
+    // Blockchain route Messages
+    msgInvalidInput : "Invalid Input parameter",
+    msgUserNotFound : "Issuer not found!",
+    msgIssuerRejectSuccess : "Issuer Rejected successfully",
+    msgExistRejectIssuer : "Existed Rejected Issuer",
+    msgRejecetedAlready : "Issuer Rejected already",
+    msgExistedVerified : "Existed Verified Issuer",
+    msgIssuerApproveSuccess : "Issuer Approved successfully",
+    msgIssueInValidation : "An error occurred during the Issuer validation process!",
+    msgAddressExistBlockchain : "Address Existed in the Blockchain",
+    msgAddressNotExistBlockchain : "Address Doesn't Existed in the Blockchain",
+    msgAdminGrant : "Admin Role Granted",
+    msgIssuerRoleGrant : "Issuer Role Granted",
+    msgAdminRevoke : "Admin Role Revoked",
+    msgIssuerRoleRevoke : "Issuer Role Revoked",
+    msgBalanceCheck : "Balance check successful"
+};

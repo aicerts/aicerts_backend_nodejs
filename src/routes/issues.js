@@ -4,9 +4,7 @@ const { ensureAuthenticated } = require("../config/auth"); // Import authenticat
 const multer = require('multer');
 const { fileFilter } = require('../model/tasks'); // Import file filter function
 const adminController = require('../controllers/issues');
-const { body } = require('express-validator');
-
-const errorCode = require("../common/codes");
+const validationRoute = require("../common/validationRoutes");
 
 // Configure multer storage options
 const storage = multer.diskStorage({
@@ -101,7 +99,7 @@ const storage = multer.diskStorage({
  *               status: "FAILED"
  *               message: Error message for certificate already issued or invalid input.
  *       '422':
- *         description: Unprocessable Entity
+ *         description: User given invalid input (Unprocessable Entity)
  *         content:
  *           application/json:
  *             schema:
@@ -113,7 +111,7 @@ const storage = multer.diskStorage({
  *                   type: string
  *             example:
  *               status: "FAILED"
- *               message: Error message for Unprocessable Entity.
+ *               message: Error message for invalid input.
  *       '500':
  *         description: Internal Server Error
  *         content:
@@ -130,12 +128,7 @@ const storage = multer.diskStorage({
  *               message: Internal server error.
  */
 
-router.post('/issue', [
-  body(["email"]).notEmpty().trim().not().equals("string").withMessage(errorCode.msgNonEmpty).isEmail().withMessage(errorCode.msgInvalidEmail),
-  body(["certificateNumber"]).notEmpty().trim().withMessage(errorCode.msgNonEmpty).not().equals("string").withMessage(errorCode.msgInputProvide).isLength({ min: 12, max: 20 }).withMessage(errorCode.msgCertLength),
-  body(["name", "course"]).notEmpty().trim().withMessage(errorCode.msgNonEmpty).not().equals("string").withMessage(errorCode.msgInputProvide),
-  body(["grantDate", "expirationDate"]).notEmpty().trim().withMessage(errorCode.msgNonEmpty).not().equals("string").withMessage(errorCode.msgInputProvide)
-],adminController.issue);
+router.post('/issue', validationRoute.issue, ensureAuthenticated, adminController.issue);
 
 /**
  * @swagger
@@ -210,7 +203,7 @@ router.post('/issue', [
  *               status: "FAILED"
  *               message: Error message for certificate already issued or invalid input.
  *       '422':
- *         description: Unprocessable Entity
+ *         description: User given invalid input (Unprocessable Entity)
  *         content:
  *           application/json:
  *             schema:
@@ -222,7 +215,7 @@ router.post('/issue', [
  *                   type: string
  *             example:
  *               status: "FAILED"
- *               message: Error message for Unprocessable Entity.
+ *               message: Error message for invalid input.
  *       '500':
  *         description: Internal Server Error
  *         content:
@@ -239,7 +232,7 @@ router.post('/issue', [
  *               message: Internal Server Error.
  */
 
-router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminController.issuePdf);
+router.post('/issue-pdf', validationRoute.issuePdf, ensureAuthenticated, _upload.single("file"), adminController.issuePdf);
 
 /**
  * @swagger
@@ -307,7 +300,7 @@ router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminContr
  *               status: "FAILED"
  *               message: Please provide valid Certification(Batch) details.
  *       '422':
- *         description: Unprocessable Entity
+ *         description: User given invalid input (Unprocessable Entity)
  *         content:
  *           application/json:
  *             schema:
@@ -319,7 +312,7 @@ router.post('/issue-pdf',ensureAuthenticated, _upload.single("file"), adminContr
  *                   type: string
  *             example:
  *               status: "FAILED"
- *               message: Error message for Unprocessable Entity.
+ *               message: Error message for invalid input.
  *       '500':
  *         description: Internal Server Error
  *         content:

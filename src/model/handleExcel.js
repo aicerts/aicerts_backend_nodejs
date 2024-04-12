@@ -23,9 +23,11 @@ const expectedHeadersSchema = [
     'expirationDate'
   ];
 
+const messageCode = require("../common/codes");
+
 const handleExcelFile = async (_path) => {
     if (!_path) {
-        return { status: "FAILED", response: false, message: "Invalid Excel file." };
+        return { status: "FAILED", response: false, message: messageCode.msgInvalidExcel };
     }
     // api to fetch excel data into json
     const newPath = path.join(..._path.split("\\"));
@@ -46,6 +48,11 @@ const handleExcelFile = async (_path) => {
                     return obj; // Return the fetched rows
                 });
 
+                    // Limit Records to 150 in the Batch
+                    if(rows && rows.length > 150) {
+                        return { status: "FAILED", response: false, message: messageCode.msgExcelLimit, Details: `Total Records : ${rows.length}` };
+                    }
+
                     // Batch Certification Formated Details
                     var rawBatchData = targetData;
 
@@ -61,12 +68,12 @@ const handleExcelFile = async (_path) => {
                         const invalidIdList = await validateBatchCertificateIDs(certificationIDs);
 
                         if(invalidIdList != false) {
-                            return { status: "FAILED", response: false, message: "Excel file has invalid Certification IDs length (each: min 12 - max 20)", Details: invalidIdList };
+                            return { status: "FAILED", response: false, message: messageCode.msgInvalidCertIds, Details: invalidIdList };
                             
                         }
 
                         if (repetitiveNumbers.length > 0) {
-                            return { status: "FAILED", response: false, message: "Excel file has Repetition in Certification IDs", Details: repetitiveNumbers };
+                            return { status: "FAILED", response: false, message: messageCode.msgExcelRepetetionIds, Details: repetitiveNumbers };
                             
                         }
 
@@ -74,20 +81,20 @@ const handleExcelFile = async (_path) => {
                         const invalidExpirationDateFormat = await findInvalidDates(certificationExpirationDates);
                         
                         if((invalidGrantDateFormat.invalidDates).length > 0 && (invalidExpirationDateFormat.invalidDates).length > 0){
-                            return { status: "FAILED", response: false, message: "Excel file has Invalid Date Format", Details: `Grant Dates ${invalidGrantDateFormat.invalidDates}, Issued Dates ${invalidExpirationDateFormat.invalidDates}` };
+                            return { status: "FAILED", response: false, message: messageCode.msgInvalidDateFormat, Details: `Grant Dates ${invalidGrantDateFormat.invalidDates}, Issued Dates ${invalidExpirationDateFormat.invalidDates}` };
                             
                         }
 
                         const validateGrantDates = await compareEpochDates(invalidGrantDateFormat.validDates);
                         const validateExpirationDates = await compareEpochDates(invalidExpirationDateFormat.validDates);
                         if((validateGrantDates).length > 0 || (validateExpirationDates).length > 0){
-                            return { status: "FAILED", response: false, message: "Excel file has Invalid Dates", Details: `Grant Dates ${validateGrantDates}, Issued Dates ${validateExpirationDates}` };
+                            return { status: "FAILED", response: false, message: messageCode.msgInvalidDates, Details: `Grant Dates ${validateGrantDates}, Issued Dates ${validateExpirationDates}` };
                             
                         }
 
                         const validateCertificateDates = await compareGrantExpiredSetDates(invalidGrantDateFormat.validDates, invalidExpirationDateFormat.validDates);
                         if(validateCertificateDates.length > 0){
-                            return { status: "FAILED", response: false, message: "Excel file has Older Grant date than Expiration Date", Details: `${validateCertificateDates}` };
+                            return { status: "FAILED", response: false, message: messageCode.msgOlderDateThanNewDate, Details: `${validateCertificateDates}` };
                             
                         }
 
@@ -102,21 +109,21 @@ const handleExcelFile = async (_path) => {
 
                         if (matchingIDs.length > 0) {
 
-                            return { status: "FAILED", response: false, message: "Excel file has Existing Certification IDs", Details: matchingIDs };
+                            return { status: "FAILED", response: false, message: messageCode.msgExcelHasExistingIds, Details: matchingIDs };
                             
                         }   
                 return { status: "SUCCESS", response: true, message: [targetData, rows.length, rows] };
 
             } else {
-                return { status: "FAILED", response: false, message: "Invalid headers in the Excel file." };
+                return { status: "FAILED", response: false, message: messageCode.msgInvalidHeaders };
             }
         } else {
-            return { status: "FAILED", response: false, message: "The Excel Sheet name should be - Batch." };
+            return { status: "FAILED", response: false, message: messageCode.msgExcelSheetname };
         }
 
     } catch (error) {
         console.error('Error fetching record:', error);
-        throw error; // Rethrow the error for handling it in the caller function
+        return { status: "FAILED", response: false, message: messageCode.msgInternalError };
     }
 };
 

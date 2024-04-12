@@ -11,7 +11,8 @@ const _fs = require("fs-extra");
 const { ethers } = require("ethers"); // Ethereum JavaScript library
 const { StandardMerkleTree } = require("@openzeppelin/merkle-tree");
 const keccak256 = require('keccak256');
-const { validationResult } = require('express-validator');
+const { validationResult } = require("express-validator");
+
 // Import custom cryptoFunction module for encryption and decryption
 const { generateEncryptedUrl } = require("../common/cryptoFunction");
 
@@ -61,11 +62,12 @@ const newContract = new ethers.Contract(contractAddress, abi, signer);
 const min_length = parseInt(process.env.MIN_LENGTH);
 const max_length = parseInt(process.env.MAX_LENGTH);
 
+var messageCode = require("../common/codes");
+
 // const currentDir = __dirname;
 // const parentDir = path.dirname(path.dirname(currentDir));
 const fileType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"; // File type
 
-var errorCode = require("../common/codes");
 // app.use("../../uploads", express.static(path.join(__dirname, "uploads")));
 
 /**
@@ -75,6 +77,10 @@ var errorCode = require("../common/codes");
  * @param {Object} res - Express response object.
  */
 const issuePdf = async (req, res) => {
+  var validResult = validationResult(req);
+  if (!validResult.isEmpty()) {
+    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid ,details: validResult.array() });
+  }
   // Extracting required data from the request body
   const email = req.body.email;
   const certificateNumber = req.body.certificateNumber;
@@ -108,9 +114,7 @@ try{
 
   // Validation checks for request data
   if (
-    [certificateNumber, name, courseName, grantDate, expirationDate].some(value => typeof value !== 'string' || value == 'string') || // Some values are not strings
-    !idExist || // User does not exist
-    idExist.status !== 1 || 
+    (!idExist || idExist.status !== 1) || // User does not exist
     _result == false ||
     isNumberExist || // Certificate number already exists 
     isNumberExistInBatch || // Certificate number already exists in Batch
@@ -119,30 +123,31 @@ try{
     !courseName || // Missing course name
     !grantDate || // Missing grant date
     !expirationDate || // Missing expiration date
+    [certificateNumber, name, courseName, grantDate, expirationDate].some(value => typeof value !== 'string' || value == 'string') || // Some values are not strings
     certificateNumber.length > max_length || // Certificate number exceeds maximum length
     certificateNumber.length < min_length // Certificate number is shorter than minimum length
   ) {
     // res.status(400).json({ message: "Please provide valid details" });
-    let errorMessage = "Please provide valid details";
+    let errorMessage = messageCode.msgPlsEnterValid;
 
     // Check for specific error conditions and update the error message accordingly
     if (isNumberExist || isNumberExistInBatch) {
-      errorMessage = "Certification number already exists";
+      errorMessage = messageCode.msgCertIssued;
     } else if (!grantDate || !expirationDate) {
-      errorMessage = "Please provide valid Dates";
+      errorMessage = messageCode.msgProvideValidDates;
     } else if (!certificateNumber) {
-      errorMessage = "Certification number is required";
+      errorMessage = messageCode.msgCertIdRequired;
     } else if (certificateNumber.length > max_length) {
-      errorMessage = `Certification number should be less than ${max_length} characters`;
+      errorMessage = messageCode.msgCertLength;
     } else if (certificateNumber.length < min_length) {
-      errorMessage = `Certification number should be at least ${min_length} characters`;
+      errorMessage = messageCode.msgCertLength;
     } else if (!idExist) {
-      errorMessage = `Invalid Issuer Email`;
+      errorMessage = messageCode.msgInvalidIssuer;
     } else if (idExist.status != 1) {
-      errorMessage = `Unauthorised Issuer Email`;
+      errorMessage = messageCode.msgUnauthIssuer;
     }else if (_result == false) {
       await cleanUploadFolder();
-      errorMessage = `Invalid PDF (Certification Template) dimensions`;
+      errorMessage = messageCode.msgInvalidPdfTemplate;
     }
 
     // Respond with error message
@@ -168,7 +173,7 @@ try{
       const isPaused = await newContract.paused();
       // Check if the Issuer wallet address is a valid Ethereum address
       if (!ethers.isAddress(idExist.issuerId)) {
-        return res.status(400).json({ status: "FAILED", message: "Invalid Ethereum address format" });
+        return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidEthereum });
       }
       const issuerAuthorized = await newContract.hasRole(process.env.ISSUER_ROLE, idExist.issuerId);
       const val = await newContract.verifyCertificateById(certificateNumber);
@@ -178,11 +183,11 @@ try{
         isPaused === true
       ) {
         // Certificate already issued / contract paused
-        var messageContent = "Certification already issued";
+        var messageContent = messageCode.msgCertIssued;
         if (isPaused === true) {
-          messageContent = "Operation restricted by the Blockchain";
+          messageContent = messageCode.msgOpsRestricted;
         } else if (issuerAuthorized === false) {
-          messageContent = "Unauthorized Issuer to perform operation on Blockchain";
+          messageContent = messageCode.msgIssuerUnauthrized;
         }
         return res.status(400).json({ status: "FAILED", message: messageContent });
       }
@@ -206,8 +211,8 @@ try{
             return res.status(400).json({ status: "FAILED", message: error.reason });
           } else {
             // If there's no specific reason provided, handle the error generally
-            console.error("Failed to perform opertaion at Blockchain / Try again ...:", error);
-            return res.status(400).json({ status: "FAILED", message: "Failed to perform opertaion at Blockchain / Try again ...", details: error });
+            console.error(messageCode.msgFailedOpsAtBlockchain, error);
+            return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain, details: error });
           }
         }
 
@@ -254,7 +259,7 @@ try{
         try {
           // Check mongoose connection
           const dbStatus = await isDBConnected();
-          const dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
+          const dbStatusMessage = (dbStatus == true) ? messageCode.msgDbReady : messageCode.msgDbNotReady;
           console.log(dbStatusMessage);
 
           // Insert certificate data into database
@@ -296,21 +301,22 @@ try{
         } catch (error) {
           // Handle mongoose connection error (log it, response an error, etc.)
           console.error("Internal server error", error);
-          return res.status(500).json({ status: "FAILED", message: "Internal server error", details: error });
+          return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
         }
       }
     } catch (error) {
       // Handle mongoose connection error (log it, response an error, etc.)
       console.error("Internal server error", error);
-      return res.status(400).json({ status: "FAILED", message: "Failed to interact with Blockchain", details: error });
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
     }
   }
 } catch (error) {
   // Handle mongoose connection error (log it, response an error, etc.)
   console.error("Internal server error", error);
-  return res.status(400).json({ status: "FAILED", message: "Internal server error", details: error });
+  return res.status(400).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
 }
 };
+
 
 /**
  * API call for Certificate issue without pdf template.
@@ -319,9 +325,9 @@ try{
  * @param {Object} res - Express response object.
  */
 const issue = async (req, res) => {
-  const valResult = validationResult(req);
-  if (!valResult.isEmpty()) {
-    return res.status(422).json({ status: "FAILED", message: errorCode.msgEnterInvalid, details: valResult.array() });
+  var validResult = validationResult(req);
+  if (!validResult.isEmpty()) {
+    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid ,details: validResult.array() });
   }
   // Extracting required data from the request body
   const email = req.body.email;
@@ -346,9 +352,8 @@ const issue = async (req, res) => {
 
   // Validation checks for request data
   if (
-    [email, certificateNumber, name, courseName, grantDate, expirationDate].some(value => typeof value !== 'string' || value == 'string' || value == "") || // Some values are not strings
-    !idExist || // User does not exist
-    idExist.status !== 1 || 
+    (!idExist || idExist.status !== 1) || // User does not exist
+    // !idExist || // User does not exist
     isNumberExist || // Certificate number already exists 
     isNumberExistInBatch || // Certificate number already exists in Batch
     !certificateNumber || // Missing certificate number
@@ -356,27 +361,28 @@ const issue = async (req, res) => {
     !courseName || // Missing course name
     (!grantDate || grantDate == 'Invalid date') || // Missing grant date
     (!expirationDate || expirationDate == 'Invalid date') || // Missing expiration date
+    [certificateNumber, name, courseName, grantDate, expirationDate].some(value => typeof value !== 'string' || value == 'string') || // Some values are not strings
     certificateNumber.length > max_length || // Certificate number exceeds maximum length
     certificateNumber.length < min_length // Certificate number is shorter than minimum length
   ) {
     // Prepare error message
-    let errorMessage = "Please provide valid details";
+    let errorMessage = messageCode.msgPlsEnterValid;
 
     // Check for specific error conditions and update the error message accordingly
     if (isNumberExist || isNumberExistInBatch) {
-      errorMessage = "Certification number already exists";
+      errorMessage = messageCode.msgCertIssued;
     } else if ((!grantDate || grantDate == 'Invalid date') || (!expirationDate || expirationDate == 'Invalid date')) {
-      errorMessage = "Please provide valid Dates";
+      errorMessage = messageCode.msgProvideValidDates;
     } else if (!certificateNumber) {
-      errorMessage = "Certification number is required";
+      errorMessage = messageCode.msgCertIdRequired;
     } else if (certificateNumber.length > max_length) {
-      errorMessage = `Certification number should be less than ${max_length} characters`;
+      errorMessage = messageCode.msgCertLength;
     } else if (certificateNumber.length < min_length) {
-      errorMessage = `Certification number should be at least ${min_length} characters`;
+      errorMessage = messageCode.msgCertLength;
     } else if (!idExist) {
-      errorMessage = errorCode.msgInvalidIssuer;
+      errorMessage = messageCode.msgInvalidIssuer;
     } else if (idExist.status !== 1) {
-      errorMessage = errorCode.msgUnauthIssuer;
+      errorMessage = messageCode.msgUnauthIssuer;
     }
 
     // Respond with error message
@@ -404,7 +410,7 @@ const issue = async (req, res) => {
         const isPaused = await newContract.paused();
         // Check if the Issuer wallet address is a valid Ethereum address
         if (!ethers.isAddress(idExist.issuerId)) {
-          return res.status(400).json({ status: "FAILED", message: errorCode.msgInvalidEthereum });
+          return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidEthereum });
         }
         const issuerAuthorized = await newContract.hasRole(process.env.ISSUER_ROLE, idExist.issuerId);
         const val = await newContract.verifyCertificateById(certificateNumber);
@@ -414,11 +420,11 @@ const issue = async (req, res) => {
           isPaused === true
         ) {
           // Certificate already issued / contract paused
-          var messageContent = errorCode.msgCertIssued;
+          var messageContent = messageCode.msgCertIssued;
           if (isPaused === true) {
-            messageContent = errorCode.msgOpsRestricted;
+            messageContent = messageCode.msgOpsRestricted;
           } else if (issuerAuthorized === false) {
-            messageContent = errorCode.msgIssuerUnauthrized;
+            messageContent = messageCode.msgIssuerUnauthrized;
           }
           return res.status(400).json({ status: "FAILED", message: messageContent });
         } else {
@@ -442,8 +448,8 @@ const issue = async (req, res) => {
               return res.status(400).json({ status: "FAILED", message: error.reason });
             } else {
               // If there's no specific reason provided, handle the error generally
-              console.error(errorCode.msgFailedOpsAtBlockchain, error);
-              return res.status(400).json({ status: "FAILED", message: errorCode.msgFailedOpsAtBlockchain, details: error });
+              console.error(messageCode.msgFailedOpsAtBlockchain, error);
+              return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain, details: error });
             }
           }
 
@@ -478,7 +484,7 @@ const issue = async (req, res) => {
           try {
             // Check mongoose connection
             const dbStatus = await isDBConnected();
-            const dbStatusMessage = (dbStatus == true) ? errorCode.msgDbReady : errorCode.msgDbNotReady;
+            const dbStatusMessage = (dbStatus == true) ? messageCode.msgDbReady : messageCode.msgDbNotReady;
             console.log(dbStatusMessage);
 
             const issuerId = idExist.issuerId;
@@ -499,14 +505,14 @@ const issue = async (req, res) => {
 
           } catch (error) {
             // Handle mongoose connection error (log it, response an error, etc.)
-            console.error(errorCode.msgInternalError, error);
-            return res.status(500).json({ status: "FAILED", message: errorCode.msgInternalError, details: error });
+            console.error(messageCode.msgInternalError, error);
+            return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
           }
 
           // Respond with success message and certificate details
           res.status(200).json({
             status: "SUCCESS",
-            message: errorCode.msgCertIssuedSuccess,
+            message: messageCode.msgCertIssuedSuccess,
             qrCodeImage: qrCodeImage,
             polygonLink: polygonLink,
             details: certificateData,
@@ -516,18 +522,18 @@ const issue = async (req, res) => {
       } catch (error) {
         // Internal server error
         console.error(error);
-        res.status(500).json({ status: "FAILED", message: errorCode.msgInternalError, details: error });
+        res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
       }
     } catch (error) {
       // Internal server error
       console.error(error);
-      return res.status(400).json({ status: "FAILED", message: errorCode.msgFailedOpsAtBlockchain, details: error });
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
     }
   }
 } catch (error) {
   // Internal server error
   console.error(error);
-  return res.status(400).json({ status: "FAILED", message: errorCode.msgInternalError, details: error });
+  return res.status(400).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
 }
 };
 
@@ -542,8 +548,9 @@ const batchIssueCertificate = async (req, res) => {
   // Check if the file path matches the pattern
   if (req.file.mimetype != fileType) {
     // File path does not match the pattern
+    const errorMessage = messageCode.msgMustExcel;
     await cleanUploadFolder();
-    res.status(400).json({ status: "FAILED", message: errorCode.msgInvalidFile });
+    res.status(400).json({ status: "FAILED", message: errorMessage });
     return;
   }
 
@@ -567,16 +574,16 @@ try
       req.file.filename === 'undefined' ||
       excelData.response === false) {
 
-      let errorMessage = errorCode.msgPlsEnterValid;
+      let errorMessage = messageCode.msgPlsEnterValid;
       var _details = excelData.Details;
       if (!idExist) {
-        errorMessage = errorCode.msgInvalidIssuer;
+        errorMessage = messageCode.msgInvalidIssuer;
         var _details = idExist.email;
       }
       else if (excelData.response == false) {
         errorMessage = excelData.message;
       } else if (idExist.status !== 1) {
-        errorMessage = errorCode.msgIssuerUnauthrized;
+        errorMessage = messageCode.msgUnauthIssuer;
       }
 
       res.status(400).json({ status: "FAILED", message: errorMessage, details: _details  });
@@ -621,16 +628,16 @@ try
         const isPaused = await newContract.paused();
         // Check if the Issuer wallet address is a valid Ethereum address
         if (!ethers.isAddress(idExist.issuerId)) {
-          return res.status(400).json({ status: "FAILED", message: errorCode.msgInvalidEthereum });
+          return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidEthereum });
         }
         const issuerAuthorized = await newContract.hasRole(process.env.ISSUER_ROLE, idExist.issuerId);
 
         if (isPaused === true) {
           // Certificate contract paused
-          var messageContent = errorCode.msgOpsRestricted;
+          var messageContent = messageCode.msgOpsRestricted;
 
           if (issuerAuthorized === flase) {
-            messageContent = errorCode.msgIssuerUnauthrized;
+            messageContent = messageCode.msgIssuerUnauthrized;
           }
 
           return res.status(400).json({ status: "FAILED", message: messageContent });
@@ -660,15 +667,15 @@ try
             return res.status(400).json({ status: "FAILED", message: error.reason });
           } else {
             // If there's no specific reason provided, handle the error generally
-            console.error(errorCode.msgFailedOpsAtBlockchain, error);
-            return res.status(400).json({ status: "FAILED", message: errorCode.msgFailedOpsAtBlockchain });
+            console.error(messageCode.msgFailedOpsAtBlockchain, error);
+            return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain });
           }
         }
 
         try {
           // Check mongoose connection
           const dbStatus = await isDBConnected();
-          const dbStatusMessage = (dbStatus == true) ? errorCode.msgDbReady : errorCode.msgDbNotReady;
+          const dbStatusMessage = (dbStatus == true) ? messageCode.msgDbReady : messageCode.msgDbNotReady;
           console.log(dbStatusMessage);
 
           var batchDetails = [];
@@ -737,7 +744,7 @@ try
 
           res.status(200).json({
             status: "SUCCESS",
-            message: errorCode.msgBatchIssuedSuccess,
+            message: messageCode.msgBatchIssuedSuccess,
             polygonLink: polygonLink,
             details: batchDetailsWithQR,
           });
@@ -746,22 +753,22 @@ try
 
         } catch (error) {
           // Handle mongoose connection error (log it, response an error, etc.)
-          console.error(errorCode.msgInternalError, error);
-          return res.status(500).json({ status: "FAILED", message: errorCode.msgInternalError, details: error });
+          console.error(messageCode.msgInternalError, error);
+          return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
         }
 
       } catch (error) {
         console.error('Error:', error);
-        return res.status(400).json({ status: "FAILED", message: errorCode.msgFailedAtBlockchain, details: error });
+        return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
       }
     }
   } catch (error) {
     console.error('Error:', error);
-    return res.status(400).json({ status: "FAILED", message: errorCode.msgInvalidFile, details: error });
+    return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidExcel, details: error });
   }
 } catch (error) {
   console.error('Error:', error);
-  return res.status(400).json({ status: "FAILED", message: errorCode.msgInternalError, details: error });
+  return res.status(400).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
 }
 };
 
