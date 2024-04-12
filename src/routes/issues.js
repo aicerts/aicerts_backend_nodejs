@@ -232,7 +232,7 @@ router.post('/issue', validationRoute.issue, ensureAuthenticated, adminControlle
  *               message: Internal Server Error.
  */
 
-router.post('/issue-pdf', validationRoute.issuePdf, ensureAuthenticated, _upload.single("file"), adminController.issuePdf);
+router.post('/issue-pdf', ensureAuthenticated, _upload.single("file"), adminController.issuePdf);
 
 /**
  * @swagger
