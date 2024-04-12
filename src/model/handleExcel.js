@@ -81,7 +81,7 @@ const handleExcelFile = async (_path) => {
                         const invalidGrantDateFormat = await findInvalidDates(certificationGrantDates);
                         const invalidExpirationDateFormat = await findInvalidDates(certificationExpirationDates);
                         
-                        if((invalidGrantDateFormat.invalidDates).length > 0 && (invalidExpirationDateFormat.invalidDates).length > 0){
+                        if((invalidGrantDateFormat.invalidDates).length > 0 || (invalidExpirationDateFormat.invalidDates).length > 0){
                             return { status: "FAILED", response: false, message: messageCode.msgInvalidDateFormat, Details: `Grant Dates ${invalidGrantDateFormat.invalidDates}, Issued Dates ${invalidExpirationDateFormat.invalidDates}` };
                             
                         }
