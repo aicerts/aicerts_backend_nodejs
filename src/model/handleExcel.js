@@ -5,8 +5,9 @@ const path = require("path");
 
 const thresholdYear = parseInt(process.env.THRESHOLD_YEAR);
 // Parse environment variables for password length constraints
-const min_length = parseInt(process.env.MIN_LENGTH);
-const max_length = parseInt(process.env.MAX_LENGTH);
+const min_length = (parseInt(process.env.MIN_LENGTH) || 12);
+const max_length = (parseInt(process.env.MAX_LENGTH) || 20);
+const cert_limit = (parseInt(process.env.BATCH_LIMIT) || 150);
 
 // Import MongoDB models
 const { Issues, BatchIssues } = require("../config/schema");
@@ -48,8 +49,8 @@ const handleExcelFile = async (_path) => {
                     return obj; // Return the fetched rows
                 });
 
-                    // Limit Records to 150 in the Batch
-                    if(rows && rows.length > 150) {
+                    // Limit Records to certain limit in the Batch
+                    if(rows && rows.length > cert_limit) {
                         return { status: "FAILED", response: false, message: messageCode.msgExcelLimit, Details: `Total Records : ${rows.length}` };
                     }
 
