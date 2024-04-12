@@ -50,7 +50,7 @@ const handleExcelFile = async (_path) => {
                 });
 
                     // Limit Records to certain limit in the Batch
-                    if(rows && rows.length > cert_limit) {
+                    if(rows && rows.length > cert_limit && cert_limit != 0) {
                         return { status: "FAILED", response: false, message: messageCode.msgExcelLimit, Details: `Total Records : ${rows.length}` };
                     }
 
