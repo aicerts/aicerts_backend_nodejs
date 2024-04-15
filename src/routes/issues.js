@@ -324,4 +324,139 @@ router.post('/issue-pdf', ensureAuthenticated, _upload.single("file"), adminCont
 
 router.post('/batch-certificate-issue', ensureAuthenticated, __upload.single("excelFile"), adminController.batchIssueCertificate);
 
+/**
+ * @swagger
+ * /api/token-issue:
+ *   post:
+ *     summary: API call for issuing a certification (no pdf required) with simple token
+ *     description: API call for issuing a certificate with Request Data Extraction, Validation Checks, Blockchain Processing, Certificate Issuance, Response Handling, Blockchain Interaction, Data Encryption, QR Code Generation, Database Interaction, Error Handling and Asynchronous Operation.
+ *     tags:
+ *       - Issue Certification (Details)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: The issuer email.
+ *               certificateNumber:
+ *                 type: string
+ *                 description: The certificate number.
+ *               name:
+ *                 type: string
+ *                 description: The name associated with the certificate.
+ *               course:
+ *                 type: string
+ *                 description: The course name associated with the certificate.
+ *               grantDate:
+ *                 type: string
+ *                 description: The grant date of the certificate.
+ *               expirationDate:
+ *                 type: string
+ *                 description: The expiration date of the certificate.
+ *             required:
+ *               - email
+ *               - certificateNumber
+ *               - name
+ *               - course
+ *               - grantDate
+ *               - expirationDate
+ *     responses:
+ *       '200':
+ *         description: Successful certificate issuance
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 qrCodeImage:
+ *                   type: string
+ *                 polygonLink:
+ *                   type: string
+ *                 details:
+ *                   type: object
+ *             example:
+ *               message: Certificate issued successfully.
+ *               qrCodeImage: Base64-encoded QR code image.
+ *               polygonLink: Link to the transaction on the Polygon network.
+ *               details: Certificate details.
+ *       '400':
+ *         description: Certificate already issued or invalid input
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Error message for certificate already issued or invalid input.
+ *       '401':
+ *         description: Authorization token is missing
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Authorization token is missing.
+ *       '403':
+ *         description: User provided invalid Token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: User provided invalid Token.
+ *       '422':
+ *         description: User given invalid input (Unprocessable Entity)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Error message for invalid input.
+ *       '500':
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Internal server error.
+ */
+
+router.post('/token-issue', validationRoute.issue, adminController.tokenIssue);
+
 module.exports=router;

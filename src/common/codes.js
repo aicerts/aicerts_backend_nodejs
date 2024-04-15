@@ -32,6 +32,8 @@ module.exports = {
     msgMaxLength : "Entered Input must between 8 to 30 characters",
 
     // API response codes in Issues (Controller)
+    msgAuthMissing : "Authorization token is missing",
+    msgInvalidToken : "User provided invalid Token",
     msgInvalidFilePath : "Provided invalid file path",
     msgMustPdf : "Must upload PDF file format",
     msgMustExcel : "Must upload Excel file format",

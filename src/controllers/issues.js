@@ -71,7 +71,11 @@ var messageCode = require("../common/codes");
 // const parentDir = path.dirname(path.dirname(currentDir));
 const fileType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"; // File type
 
-// app.use("../../uploads", express.static(path.join(__dirname, "uploads")));
+var token_1 = process.env.TOKEN1 || 0;
+var token_2 = process.env.TOKEN2 || 0;
+var token_3 = process.env.TOKEN3 || 0;
+
+const validTokens = new Set([token_1, token_2, token_3]); // Simple Token based Issue
 
 /**
  * API call for Certificate issue with pdf template.
@@ -784,14 +788,248 @@ try
 }
 };
 
+/**
+ * API call for Certificate issue without pdf template.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
+const tokenIssue = async (req, res) => {
+  const token = req.headers.authorization;
+
+  // Check if the token is provided in the request header
+  if (!token && token != 0) {
+      return res.status(401).json({ status: "FAILED", message: messageCode.msgAuthMissing });
+  }
+
+  // Check if the token is valid
+  if (!validTokens.has(token)) {
+      return res.status(403).json({ status: "FAILED", message: messageCode.msgInvalidToken });
+  }
+
+  var validResult = validationResult(req);
+  if (!validResult.isEmpty()) {
+    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid ,details: validResult.array() });
+  }
+  // Extracting required data from the request body
+  const email = req.body.email;
+  const certificateNumber = req.body.certificateNumber;
+  const name = req.body.name;
+  const courseName = req.body.course;
+  var _grantDate = req.body.grantDate;
+  var _expirationDate = req.body.expirationDate;
+
+  const grantDate = await convertDateFormat(_grantDate);
+  const expirationDate = await convertDateFormat(_expirationDate);
+
+  try
+  {
+    await isDBConnected();
+  // Check if user with provided email exists
+  const idExist = await User.findOne({ email });
+  // Check if certificate number already exists
+  const isNumberExist = await Issues.findOne({ certificateNumber: certificateNumber });
+  // Check if certificate number already exists in the Batch
+  const isNumberExistInBatch = await BatchIssues.findOne({ certificateNumber: certificateNumber });
+
+  // Validation checks for request data
+  if (
+    (!idExist || idExist.status !== 1) || // User does not exist
+    // !idExist || // User does not exist
+    isNumberExist || // Certificate number already exists 
+    isNumberExistInBatch || // Certificate number already exists in Batch
+    !certificateNumber || // Missing certificate number
+    !name || // Missing name
+    !courseName || // Missing course name
+    (!grantDate || grantDate == 'Invalid date') || // Missing grant date
+    (!expirationDate || expirationDate == 'Invalid date') || // Missing expiration date
+    [certificateNumber, name, courseName, grantDate, expirationDate].some(value => typeof value !== 'string' || value == 'string') || // Some values are not strings
+    certificateNumber.length > max_length || // Certificate number exceeds maximum length
+    certificateNumber.length < min_length // Certificate number is shorter than minimum length
+  ) {
+    // Prepare error message
+    let errorMessage = messageCode.msgPlsEnterValid;
+
+    // Check for specific error conditions and update the error message accordingly
+    if (isNumberExist || isNumberExistInBatch) {
+      errorMessage = messageCode.msgCertIssued;
+    } else if ((!grantDate || grantDate == 'Invalid date') || (!expirationDate || expirationDate == 'Invalid date')) {
+      errorMessage = messageCode.msgProvideValidDates;
+    } else if (!certificateNumber) {
+      errorMessage = messageCode.msgCertIdRequired;
+    } else if (certificateNumber.length > max_length) {
+      errorMessage = messageCode.msgCertLength;
+    } else if (certificateNumber.length < min_length) {
+      errorMessage = messageCode.msgCertLength;
+    } else if (!idExist) {
+      errorMessage = messageCode.msgInvalidIssuer;
+    } else if (idExist.status !== 1) {
+      errorMessage = messageCode.msgUnauthIssuer;
+    }
+
+    // Respond with error message
+    res.status(400).json({ status: "FAILED", message: errorMessage });
+    return;
+  } else {
+    try {
+      // Prepare fields for the certificate
+      const fields = {
+        Certificate_Number: certificateNumber,
+        name: name,
+        courseName: courseName,
+        Grant_Date: grantDate,
+        Expiration_Date: expirationDate,
+      };
+      // Hash sensitive fields
+      const hashedFields = {};
+      for (const field in fields) {
+        hashedFields[field] = calculateHash(fields[field]);
+      }
+      const combinedHash = calculateHash(JSON.stringify(hashedFields));
+
+      try {
+        // Verify certificate on blockchain
+        const isPaused = await newContract.paused();
+        // Check if the Issuer wallet address is a valid Ethereum address
+        if (!ethers.isAddress(idExist.issuerId)) {
+          return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidEthereum });
+        }
+        const issuerAuthorized = await newContract.hasRole(process.env.ISSUER_ROLE, idExist.issuerId);
+        const val = await newContract.verifyCertificateById(certificateNumber);
+
+        if (
+          val === true ||
+          isPaused === true
+        ) {
+          // Certificate already issued / contract paused
+          var messageContent = messageCode.msgCertIssued;
+          if (isPaused === true) {
+            messageContent = messageCode.msgOpsRestricted;
+          } else if (issuerAuthorized === false) {
+            messageContent = messageCode.msgIssuerUnauthrized;
+          }
+          return res.status(400).json({ status: "FAILED", message: messageContent });
+        } else {
+          try {
+            // If simulation successful, issue the certificate on blockchain
+            const tx = await newContract.issueCertificate(
+              certificateNumber,
+              combinedHash
+            );
+
+            // await tx.wait();
+            var txHash = tx.hash;
+
+            // Generate link URL for the certificate on blockchain
+            var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
+
+          } catch (error) {
+            if (error.reason) {
+              // Extract and handle the error reason
+              console.log("Error reason:", error.reason);
+              return res.status(400).json({ status: "FAILED", message: error.reason });
+            } else {
+              // If there's no specific reason provided, handle the error generally
+              console.error(messageCode.msgFailedOpsAtBlockchain, error);
+              return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain, details: error });
+            }
+          }
+
+          // Generate encrypted URL with certificate data
+          const dataWithLink = { ...fields, polygonLink: polygonLink }
+          const urlLink = generateEncryptedUrl(dataWithLink);
+
+          // Generate QR code based on the URL
+          const legacyQR = false;
+          let qrCodeData = '';
+          if (legacyQR) {
+            // Include additional data in QR code
+            qrCodeData = `Verify On Blockchain: ${polygonLink},
+          Certification Number: ${certificateNumber},
+          Name: ${name},
+          Certification Name: ${courseName},
+          Grant Date: ${grantDate},
+          Expiration Date: ${expirationDate}`;
+
+          } else {
+            // Directly include the URL in QR code
+            qrCodeData = urlLink;
+          }
+
+          const qrCodeImage = await QRCode.toDataURL(qrCodeData, {
+            errorCorrectionLevel: "H",
+            width: 450, // Adjust the width as needed
+            height: 450, // Adjust the height as needed
+          });
+
+
+          try {
+            // Check mongoose connection
+            const dbStatus = await isDBConnected();
+            const dbStatusMessage = (dbStatus == true) ? messageCode.msgDbReady : messageCode.msgDbNotReady;
+            console.log(dbStatusMessage);
+
+            const issuerId = idExist.issuerId;
+
+            var certificateData = {
+              issuerId,
+              transactionHash: txHash,
+              certificateHash: combinedHash,
+              certificateNumber: fields.Certificate_Number,
+              name: fields.name,
+              course: fields.courseName,
+              grantDate: fields.Grant_Date,
+              expirationDate: fields.Expiration_Date
+            };
+
+            // Insert certificate data into database
+            await insertCertificateData(certificateData);
+
+          } catch (error) {
+            // Handle mongoose connection error (log it, response an error, etc.)
+            console.error(messageCode.msgInternalError, error);
+            return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+          }
+
+          // Respond with success message and certificate details
+          res.status(200).json({
+            status: "SUCCESS",
+            message: messageCode.msgCertIssuedSuccess,
+            qrCodeImage: qrCodeImage,
+            polygonLink: polygonLink,
+            details: certificateData,
+          });
+        }
+
+      } catch (error) {
+        // Internal server error
+        console.error(error);
+        res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+      }
+    } catch (error) {
+      // Internal server error
+      console.error(error);
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
+    }
+  }
+} catch (error) {
+  // Internal server error
+  console.error(error);
+  return res.status(400).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+}
+};
+
 module.exports = {
   // Function to issue a PDF certificate
   issuePdf,
 
-  // Function to issue a certificate
+  // Function to issue a certification
   issue,
 
-  // Function to issue a Batch of certificates
+  // Function to issue a Batch of certifications
   batchIssueCertificate,
+  
+  // Function to issue a certification with Token
+  tokenIssue
 
 };
