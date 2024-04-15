@@ -215,7 +215,7 @@ try{
           var txHash = tx.hash;
 
           // Generate link URL for the certificate on blockchain
-          var linkUrl = `https://${process.env.NETWORK}.com/tx/${txHash}`;
+          var linkUrl = `https://${process.env.NETWORK}/tx/${txHash}`;
 
         } catch (error) {
           if (error.reason) {
@@ -451,7 +451,7 @@ const issue = async (req, res) => {
             var txHash = tx.hash;
 
             // Generate link URL for the certificate on blockchain
-            var polygonLink = `https://${process.env.NETWORK}.com/tx/${txHash}`;
+            var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
 
           } catch (error) {
             if (error.reason) {
@@ -670,7 +670,7 @@ try
 
           var txHash = tx.hash;
 
-          var polygonLink = `https://${process.env.NETWORK}.com/tx/${txHash}`;
+          var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
 
         } catch (error) {
           if (error.reason) {
