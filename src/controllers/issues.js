@@ -9,7 +9,6 @@ const { ethers } = require("ethers"); // Ethereum JavaScript library
 const { StandardMerkleTree } = require("@openzeppelin/merkle-tree");
 const keccak256 = require('keccak256');
 const { validationResult } = require("express-validator");
-const crypto = require("crypto");
 
 const pdf = require("pdf-lib"); // Library for creating and modifying PDF documents
 const { PDFDocument } = pdf;
@@ -399,23 +398,11 @@ const authIssue = async (req, res) => {
         return res.status(401).json({ status: "FAILED", message: messageCode.msgAuthMissing });
     }
 
-    const [hash, expiration] = token.split('.');
-
-    const currentTimestamp = Math.floor(Date.now() / 1000);    
-    
-    if (currentTimestamp > parseInt(expiration)) {
-      return res.status(403).json({ status: "FAILED", message: messageCode.msgTokenExpired });
-    }
-
-    if(decodeKey === 0) {
+    if(decodeKey == 0) {
       return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidKey });
     }
 
-    // Generate expected hash from the payload and compare
-    const expectedHash = crypto.createHmac('sha256', decodeKey)
-                               .update(`${expiration}`)
-                               .digest('hex');
-    if (hash !== expectedHash) {
+    if (token != decodeKey) {
         return res.status(403).json({ status: "FAILED", message: messageCode.msgInvalidToken });
     }
 
