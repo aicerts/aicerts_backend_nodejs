@@ -3,6 +3,8 @@ require('dotenv').config();
 const readXlsxFile = require('read-excel-file/node');
 const path = require("path");
 
+const moment = require('moment');
+
 const thresholdYear = parseInt(process.env.THRESHOLD_YEAR);
 // Parse environment variables for password length constraints
 const min_length = (parseInt(process.env.MIN_LENGTH) || 12);
