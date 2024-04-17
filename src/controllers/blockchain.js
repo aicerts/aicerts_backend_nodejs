@@ -205,6 +205,11 @@ const validateIssuer = async (req, res) => {
           details: _details
         });
       }
+    } else if (validationStatus == 1 && roleStatus === true) {
+      res.json({
+        status: "SUCCESS",
+        message: messageCode.msgIssuerApproveSuccess
+      });
     }
   } catch (error) {
     // Error occurred during user approval process, respond with failure message
