@@ -32,6 +32,10 @@ module.exports = {
     msgMaxLength : "Entered Input must between 8 to 30 characters",
 
     // API response codes in Issues (Controller)
+    msgAuthMissing : "Authorization token is missing",
+    msgTokenExpired : "Authorization token has expired",
+    msgInvalidToken : "Provided invalid Token",
+    msgInvalidKey : "Please provide valid key to validate token",
     msgInvalidFilePath : "Provided invalid file path",
     msgMustPdf : "Must upload PDF file format",
     msgMustExcel : "Must upload Excel file format",
@@ -73,6 +77,7 @@ module.exports = {
     msgAllIssuersFetched : "All user details fetched successfully",
     msgErrorOnFetching : "An error occurred while fetching Issuer details",
     msgProvideValidStatus : "Please provide valid status as 1 : approve or 2 : reject",
+    msgProvideValidCertStatus : "Please provide valid status",
 
     // Blockchain route Messages
     msgInvalidInput : "Invalid Input parameter",
@@ -89,5 +94,22 @@ module.exports = {
     msgIssuerRoleGrant : "Issuer Role Granted",
     msgAdminRevoke : "Admin Role Revoked",
     msgIssuerRoleRevoke : "Issuer Role Revoked",
-    msgBalanceCheck : "Balance check successful"
+    msgBalanceCheck : "Balance check successful",
+
+    // Dates Messages
+    msgInvalidDate : "Invalid Date, Please check and try again ...",
+    msgInvalidDateFormat : "Please provide valid Date format",
+    msgOlderGrantDate : "Older grant date mentioned",
+    msgInvalidExpiration : "Please provide expiration date as more than 30 days and try again...",
+
+    //Renew Messages
+    msgInvalidExpiration : "Provide valid Expiration date",
+    msgCertBadRenewStatus : "Extend Expiration date not possible on the certification",
+    msgEpirationMustGreater : "Please provide greater exipration date than existed expiration date",
+    msgCertRenewedSuccess : "Certification expiration extended successfully",
+    msgCommonBatchExpiration : "Batch of certification has common Expiration date",
+    msgStatusAlreadyExist : "The certification status existed",
+    msgOperationNotPossible : "Operation not possible on the certification",
+    msgNotPossibleBatch : "Operation not possible on the Batch certification"
+
 };

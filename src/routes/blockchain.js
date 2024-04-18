@@ -86,7 +86,7 @@ const validationRoute = require("../common/validationRoutes");
  *                   description: Error message indicating an error during the validation process.
  */
 
-router.post('/validate-issuer', validationRoute.validateIssuer, ensureAuthenticated, adminController.validateIssuer);
+router.post('/validate-issuer', validationRoute.validateIssuer, adminController.validateIssuer);
 
 /**
  * @swagger
@@ -165,7 +165,7 @@ router.post('/validate-issuer', validationRoute.validateIssuer, ensureAuthentica
  *                   description: Details of the internal server error
  */
 
-router.post('/add-trusted-owner', validationRoute.checkAddress, ensureAuthenticated, adminController.addTrustedOwner);
+router.post('/add-trusted-owner', validationRoute.checkAddress, adminController.addTrustedOwner);
 
 /**
  * @swagger
@@ -244,7 +244,7 @@ router.post('/add-trusted-owner', validationRoute.checkAddress, ensureAuthentica
  *                   description: Details of the internal server error
  */
 
-router.post('/remove-trusted-owner', validationRoute.checkAddress, ensureAuthenticated, adminController.removeTrustedOwner);
+router.post('/remove-trusted-owner', validationRoute.checkAddress, adminController.removeTrustedOwner);
 
 /**
  * @swagger

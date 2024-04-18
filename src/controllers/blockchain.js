@@ -83,7 +83,6 @@ const validateIssuer = async (req, res) => {
     const dbStatus = await isDBConnected();
     const dbStatusMessage = (dbStatus == true) ? messageCode.msgDbReady : messageCode.msgDbNotReady;
     console.log(dbStatusMessage);
-
   try{
     const roleStatus = await newContract.hasRole(process.env.ISSUER_ROLE, userExist.issuerId);
 
@@ -116,14 +115,14 @@ const validateIssuer = async (req, res) => {
       if ((userExist.status == validationStatus) && (roleStatus == true)) {
         res.status(400).json({ status: "FAILED", message: messageCode.msgExistedVerified });
       }
-
+      
       var grantedStatus;
       if (roleStatus === false) {
         try {
           var tx = await newContract.grantRole(process.env.ISSUER_ROLE, userExist.issuerId);
           grantedStatus = "SUCCESS";
           var txHash = tx.hash;
-          var polygonLink = `https://${process.env.NETWORK}.com/tx/${txHash}`;
+          var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
 
         } catch (error) {
           grantedStatus = "FAILED";
@@ -143,12 +142,10 @@ const validateIssuer = async (req, res) => {
         userExist.status = 1;
         userExist.rejectedDate = null;
         await userExist.save();
-
         // If user is not approved yet, send email and update user's approved status
         var mailStatus = await sendEmail(userExist.name, email);
         var mailresponse = (mailStatus === true) ? "sent" : "NA";
         var _details = grantedStatus == "SUCCESS" ? _details = polygonLink : _details = "";
-
         // Respond with success message indicating user approval
         res.json({
           status: "SUCCESS",
@@ -171,7 +168,7 @@ const validateIssuer = async (req, res) => {
           var tx = await newContract.revokeRole(process.env.ISSUER_ROLE, userExist.issuerId);
           revokedStatus = "SUCCESS";
           var txHash = tx.hash;
-          var polygonLink = `https://${process.env.NETWORK}.com/tx/${txHash}`;
+          var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
         } catch (error) {
           revokedStatus = "FAILED";
           if (error.reason) {
@@ -191,11 +188,14 @@ const validateIssuer = async (req, res) => {
         userExist.rejectedDate = Date.now();
         await userExist.save();
 
+        try{
         // If user is not rejected yet, send email and update user's rejected status
         var mailStatus = await rejectEmail(userExist.name, email);
         var mailresponse = (mailStatus === true) ? "sent" : "NA";
         var _details = revokedStatus == "SUCCESS" ? _details = polygonLink : _details = "";
-
+        }catch(error){
+          return res.status(400).json({ status: "FAILED", message: mailresponse, details: error });
+        }
         // Respond with success message indicating user rejected
         res.json({
           status: "SUCCESS",
@@ -205,6 +205,11 @@ const validateIssuer = async (req, res) => {
           details: _details
         });
       }
+    } else if (validationStatus == 1 && roleStatus === true) {
+      res.json({
+        status: "SUCCESS",
+        message: messageCode.msgIssuerApproveSuccess
+      });
     }
   } catch (error) {
     // Error occurred during user approval process, respond with failure message
@@ -278,7 +283,7 @@ const addTrustedOwner = async (req, res) => {
       const responseMessage = {
         status: "SUCCESS",
         message: messageInfo,
-        details: `https://${process.env.NETWORK}.com/tx/${txHash}`
+        details: `https://${process.env.NETWORK}/tx/${txHash}`
       };
 
       // Send success response
@@ -354,7 +359,7 @@ const removeTrustedOwner = async (req, res) => {
       const responseMessage = {
         status: "SUCCESS",
         message: messageInfo,
-        details: `https://${process.env.NETWORK}.com/tx/${txHash}`
+        details: `https://${process.env.NETWORK}/tx/${txHash}`
       };
       // Send success response
       res.status(200).json(responseMessage);

@@ -20,6 +20,9 @@ const { decryptData } = require("../common/cryptoFunction"); // Custom functions
 const retryDelay = parseInt(process.env.TIME_DELAY);
 const maxRetries = 3; // Maximum number of retries
 
+// Regular expression to match MM/DD/YY format
+const regex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/\d{2}$/;
+
 // Create a nodemailer transporter using the provided configuration
 const transporter = nodemailer.createTransport({
   // Specify the email service provider (e.g., Gmail, Outlook)
@@ -81,7 +84,7 @@ const signer = new ethers.Wallet(process.env.PRIVATE_KEY, fallbackProvider);
 const sim_contract = new ethers.Contract(contractAddress, abi, signer);
 
 // Import the Issues models from the schema defined in "../config/schema"
-const { User, Issues, BatchIssues } = require("../config/schema");
+const { User, Issues, BatchIssues, IssueStatus } = require("../config/schema");
 
 //Connect to polygon
 const connectToPolygon = async () => {
@@ -148,6 +151,58 @@ const convertDateOnVerification = async (dateString) => {
 
 };
 
+// Function to convert MM/DD/YY to epoch date format
+const convertDateToEpoch = async (dateString) => {
+
+  if(dateString && regex.test(dateString)) {
+
+    // Split the date string into month, day, and year
+    const [month, day, year] = dateString.split('/');
+
+    // Create a new Date object with the provided date components
+    const dateObject = new Date(`${month}/${day}/${year}`);
+
+    // Get the Unix timestamp (epoch value) by calling getTime() method
+    const epochValue = dateObject.getTime() / 1000; // Convert milliseconds to seconds
+
+    return epochValue;
+
+  } else {
+    return false;
+  }
+};
+
+const convertEpochToDate = async (epochTimestamp) => {
+  if(!epochTimestamp || epochTimestamp == 0){
+    return false;
+  }  else {
+  // Create a new Date object with the epoch timestamp (in milliseconds)
+  const regularIntValue = parseInt(epochTimestamp.toString());
+  const dateObject = new Date(regularIntValue * 1000); // Convert seconds to milliseconds
+
+  // Extract the month, day, and year components from the date object
+  const month = String(dateObject.getMonth() + 1).padStart(2, '0'); // Month starts from 0
+  const day = String(dateObject.getDate()).padStart(2, '0');
+  const year = String(dateObject.getFullYear()).slice(-2); // Get last 2 digits of the year
+
+  // Construct the MM/DD/YY date format string
+  const dateString = `${month}/${day}/${year}`;
+  return dateString;
+  }
+};
+
+const convertExpirationStatusLog = async (_date) => {
+  // Parse the date string into a Date object
+  const dateParts = (_date).split('/');
+  const year = parseInt(dateParts[2]) + 2000; // Assuming 2-digit year represents 2000s
+  const month = parseInt(dateParts[0]) - 1; // Months are zero-indexed
+  const day = parseInt(dateParts[1]);
+  // Create a Date object
+  const date = new Date(year, month, day);
+  // Format the date in ISO 8601 format with UTC offset
+  return date.toISOString();
+};
+
 // Verify Certification ID from both collections (single / batch)
 const isCertificationIdExisted = async (certId) => {
   const dbStaus = await isDBConnected();
@@ -195,6 +250,20 @@ const insertCertificateData = async (data) => {
 
     // Save the new Issues document to the database
     const result = await newIssue.save();
+    
+      // Insert data into status MongoDB
+      const logIssueStatus = {
+        email: data.email,
+        issuerId: data.issuerId, // ID field is of type String and is required
+        batchId: null,
+        transactionHash: data.transactionHash, // TransactionHash field is of type String and is required
+        certificateNumber: data.certificateNumber, // CertificateNumber field is of type String and is required
+        course: data.course,
+        expirationDate: data.expirationDate, // ExpirationDate field is of type String and is required
+        certStatus: data.certStatus
+      };
+
+      await insertIssueStatus(logIssueStatus);    
 
     const idExist = await User.findOne({ issuerId: data.issuerId });
 
@@ -262,6 +331,33 @@ const insertBatchCertificateData = async (data) => {
 
   } catch (error) {
     console.error("Error connecting to MongoDB:", error);
+  }
+};
+
+// Function to store issues log in the DB
+const insertIssueStatus = async (issueData) => {
+  if(issueData){
+        // Format the date in ISO 8601 format with UTC offset
+        const statusDate = await convertExpirationStatusLog(issueData.expirationDate);
+        // Check if issueData.batchId is provided, otherwise assign null
+        const batchId = issueData.batchId || null;
+        const email = issueData.email || null;
+        const issuerId = issueData.issuerId || null;
+        const transactionHash = issueData.transactionHash || null;
+          // Insert data into status MongoDB
+          const newIssueStatus = new IssueStatus({
+            email: email,
+            issuerId: issuerId, // ID field is of type String and is required
+            batchId: batchId,
+            transactionHash: transactionHash, // TransactionHash field is of type String and is required
+            certificateNumber: issueData.certificateNumber, // CertificateNumber field is of type String and is required
+            course: issueData.course,
+            expirationDate: statusDate, // ExpirationDate field is of type String and is required
+            certStatus: issueData.certStatus,
+            lastUpdate: Date.now()
+          });
+    
+        const updateLog = await newIssueStatus.save();
   }
 };
 
@@ -645,6 +741,23 @@ const rejectEmail = async (name, email) => {
   }
 };
 
+const getCertificationStatus = async (certStatus) => {
+  var inputStatus = parseInt(certStatus);
+  switch (inputStatus) {
+      case 0:
+          return "Not Issued";
+      case 1:
+          return "Issued";
+      case 2:
+          return "Renewed";
+      case 3:
+          return "Revoked";
+      case 4:
+          return "Expired";
+      default:
+          return "Unknown";
+  };
+};
 
 module.exports = {
   // Connect to Polygon 
@@ -666,6 +779,14 @@ module.exports = {
   convertDateFormat,
 
   convertDateOnVerification,
+
+  convertDateToEpoch,
+
+  convertEpochToDate,
+
+  insertIssueStatus,
+
+  getCertificationStatus,
 
   // Function to extract QR code data from a PDF file
   extractQRCodeDataFromPDF,
