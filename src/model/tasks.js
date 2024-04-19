@@ -307,10 +307,13 @@ const insertBatchCertificateData = async (data) => {
       course: data.course,
       grantDate: data.grantDate,
       expirationDate: data.expirationDate,
+      certificateStatus: data.certStatus,
       issueDate: Date.now()
     });
 
     const result = await newBatchIssue.save();
+
+    const updateIssuerLog = await insertIssueStatus(data);
 
     const idExist = await User.findOne({ issuerId: data.issuerId });
 
@@ -753,7 +756,11 @@ const getCertificationStatus = async (certStatus) => {
       case 3:
           return "Revoked";
       case 4:
+          return "Reactivated";
+      case 5:
           return "Expired";
+      case 6:
+          return "Verified";
       default:
           return "Unknown";
   };

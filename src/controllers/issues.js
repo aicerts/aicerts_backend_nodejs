@@ -322,7 +322,9 @@ try
               name: rawBatchData[i].name,
               course: rawBatchData[i].certificationName,
               grantDate: _grantDate,
-              expirationDate: _expirationDate
+              expirationDate: _expirationDate,
+              email: email,
+              certStatus : 1
             }
 
             let _fields = {
@@ -356,7 +358,6 @@ try
             }
 
             // console.log("Batch Certificate Details", batchDetailsWithQR[i]);
-            // await insertBatchCertificateData(batchDetails[i]);
             insertPromises.push(insertBatchCertificateData(batchDetails[i]));
           }
           // Wait for all insert promises to resolve
