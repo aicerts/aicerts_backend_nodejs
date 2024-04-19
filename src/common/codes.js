@@ -30,6 +30,7 @@ module.exports = {
     msgInvalidDate : "Entered date format is invalid",
     msgCertLength : "Certification ID must between 12 to 20 characters",
     msgMaxLength : "Entered Input must between 8 to 30 characters",
+    msgMaxLengthCourse : "Entered Input must not exceed 150 characters",
 
     // API response codes in Issues (Controller)
     msgAuthMissing : "Authorization token is missing",

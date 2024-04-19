@@ -457,6 +457,6 @@ router.post('/batch-certificate-issue', __upload.single("excelFile"), ensureAuth
  *               message: Internal server error.
  */
 
-router.post('/auth-issue', validationRoute.issue, adminController.authIssue);
+router.post('/auth-issue', validationRoute.authIssue, adminController.authIssue);
 
 module.exports=router;
