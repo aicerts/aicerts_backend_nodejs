@@ -75,9 +75,8 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
         if (
             (!idExist || idExist.status !== 1) || // User does not exist
             !certificateNumber || // Missing certificate number
-            (!expirationDate || expirationDate == 'Invalid date')
-            // ||
-            // (epochExpiration < validExpiration)
+            (!expirationDate || expirationDate == 'Invalid date') ||
+            (epochExpiration < validExpiration)
         ) {
             // Prepare error message
             let errorMessage = messageCode.msgPlsEnterValid;
@@ -100,185 +99,189 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
 
         if (isNumberExist) {
 
-        try{
-
-            // Blockchain calls
-            const getCertificateStatus = await newContract.getCertificateStatus(certificateNumber);
-            var batchStatus = parseInt(getCertificateStatus);
-            if (batchStatus == 3) {
-                // Respond with error message
-                return ({ code: 400, status: "FAILED", message: messageCode.msgNotPossibleOnRevoked });
+            var epochExpiration = await convertDateToEpoch(isNumberExist.expirationDate);
+            if (epochExpiration < todayEpoch) {
+                return ({ code: 400, status: "FAILED", message: messageCode.msgCertExpired });
             }
-
-            const certDateValidation = await expirationDateVariaton(isNumberExist.expirationDate, expirationDate);
-
-            if (certDateValidation == 0 || certDateValidation == 2) {
-                // Respond with error message
-                return ({ code: 400, status: "FAILED", message: `${messageCode.msgEpirationMustGreater}: ${isNumberExist.expirationDate}` });
-            }
-
-            // Prepare fields for the certificate
-            const fields = {
-                Certificate_Number: certificateNumber,
-                name: isNumberExist.name,
-                courseName: isNumberExist.course,
-                Grant_Date: isNumberExist.grantDate,
-                Expiration_Date: expirationDate,
-            };
-            // Hash sensitive fields
-            const hashedFields = {};
-            for (const field in fields) {
-                hashedFields[field] = calculateHash(fields[field]);
-            }
-            const combinedHash = calculateHash(JSON.stringify(hashedFields));
 
             try {
-                // Verify on blockchain
-                const isPaused = await newContract.paused();
-                const issuerAuthorized = await newContract.hasRole(process.env.ISSUER_ROLE, idExist.issuerId);
-                const verifyOnChain = await newContract.verifyCertificateById(certificateNumber);
 
-                if (
-                    issuerAuthorized === false ||
-                    isPaused === true
-                ) {
-                    // Issuer not authorized / contract paused
-                    if (isPaused === true) {
-                        var messageContent = messageCode.msgOpsRestricted;
-                    } else if (issuerAuthorized === false) {
-                        var messageContent = messageCode.msgIssuerUnauthrized;
-                    }
-                    return ({ code: 400, status: "FAILED", message: messageContent });
+                // Blockchain calls
+                const getCertificateStatus = await newContract.getCertificateStatus(certificateNumber);
+                var batchStatus = parseInt(getCertificateStatus);
+                if (batchStatus == 3) {
+                    // Respond with error message
+                    return ({ code: 400, status: "FAILED", message: messageCode.msgNotPossibleOnRevoked });
                 }
 
-                if (verifyOnChain[0] === true) {
+                const certDateValidation = await expirationDateVariaton(isNumberExist.expirationDate, expirationDate);
 
-                    try {
-                        // Perform Expiration extension
-                        const tx = await newContract.renewCertificate(
-                            certificateNumber,
-                            combinedHash,
-                            epochExpiration
-                        );
+                if (certDateValidation == 0 || certDateValidation == 2) {
+                    // Respond with error message
+                    return ({ code: 400, status: "FAILED", message: `${messageCode.msgEpirationMustGreater}: ${isNumberExist.expirationDate}` });
+                }
 
-                        // await tx.wait();
-                        var txHash = tx.hash;
+                // Prepare fields for the certificate
+                const fields = {
+                    Certificate_Number: certificateNumber,
+                    name: isNumberExist.name,
+                    courseName: isNumberExist.course,
+                    Grant_Date: isNumberExist.grantDate,
+                    Expiration_Date: expirationDate,
+                };
+                // Hash sensitive fields
+                const hashedFields = {};
+                for (const field in fields) {
+                    hashedFields[field] = calculateHash(fields[field]);
+                }
+                const combinedHash = calculateHash(JSON.stringify(hashedFields));
 
-                        // Generate link URL for the certificate on blockchain
-                        var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
-
-                    } catch (error) {
-                        if (error.reason) {
-                            // Extract and handle the error reason
-                            console.log("Error reason:", error.reason);
-                            return ({ code: 400, status: "FAILED", message: error.reason });
-                        } else {
-                            // If there's no specific reason provided, handle the error generally
-                            console.error(messageCode.msgFailedOpsAtBlockchain, error);
-                            return ({ code: 400, status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain, details: error });
+                try {
+                    // Verify on blockchain
+                    const isPaused = await newContract.paused();
+                    const issuerAuthorized = await newContract.hasRole(process.env.ISSUER_ROLE, idExist.issuerId);
+                    const verifyOnChain = await newContract.verifyCertificateById(certificateNumber);
+                    if (
+                        issuerAuthorized === false ||
+                        isPaused === true
+                    ) {
+                        // Issuer not authorized / contract paused
+                        if (isPaused === true) {
+                            var messageContent = messageCode.msgOpsRestricted;
+                        } else if (issuerAuthorized === false) {
+                            var messageContent = messageCode.msgIssuerUnauthrized;
                         }
+                        return ({ code: 400, status: "FAILED", message: messageContent });
                     }
 
-                    // Generate encrypted URL with certificate data
-                    const dataWithLink = { ...fields, polygonLink: polygonLink }
-                    const urlLink = generateEncryptedUrl(dataWithLink);
+                    if (verifyOnChain[0] == true) {
 
-                    // Generate QR code based on the URL
-                    const legacyQR = false;
-                    let qrCodeData = '';
-                    if (legacyQR) {
-                        // Include additional data in QR code
-                        qrCodeData = `Verify On Blockchain: ${polygonLink},
+                        try {
+                            // Perform Expiration extension
+                            const tx = await newContract.renewCertificate(
+                                certificateNumber,
+                                combinedHash,
+                                epochExpiration
+                            );
+
+                            // await tx.wait();
+                            var txHash = tx.hash;
+
+                            // Generate link URL for the certificate on blockchain
+                            var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
+
+                        } catch (error) {
+                            if (error.reason) {
+                                // Extract and handle the error reason
+                                console.log("Error reason:", error.reason);
+                                return ({ code: 400, status: "FAILED", message: error.reason });
+                            } else {
+                                // If there's no specific reason provided, handle the error generally
+                                console.error(messageCode.msgFailedOpsAtBlockchain, error);
+                                return ({ code: 400, status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain, details: error });
+                            }
+                        }
+
+                        // Generate encrypted URL with certificate data
+                        const dataWithLink = { ...fields, polygonLink: polygonLink }
+                        const urlLink = generateEncryptedUrl(dataWithLink);
+
+                        // Generate QR code based on the URL
+                        const legacyQR = false;
+                        let qrCodeData = '';
+                        if (legacyQR) {
+                            // Include additional data in QR code
+                            qrCodeData = `Verify On Blockchain: ${polygonLink},
                 Certification Number: ${certificateNumber},
                 Name: ${fields.name},
                 Certification Name: ${fields.courseName},
                 Grant Date: ${fields.Grant_Date},
                 Expiration Date: ${expirationDate}`;
+                        } else {
+                            // Directly include the URL in QR code
+                            qrCodeData = urlLink;
+                        }
+
+                        var qrCodeImage = await QRCode.toDataURL(qrCodeData, {
+                            errorCorrectionLevel: "H",
+                            width: 450, // Adjust the width as needed
+                            height: 450, // Adjust the height as needed
+                        });
+
                     } else {
-                        // Directly include the URL in QR code
-                        qrCodeData = urlLink;
+                        // Respond with error message
+                        return ({ code: 400, status: "FAILED", message: messageCode.msgCertBadRenewStatus });
                     }
 
-                    var qrCodeImage = await QRCode.toDataURL(qrCodeData, {
-                        errorCorrectionLevel: "H",
-                        width: 450, // Adjust the width as needed
-                        height: 450, // Adjust the height as needed
+                    try {
+                        // Check mongoose connection
+                        const dbStatus = await isDBConnected();
+                        const dbStatusMessage = (dbStatus == true) ? messageCode.msgDbReady : messageCode.msgDbNotReady;
+                        console.log(dbStatusMessage);
+
+                        const issuerId = idExist.issuerId;
+
+                        // Save Issue details (modified)
+                        isNumberExist.certificateHash = combinedHash;
+                        isNumberExist.expirationDate = expirationDate;
+                        isNumberExist.transactionHash = txHash;
+                        isNumberExist.issueDate = Date.now();
+
+                        // Save certification data into database
+                        await isNumberExist.save();
+
+                        // Update certificate Count
+                        var previousCount = idExist.certificatesIssued;
+                        idExist.certificatesIssued = previousCount + 1;
+                        await idExist.save(); // Save the changes to the existing user
+
+                        // If user with given id exists, update certificatesRenewed count
+                        var previousRenewCount = idExist.certificatesRenewed || 0; // Initialize to 0 if certificatesIssued field doesn't exist
+                        idExist.certificatesRenewed = previousRenewCount + 1;
+                        await idExist.save(); // Save the changes to the existing user
+
+                        var certificateData = {
+                            issuerId,
+                            transactionHash: txHash,
+                            certificateHash: combinedHash,
+                            certificateNumber: certificateNumber,
+                            name: isNumberExist.name,
+                            course: isNumberExist.course,
+                            grantDate: isNumberExist.grantDate,
+                            expirationDate: expirationDate,
+                            email: email,
+                            certStatus: 2
+                        };
+
+                        // Insert certification status data into database
+                        await insertIssueStatus(certificateData);
+
+                    } catch (error) {
+                        // Handle mongoose connection error (log it, response an error, etc.)
+                        console.error(messageCode.msgInternalError, error);
+                        return ({ code: 500, status: "FAILED", message: messageCode.msgInternalError, details: error });
+                    }
+
+                    // Respond with success message and certificate details
+                    return ({
+                        code: 200,
+                        status: "SUCCESS",
+                        message: messageCode.msgCertRenewedSuccess,
+                        qrCodeImage: qrCodeImage,
+                        polygonLink: polygonLink,
+                        details: certificateData,
                     });
 
-                } else {
-                    // Respond with error message
-                    return ({ code: 400, status: "FAILED", message: messageCode.msgCertBadRenewStatus });
-                }
-
-                try {
-                    // Check mongoose connection
-                    const dbStatus = await isDBConnected();
-                    const dbStatusMessage = (dbStatus == true) ? messageCode.msgDbReady : messageCode.msgDbNotReady;
-                    console.log(dbStatusMessage);
-
-                    const issuerId = idExist.issuerId;
-
-                    // Save Issue details (modified)
-                    isNumberExist.certificateHash = combinedHash;
-                    isNumberExist.expirationDate = expirationDate;
-                    isNumberExist.transactionHash = txHash;
-                    isNumberExist.issueDate = Date.now();
-
-                    // Save certification data into database
-                    await isNumberExist.save();
-
-                    // Update certificate Count
-                    var previousCount = idExist.certificatesIssued;
-                    idExist.certificatesIssued = previousCount + 1;
-                    await idExist.save(); // Save the changes to the existing user
-
-                    // If user with given id exists, update certificatesRenewed count
-                    var previousRenewCount = idExist.certificatesRenewed || 0; // Initialize to 0 if certificatesIssued field doesn't exist
-                    idExist.certificatesRenewed = previousRenewCount + 1;
-                    await idExist.save(); // Save the changes to the existing user
-
-                    var certificateData = {
-                        issuerId,
-                        transactionHash: txHash,
-                        certificateHash: combinedHash,
-                        certificateNumber: certificateNumber,
-                        name: isNumberExist.name,
-                        course: isNumberExist.course,
-                        grantDate: isNumberExist.grantDate,
-                        expirationDate: expirationDate,
-                        email: email,
-                        certStatus: 2
-                    };
-
-                    // Insert certification status data into database
-                    await insertIssueStatus(certificateData);
-
                 } catch (error) {
-                    // Handle mongoose connection error (log it, response an error, etc.)
-                    console.error(messageCode.msgInternalError, error);
-                    return ({ code: 500, status: "FAILED", message: messageCode.msgInternalError, details: error });
+                    // Internal server error
+                    console.error(error);
+                    return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
                 }
-
-                // Respond with success message and certificate details
-                return ({
-                    code: 200,
-                    status: "SUCCESS",
-                    message: messageCode.msgCertRenewedSuccess,
-                    qrCodeImage: qrCodeImage,
-                    polygonLink: polygonLink,
-                    details: certificateData,
-                });
-
             } catch (error) {
                 // Internal server error
                 console.error(error);
                 return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
             }
-        } catch (error) {
-            // Internal server error
-            console.error(error);
-            return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
-        }
 
 
         } else if (isNumberExistInBatch) {
@@ -298,7 +301,7 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                         return ({ code: 400, status: "FAILED", message: messageCode.msgNotPossibleOnRevoked });
                     }
 
-                    if(verifyBatchId[1] == 0){
+                    if (verifyBatchId[1] == 0) {
                         const certDateValidation = await expirationDateVariaton(isNumberExistInBatch.expirationDate, expirationDate);
 
                         if (certDateValidation == 0 || certDateValidation == 2) {
@@ -306,23 +309,23 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                             return ({ code: 400, status: "FAILED", message: `${messageCode.msgEpirationMustGreater}: ${isNumberExistInBatch.expirationDate}` });
                         }
 
-                    try {
-                        // Verify certificate on blockchain
-                        const isPaused = await newContract.paused();
-                        const issuerAuthorized = await newContract.hasRole(process.env.ISSUER_ROLE, idExist.issuerId);
+                        try {
+                            // Verify certificate on blockchain
+                            const isPaused = await newContract.paused();
+                            const issuerAuthorized = await newContract.hasRole(process.env.ISSUER_ROLE, idExist.issuerId);
 
-                        if (
-                            issuerAuthorized === false ||
-                            isPaused === true
-                        ) {
-                            // Issuer not authorized / contract paused
-                            if (isPaused === true) {
-                                var messageContent = messageCode.msgOpsRestricted;
-                            } else if (issuerAuthorized === false) {
-                                var messageContent = messageCode.msgIssuerUnauthrized;
+                            if (
+                                issuerAuthorized === false ||
+                                isPaused === true
+                            ) {
+                                // Issuer not authorized / contract paused
+                                if (isPaused === true) {
+                                    var messageContent = messageCode.msgOpsRestricted;
+                                } else if (issuerAuthorized === false) {
+                                    var messageContent = messageCode.msgIssuerUnauthrized;
+                                }
+                                return ({ code: 400, status: "FAILED", message: messageContent });
                             }
-                            return ({ code: 400, status: "FAILED", message: messageContent });
-                        }
 
                             // Prepare fields for the certificate
                             const fields = {
@@ -467,49 +470,53 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                                 return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
                             }
 
-                    } catch (error) {
-                        // Internal server error
-                        console.error(error);
-                        return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
-                    }
+                        } catch (error) {
+                            // Internal server error
+                            console.error(error);
+                            return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
+                        }
 
                     } else {
-                    
-                    const certDateValidation = await expirationDateVariaton(isNumberExistInBatch.expirationDate, expirationDate);
 
-                    if (certDateValidation == 0 || certDateValidation == 2) {
-                        // Respond with error message
-                        return ({ code: 400, status: "FAILED", message: `${messageCode.msgEpirationMustGreater}: ${isNumberExistInBatch.expirationDate}` });
-                    }
-
-                    try {
-                        // Perform Expiration extension
-                        const tx = await newContract.renewBatchCertificates(
-                            fetchIndex,
-                            epochExpiration
-                        );
-
-                        // await tx.wait();
-                        var txHash = tx.hash;
-
-                        // Generate link URL for the certificate on blockchain
-                        var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
-
-                    } catch (error) {
-                        if (error.reason) {
-                            // Extract and handle the error reason
-                            console.log("Error reason:", error.reason);
-                            return ({ code: 400, status: "FAILED", message: error.reason });
-                        } else {
-                            // If there's no specific reason provided, handle the error generally
-                            console.error(messageCode.msgFailedOpsAtBlockchain, error);
-                            return ({ code: 400, status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain, details: error });
+                        if (verifyBatchId[1] < todayEpoch) {
+                            return ({ code: 400, status: "FAILED", message: messageCode.msgBatchExpired });
                         }
-                    }
 
-                    var statusDetails = {batchId : isNumberExistInBatch.batchId, expirationDate: expirationDate, polygonLink: polygonLink};
-                    return ({ code: 200, status: "SUCCESS", message: messageCode.msgBatchStatusRenened, details: statusDetails });
-                }
+                        const certDateValidation = await expirationDateVariaton(isNumberExistInBatch.expirationDate, expirationDate);
+
+                        if (certDateValidation == 0 || certDateValidation == 2) {
+                            // Respond with error message
+                            return ({ code: 400, status: "FAILED", message: `${messageCode.msgEpirationMustGreater}: ${isNumberExistInBatch.expirationDate}` });
+                        }
+
+                        try {
+                            // Perform Expiration extension
+                            const tx = await newContract.renewBatchCertificates(
+                                fetchIndex,
+                                epochExpiration
+                            );
+
+                            // await tx.wait();
+                            var txHash = tx.hash;
+
+                            // Generate link URL for the certificate on blockchain
+                            var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
+
+                        } catch (error) {
+                            if (error.reason) {
+                                // Extract and handle the error reason
+                                console.log("Error reason:", error.reason);
+                                return ({ code: 400, status: "FAILED", message: error.reason });
+                            } else {
+                                // If there's no specific reason provided, handle the error generally
+                                console.error(messageCode.msgFailedOpsAtBlockchain, error);
+                                return ({ code: 400, status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain, details: error });
+                            }
+                        }
+
+                        var statusDetails = { batchId: isNumberExistInBatch.batchId, expirationDate: expirationDate, polygonLink: polygonLink };
+                        return ({ code: 200, status: "SUCCESS", message: messageCode.msgBatchStatusRenened, details: statusDetails });
+                    }
                 }
             } catch (error) {
                 // Internal server error
@@ -531,6 +538,10 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
 };
 
 const handleUpdateCertificationStatus = async (email, certificateNumber, certStatus) => {
+    // Get today's date
+    var today = new Date().toLocaleString("en-US", { timeZone: "America/New_York" }); // Adjust timeZone as per the US Standard Time zone
+    // Convert today's date to epoch time (in milliseconds)
+    var todayEpoch = new Date(today).getTime() / 1000; // Convert milliseconds to seconds
 
     try {
         // Check mongoose connection
@@ -563,7 +574,7 @@ const handleUpdateCertificationStatus = async (email, certificateNumber, certSta
 
             if (
                 issuerAuthorized === false ||
-                isPaused === true 
+                isPaused === true
             ) {
                 // Issuer not authorized / contract paused
                 if (isPaused === true) {
@@ -576,67 +587,29 @@ const handleUpdateCertificationStatus = async (email, certificateNumber, certSta
 
             if (isNumberExist) {
 
-                var _getCertificateStatus = await newContract.getCertificateStatus(certificateNumber);
-                var getCertificateStatus = parseInt(_getCertificateStatus);
-                if(getCertificateStatus == 0) {
-                    return ({ code: 400, status: "FAILED", message: messageCode.msgCertNotExist });
-                }
-                if (getCertificateStatus != certStatus) {
-                    try {
-                        // Perform Expiration extension
-                        const tx = await newContract.updateSingleCertificateStatus(
-                            certificateNumber,
-                            certStatus
-                        );
+                try {
+                    var _getCertificateStatus = await newContract.getCertificateStatus(certificateNumber);
+                    var getVerifyResponse = await newContract.verifyCertificateById(certificateNumber);
+                    var statusResponse = parseInt(getVerifyResponse[2]);
 
-                        // await tx.wait();
-                        var txHash = tx.hash;
-
-                        // Generate link URL for the certificate on blockchain
-                        var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
-
-                    } catch (error) {
-                        if (error.reason) {
-                            // Extract and handle the error reason
-                            console.log("Error reason:", error.reason);
-                            return ({ code: 400, status: "FAILED", message: error.reason });
-                        } else {
-                            // If there's no specific reason provided, handle the error generally
-                            console.error(messageCode.msgFailedOpsAtBlockchain, error);
-                            return ({ code: 400, status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain, details: error });
-                        }
+                    var epochExpiration = await convertDateToEpoch(isNumberExist.expirationDate);
+                    if ((epochExpiration < todayEpoch) || (getVerifyResponse[0] == true && statusResponse == 5)) {
+                        return ({ code: 400, status: "FAILED", message: messageCode.msgCertExpired });
                     }
-                    // Save Issue details (modified)
-                    isNumberExist.certificateStatus = certStatus;
-                    isNumberExist.transactionHash = txHash;
 
-                    // Save certification data into database
-                    await isNumberExist.save();
-
-                    return ({ code: 200, status: "SUCCESS", message: `Updated status: ${_certStatus}`, details: isNumberExist });
-
-                } else {
-                    return ({ code: 400, status: "FAILED", message: messageCode.msgStatusAlreadyExist });
-                }
-
-            } else if (isNumberExistInBatch) {
-
-            try{
-                var fetchIndex = isNumberExistInBatch.batchId -1;
-                // Blockchain calls
-                var batchStatusResponse = await newContract.verifyBatchRoot(fetchIndex);
-
-                if(batchStatusResponse[0] === true)
-                {
-                    var batchStatus = parseInt(batchStatusResponse[2]);
-                    if(batchStatus == parseInt(certStatus)){
-                        return ({ code: 400, status: "FAILED", message: messageCode.msgStatusAlreadyExist });
+                    if ((isNumberExist.certificateStatus == 4 && certStatus == 3) || (isNumberExist.certificateStatus == 5 && certStatus == 3) || (isNumberExist.certificateStatus == 5 && certStatus == 4)) {
+                        return ({ code: 400, status: "FAILED", message: messageCode.msgRevokeNotPossible });
                     }
-                    if(batchStatusResponse[1] != 0){
-                    try {
+
+                    var getCertificateStatus = parseInt(_getCertificateStatus);
+                    if (getCertificateStatus == 0) {
+                        return ({ code: 400, status: "FAILED", message: messageCode.msgCertNotExist });
+                    }
+                    if (getCertificateStatus != certStatus) {
+                        try {
                             // Perform Expiration extension
-                            const tx = await newContract.updateBatchCertificateStatus(
-                                fetchIndex,
+                            const tx = await newContract.updateSingleCertificateStatus(
+                                certificateNumber,
                                 certStatus
                             );
 
@@ -656,22 +629,82 @@ const handleUpdateCertificationStatus = async (email, certificateNumber, certSta
                                 console.error(messageCode.msgFailedOpsAtBlockchain, error);
                                 return ({ code: 400, status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain, details: error });
                             }
+                        }
+                        // Save Issue details (modified)
+                        isNumberExist.certificateStatus = certStatus;
+                        isNumberExist.transactionHash = txHash;
+
+                        // Save certification data into database
+                        await isNumberExist.save();
+
+                        return ({ code: 200, status: "SUCCESS", message: `Updated status: ${_certStatus}`, details: isNumberExist });
+
+                    } else {
+                        return ({ code: 400, status: "FAILED", message: messageCode.msgStatusAlreadyExist });
                     }
-
-                    var statusDetails = {batchId : isNumberExistInBatch.batchId, updatedStatus: _certStatus, polygonLink: polygonLink};
-                    return ({ code: 200, status: "SUCCESS", message: messageCode.msgBatchStatusUpdated, details: statusDetails });
-
-                }else{
-                    return ({ code: 400, status: "FAILED", message: messageCode.msgBatchStatusUpdatedNotPossible });
+                } catch (error) {
+                    // Internal server error
+                    console.error(error);
+                    return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
                 }
-                } else {
-                    return ({ code: 400, status: "FAILED", message: messageCode.msgCertNotExist });
+
+            } else if (isNumberExistInBatch) {
+
+                try {
+                    var fetchIndex = isNumberExistInBatch.batchId - 1;
+                    // Blockchain calls
+                    var batchStatusResponse = await newContract.verifyBatchRoot(fetchIndex);
+
+                    if (batchStatusResponse[0] === true) {
+                        var batchStatus = parseInt(batchStatusResponse[2]);
+                        if (batchStatus == parseInt(certStatus)) {
+                            return ({ code: 400, status: "FAILED", message: messageCode.msgStatusAlreadyExist });
+                        }
+                        if (batchStatusResponse[1] != 0) {
+                            if (batchStatusResponse[1] < todayEpoch) {
+                                return ({ code: 400, status: "FAILED", message: messageCode.msgBatchExpired });
+                            }
+                            try {
+                                // Perform Expiration extension
+                                const tx = await newContract.updateBatchCertificateStatus(
+                                    fetchIndex,
+                                    certStatus
+                                );
+
+                                // await tx.wait();
+                                var txHash = tx.hash;
+
+                                // Generate link URL for the certificate on blockchain
+                                var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
+
+                            } catch (error) {
+                                if (error.reason) {
+                                    // Extract and handle the error reason
+                                    console.log("Error reason:", error.reason);
+                                    return ({ code: 400, status: "FAILED", message: error.reason });
+                                } else {
+                                    // If there's no specific reason provided, handle the error generally
+                                    console.error(messageCode.msgFailedOpsAtBlockchain, error);
+                                    return ({ code: 400, status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain, details: error });
+                                }
+                            }
+
+                            var statusDetails = { batchId: isNumberExistInBatch.batchId, updatedStatus: _certStatus, polygonLink: polygonLink };
+                            return ({ code: 200, status: "SUCCESS", message: messageCode.msgBatchStatusUpdated, details: statusDetails });
+
+                        } else {
+                            var hashProof = isNumberExistInBatch.encodedProof;
+
+                            return ({ code: 400, status: "FAILED", message: messageCode.msgBatchStatusUpdatedNotPossible });
+                        }
+                    } else {
+                        return ({ code: 400, status: "FAILED", message: messageCode.msgCertNotExist });
+                    }
+                } catch (error) {
+                    // Internal server error
+                    console.error(error);
+                    return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
                 }
-            } catch (error) {
-                // Internal server error
-                console.error(error);
-                return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
-            }
             } else {
                 return ({ code: 400, status: "FAILED", message: messageCode.msgCertNotExist });
             }

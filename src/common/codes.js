@@ -103,7 +103,7 @@ module.exports = {
     msgOlderGrantDate : "Older grant date mentioned",
     msgInvalidExpiration : "Please provide expiration date as more than 30 days and try again...",
 
-    //Renew Messages
+    //Renew/status update Messages
     msgInvalidExpiration : "Provide valid Expiration date",
     msgCertBadRenewStatus : "Extend Expiration date not possible on the certification",
     msgEpirationMustGreater : "Please provide greater exipration date than existed expiration date",
@@ -116,6 +116,9 @@ module.exports = {
     msgOperationNotPossible : "Operation not possible on the certification",
     msgNotPossibleBatch : "Operation not possible on the Batch certification",
     msgNotPossibleOnRevoked : "Operation not possible on the Revoked certification",
-    msgInvalidRootPassed : "Invalid Batch certificate value passed",
+    msgInvalidRootPassed : "Invalid Batch certification value passed",
+    msgBatchExpired : "Provided Batch details were expired",
+    msgCertExpired : "Provided Certification details were expired",
+    msgRevokeNotPossible : "Operation not possible on provided Certification",
 
 };
