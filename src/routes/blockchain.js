@@ -25,7 +25,7 @@ const validationRoute = require("../common/validationRoutes");
  *                 type: string
  *                 description: Email of the issuer to be approved or rejected
  *             example:
- *               status: 1
+ *               status: 0
  *               email: issuer@example.com
  *     responses:
  *       '200':

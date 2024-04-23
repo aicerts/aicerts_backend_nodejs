@@ -47,6 +47,7 @@ const BatchIssuesSchema = new Schema({
     course: { type: String, required: true },
     grantDate: { type: String, required: true },
     expirationDate: { type: String, required: true },
+    certificateStatus: { type: Number, default: 1 },
     issueDate: { type: Date, default: Date.now }
 });
 

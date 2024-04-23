@@ -315,7 +315,7 @@ try
               issuerId: idExist.issuerId,
               batchId: allocateBatchId,
               proofHash: _proof,
-              encodedProof: _proofHash,
+              encodedProof: `0x${_proofHash}`,
               transactionHash: txHash,
               certificateHash: hashedBatchData[i],
               certificateNumber: rawBatchData[i].certificationID,

@@ -96,6 +96,7 @@ module.exports = {
     msgAdminRevoke : "Admin Role Revoked",
     msgIssuerRoleRevoke : "Issuer Role Revoked",
     msgBalanceCheck : "Balance check successful",
+    msgNonZero : "Input must not zero",
 
     // Dates Messages
     msgInvalidDate : "Invalid Date, Please check and try again ...",
@@ -112,6 +113,7 @@ module.exports = {
     msgStatusAlreadyExist : "The certification status existed",
     msgBatchStatusRenened : "Batch expirataion renewed",
     msgBatchStatusUpdated : "Batch status updated",
+    msgInvalidBatch : "Invalid batch details provided",
     msgBatchStatusUpdatedNotPossible : "Batch status updating operation not possible",
     msgOperationNotPossible : "Operation not possible on the certification",
     msgNotPossibleBatch : "Operation not possible on the Batch certification",

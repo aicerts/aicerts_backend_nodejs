@@ -104,9 +104,9 @@ router.post('/renew-cert', validationRoute.renewIssue, adminController.renewCert
  * /api/update-cert-status:
  *   post:
  *     summary: API call for certificate status update
- *     description: API call for update a certificate status (Issued, Revoked ...).
+ *     description: API call for update a certificate status (Revoked, Reactivated ...).
  *     tags:
- *       - Revoke Certification (Details)
+ *       - Revoke/Reactivate Certification (Details)
  *     requestBody:
  *       required: true
  *       content:
@@ -190,6 +190,98 @@ router.post('/renew-cert', validationRoute.renewIssue, adminController.renewCert
  */
 
 router.post('/update-cert-status', validationRoute.updateStatus, adminController.updateCertStatus);
+
+/**
+ * @swagger
+ * /api/renew-batch:
+ *   post:
+ *     summary: API call for Batch Certificates Renewal.
+ *     description: API call for update a Batch of certificates expiration date.
+ *     tags:
+ *       - Renew Certification (Details)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: The issuer email.
+ *               batch:
+ *                 type: number
+ *                 description: The certificate Batch number.
+ *               expirationDate:
+ *                 type: string
+ *                 description: The certificate Batch new Expiration date.
+ *             required:
+ *               - email
+ *               - batch
+ *               - expirationDate
+ *     responses:
+ *       '200':
+ *         description: Successful Batch certificates renewed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *                 details:
+ *                   type: object
+ *             example:
+ *               status: "SUCCESS"
+ *               message: Batch Certificate renewed successfully.
+ *               details: Certificate details.
+ *       '400':
+ *         description: Certificate already issued or invalid input
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Error message for batch expiration date update.
+ *       '422':
+ *         description: User given invalid input (Unprocessable Entity)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Error message for invalid input.
+ *       '500':
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Internal server error.
+ */
+
+router.post('/renew-batch', validationRoute.renewBatch, adminController.renewBatchCertificate);
 
 
 module.exports=router;

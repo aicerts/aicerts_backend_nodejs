@@ -20,6 +20,17 @@ const validationRoutes = {
         body("certificateNumber").notEmpty().trim().isString().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide).isLength({ min: 12, max: 20 }).withMessage(messageCode.msgCertLength),
         body(["certStatus"]).not().equals("string").withMessage(messageCode.msgInputProvide)
     ],
+    renewBatch: [
+        body("email").notEmpty().trim().isEmail().withMessage(messageCode.msgInvalidEmail).not().equals("string").withMessage(messageCode.msgInvalidEmail),
+        body("batch").notEmpty().trim().isNumeric().withMessage(messageCode.msgInputProvide).custom((value) => {
+            const intValue = parseInt(value);
+            if (intValue === 0) {
+                throw new Error(messageCode.msgNonZero);
+            }
+            return true;
+        }),
+        body("expirationDate").not().equals("string").withMessage(messageCode.msgInputProvide)
+    ],
     updateStatus: [
         body("email").notEmpty().trim().isEmail().withMessage(messageCode.msgInvalidEmail).not().equals("string").withMessage(messageCode.msgInvalidEmail),
         body("certificateNumber").notEmpty().trim().isString().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide).isLength({ min: 12, max: 20 }).withMessage(messageCode.msgCertLength),
