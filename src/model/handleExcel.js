@@ -76,9 +76,6 @@ const handleExcelFile = async (_path) => {
                     var notNullHolderNames = holderNames.filter(item => item == null);
                     var notNullCertificationNames = certificationNames.filter(item => item == null);
 
-
-                    console.log("Dates count", nonNullGrantDates.length, nonNullExpiryDates.length, notNullCertificationIDs.length, notNullHolderNames.length, notNullCertificationNames.length);
-
                     if(nonNullGrantDates.length != 0 || nonNullExpiryDates.length != 0 || notNullCertificationIDs.length != 0 || notNullHolderNames.length != 0 || notNullCertificationNames.length != 0){
                         return { status: "FAILED", response: false, message: messageCode.msgMissingDetailsInExcel};
                     }
@@ -189,18 +186,22 @@ const findInvalidDates = async (dates) => {
     const invalidDates = [];
 
     for (let dateString of dates) {
+        if(dateString){
         // Check if the date matches the regex for valid dates with 2-digit years
-        if (regex.test(dateString)) {
-            validDates.push(dateString);
-        } else {
-            // Check if the year component has 3 digits, indicating an invalid date
-            const year = parseInt(dateString.split('/')[2]);
-            if (year >= 98) {
-                invalidDates.push(dateString);
-            } else {
+            if (regex.test(dateString)) {
                 validDates.push(dateString);
+            } else {
+                // Check if the year component has 3 digits, indicating an invalid date
+                const year = parseInt(dateString.split('/')[2]);
+                if (year >= 98) {
+                    invalidDates.push(dateString);
+                } else {
+                    validDates.push(dateString);
+                }
             }
-        }
+       } else {
+            invalidDates.push(0);
+       }
     }
 
     return { validDates, invalidDates };
