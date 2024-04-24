@@ -123,7 +123,7 @@ const validateIssuer = async (req, res) => {
           var tx = await newContract.grantRole(process.env.ISSUER_ROLE, userExist.issuerId);
           grantedStatus = "SUCCESS";
           var txHash = tx.hash;
-          var polygonLink = `https://${process.env.NETWORK}.com/tx/${txHash}`;
+          var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
 
         } catch (error) {
           grantedStatus = "FAILED";
@@ -171,7 +171,7 @@ const validateIssuer = async (req, res) => {
           var tx = await newContract.revokeRole(process.env.ISSUER_ROLE, userExist.issuerId);
           revokedStatus = "SUCCESS";
           var txHash = tx.hash;
-          var polygonLink = `https://${process.env.NETWORK}.com/tx/${txHash}`;
+          var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
         } catch (error) {
           revokedStatus = "FAILED";
           if (error.reason) {
@@ -205,6 +205,11 @@ const validateIssuer = async (req, res) => {
           details: _details
         });
       }
+    } else if (validationStatus == 1 && roleStatus === true) {
+      res.json({
+        status: "SUCCESS",
+        message: messageCode.msgIssuerApproveSuccess
+      });
     }
   } catch (error) {
     // Error occurred during user approval process, respond with failure message
@@ -278,7 +283,7 @@ const addTrustedOwner = async (req, res) => {
       const responseMessage = {
         status: "SUCCESS",
         message: messageInfo,
-        details: `https://${process.env.NETWORK}.com/tx/${txHash}`
+        details: `https://${process.env.NETWORK}/tx/${txHash}`
       };
 
       // Send success response
@@ -354,7 +359,7 @@ const removeTrustedOwner = async (req, res) => {
       const responseMessage = {
         status: "SUCCESS",
         message: messageInfo,
-        details: `https://${process.env.NETWORK}.com/tx/${txHash}`
+        details: `https://${process.env.NETWORK}/tx/${txHash}`
       };
       // Send success response
       res.status(200).json(responseMessage);

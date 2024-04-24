@@ -3,6 +3,8 @@ require('dotenv').config();
 const readXlsxFile = require('read-excel-file/node');
 const path = require("path");
 
+const moment = require('moment');
+
 const thresholdYear = parseInt(process.env.THRESHOLD_YEAR);
 // Parse environment variables for password length constraints
 const min_length = (parseInt(process.env.MIN_LENGTH) || 12);
@@ -62,6 +64,21 @@ const handleExcelFile = async (_path) => {
                     var certificationGrantDates = rawBatchData.map(item => item.grantDate);
                 
                     var certificationExpirationDates = rawBatchData.map(item => item.expirationDate);
+
+                    var holderNames = rawBatchData.map(item => item.name);
+
+                    var certificationNames = rawBatchData.map(item => item.certificationName);
+
+
+                    var nonNullGrantDates = certificationGrantDates.filter(date => date == null);
+                    var nonNullExpiryDates = certificationExpirationDates.filter(date => date == null);
+                    var notNullCertificationIDs = certificationIDs.filter(item => item == null);
+                    var notNullHolderNames = holderNames.filter(item => item == null);
+                    var notNullCertificationNames = certificationNames.filter(item => item == null);
+
+                    if(nonNullGrantDates.length != 0 || nonNullExpiryDates.length != 0 || notNullCertificationIDs.length != 0 || notNullHolderNames.length != 0 || notNullCertificationNames.length != 0){
+                        return { status: "FAILED", response: false, message: messageCode.msgMissingDetailsInExcel};
+                    }
 
                         // Initialize an empty list to store matching IDs
                         const matchingIDs = [];
@@ -169,18 +186,22 @@ const findInvalidDates = async (dates) => {
     const invalidDates = [];
 
     for (let dateString of dates) {
+        if(dateString){
         // Check if the date matches the regex for valid dates with 2-digit years
-        if (regex.test(dateString)) {
-            validDates.push(dateString);
-        } else {
-            // Check if the year component has 3 digits, indicating an invalid date
-            const year = parseInt(dateString.split('/')[2]);
-            if (year >= 98) {
-                invalidDates.push(dateString);
-            } else {
+            if (regex.test(dateString)) {
                 validDates.push(dateString);
+            } else {
+                // Check if the year component has 3 digits, indicating an invalid date
+                const year = parseInt(dateString.split('/')[2]);
+                if (year >= 98) {
+                    invalidDates.push(dateString);
+                } else {
+                    validDates.push(dateString);
+                }
             }
-        }
+       } else {
+            invalidDates.push(0);
+       }
     }
 
     return { validDates, invalidDates };

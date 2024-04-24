@@ -168,7 +168,6 @@ const verifyCertificationId = async (req, res) => {
 
     const singleIssueExist = await Issues.findOne({ certificateNumber: inputId });
     const batchIssueExist = await BatchIssues.findOne({ certificateNumber: inputId });
-
     // Blockchain processing.
     const response = await newContract.verifyCertificateById(inputId);
 
@@ -186,18 +185,18 @@ const verifyCertificationId = async (req, res) => {
       return res.status(400).json({ status: "FAILED", message: errorMessage });
     } else {
 
-      if (response === true && singleIssueExist != null) {
-        // if (singleIssueExist == null) {
-        //   const _verificationResponse = {
-        //     status: "FAILED",
-        //     message: messageCode.msgCertValidNoDetails,
-        //     details: inputId
-        //   };
+      if (response == true && singleIssueExist != null) {
+        if (singleIssueExist == null) {
+          const _verificationResponse = {
+            status: "FAILED",
+            message: messageCode.msgCertValidNoDetails,
+            details: inputId
+          };
 
-        //   return res.status(400).json(_verificationResponse);
-        // }
+          return res.status(400).json(_verificationResponse);
+        }
         try {
-          var _polygonLink = `https://${process.env.NETWORK}.com/tx/${singleIssueExist.transactionHash}`;
+          var _polygonLink = `https://${process.env.NETWORK}/tx/${singleIssueExist.transactionHash}`;
 
           var completeResponse = {
             'Certificate Number': singleIssueExist.certificateNumber,
@@ -232,7 +231,7 @@ const verifyCertificationId = async (req, res) => {
         if (val === true) {
           try {
 
-            var _polygonLink = `https://${process.env.NETWORK}.com/tx/${batchIssueExist.transactionHash}`;
+            var _polygonLink = `https://${process.env.NETWORK}/tx/${batchIssueExist.transactionHash}`;
 
             var completeResponse = {
               'Certificate Number': batchIssueExist.certificateNumber,
