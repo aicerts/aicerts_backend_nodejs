@@ -65,6 +65,24 @@ const handleExcelFile = async (_path) => {
                 
                     var certificationExpirationDates = rawBatchData.map(item => item.expirationDate);
 
+                    var holderNames = rawBatchData.map(item => item.name);
+
+                    var certificationNames = rawBatchData.map(item => item.certificationName);
+
+
+                    var nonNullGrantDates = certificationGrantDates.filter(date => date == null);
+                    var nonNullExpiryDates = certificationExpirationDates.filter(date => date == null);
+                    var notNullCertificationIDs = certificationIDs.filter(item => item == null);
+                    var notNullHolderNames = holderNames.filter(item => item == null);
+                    var notNullCertificationNames = certificationNames.filter(item => item == null);
+
+
+                    console.log("Dates count", nonNullGrantDates.length, nonNullExpiryDates.length, notNullCertificationIDs.length, notNullHolderNames.length, notNullCertificationNames.length);
+
+                    if(nonNullGrantDates.length != 0 || nonNullExpiryDates.length != 0 || notNullCertificationIDs.length != 0 || notNullHolderNames.length != 0 || notNullCertificationNames.length != 0){
+                        return { status: "FAILED", response: false, message: messageCode.msgMissingDetailsInExcel};
+                    }
+
                         // Initialize an empty list to store matching IDs
                         const matchingIDs = [];
                         const repetitiveNumbers = await findRepetitiveIdNumbers(certificationIDs);

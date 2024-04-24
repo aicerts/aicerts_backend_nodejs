@@ -18,6 +18,7 @@ module.exports = {
     msgExcelHasExistingIds : "Excel file has Existing Certification IDs",
     msgInvalidHeaders : "Invalid headers in the Excel file.",
     msgExcelSheetname : "The Excel file Sheet name should be - Batch.",
+    msgMissingDetailsInExcel : "The Excel file has missing fields, Please fill all required fields and try again",
 
 
     // Validation Error codes Issues (Route)
