@@ -83,7 +83,6 @@ const validateIssuer = async (req, res) => {
     const dbStatus = await isDBConnected();
     const dbStatusMessage = (dbStatus == true) ? messageCode.msgDbReady : messageCode.msgDbNotReady;
     console.log(dbStatusMessage);
-
   try{
     const roleStatus = await newContract.hasRole(process.env.ISSUER_ROLE, userExist.issuerId);
 
@@ -116,7 +115,7 @@ const validateIssuer = async (req, res) => {
       if ((userExist.status == validationStatus) && (roleStatus == true)) {
         res.status(400).json({ status: "FAILED", message: messageCode.msgExistedVerified });
       }
-
+      
       var grantedStatus;
       if (roleStatus === false) {
         try {
@@ -143,12 +142,10 @@ const validateIssuer = async (req, res) => {
         userExist.status = 1;
         userExist.rejectedDate = null;
         await userExist.save();
-
         // If user is not approved yet, send email and update user's approved status
         var mailStatus = await sendEmail(userExist.name, email);
         var mailresponse = (mailStatus === true) ? "sent" : "NA";
         var _details = grantedStatus == "SUCCESS" ? _details = polygonLink : _details = "";
-
         // Respond with success message indicating user approval
         res.json({
           status: "SUCCESS",
@@ -191,11 +188,14 @@ const validateIssuer = async (req, res) => {
         userExist.rejectedDate = Date.now();
         await userExist.save();
 
+        try{
         // If user is not rejected yet, send email and update user's rejected status
         var mailStatus = await rejectEmail(userExist.name, email);
         var mailresponse = (mailStatus === true) ? "sent" : "NA";
         var _details = revokedStatus == "SUCCESS" ? _details = polygonLink : _details = "";
-
+        }catch(error){
+          return res.status(400).json({ status: "FAILED", message: mailresponse, details: error });
+        }
         // Respond with success message indicating user rejected
         res.json({
           status: "SUCCESS",

@@ -26,14 +26,15 @@ const abi = require("../config/abi.json");
 // Importing functions from a custom module
 const {
   convertDateFormat,
+  convertDateToEpoch,
   insertBatchCertificateData, // Function to insert Batch certificate data into the database
   calculateHash, // Function to calculate the hash of a file
   cleanUploadFolder, // Function to clean up the upload folder
   isDBConnected, // Function to check if the database connection is established
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
-const { handleExcelFile } = require('../model/handleExcel');
-const { handleIssueCertification, handleIssuePdfCertification } = require('../model/issue');
+const { handleExcelFile } = require('../services/handleExcel');
+const { handleIssueCertification, handleIssuePdfCertification } = require('../services/issue');
 
 // Retrieve contract address from environment variable
 const contractAddress = process.env.CONTRACT_ADDRESS;
@@ -126,7 +127,6 @@ const issue = async (req, res) => {
   if (!validResult.isEmpty()) {
     return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid ,details: validResult.array() });
   }
-
   try{
   // Extracting required data from the request body
   const email = req.body.email;
@@ -135,7 +135,7 @@ const issue = async (req, res) => {
   const courseName = req.body.course;
   var _grantDate = req.body.grantDate;
   var _expirationDate = req.body.expirationDate;
-
+    
   const issueResponse = await handleIssueCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate);
   var responseDetails = issueResponse.details ? issueResponse.details : '';
   if(issueResponse.code == 200) {
@@ -211,6 +211,12 @@ try
       // certification unformated details
       const batchData = excelData.message[2];
 
+      // Extracting only expirationDate values
+      const expirationDates = rawBatchData.map(item => item.expirationDate);
+      const firstItem = expirationDates[0];
+      const firstItemEpoch = await convertDateToEpoch(firstItem);
+      const allDatesCommon = expirationDates.every(date => date === firstItem);
+
       const certificationIDs = rawBatchData.map(item => item.certificationID);
 
       // Assuming BatchIssues is your MongoDB model
@@ -261,11 +267,17 @@ try
         const batchNumber = await newContract.getRootLength();
         const allocateBatchId = parseInt(batchNumber) + 1;
         // const allocateBatchId = 1;
-
+        if(allDatesCommon == true){
+          var dateEntry = firstItemEpoch;
+        } else {
+          var dateEntry = 0;
+        }
+        
         try {
           // Issue Batch Certifications on Blockchain
           const tx = await newContract.issueBatchOfCertificates(
-            tree.root
+            tree.root,
+            dateEntry
           );
 
           var txHash = tx.hash;
@@ -303,14 +315,16 @@ try
               issuerId: idExist.issuerId,
               batchId: allocateBatchId,
               proofHash: _proof,
-              encodedProof: _proofHash,
+              encodedProof: `0x${_proofHash}`,
               transactionHash: txHash,
               certificateHash: hashedBatchData[i],
               certificateNumber: rawBatchData[i].certificationID,
               name: rawBatchData[i].name,
               course: rawBatchData[i].certificationName,
               grantDate: _grantDate,
-              expirationDate: _expirationDate
+              expirationDate: _expirationDate,
+              email: email,
+              certStatus : 1
             }
 
             let _fields = {
@@ -344,7 +358,6 @@ try
             }
 
             // console.log("Batch Certificate Details", batchDetailsWithQR[i]);
-            // await insertBatchCertificateData(batchDetails[i]);
             insertPromises.push(insertBatchCertificateData(batchDetails[i]));
           }
           // Wait for all insert promises to resolve
@@ -384,59 +397,6 @@ try
 }
 };
 
-/**
- * API call for Certificate issue without pdf template.
- *
- * @param {Object} req - Express request object.
- * @param {Object} res - Express response object.
- */
-const authIssue = async (req, res) => {
-  const token = req.headers.authorization;
-  try{
-    // Check if the token is provided in the request header
-    if (!token) {
-        return res.status(401).json({ status: "FAILED", message: messageCode.msgAuthMissing });
-    }
-
-    if(decodeKey == 0) {
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidKey });
-    }
-
-    if (token != decodeKey) {
-        return res.status(403).json({ status: "FAILED", message: messageCode.msgInvalidToken });
-    }
-
-  } catch (error) {
-    // Handle any errors that occur during token verification or validation
-    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
-  }
-
-    var validResult = validationResult(req);
-    if (!validResult.isEmpty()) {
-      return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid ,details: validResult.array() });
-    }
-
-    try{
-    // Extracting required data from the request body
-    const email = req.body.email;
-    const certificateNumber = req.body.certificateNumber;
-    const name = req.body.name;
-    const courseName = req.body.course;
-    var _grantDate = req.body.grantDate;
-    var _expirationDate = req.body.expirationDate;
-
-    const issueResponse = await handleIssueCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate);
-    var responseDetails = issueResponse.details ? issueResponse.details : '';
-    if(issueResponse.code == 200) {
-      return res.status(issueResponse.code).json({ status: issueResponse.status, message: issueResponse.message, qrCodeImage: issueResponse.qrCodeImage, polygonLink: issueResponse.polygonLink, details: responseDetails });
-    }
-    
-    res.status(issueResponse.code).json({ status: issueResponse.status, message: issueResponse.message, details: responseDetails });
-  } catch (error) {
-    // Handle any errors that occur during token verification or validation
-    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
-  }
-};
 
 module.exports = {
   // Function to issue a PDF certificate
@@ -446,9 +406,6 @@ module.exports = {
   issue,
 
   // Function to issue a Batch of certifications
-  batchIssueCertificate,
-  
-  // Function to issue a certification with Authorization Token
-  authIssue
+  batchIssueCertificate
 
 };

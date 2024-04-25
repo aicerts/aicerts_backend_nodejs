@@ -25,7 +25,7 @@ const validationRoute = require("../common/validationRoutes");
  *                 type: string
  *                 description: Email of the issuer to be approved or rejected
  *             example:
- *               status: 1
+ *               status: 0
  *               email: issuer@example.com
  *     responses:
  *       '200':
@@ -310,7 +310,7 @@ router.post('/remove-trusted-owner', validationRoute.checkAddress, ensureAuthent
  *                   description: Error message for internal server error
  */
 
-router.get('/check-balance', ensureAuthenticated, adminController.checkBalance);
+router.get('/check-balance', ensureAuthenticated, ensureAuthenticated, adminController.checkBalance);
 
 // /**
 //  * @swagger

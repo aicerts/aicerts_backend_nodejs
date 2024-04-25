@@ -76,13 +76,15 @@ module.exports = {
     msgCertValid: "Certification is Valid",
     msgCertNotExist : "Certification doesn't exist",
     msgCertValidNoDetails: "Certification is valid but No Details found",
-    msgAllIssuersFetched : "All user details fetched successfully",
+    msgAllIssuersFetched : "All Issuer details fetched successfully",
     msgErrorOnFetching : "An error occurred while fetching Issuer details",
     msgProvideValidStatus : "Please provide valid status as 1 : approve or 2 : reject",
+    msgProvideValidCertStatus : "Please provide valid status",
 
     // Blockchain route Messages
     msgInvalidInput : "Invalid Input parameter",
     msgUserNotFound : "Issuer not found!",
+    msgNoMatchFound : "No matching results found",
     msgIssuerRejectSuccess : "Issuer Rejected successfully",
     msgExistRejectIssuer : "Existed Rejected Issuer",
     msgRejecetedAlready : "Issuer Rejected already",
@@ -95,5 +97,35 @@ module.exports = {
     msgIssuerRoleGrant : "Issuer Role Granted",
     msgAdminRevoke : "Admin Role Revoked",
     msgIssuerRoleRevoke : "Issuer Role Revoked",
-    msgBalanceCheck : "Balance check successful"
+    msgBalanceCheck : "Balance check successful",
+    msgNonZero : "Input must not zero or Negative",
+
+    // Dates Messages
+    msgInvalidDate : "Invalid Date, Please check and try again ...",
+    msgInvalidDateFormat : "Please provide valid Date format",
+    msgOlderGrantDate : "Older grant date mentioned",
+    msgInvalidExpiration : "Please provide expiration date as more than 30 days and try again...",
+
+    //Renew/status update Messages
+    msgInvalidExpiration : "Provide valid Expiration date",
+    msgCertBadRenewStatus : "Extend Expiration date not possible on the certification",
+    msgEpirationMustGreater : "Please provide greater exipration date than existed expiration date",
+    msgCertRenewedSuccess : "Certification expiration extended successfully",
+    msgCommonBatchExpiration : "Batch of certification has common Expiration date",
+    msgStatusAlreadyExist : "The certification status existed",
+    msgBatchStatusRenened : "Batch expirataion renewed",
+    msgBatchStatusUpdated : "Batch status updated",
+    msgInvalidBatch : "Invalid batch details provided",
+    msgBatchStatusUpdatedNotPossible : "Batch status updating operation not possible",
+    msgOperationNotPossible : "Operation not possible on the certification",
+    msgNotPossibleBatch : "Operation not possible on the Batch certification",
+    msgReactivationNotPossible : "Certification must be revoked to perform Reactivation",
+    msgNotPossibleOnRevoked : "Operation not possible on the Revoked certification",
+    msgNotPossibleOnRevokedBatch : "Operation not possible on the Revoked Batch certification",
+    msgInvalidRootPassed : "Invalid Batch certification value passed",
+    msgBatchRenewed : "Batch Expiration date updated / Renewed",
+    msgBatchExpired : "Provided Batch details were expired",
+    msgCertExpired : "Provided Certification details were expired",
+    msgRevokeNotPossible : "Operation not possible on provided Certification",
+
 };
