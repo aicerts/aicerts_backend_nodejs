@@ -247,6 +247,7 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                             certificateHash: combinedHash,
                             certificateNumber: certificateNumber,
                             course: isNumberExist.course,
+                            name: isNumberExist.name,
                             expirationDate: expirationDate,
                             email: email,
                             certStatus: 2
@@ -454,6 +455,7 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                                     certificateHash: combinedHash,
                                     certificateNumber: certificateNumber,
                                     course: isNumberExistInBatch.course,
+                                    name: isNumberExistInBatch.name,
                                     expirationDate: expirationDate,
                                     email: email,
                                     certStatus: 2
@@ -612,6 +614,7 @@ const handleUpdateCertificationStatus = async (email, certificateNumber, certSta
                             transactionHash: txHash,
                             certificateNumber: certificateNumber,
                             course: isNumberExist.course,
+                            name: isNumberExist.name,
                             expirationDate: isNumberExist.expirationDate,
                             email: email,
                             certStatus: certStatus
@@ -689,6 +692,7 @@ const handleUpdateCertificationStatus = async (email, certificateNumber, certSta
                             transactionHash: txHash,
                             certificateNumber: certificateNumber,
                             course: isNumberExistInBatch.course,
+                            name: isNumberExistInBatch.name,
                             expirationDate: isNumberExistInBatch.expirationDate,
                             email: email,
                             certStatus: certStatus

@@ -8,7 +8,7 @@ const path = require("path");
 const fs = require("fs");
 const AWS = require('../config/aws-config');
 const { validationResult } = require("express-validator");
-const aqp = require('query-params-mongo');
+const moment = require('moment');
 
 // Import MongoDB models
 const { User, Issues, BatchIssues, IssueStatus } = require("../config/schema");
@@ -61,7 +61,7 @@ const getAllIssuers = async (req, res) => {
 const getIssuerByEmail = async (req, res) => {
   var validResult = validationResult(req);
   if (!validResult.isEmpty()) {
-    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid ,details: validResult.array() });
+    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
   try {
     // Check mongoose connection
@@ -133,14 +133,20 @@ const uploadFileToS3 = async (req, res) => {
  */
 const fetchIssuesLogDetails = async (req, res) => {
   var validResult = validationResult(req);
-    if (!validResult.isEmpty()) {
-        return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
-    }
+  if (!validResult.isEmpty()) {
+    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+  }
   try {
     // Extracting required data from the request body
     const email = req.body.email;
-    const quryCode = req.body.queryCode;
-    
+    const queryCode = req.body.queryCode;
+    const queryParams = req.query.queryParams;
+
+    // Get today's date
+    var today = new Date();
+    // Formatting the parsed date into ISO 8601 format with timezone
+    var formattedDate = today.toISOString();
+
     // Check mongoose connection
     const dbStatus = await isDBConnected();
     const dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
@@ -149,28 +155,117 @@ const fetchIssuesLogDetails = async (req, res) => {
     // Check if user with provided email exists
     const issuerExist = await User.findOne({ email });
 
-    if(!issuerExist){
+    if (!issuerExist) {
       return res.status(400).json({ status: "FAILED", message: messageCode.msgUserNotFound });
     }
-    
-    var certQuery = "solidity";
-    var queryResponse = await IssueStatus.find({
-      //  course: { $eq: certQuery }
-      email: req.body.email,
-       $and : [{ course: { $eq: certQuery }, certStatus: {$eq: 2}}]
-    });
-    
+
+    if(queryCode || queryParams){
+    var inputQuery = parseInt(queryCode || queryParams);
+    switch (inputQuery) {
+      case 1:  
+          var queryResponse = await IssueStatus.find({
+            email: req.body.email,
+            $and: [{ certStatus: { $eq: 1 }, expirationDate: { $gt: formattedDate }}]
+          });
+          // Sort the data based on the 'lastUpdate' date in descending order
+          queryResponse.sort((b, a) => new Date(b.expirationDate) - new Date(a.expirationDate));
+        break;
+      case 2:
+          var queryResponse = await IssueStatus.find({
+            email: req.body.email,
+            $and: [{ certStatus: { $eq: 2 }, expirationDate: { $gt: formattedDate }}]
+          });
+          // Sort the data based on the 'lastUpdate' date in descending order
+          queryResponse.sort((b, a) => new Date(b.expirationDate) - new Date(a.expirationDate));
+        break;
+      case 3:
+          var queryResponse = await IssueStatus.find({
+            email: req.body.email,
+            $and: [{ certStatus: { $eq: 3 }, expirationDate: { $gt: formattedDate }}]
+          });
+          // Sort the data based on the 'lastUpdate' date in descending order
+          queryResponse.sort((b, a) => new Date(b.expirationDate) - new Date(a.expirationDate));
+        break;
+      case 4:
+          var queryResponse = await IssueStatus.find({
+            email: req.body.email,
+            $and: [{ certStatus: { $eq: 4 }, expirationDate: { $gt: formattedDate }}]
+          });
+          // Sort the data based on the 'lastUpdate' date in descending order
+          queryResponse.sort((b, a) => new Date(b.expirationDate) - new Date(a.expirationDate));
+        break;
+      case 5:
+          var queryResponse = await IssueStatus.find({
+            email: req.body.email,
+            $and: [{ expirationDate: { $lt: formattedDate }}]
+          });
+          // Sort the data based on the 'lastUpdate' date in descending order
+          queryResponse.sort((b, a) => new Date(b.expirationDate) - new Date(a.expirationDate));
+        break;
+      case 6:
+        var query1Promise = Issues.find({
+            issuerId: issuerExist.issuerId,
+            certificateStatus: { $in: [1, 2] }
+        }).lean(); // Use lean() to convert documents to plain JavaScript objects
+        
+        var query2Promise = BatchIssues.find({
+            issuerId: issuerExist.issuerId,
+            certificateStatus: { $in: [1, 2] }
+        }).lean(); // Use lean() to convert documents to plain JavaScript objects
+        
+        // Wait for both queries to resolve
+        var [queryResponse1, queryResponse2] = await Promise.all([query1Promise, query2Promise]);
+        
+        // Merge the results into a single array
+        var queryResponse = [...queryResponse1, ...queryResponse2];
+        // Sort the data based on the 'issueDate' date in descending order
+        queryResponse.sort((a, b) => new Date(a.expirationDate) - new Date(b.expirationDate));
+        break;
+      case 7:
+        var query1Promise = Issues.find({
+            issuerId: issuerExist.issuerId,
+            certificateStatus: 3
+        }).lean(); // Use lean() to convert documents to plain JavaScript objects
+        
+        var query2Promise = BatchIssues.find({
+            issuerId: issuerExist.issuerId,
+            certificateStatus: 3
+        }).lean(); // Use lean() to convert documents to plain JavaScript objects
+        
+        // Wait for both queries to resolve
+        var [queryResponse1, queryResponse2] = await Promise.all([query1Promise, query2Promise]);
+        
+        // Merge the results into a single array
+        var queryResponse = [...queryResponse1, ...queryResponse2];
+        // Sort the data based on the 'issueDate' date in descending order
+        queryResponse.sort((a, b) => new Date(a.expirationDate) - new Date(b.expirationDate));
+        break;
+      case 8:
+          var queryResponse = await Issues.find({
+            issuerId: issuerExist.issuerId,
+            $and: [{ certificateStatus: { $eq: 3 }}]
+          });
+        break;
+      default:
+        var queryResponse = 0;
+        var totalResponses = 0;
+        var responseMessage = messageCode.msgNoMatchFound;
+    };
+  } else {
+    var queryResponse = 0;
+    var totalResponses = 0;
+    var responseMessage = messageCode.msgNoMatchFound;
+  }
+
     var totalResponses = queryResponse.length;
-    // Sort the data based on the 'lastUpdate' date in descending order
-    queryResponse.sort((a, b) => new Date(b.lastUpdate) - new Date(a.lastUpdate));
-
-    var responseMessage = totalResponses > 0 ? messageCode.msgAllIssuersFetched : messageCode.msgNoMatchFound;
-
+    var responseStatus = totalResponses > 0 ? 'SUCCESS' : 'FAILED';
+    var responseMessage = totalResponses > 0 ? messageCode.msgAllQueryFetched : messageCode.msgNoMatchFound;
+          
     // Respond with success and all user details
     res.json({
-      status: 'SUCCESS',
+      status: responseStatus,
       data: queryResponse,
-      responses : totalResponses,
+      responses: totalResponses,
       message: responseMessage
     });
 

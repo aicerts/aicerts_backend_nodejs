@@ -77,6 +77,7 @@ module.exports = {
     msgCertNotExist : "Certification doesn't exist",
     msgCertValidNoDetails: "Certification is valid but No Details found",
     msgAllIssuersFetched : "All Issuer details fetched successfully",
+    msgAllQueryFetched : "Requested details fetched successfully",
     msgErrorOnFetching : "An error occurred while fetching Issuer details",
     msgProvideValidStatus : "Please provide valid status as 1 : approve or 2 : reject",
     msgProvideValidCertStatus : "Please provide valid status",

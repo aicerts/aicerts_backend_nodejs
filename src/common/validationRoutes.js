@@ -75,13 +75,14 @@ const validationRoutes = {
     ],
     queryCode: [
         body("email").notEmpty().trim().isEmail().withMessage(messageCode.msgInvalidEmail).not().equals("string").withMessage(messageCode.msgInvalidEmail),
-        body("queryCode").notEmpty().trim().isNumeric().withMessage(messageCode.msgInputProvide).custom((value) => {
+        body("queryCode").optional().notEmpty().trim().isNumeric().withMessage(messageCode.msgInputProvide).custom((value) => {
             const intValue = parseInt(value);
             if (intValue <= 0) {
                 throw new Error(messageCode.msgNonZero);
             }
             return true;
         })
+
     ]
   };
   

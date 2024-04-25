@@ -342,6 +342,11 @@ const insertIssueStatus = async (issueData) => {
   if(issueData){
         // Format the date in ISO 8601 format with UTC offset
         const statusDate = await convertExpirationStatusLog(issueData.expirationDate);
+        // Parsing input date using moment
+        const parsedDate = moment(issueData.expirationDate, 'MM/DD/YY');
+        // Formatting the parsed date into ISO 8601 format with timezone
+        const formattedDate = parsedDate.toISOString();
+        console.log("The date", issueData.expirationDate, formattedDate, statusDate);
         // Check if issueData.batchId is provided, otherwise assign null
         const batchId = issueData.batchId || null;
         const email = issueData.email || null;
@@ -355,7 +360,8 @@ const insertIssueStatus = async (issueData) => {
             transactionHash: transactionHash, // TransactionHash field is of type String and is required
             certificateNumber: issueData.certificateNumber, // CertificateNumber field is of type String and is required
             course: issueData.course,
-            expirationDate: statusDate, // ExpirationDate field is of type String and is required
+            name: issueData.name,
+            expirationDate: formattedDate, // ExpirationDate field is of type String and is required
             certStatus: issueData.certStatus,
             lastUpdate: Date.now()
           });
