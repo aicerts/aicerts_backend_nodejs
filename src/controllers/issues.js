@@ -102,7 +102,7 @@ const issuePdf = async (req, res) => {
           "Content-Disposition": `attachment; filename="${certificateName}"`,
         });
 
-        res.send(issueResponse.file);
+        return res.send(issueResponse.file);
 
       } else {
         return res.status(issueResponse.code).json({ status: issueResponse.status, message: issueResponse.message, details: responseDetails });

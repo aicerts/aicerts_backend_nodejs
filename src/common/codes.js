@@ -18,6 +18,7 @@ module.exports = {
     msgExcelHasExistingIds : "Excel file has Existing Certification IDs",
     msgInvalidHeaders : "Invalid headers in the Excel file.",
     msgExcelSheetname : "The Excel file Sheet name should be - Batch.",
+    msgMissingDetailsInExcel : "The Excel file has missing fields, Please fill all required fields and try again",
 
 
     // Validation Error codes Issues (Route)
@@ -75,7 +76,7 @@ module.exports = {
     msgCertValid: "Certification is Valid",
     msgCertNotExist : "Certification doesn't exist",
     msgCertValidNoDetails: "Certification is valid but No Details found",
-    msgAllIssuersFetched : "All user details fetched successfully",
+    msgAllIssuersFetched : "All Issuer details fetched successfully",
     msgErrorOnFetching : "An error occurred while fetching Issuer details",
     msgProvideValidStatus : "Please provide valid status as 1 : approve or 2 : reject",
     msgProvideValidCertStatus : "Please provide valid status",
@@ -83,6 +84,7 @@ module.exports = {
     // Blockchain route Messages
     msgInvalidInput : "Invalid Input parameter",
     msgUserNotFound : "Issuer not found!",
+    msgNoMatchFound : "No matching results found",
     msgIssuerRejectSuccess : "Issuer Rejected successfully",
     msgExistRejectIssuer : "Existed Rejected Issuer",
     msgRejecetedAlready : "Issuer Rejected already",
@@ -96,7 +98,7 @@ module.exports = {
     msgAdminRevoke : "Admin Role Revoked",
     msgIssuerRoleRevoke : "Issuer Role Revoked",
     msgBalanceCheck : "Balance check successful",
-    msgNonZero : "Input must not zero",
+    msgNonZero : "Input must not zero or Negative",
 
     // Dates Messages
     msgInvalidDate : "Invalid Date, Please check and try again ...",
@@ -117,8 +119,11 @@ module.exports = {
     msgBatchStatusUpdatedNotPossible : "Batch status updating operation not possible",
     msgOperationNotPossible : "Operation not possible on the certification",
     msgNotPossibleBatch : "Operation not possible on the Batch certification",
+    msgReactivationNotPossible : "Certification must be revoked to perform Reactivation",
     msgNotPossibleOnRevoked : "Operation not possible on the Revoked certification",
+    msgNotPossibleOnRevokedBatch : "Operation not possible on the Revoked Batch certification",
     msgInvalidRootPassed : "Invalid Batch certification value passed",
+    msgBatchRenewed : "Batch Expiration date updated / Renewed",
     msgBatchExpired : "Provided Batch details were expired",
     msgCertExpired : "Provided Certification details were expired",
     msgRevokeNotPossible : "Operation not possible on provided Certification",

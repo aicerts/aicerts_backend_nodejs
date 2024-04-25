@@ -8,9 +8,10 @@ const path = require("path");
 const fs = require("fs");
 const AWS = require('../config/aws-config');
 const { validationResult } = require("express-validator");
+const aqp = require('query-params-mongo');
 
 // Import MongoDB models
-const { User } = require("../config/schema");
+const { User, Issues, BatchIssues, IssueStatus } = require("../config/schema");
 
 // Importing functions from a custom module
 const {
@@ -124,6 +125,64 @@ const uploadFileToS3 = async (req, res) => {
   }
 };
 
+/**
+ * API to fetch details with Query-parameter.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
+const fetchIssuesLogDetails = async (req, res) => {
+  var validResult = validationResult(req);
+    if (!validResult.isEmpty()) {
+        return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+    }
+  try {
+    // Extracting required data from the request body
+    const email = req.body.email;
+    const quryCode = req.body.queryCode;
+    
+    // Check mongoose connection
+    const dbStatus = await isDBConnected();
+    const dbStatusMessage = (dbStatus == true) ? "Database connection is Ready" : "Database connection is Not Ready";
+    console.log(dbStatusMessage);
+
+    // Check if user with provided email exists
+    const issuerExist = await User.findOne({ email });
+
+    if(!issuerExist){
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgUserNotFound });
+    }
+    
+    var certQuery = "solidity";
+    var queryResponse = await IssueStatus.find({
+      //  course: { $eq: certQuery }
+      email: req.body.email,
+       $and : [{ course: { $eq: certQuery }, certStatus: {$eq: 2}}]
+    });
+    
+    var totalResponses = queryResponse.length;
+    // Sort the data based on the 'lastUpdate' date in descending order
+    queryResponse.sort((a, b) => new Date(b.lastUpdate) - new Date(a.lastUpdate));
+
+    var responseMessage = totalResponses > 0 ? messageCode.msgAllIssuersFetched : messageCode.msgNoMatchFound;
+
+    // Respond with success and all user details
+    res.json({
+      status: 'SUCCESS',
+      data: queryResponse,
+      responses : totalResponses,
+      message: responseMessage
+    });
+
+  } catch (error) {
+    // Error occurred while fetching user details, respond with failure message
+    res.json({
+      status: 'FAILED',
+      message: messageCode.msgErrorOnFetching
+    });
+  }
+};
+
 module.exports = {
   // Function to get all issuers (users)
   getAllIssuers,
@@ -133,5 +192,8 @@ module.exports = {
 
   // Function to Upload Files to AWS-S3 bucket
   uploadFileToS3,
+
+  // Function to fetch details from Issuers log
+  fetchIssuesLogDetails,
 
 };

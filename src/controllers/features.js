@@ -7,7 +7,11 @@ const { validationResult } = require("express-validator");
 // Import ABI (Application Binary Interface) from the JSON file located at "../config/abi.json"
 const abi = require("../config/abi.json");
 
-const { handleRenewCertification, handleUpdateCertificationStatus, handleRenewBatchOfCertifications } = require('../services/feature');
+const { 
+    handleRenewCertification, 
+    handleUpdateCertificationStatus, 
+    handleRenewBatchOfCertifications, 
+    handleUpdateBatchCertificationStatus } = require('../services/feature');
 
 var messageCode = require("../common/codes");
 
@@ -101,6 +105,39 @@ const renewBatchCertificate = async (req, res) => {
     }
 };
 
+/**
+ * API call to revoke/reactivate a Batch certification status.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
+const updateBatchStatus = async (req, res) => {
+    var validResult = validationResult(req);
+    if (!validResult.isEmpty()) {
+        return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+    }
+
+    try {
+        // Extracting required data from the request body
+        const email = req.body.email;
+        const _batchId = req.body.batch;
+        const _batchStatus = req.body.status;
+        var batchId = parseInt(_batchId);
+        var batchStatus = parseInt(_batchStatus);
+
+        const batchStatusResponse = await handleUpdateBatchCertificationStatus(email, batchId, batchStatus);
+        if(!batchStatusResponse){
+            return res.status(400).json({ status: "FAILED", message: messageCode.msgInternalError });
+        }
+        var responseDetails = batchStatusResponse.details ? batchStatusResponse.details : '';
+        return res.status(batchStatusResponse.code).json({ status: batchStatusResponse.status, message: batchStatusResponse.message, details: responseDetails });
+        
+    } catch (error) {
+        // Handle any errors that occur during token verification or validation
+        return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
+    }
+};
+
 module.exports = {
     // Function to renew a certification (single / in batch)
     renewCert,
@@ -109,6 +146,9 @@ module.exports = {
     updateCertStatus,
 
     // Function to renew a Batch certifications (the batch)
-    renewBatchCertificate
+    renewBatchCertificate,
+
+    // Function to revoke/reactivate a Batch of certifications
+    updateBatchStatus
 
 };

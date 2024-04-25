@@ -97,7 +97,7 @@ const validationRoute = require("../common/validationRoutes");
  *               message: Internal server error.
  */
 
-router.post('/renew-cert', validationRoute.renewIssue, adminController.renewCert);
+router.post('/renew-cert', validationRoute.renewIssue, ensureAuthenticated, adminController.renewCert);
 
 /**
  * @swagger
@@ -189,7 +189,7 @@ router.post('/renew-cert', validationRoute.renewIssue, adminController.renewCert
  *               message: Internal server error.
  */
 
-router.post('/update-cert-status', validationRoute.updateStatus, adminController.updateCertStatus);
+router.post('/update-cert-status', validationRoute.updateStatus, ensureAuthenticated, adminController.updateCertStatus);
 
 /**
  * @swagger
@@ -281,7 +281,98 @@ router.post('/update-cert-status', validationRoute.updateStatus, adminController
  *               message: Internal server error.
  */
 
-router.post('/renew-batch', validationRoute.renewBatch, adminController.renewBatchCertificate);
+router.post('/renew-batch', validationRoute.renewBatch, ensureAuthenticated, adminController.renewBatchCertificate);
 
+/**
+ * @swagger
+ * /api/update-batch-status:
+ *   post:
+ *     summary: API call for Batch certificate status update
+ *     description: API call for update a Batch certificate status (Revoked, Reactivated ...).
+ *     tags:
+ *       - Revoke/Reactivate Certification (Details)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: The issuer email.
+ *               batch:
+ *                 type: number
+ *                 description: The certificate number.
+ *               status:
+ *                 type: number
+ *                 description: The certificate status.
+ *             required:
+ *               - email
+ *               - certificateNumber
+ *               - status
+ *     responses:
+ *       '200':
+ *         description: Successful Batch Certification Status
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *                 details:
+ *                   type: object
+ *             example:
+ *               status: "SUCCESS"
+ *               message: Batch Certificate status updated successfully.
+ *               details: Batch status update details.
+ *       '400':
+ *         description: Batch Certification status already issued or invalid input
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Error message for Batch certification status update input.
+ *       '422':
+ *         description: User given invalid input (Unprocessable Entity)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Error message for invalid input.
+ *       '500':
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Internal server error.
+ */
+
+router.post('/update-batch-status', validationRoute.updateBatch, ensureAuthenticated, adminController.updateBatchStatus);
 
 module.exports=router;

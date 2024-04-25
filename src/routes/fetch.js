@@ -48,7 +48,77 @@ const __upload = multer({dest: "../../uploads/"});
  *                   example: An error occurred while fetching user details
  */
 
-router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers);
+router.get('/get-all-issuers',ensureAuthenticated, ensureAuthenticated, adminController.getAllIssuers);
+
+/**
+ * @swagger
+ * /api/get-issuers-log:
+ *   post:
+ *     summary: Get details of all issuers log with query params
+ *     description: API to fetch all issuer details who are unapproved
+ *     tags: [Fetch/Upload]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: Issuer's email address
+ *               queryCode:
+ *                 type: number
+ *                 description: Provide code to fetch appropriate details
+ *     responses:
+ *       '200':
+ *         description: All user details fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: SUCCESS
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     [Issuers Log Details]
+ *                 message:
+ *                   type: string
+ *                   example: All issuer log details fetched successfully
+ *       '400':
+ *         description: Bad request or Invalid code
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: Issuer log details not found (or) Bad request!
+ *       '500':
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred while fetching issuer log details
+ */
+
+router.post('/get-issuers-log', validationRoute.queryCode, adminController.fetchIssuesLogDetails);
 
 /**
  * @swagger
@@ -70,7 +140,7 @@ router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers
  *                 type: string
  *                 description: Issuer's email address
  *     responses:
- *       200:
+ *       '200':
  *         description: Issuer fetched successfully
  *         content:
  *           application/json:
@@ -86,7 +156,7 @@ router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers
  *                 message:
  *                   type: string
  *                   example: Issuer fetched successfully
- *       400:
+ *       '400':
  *         description: Bad request or issuer not found
  *         content:
  *           application/json:
@@ -113,7 +183,7 @@ router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers
  *             example:
  *               status: "FAILED"
  *               message: Error message for invalid input.
- *       500:
+ *       '500':
  *         description: Internal server error
  *         content:
  *           application/json:

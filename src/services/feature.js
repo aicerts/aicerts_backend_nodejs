@@ -21,7 +21,7 @@ const {
     convertDateFormat,
     convertDateToEpoch,
     insertIssueStatus,
-    insertCertificateData, // Function to insert certificate data into the database
+    convertEpochToDate, // Function to insert certificate data into the database
     getCertificationStatus,
     calculateHash, // Function to calculate the hash of a file
     isDBConnected, // Function to check if the database connection is established
@@ -567,9 +567,9 @@ const handleUpdateCertificationStatus = async (email, certificateNumber, certSta
                         return ({ code: 400, status: "FAILED", message: messageCode.msgCertExpired });
                     }
 
-                    // if ((isNumberExist.certificateStatus == 4 && certStatus == 3) || (isNumberExist.certificateStatus == 5 && certStatus == 3) || (isNumberExist.certificateStatus == 5 && certStatus == 4)) {
-                    //     return ({ code: 400, status: "FAILED", message: messageCode.msgRevokeNotPossible });
-                    // }
+                    if (isNumberExist.certificateStatus != 3 && certStatus == 4) {
+                        return ({ code: 400, status: "FAILED", message: messageCode.msgReactivationNotPossible });
+                    }
 
                     var getCertificateStatus = parseInt(_getCertificateStatus);
                     if (getCertificateStatus == 0) {
@@ -607,6 +607,19 @@ const handleUpdateCertificationStatus = async (email, certificateNumber, certSta
                         // Save certification data into database
                         await isNumberExist.save();
 
+                        var certificateData = {
+                            issuerId: isIssuerExist.issuerId,
+                            transactionHash: txHash,
+                            certificateNumber: certificateNumber,
+                            course: isNumberExist.course,
+                            expirationDate: isNumberExist.expirationDate,
+                            email: email,
+                            certStatus: certStatus
+                        };
+
+                        // Insert certification status data into database
+                        await insertIssueStatus(certificateData);
+
                         return ({ code: 200, status: "SUCCESS", message: `Updated status: ${_certStatus}`, details: isNumberExist });
 
                     } else {
@@ -625,9 +638,9 @@ const handleUpdateCertificationStatus = async (email, certificateNumber, certSta
                     return ({ code: 400, status: "FAILED", message: messageCode.msgCertExpired });
                 }
 
-                // if ((isNumberExistInBatch.certificateStatus == 4 && certStatus == 3) || (isNumberExistInBatch.certificateStatus == 5 && certStatus == 3) || (isNumberExistInBatch.certificateStatus == 5 && certStatus == 4)) {
-                //     return ({ code: 400, status: "FAILED", message: messageCode.msgRevokeNotPossible });
-                // }
+                if (isNumberExistInBatch.certificateStatus != 3 && certStatus == 4) {
+                    return ({ code: 400, status: "FAILED", message: messageCode.msgReactivationNotPossible });
+                }
 
                 try {
                     var fetchIndex = isNumberExistInBatch.batchId - 1;
@@ -670,6 +683,20 @@ const handleUpdateCertificationStatus = async (email, certificateNumber, certSta
                         // Save certification data into database
                         await isNumberExistInBatch.save();
 
+                        var certificateData = {
+                            issuerId: isIssuerExist.issuerId,
+                            batchId: isNumberExistInBatch.batchId,
+                            transactionHash: txHash,
+                            certificateNumber: certificateNumber,
+                            course: isNumberExistInBatch.course,
+                            expirationDate: isNumberExistInBatch.expirationDate,
+                            email: email,
+                            certStatus: certStatus
+                        };
+
+                        // Insert certification status data into database
+                        await insertIssueStatus(certificateData);
+
                         var statusDetails = { batchId: isNumberExistInBatch.batchId, certificateNumber: isNumberExistInBatch.certificateNumber, updatedStatus: _certStatus, polygonLink: polygonLink };
                         return ({ code: 200, status: "SUCCESS", message: messageCode.msgBatchStatusUpdated, details: statusDetails });
 
@@ -698,9 +725,9 @@ const handleUpdateCertificationStatus = async (email, certificateNumber, certSta
 const handleRenewBatchOfCertifications = async (email, batchId, batchExpirationDate) => {
     const expirationDate = await convertDateFormat(batchExpirationDate);
     // Get today's date
-    var today = new Date().toLocaleString("en-US", { timeZone: "America/New_York" }); // Adjust timeZone as per the US Standard Time zone
+    var today = new Date(); // Adjust timeZone as per the US Standard Time zone
     // Convert today's date to epoch time (in milliseconds)
-    var todayEpoch = new Date(today).getTime() / 1000; // Convert milliseconds to seconds
+    var todayEpoch = today.getTime() / 1000; // Convert milliseconds to seconds
 
     var epochExpiration = await convertDateToEpoch(expirationDate);
 
@@ -736,20 +763,36 @@ const handleRenewBatchOfCertifications = async (email, batchId, batchExpirationD
 
             var _rootIndex = parseInt(rootIndex);
             const verifyBatchResponse = await newContract.verifyBatchRoot(_rootIndex);
-            const getIndex = await newContract.getRootLength();
-            if (getIndex <= _rootIndex) {
+            const _getIndex = await newContract.getRootLength();
+            var getIndex = parseInt(_getIndex);
+            if (batchId > getIndex || batchId <= 0) {
                 return ({ code: 400, status: "FAILED", message: messageCode.msgInvalidBatch });
             }
             var batchResponse = parseInt(verifyBatchResponse[1]);
             if (verifyBatchResponse[0] === true && batchResponse != 0) {
-                if (verifyBatchResponse[1] < todayEpoch) {
+                var batchEpoch = parseInt(verifyBatchResponse[1]);
+                if (batchEpoch < todayEpoch) {
                     return ({ code: 400, status: "FAILED", message: messageCode.msgBatchExpired });
+                }
+
+                var batchStatusResponse = parseInt(verifyBatchResponse[2]);
+                if(batchStatusResponse == 3){
+                    return ({ code: 400, status: "FAILED", message: messageCode.msgNotPossibleOnRevokedBatch });
+                }
+
+                var expirationEpochToDate = await convertEpochToDate(batchEpoch);
+
+                const certDateValidation = await expirationDateVariaton(expirationEpochToDate, expirationDate);
+
+                if (certDateValidation == 0 || certDateValidation == 2) {
+                    // Respond with error message
+                    return ({ code: 400, status: "FAILED", message: `${messageCode.msgEpirationMustGreater}: ${expirationDate}` });
                 }
 
                 try {
                     // Perform Expiration extension
-                    const tx = await newContract.updateBatchCertificateStatus(
-                        rootIndex,
+                    const tx = await newContract.renewBatchOfCertificates(
+                        _rootIndex,
                         epochExpiration
                     );
 
@@ -771,7 +814,7 @@ const handleRenewBatchOfCertifications = async (email, batchId, batchExpirationD
                     }
                 }
                 var statusDetails = { batchId: batchId, updatedExpirationDate: expirationDate, polygonLink: polygonLink };
-                return ({ code: 200, status: "SUCCESS", message: messageCode.msgBatchStatusUpdated, details: statusDetails });
+                return ({ code: 200, status: "SUCCESS", message: messageCode.msgBatchRenewed, details: statusDetails });
 
             } else if (verifyBatchResponse[0] === true && batchResponse == 0) {
                 return ({ code: 400, status: "FAILED", message: messageCode.msgNotPossibleBatch });
@@ -786,7 +829,92 @@ const handleRenewBatchOfCertifications = async (email, batchId, batchExpirationD
     }
 };
 
-const handleUpdateBatchCertificationStatus = async (email, index, certStatus) => {
+const handleUpdateBatchCertificationStatus = async (email, batchId, certStatus) => {
+        // Get today's date
+        var today = new Date(); // Adjust timeZone as per the US Standard Time zone
+        // Convert today's date to epoch time (in milliseconds)
+        var todayEpoch = today.getTime() / 1000; // Convert milliseconds to seconds
+    try {
+        // Check mongoose connection
+        const dbStatus = await isDBConnected();
+        const dbStatusMessage = (dbStatus == true) ? messageCode.msgDbReady : messageCode.msgDbNotReady;
+        console.log(dbStatusMessage);
+
+        const isIssuerExist = await User.findOne({ email }).select('-password');
+        const rootIndex = parseInt(batchId) - 1;
+
+        if (!isIssuerExist) {
+            return ({ code: 400, status: "FAILED", message: messageCode.msgInvalidIssuer });
+        }
+        var _certStatus = await getCertificationStatus(certStatus);
+        try {
+            // Verify certificate on blockchain
+            const isPaused = await newContract.paused();
+            const issuerAuthorized = await newContract.hasRole(process.env.ISSUER_ROLE, isIssuerExist.issuerId);
+
+            if (
+                issuerAuthorized === false ||
+                isPaused === true
+            ) {
+                // Issuer not authorized / contract paused
+                if (isPaused === true) {
+                    var messageContent = messageCode.msgOpsRestricted;
+                } else if (issuerAuthorized === false) {
+                    var messageContent = messageCode.msgIssuerUnauthrized;
+                }
+                return ({ code: 400, status: "FAILED", message: messageContent });
+            }
+
+            var _rootIndex = parseInt(rootIndex);
+            const verifyBatchResponse = await newContract.verifyBatchRoot(_rootIndex);
+            const getIndex = await newContract.getRootLength();
+            if (getIndex <= _rootIndex) {
+                return ({ code: 400, status: "FAILED", message: messageCode.msgInvalidBatch });
+            }
+            var batchResponse = parseInt(verifyBatchResponse[1]);
+            if (verifyBatchResponse[0] === true && batchResponse != 0) {
+                var batchExpirationEpoch = parseInt(verifyBatchResponse[1]);
+                if (batchExpirationEpoch < todayEpoch) {
+                    return ({ code: 400, status: "FAILED", message: messageCode.msgBatchExpired });
+                }
+                try {
+                    // Perform Expiration extension
+                    const tx = await newContract.updateBatchCertificateStatus(
+                        _rootIndex,
+                        certStatus
+                    );
+
+                    // await tx.wait();
+                    var txHash = tx.hash;
+
+                    // Generate link URL for the certificate on blockchain
+                    var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
+
+                } catch (error) {
+                    if (error.reason) {
+                        // Extract and handle the error reason
+                        console.log("Error reason:", error.reason);
+                        return ({ code: 400, status: "FAILED", message: error.reason });
+                    } else {
+                        // If there's no specific reason provided, handle the error generally
+                        console.error(messageCode.msgFailedOpsAtBlockchain, error);
+                        return ({ code: 400, status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain, details: error });
+                    }
+                }
+                var statusDetails = { batchId: batchId, updatedBatchStatus: _certStatus, polygonLink: polygonLink };
+                return ({ code: 200, status: "SUCCESS", message: messageCode.msgBatchStatusUpdated, details: statusDetails });
+
+            } else if (verifyBatchResponse[0] === true && batchResponse == 0) {
+                return ({ code: 400, status: "FAILED", message: messageCode.msgNotPossibleBatch });
+            }
+
+        } catch (error) {
+            return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
+        }
+
+    } catch (error) {
+        return ({ code: 500, status: "FAILED", message: messageCode.msgInternalError, details: error });
+    }
 
 };
 
