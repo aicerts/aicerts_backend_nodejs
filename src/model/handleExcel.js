@@ -61,24 +61,36 @@ const handleExcelFile = async (_path) => {
 
                     var certificationIDs = rawBatchData.map(item => item.certificationID);
 
-                    var certificationGrantDates = rawBatchData.map(item => item.grantDate);
+                    var _certificationGrantDates = rawBatchData.map(item => item.grantDate);
                 
-                    var certificationExpirationDates = rawBatchData.map(item => item.expirationDate);
+                    var _certificationExpirationDates = rawBatchData.map(item => item.expirationDate);
 
                     var holderNames = rawBatchData.map(item => item.name);
 
                     var certificationNames = rawBatchData.map(item => item.certificationName);
 
 
-                    var nonNullGrantDates = certificationGrantDates.filter(date => date == null);
-                    var nonNullExpiryDates = certificationExpirationDates.filter(date => date == null);
+                    var nonNullGrantDates = _certificationGrantDates.filter(date => date == null);
+                    var nonNullExpiryDates = _certificationExpirationDates.filter(date => date == null);
                     var notNullCertificationIDs = certificationIDs.filter(item => item == null);
                     var notNullHolderNames = holderNames.filter(item => item == null);
                     var notNullCertificationNames = certificationNames.filter(item => item == null);
 
+                    
                     if(nonNullGrantDates.length != 0 || nonNullExpiryDates.length != 0 || notNullCertificationIDs.length != 0 || notNullHolderNames.length != 0 || notNullCertificationNames.length != 0){
                         return { status: "FAILED", response: false, message: messageCode.msgMissingDetailsInExcel};
                     }
+
+
+                    var checkValidateGrantDates = await validateDates(_certificationGrantDates);
+                    var checkValidateExpirationDates = await validateDates(_certificationExpirationDates);
+
+                    if((checkValidateGrantDates.invalidDates).length > 0 || (checkValidateExpirationDates.invalidDates).length > 0){
+                        return { status: "FAILED", response: false, message: messageCode.msgInvalidDateFormat, Details: `Grant Dates ${checkValidateGrantDates.invalidDates}, Issued Dates ${checkValidateExpirationDates.invalidDates}` };
+                    }
+
+                    var certificationGrantDates = checkValidateGrantDates.validDates;
+                    var certificationExpirationDates = checkValidateExpirationDates.validDates;
 
                         // Initialize an empty list to store matching IDs
                         const matchingIDs = [];
@@ -130,6 +142,7 @@ const handleExcelFile = async (_path) => {
                             return { status: "FAILED", response: false, message: messageCode.msgExcelHasExistingIds, Details: matchingIDs };
                             
                         }   
+                        
                 return { status: "SUCCESS", response: true, message: [targetData, rows.length, rows] };
 
             } else {
@@ -252,6 +265,27 @@ const compareGrantExpiredSetDates = async (grantList, expirationList) => {
   
     return dateSets;
   };
+
+// Function to validate dates
+const validateDates = async (dates)  => {
+    const validDates = [];
+    const invalidDates = [];
+    for (const date of dates) {
+        const [month, day, year] = date.split('/');
+        let formattedDate = `${month.padStart(2, '0')}/${day.padStart(2, '0')}/${year}`;
+        const numericMonth = parseInt(month, 10);
+        const numericDay = parseInt(day, 10);
+        const numericYear = parseInt(year, 10);
+        
+        // Check if month, day, and year are within valid ranges
+        if (numericMonth > 0 && numericMonth <= 12 && numericDay > 0 && numericDay <= 31 && numericYear >= 24 && numericYear <= 98) {
+            validDates.push(formattedDate);
+        } else {
+            invalidDates.push(date);
+        }
+    }
+    return {validDates, invalidDates};
+}
 
 
 module.exports = { handleExcelFile };

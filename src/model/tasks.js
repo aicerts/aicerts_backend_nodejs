@@ -148,6 +148,19 @@ const convertDateOnVerification = async (dateString) => {
 
 };
 
+const dateFormatToStore = async(inputDate) => {
+  // Split the input date string by '/'
+  const parts = inputDate.split('/');
+    
+  // Check if the month and day already have two digits
+  const month = parts[0].length === 2 ? parts[0] : ('0' + parts[0]).slice(-2);
+  const day = parts[1].length === 2 ? parts[1] : ('0' + parts[1]).slice(-2);
+  const year = parts[2];
+  
+  // Concatenate the formatted parts with '/'
+  return `${month}/${day}/${year}`;
+};
+
 // Verify Certification ID from both collections (single / batch)
 const isCertificationIdExisted = async (certId) => {
   const dbStaus = await isDBConnected();
@@ -664,6 +677,8 @@ module.exports = {
 
   // Function to convert the Date format
   convertDateFormat,
+
+  dateFormatToStore,
 
   convertDateOnVerification,
 

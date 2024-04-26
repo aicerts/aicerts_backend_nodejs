@@ -27,6 +27,7 @@ const abi = require("../config/abi.json");
 const {
   convertDateFormat,
   insertBatchCertificateData, // Function to insert Batch certificate data into the database
+  dateFormatToStore,
   calculateHash, // Function to calculate the hash of a file
   cleanUploadFolder, // Function to clean up the upload folder
   isDBConnected, // Function to check if the database connection is established
@@ -156,9 +157,10 @@ const issue = async (req, res) => {
  * @param {Object} res - Express response object.
  */
 const batchIssueCertificate = async (req, res) => {
+  
   const email = req.body.email;
   // Check if the file path matches the pattern
-  if (req.file.mimetype != fileType) {
+  if (!req.file || req.file.mimetype != fileType || !req.file.originalname.endsWith('.xlsx')) {
     // File path does not match the pattern
     const errorMessage = messageCode.msgMustExcel;
     await cleanUploadFolder();
@@ -296,9 +298,9 @@ try
 
           for (var i = 0; i < certificatesCount; i++) {
             var _proof = tree.getProof(i);
-            let _proofHash = await keccak256(Buffer.from(_proof)).toString('hex');
-            let _grantDate = await convertDateFormat(rawBatchData[i].grantDate);
-            let _expirationDate = await convertDateFormat(rawBatchData[i].expirationDate);
+            let _proofHash = await keccak256(Buffer.from(_proof)).toString('hex'); 
+            let _grantDate = await dateFormatToStore(rawBatchData[i].grantDate);
+            let _expirationDate = await dateFormatToStore(rawBatchData[i].expirationDate);
             batchDetails[i] = {
               issuerId: idExist.issuerId,
               batchId: allocateBatchId,
