@@ -100,9 +100,10 @@ const connectToPolygon = async () => {
 
 // Function to convert the Date format
 const convertDateFormat = async (dateString) => {
+
   var formatString = 'ddd MMM DD YYYY HH:mm:ss [GMT]ZZ';
   // Define the possible date formats
-  const formats = ['MM/DD/YYYY', 'DD/MM/YYYY', 'DD MMMM, YYYY', 'DD MMM, YYYY', 'MMMM d, yyyy', 'MM/DD/YY'];
+  const formats = ['ddd MMM DD YYYY HH:mm:ss [GMT]ZZ', 'M/D/YY','M/D/YYYY', 'MM/DD/YYYY', 'DD/MM/YYYY', 'DD MMMM, YYYY', 'DD MMM, YYYY', 'MMMM d, yyyy', 'MM/DD/YY'];
 
   // Attempt to parse the input date string using each format
   let dateObject;
@@ -119,15 +120,15 @@ const convertDateFormat = async (dateString) => {
     const momentDate = moment(dateObject);
 
     // Format the date to 'YY/MM/DD'
-    var formattedDate = momentDate.format('MM/DD/YY');
+    var formattedDate = momentDate.format('MM/DD/YYYY');
     return formattedDate;
   } else if (!formattedDate) {
     // Format the parsed date to 'MM/DD/YY'
-    var formattedDate = moment(dateString, formatString).format('MM/DD/YY');
+    var formattedDate = moment(dateString, formatString).format('MM/DD/YYYY');
     if (formattedDate != 'Invalid date') {
       return formattedDate;
     } else {
-      var formattedDate = moment(dateString).utc().format('MM/DD/YY');
+      var formattedDate = moment(dateString).utc().format('MM/DD/YYYY');
       return formattedDate;
     }
   }
@@ -140,12 +141,15 @@ const convertDateFormat = async (dateString) => {
 // Convert Date format for the Display on Verification
 const convertDateOnVerification = async (dateString) => {
 
-  var formatString = 'MM/DD/YY';
+  var formatString = 'MM/DD/YYYY';
 
-  var formattedDate = moment(dateString, formatString).format('DD MMMM, YYYY');
-
-  return formattedDate;
-
+  // Attempt to parse the input date string using the specified format
+  const dateObject = moment(dateString, formatString, true);
+  if (dateObject.isValid()) {
+    // Format the date to 'MM/DD/YYYY'
+    var formattedDate = moment(dateObject).format(formatString);
+    return formattedDate;
+  }
 };
 
 const dateFormatToStore = async(inputDate) => {
@@ -155,7 +159,7 @@ const dateFormatToStore = async(inputDate) => {
   // Check if the month and day already have two digits
   const month = parts[0].length === 2 ? parts[0] : ('0' + parts[0]).slice(-2);
   const day = parts[1].length === 2 ? parts[1] : ('0' + parts[1]).slice(-2);
-  const year = parts[2];
+  const year = parts[4];
   
   // Concatenate the formatted parts with '/'
   return `${month}/${day}/${year}`;

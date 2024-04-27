@@ -299,8 +299,8 @@ try
           for (var i = 0; i < certificatesCount; i++) {
             var _proof = tree.getProof(i);
             let _proofHash = await keccak256(Buffer.from(_proof)).toString('hex'); 
-            let _grantDate = await dateFormatToStore(rawBatchData[i].grantDate);
-            let _expirationDate = await dateFormatToStore(rawBatchData[i].expirationDate);
+            let _grantDate = await convertDateFormat(rawBatchData[i].grantDate);
+            let _expirationDate = await convertDateFormat(rawBatchData[i].expirationDate);
             batchDetails[i] = {
               issuerId: idExist.issuerId,
               batchId: allocateBatchId,

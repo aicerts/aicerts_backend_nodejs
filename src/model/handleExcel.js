@@ -14,8 +14,8 @@ const cert_limit = (parseInt(process.env.BATCH_LIMIT) || 150);
 // Import MongoDB models
 const { Issues, BatchIssues } = require("../config/schema");
 
-// Regular expression to match MM/DD/YY format
-const regex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/\d{2}$/;
+// Regular expression to match MM/DD/YYYY format
+const regex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/\d{4}$/;
 
 // Example usage: Excel Headers
 const expectedHeadersSchema = [
@@ -81,9 +81,9 @@ const handleExcelFile = async (_path) => {
                         return { status: "FAILED", response: false, message: messageCode.msgMissingDetailsInExcel};
                     }
 
-
                     var checkValidateGrantDates = await validateDates(_certificationGrantDates);
                     var checkValidateExpirationDates = await validateDates(_certificationExpirationDates);
+
 
                     if((checkValidateGrantDates.invalidDates).length > 0 || (checkValidateExpirationDates.invalidDates).length > 0){
                         return { status: "FAILED", response: false, message: messageCode.msgInvalidDateFormat, Details: `Grant Dates ${checkValidateGrantDates.invalidDates}, Issued Dates ${checkValidateExpirationDates.invalidDates}` };
@@ -200,13 +200,13 @@ const findInvalidDates = async (dates) => {
 
     for (let dateString of dates) {
         if(dateString){
-        // Check if the date matches the regex for valid dates with 2-digit years
+        // Check if the date matches the regex for valid dates with 4-digit years
             if (regex.test(dateString)) {
                 validDates.push(dateString);
             } else {
-                // Check if the year component has 3 digits, indicating an invalid date
-                const year = parseInt(dateString.split('/')[2]);
-                if (year >= 98) {
+                // Check if the year component has 5 digits, indicating an invalid date
+                const year = parseInt(dateString.split('/')[4]);
+                if (year >= 9999) {
                     invalidDates.push(dateString);
                 } else {
                     validDates.push(dateString);
@@ -227,7 +227,7 @@ const compareEpochDates = async (datesList) => {
     // Function to convert date string to Date object using the provided pattern
     const convertToDate = (dateString) => {
       const [month, day, year] = dateString.split('/');
-      return new Date(2000 + parseInt(year), parseInt(month) - 1, parseInt(day));
+      return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
     };
   
     // Compare each date in the list with today's date
@@ -235,10 +235,10 @@ const compareEpochDates = async (datesList) => {
       const comparisonDate = convertToDate(date);
       if (comparisonDate.getFullYear() < thresholdYear) {
         if (comparisonDate < currentDate) {
-          invalidDates.push(moment(comparisonDate).format('MM/DD/YY'));
+          invalidDates.push(moment(comparisonDate).format('MM/DD/YYYY'));
         }
       } else {
-        invalidDates.push(moment(comparisonDate).format('MM/DD/YY'));
+        invalidDates.push(moment(comparisonDate).format('MM/DD/YYYY'));
       }
     }
     return invalidDates;
@@ -266,7 +266,7 @@ const compareGrantExpiredSetDates = async (grantList, expirationList) => {
     return dateSets;
   };
 
-// Function to validate dates
+  // Function to validate dates
 const validateDates = async (dates)  => {
     const validDates = [];
     const invalidDates = [];
@@ -278,7 +278,7 @@ const validateDates = async (dates)  => {
         const numericYear = parseInt(year, 10);
         
         // Check if month, day, and year are within valid ranges
-        if (numericMonth > 0 && numericMonth <= 12 && numericDay > 0 && numericDay <= 31 && numericYear >= 24 && numericYear <= 98) {
+        if (numericMonth > 0 && numericMonth <= 12 && numericDay > 0 && numericDay <= 31 && numericYear >= 1900 && numericYear <= 9999) {
             validDates.push(formattedDate);
         } else {
             invalidDates.push(date);
@@ -286,6 +286,5 @@ const validateDates = async (dates)  => {
     }
     return {validDates, invalidDates};
 }
-
 
 module.exports = { handleExcelFile };

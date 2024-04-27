@@ -22,7 +22,8 @@ const abi = require("../config/abi.json");
 
 // Importing functions from a custom module
 const {
-  convertDateOnVerification,extractQRCodeDataFromPDF, // Function to extract QR code data from a PDF file
+  convertDateOnVerification,
+  extractQRCodeDataFromPDF, // Function to extract QR code data from a PDF file
   cleanUploadFolder, // Function to clean up the upload folder
   isDBConnected // Function to check if the database connection is established
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
