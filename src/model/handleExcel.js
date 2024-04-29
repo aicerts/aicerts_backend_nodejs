@@ -69,14 +69,12 @@ const handleExcelFile = async (_path) => {
 
                     var certificationNames = rawBatchData.map(item => item.certificationName);
 
-
                     var nonNullGrantDates = _certificationGrantDates.filter(date => date == null);
                     var nonNullExpiryDates = _certificationExpirationDates.filter(date => date == null);
                     var notNullCertificationIDs = certificationIDs.filter(item => item == null);
                     var notNullHolderNames = holderNames.filter(item => item == null);
                     var notNullCertificationNames = certificationNames.filter(item => item == null);
-
-                    
+                   
                     if(nonNullGrantDates.length != 0 || nonNullExpiryDates.length != 0 || notNullCertificationIDs.length != 0 || notNullHolderNames.length != 0 || notNullCertificationNames.length != 0){
                         return { status: "FAILED", response: false, message: messageCode.msgMissingDetailsInExcel};
                     }
@@ -271,20 +269,39 @@ const validateDates = async (dates)  => {
     const validDates = [];
     const invalidDates = [];
     for (const date of dates) {
+        // Parse the date string to extract month, day, and year
         const [month, day, year] = date.split('/');
         let formattedDate = `${month.padStart(2, '0')}/${day.padStart(2, '0')}/${year}`;
         const numericMonth = parseInt(month, 10);
         const numericDay = parseInt(day, 10);
         const numericYear = parseInt(year, 10);
-        
+
         // Check if month, day, and year are within valid ranges
         if (numericMonth > 0 && numericMonth <= 12 && numericDay > 0 && numericDay <= 31 && numericYear >= 1900 && numericYear <= 9999) {
-            validDates.push(formattedDate);
+            if ((numericMonth == 1 || numericMonth == 3 || numericMonth == 5 || numericMonth == 7 ||
+                numericMonth == 8 || numericMonth == 10 || numericMonth == 12) && numericDay <= 31) {
+                validDates.push(formattedDate);
+            } else if ((numericMonth == 4 || numericMonth == 6 || numericMonth == 9 || numericMonth == 11) && numericDay <= 30) {
+                validDates.push(formattedDate);
+            } else if (numericMonth == 2 && numericDay <= 29) {
+                if (numericYear % 4 == 0 && numericDay <= 29) {
+                    // Leap year: February has 29 days
+                    validDates.push(formattedDate);
+                } else if (numericYear % 4 != 0 && numericDay <= 28) {
+                    // Non-leap year: February has 28 days
+                    validDates.push(formattedDate);
+                } else {
+                    invalidDates.push(date);
+                }
+            } else {
+                invalidDates.push(date);
+            }
         } else {
             invalidDates.push(date);
         }
+
     }
     return {validDates, invalidDates};
-}
+};
 
 module.exports = { handleExcelFile };

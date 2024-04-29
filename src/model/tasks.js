@@ -140,6 +140,32 @@ const convertDateFormat = async (dateString) => {
 
 // Convert Date format for the Display on Verification
 const convertDateOnVerification = async (dateString) => {
+	
+	if(dateString.length < 11){
+    // Check if month, day, and year are within valid ranges
+    if (numericMonth > 0 && numericMonth <= 12 && numericDay > 0 && numericDay <= 31 && numericYear >= 1900 && numericYear <= 9999) {
+        if ((numericMonth == 1 || numericMonth == 3 || numericMonth == 5 || numericMonth == 7 ||
+            numericMonth == 8 || numericMonth == 10 || numericMonth == 12) && numericDay <= 31) {
+              var formattedDate = dateString;
+        } else if ((numericMonth == 4 || numericMonth == 6 || numericMonth == 9 || numericMonth == 11) && numericDay <= 30) {
+              var formattedDate = dateString;
+        } else if (numericMonth == 2 && numericDay <= 29) {
+            if (numericYear % 4 == 0 && numericDay <= 29) {
+                // Leap year: February has 29 days
+                var formattedDate = dateString;
+            } else if (numericYear % 4 != 0 && numericDay <= 28) {
+                // Non-leap year: February has 28 days
+                var formattedDate = dateString;
+            } else {
+              return null;
+            }
+        } else {
+          return null;
+        }
+    } else {
+      return null;
+    }
+  }
 
   var formatString = 'MM/DD/YYYY';
 
