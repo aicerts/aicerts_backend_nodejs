@@ -46,7 +46,7 @@ module.exports = {
     msgInvalidIssuer : "Invalid Issuer email",
     msgCertIdRequired : "Certification ID is required",
     msgUnauthIssuer : "Unauthorised Issuer Email",
-    msgProvideValidDates : "Please provide valid dates",
+    msgProvideValidDates : "Please provide valid dates (MM/DD/YYYY)",
     msgInvalidEthereum : "Invalid Ethereum address format",
     msgCertIssuedSuccess : "Certification issued successfully",
     msgBatchIssuedSuccess: "Batch of Certifications issued successfully",
