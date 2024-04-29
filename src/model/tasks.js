@@ -140,38 +140,6 @@ const convertDateFormat = async (dateString) => {
 
 // Convert Date format for the Display on Verification
 const convertDateOnVerification = async (dateString) => {
-	
-	if(dateString.length < 11){
-	
-	// Parse the date string to extract month, day, and year
-    const [month, day, year] = dateString.split('/');
-    const numericMonth = parseInt(month, 10);
-    const numericDay = parseInt(day, 10);
-    const numericYear = parseInt(year, 10);
-    // Check if month, day, and year are within valid ranges
-    if (numericMonth > 0 && numericMonth <= 12 && numericDay > 0 && numericDay <= 31 && numericYear >= 1900 && numericYear <= 9999) {
-        if ((numericMonth == 1 || numericMonth == 3 || numericMonth == 5 || numericMonth == 7 ||
-            numericMonth == 8 || numericMonth == 10 || numericMonth == 12) && numericDay <= 31) {
-              var formattedDate = dateString;
-        } else if ((numericMonth == 4 || numericMonth == 6 || numericMonth == 9 || numericMonth == 11) && numericDay <= 30) {
-              var formattedDate = dateString;
-        } else if (numericMonth == 2 && numericDay <= 29) {
-            if (numericYear % 4 == 0 && numericDay <= 29) {
-                // Leap year: February has 29 days
-                var formattedDate = dateString;
-            } else if (numericYear % 4 != 0 && numericDay <= 28) {
-                // Non-leap year: February has 28 days
-                var formattedDate = dateString;
-            } else {
-              return null;
-            }
-        } else {
-          return null;
-        }
-    } else {
-      return null;
-    }
-  }
 
   var formatString = 'MM/DD/YYYY';
 
@@ -335,8 +303,8 @@ const extractCertificateInfo = async (qrCodeText) => {
     const convertedData = {
       "Certificate Number": parsedData.Certificate_Number,
       "Course Name": parsedData.courseName,
-      "Expiration Date": await convertDateOnVerification(parsedData.Expiration_Date),
-      "Grant Date": await convertDateOnVerification(parsedData.Grant_Date),
+      "Expiration Date": await convertDateFormat(parsedData.Expiration_Date),
+      "Grant Date": await convertDateFormat(parsedData.Grant_Date),
       "Name": parsedData.name,
       "Polygon URL": parsedData.polygonLink
     };
@@ -381,8 +349,18 @@ const extractCertificateInfo = async (qrCodeText) => {
         }
       }
     }
-    // console.log("Data LMS ", certificateInfo);
-    return certificateInfo;
+    var convertGrant = moment(certificateInfo['Grant Date'], "DD MMMM YYYY").format("MM/DD/YYYY");
+    var convertExpiration = moment(certificateInfo['Expiration Date'], "DD MMMM YYYY").format("MM/DD/YYYY");
+
+    var convertedCertData = {
+      "Certificate Number": certificateInfo["Certificate Number"],
+      "Name": certificateInfo["Name"],
+      "Course Name": certificateInfo["Course Name"],
+      "Grant Date": convertGrant || certificateInfo['Grant Date'],
+      "Expiration Date": convertExpiration || certificateInfo['Expiration Date'],
+      "Polygon URL": certificateInfo["Polygon URL"]
+    };
+    return convertedCertData;
   }
 
 };
