@@ -142,6 +142,12 @@ const convertDateFormat = async (dateString) => {
 const convertDateOnVerification = async (dateString) => {
 	
 	if(dateString.length < 11){
+	
+	// Parse the date string to extract month, day, and year
+    const [month, day, year] = dateString.split('/');
+    const numericMonth = parseInt(month, 10);
+    const numericDay = parseInt(day, 10);
+    const numericYear = parseInt(year, 10);
     // Check if month, day, and year are within valid ranges
     if (numericMonth > 0 && numericMonth <= 12 && numericDay > 0 && numericDay <= 31 && numericYear >= 1900 && numericYear <= 9999) {
         if ((numericMonth == 1 || numericMonth == 3 || numericMonth == 5 || numericMonth == 7 ||
