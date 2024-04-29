@@ -159,6 +159,10 @@ const issue = async (req, res) => {
 const batchIssueCertificate = async (req, res) => {
   
   const email = req.body.email;
+  if(!email || email == "string") {
+    res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidEmail });
+    return;
+  }
   // Check if the file path matches the pattern
   if (!req.file || req.file.mimetype != fileType || !req.file.originalname.endsWith('.xlsx')) {
     // File path does not match the pattern
@@ -172,6 +176,10 @@ try
 {
   await isDBConnected();
     const idExist = await User.findOne({ email });
+    if(!idExist) {
+      res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidIssuer });
+      return;
+    }
     var filePath = req.file.path;
 
     // Fetch the records from the Excel file
