@@ -100,9 +100,10 @@ const connectToPolygon = async () => {
 
 // Function to convert the Date format
 const convertDateFormat = async (dateString) => {
+
   var formatString = 'ddd MMM DD YYYY HH:mm:ss [GMT]ZZ';
   // Define the possible date formats
-  const formats = ['MM/DD/YYYY', 'DD/MM/YYYY', 'DD MMMM, YYYY', 'DD MMM, YYYY', 'MMMM d, yyyy', 'MM/DD/YY'];
+  const formats = ['ddd MMM DD YYYY HH:mm:ss [GMT]ZZ', 'M/D/YY','M/D/YYYY', 'MM/DD/YYYY', 'DD/MM/YYYY', 'DD MMMM, YYYY', 'DD MMM, YYYY', 'MMMM d, yyyy', 'MM/DD/YY'];
 
   // Attempt to parse the input date string using each format
   let dateObject;
@@ -119,15 +120,15 @@ const convertDateFormat = async (dateString) => {
     const momentDate = moment(dateObject);
 
     // Format the date to 'YY/MM/DD'
-    var formattedDate = momentDate.format('MM/DD/YY');
+    var formattedDate = momentDate.format('MM/DD/YYYY');
     return formattedDate;
   } else if (!formattedDate) {
     // Format the parsed date to 'MM/DD/YY'
-    var formattedDate = moment(dateString, formatString).format('MM/DD/YY');
+    var formattedDate = moment(dateString, formatString).format('MM/DD/YYYY');
     if (formattedDate != 'Invalid date') {
       return formattedDate;
     } else {
-      var formattedDate = moment(dateString).utc().format('MM/DD/YY');
+      var formattedDate = moment(dateString).utc().format('MM/DD/YYYY');
       return formattedDate;
     }
   }
@@ -140,12 +141,28 @@ const convertDateFormat = async (dateString) => {
 // Convert Date format for the Display on Verification
 const convertDateOnVerification = async (dateString) => {
 
-  var formatString = 'MM/DD/YY';
+  var formatString = 'MM/DD/YYYY';
 
-  var formattedDate = moment(dateString, formatString).format('DD MMMM, YYYY');
+  // Attempt to parse the input date string using the specified format
+  const dateObject = moment(dateString, formatString, true);
+  if (dateObject.isValid()) {
+    // Format the date to 'MM/DD/YYYY'
+    var formattedDate = moment(dateObject).format(formatString);
+    return formattedDate;
+  }
+};
 
-  return formattedDate;
-
+const dateFormatToStore = async(inputDate) => {
+  // Split the input date string by '/'
+  const parts = inputDate.split('/');
+    
+  // Check if the month and day already have two digits
+  const month = parts[0].length === 2 ? parts[0] : ('0' + parts[0]).slice(-2);
+  const day = parts[1].length === 2 ? parts[1] : ('0' + parts[1]).slice(-2);
+  const year = parts[4];
+  
+  // Concatenate the formatted parts with '/'
+  return `${month}/${day}/${year}`;
 };
 
 // Verify Certification ID from both collections (single / batch)
@@ -286,8 +303,8 @@ const extractCertificateInfo = async (qrCodeText) => {
     const convertedData = {
       "Certificate Number": parsedData.Certificate_Number,
       "Course Name": parsedData.courseName,
-      "Expiration Date": await convertDateOnVerification(parsedData.Expiration_Date),
-      "Grant Date": await convertDateOnVerification(parsedData.Grant_Date),
+      "Expiration Date": await convertDateFormat(parsedData.Expiration_Date),
+      "Grant Date": await convertDateFormat(parsedData.Grant_Date),
       "Name": parsedData.name,
       "Polygon URL": parsedData.polygonLink
     };
@@ -332,8 +349,18 @@ const extractCertificateInfo = async (qrCodeText) => {
         }
       }
     }
-    // console.log("Data LMS ", certificateInfo);
-    return certificateInfo;
+    var convertGrant = moment(certificateInfo['Grant Date'], "DD MMMM YYYY").format("MM/DD/YYYY");
+    var convertExpiration = moment(certificateInfo['Expiration Date'], "DD MMMM YYYY").format("MM/DD/YYYY");
+
+    var convertedCertData = {
+      "Certificate Number": certificateInfo["Certificate Number"],
+      "Name": certificateInfo["Name"],
+      "Course Name": certificateInfo["Course Name"],
+      "Grant Date": convertGrant || certificateInfo['Grant Date'],
+      "Expiration Date": convertExpiration || certificateInfo['Expiration Date'],
+      "Polygon URL": certificateInfo["Polygon URL"]
+    };
+    return convertedCertData;
   }
 
 };
@@ -664,6 +691,8 @@ module.exports = {
 
   // Function to convert the Date format
   convertDateFormat,
+
+  dateFormatToStore,
 
   convertDateOnVerification,
 

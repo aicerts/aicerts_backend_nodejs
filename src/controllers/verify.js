@@ -22,7 +22,9 @@ const abi = require("../config/abi.json");
 
 // Importing functions from a custom module
 const {
-  convertDateOnVerification,extractQRCodeDataFromPDF, // Function to extract QR code data from a PDF file
+  convertDateOnVerification,
+  convertDateFormat,
+  extractQRCodeDataFromPDF, // Function to extract QR code data from a PDF file
   cleanUploadFolder, // Function to clean up the upload folder
   isDBConnected // Function to check if the database connection is established
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
@@ -201,8 +203,8 @@ const verifyCertificationId = async (req, res) => {
           var completeResponse = {
             'Certificate Number': singleIssueExist.certificateNumber,
             'Course Name': singleIssueExist.course,
-            'Expiration Date': await convertDateOnVerification(singleIssueExist.expirationDate),
-            'Grant Date': await convertDateOnVerification(singleIssueExist.grantDate),
+            'Expiration Date': await convertDateFormat(singleIssueExist.expirationDate),
+            'Grant Date': await convertDateFormat(singleIssueExist.grantDate),
             'Name': singleIssueExist.name,
             'Polygon URL': _polygonLink
           };
@@ -236,8 +238,8 @@ const verifyCertificationId = async (req, res) => {
             var completeResponse = {
               'Certificate Number': batchIssueExist.certificateNumber,
               'Course Name': batchIssueExist.course,
-              'Expiration Date': await convertDateOnVerification(batchIssueExist.expirationDate),
-              'Grant Date': await convertDateOnVerification(batchIssueExist.grantDate),
+              'Expiration Date': await convertDateFormat(batchIssueExist.expirationDate),
+              'Grant Date': await convertDateFormat(batchIssueExist.grantDate),
               'Name': batchIssueExist.name,
               'Polygon URL': _polygonLink
             };

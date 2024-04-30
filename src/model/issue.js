@@ -56,9 +56,20 @@ const handleIssueCertification = async(email, certificateNumber, name, courseNam
       // Extracting required data from the request body
       const grantDate = await convertDateFormat(_grantDate);
       const expirationDate = await convertDateFormat(_expirationDate);
+    
     try
     {
-        await isDBConnected();
+      if(grantDate && expirationDate){
+      // check copmare dates are valid
+      var compareResult = await compareInputDates(grantDate, expirationDate);
+      if(compareResult == 0 || compareResult == 2){
+        return ({ code: 400, status: "FAILED", message: `${messageCode.msgProvideValidDates} : Grant date: ${grantDate}, Expiration date: ${expirationDate}` });
+      }
+      } else {
+        return ({ code: 400, status: "FAILED", message: `${messageCode.msgProvideValidDates} : Grant date: ${_grantDate}, Expiration date: ${_expirationDate}` });
+      }
+
+    await isDBConnected();
     // Check if user with provided email exists
     const idExist = await User.findOne({ email });
     // Check if certificate number already exists
@@ -261,6 +272,17 @@ const handleIssuePdfCertification = async(email, certificateNumber, name, course
     const expirationDate = await convertDateFormat(_expirationDate);
   
   try{
+    // check copmare dates are valid
+    if(grantDate && expirationDate){
+      // check copmare dates are valid
+      var compareResult = await compareInputDates(grantDate, expirationDate);
+      if(compareResult == 0 || compareResult == 2){
+        return ({ code: 400, status: "FAILED", message: `${messageCode.msgProvideValidDates} : Grant date: ${grantDate}, Expiration date: ${expirationDate}` });
+      }
+      } else {
+        return ({ code: 400, status: "FAILED", message: `${messageCode.msgProvideValidDates} : Grant date: ${_grantDate}, Expiration date: ${_expirationDate}` });
+    }
+
     await isDBConnected();
     // Check if user with provided email exists
     const idExist = await User.findOne({ email });
@@ -475,7 +497,28 @@ const handleIssuePdfCertification = async(email, certificateNumber, name, course
     console.error("Internal server error", error);
     return ({ code: 400, status: "FAILED", message: messageCode.msgInternalError, details: error });
   }
-}
+};
+
+// Function to parse MM/DD/YYYY date string into a Date object
+const parseDate = async (dateString) => {
+  const [month, day, year] = dateString.split('/');
+  return new Date(`${month}/${day}/${year}`);
+};
+
+const compareInputDates = async (_grantDate, _expirationDate) => {
+  // Parse the date strings into Date objects
+  const grantDate = await parseDate(_grantDate);
+  const expirationDate = await parseDate(_expirationDate);
+
+  // Compare the dates
+  if (grantDate < expirationDate) {
+      return 1;
+  } else if (grantDate > expirationDate) {
+      return 2;
+  } else {
+      return 0;
+  }
+};
 
 module.exports = {
     // Function to issue a PDF certificate

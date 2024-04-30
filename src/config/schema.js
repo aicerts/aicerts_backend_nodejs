@@ -30,8 +30,7 @@ const UserSchema = new Schema({
   designation: { type:String },
   username: { type: String, unique: true },
   rejectedDate: { type: Date, default: null },
-  certificatesIssued: { type: Number },
-  certificatesRenewed: { type: Number }
+  certificatesIssued: { type: Number }
 });
 
 // Batch Issues Schema

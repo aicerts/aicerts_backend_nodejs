@@ -22,11 +22,13 @@ const { User, Issues, BatchIssues } = require("../config/schema");
 // Import ABI (Application Binary Interface) from the JSON file located at "../config/abi.json"
 const abi = require("../config/abi.json");
 
+const specialCharsRegex = /[!@#$%^&*(),.?":{}|<>]/; // Regular expression for special characters
 
 // Importing functions from a custom module
 const {
   convertDateFormat,
   insertBatchCertificateData, // Function to insert Batch certificate data into the database
+  dateFormatToStore,
   calculateHash, // Function to calculate the hash of a file
   cleanUploadFolder, // Function to clean up the upload folder
   isDBConnected, // Function to check if the database connection is established
@@ -89,6 +91,10 @@ const issuePdf = async (req, res) => {
     const courseName = req.body.course;
     var _grantDate = req.body.grantDate;
     var _expirationDate = req.body.expirationDate;
+
+    if(specialCharsRegex.test(name) || specialCharsRegex.test(certificateNumber)){
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgNoSpecialCharacters });
+    }
   
     const issueResponse = await handleIssuePdfCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate, req.file.path);
       var responseDetails = issueResponse.details ? issueResponse.details : '';
@@ -136,6 +142,10 @@ const issue = async (req, res) => {
   var _grantDate = req.body.grantDate;
   var _expirationDate = req.body.expirationDate;
 
+  if(specialCharsRegex.test(name) || specialCharsRegex.test(certificateNumber)){
+    return res.status(400).json({ status: "FAILED", message: messageCode.msgNoSpecialCharacters });
+  }
+
   const issueResponse = await handleIssueCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate);
   var responseDetails = issueResponse.details ? issueResponse.details : '';
   if(issueResponse.code == 200) {
@@ -156,9 +166,14 @@ const issue = async (req, res) => {
  * @param {Object} res - Express response object.
  */
 const batchIssueCertificate = async (req, res) => {
+  
   const email = req.body.email;
+  if(!email || email == "string") {
+    res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidEmail });
+    return;
+  }
   // Check if the file path matches the pattern
-  if (req.file.mimetype != fileType) {
+  if (!req.file || req.file.mimetype != fileType || !req.file.originalname.endsWith('.xlsx')) {
     // File path does not match the pattern
     const errorMessage = messageCode.msgMustExcel;
     await cleanUploadFolder();
@@ -170,6 +185,10 @@ try
 {
   await isDBConnected();
     const idExist = await User.findOne({ email });
+    if(!idExist) {
+      res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidIssuer });
+      return;
+    }
     var filePath = req.file.path;
 
     // Fetch the records from the Excel file
@@ -296,7 +315,7 @@ try
 
           for (var i = 0; i < certificatesCount; i++) {
             var _proof = tree.getProof(i);
-            let _proofHash = await keccak256(Buffer.from(_proof)).toString('hex');
+            let _proofHash = await keccak256(Buffer.from(_proof)).toString('hex'); 
             let _grantDate = await convertDateFormat(rawBatchData[i].grantDate);
             let _expirationDate = await convertDateFormat(rawBatchData[i].expirationDate);
             batchDetails[i] = {
@@ -424,6 +443,10 @@ const authIssue = async (req, res) => {
     const courseName = req.body.course;
     var _grantDate = req.body.grantDate;
     var _expirationDate = req.body.expirationDate;
+
+    if(specialCharsRegex.test(name) || specialCharsRegex.test(certificateNumber)){
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgNoSpecialCharacters });
+    }
 
     const issueResponse = await handleIssueCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate);
     var responseDetails = issueResponse.details ? issueResponse.details : '';
