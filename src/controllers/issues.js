@@ -22,6 +22,7 @@ const { User, Issues, BatchIssues } = require("../config/schema");
 // Import ABI (Application Binary Interface) from the JSON file located at "../config/abi.json"
 const abi = require("../config/abi.json");
 
+const specialCharsRegex = /[!@#$%^&*(),.?":{}|<>]/; // Regular expression for special characters
 
 // Importing functions from a custom module
 const {
@@ -90,6 +91,10 @@ const issuePdf = async (req, res) => {
     const courseName = req.body.course;
     var _grantDate = req.body.grantDate;
     var _expirationDate = req.body.expirationDate;
+
+    if(specialCharsRegex.test(name) || specialCharsRegex.test(certificateNumber)){
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgNoSpecialCharacters });
+    }
   
     const issueResponse = await handleIssuePdfCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate, req.file.path);
       var responseDetails = issueResponse.details ? issueResponse.details : '';
@@ -136,6 +141,10 @@ const issue = async (req, res) => {
   const courseName = req.body.course;
   var _grantDate = req.body.grantDate;
   var _expirationDate = req.body.expirationDate;
+
+  if(specialCharsRegex.test(name) || specialCharsRegex.test(certificateNumber)){
+    return res.status(400).json({ status: "FAILED", message: messageCode.msgNoSpecialCharacters });
+  }
 
   const issueResponse = await handleIssueCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate);
   var responseDetails = issueResponse.details ? issueResponse.details : '';
@@ -434,6 +443,10 @@ const authIssue = async (req, res) => {
     const courseName = req.body.course;
     var _grantDate = req.body.grantDate;
     var _expirationDate = req.body.expirationDate;
+
+    if(specialCharsRegex.test(name) || specialCharsRegex.test(certificateNumber)){
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgNoSpecialCharacters });
+    }
 
     const issueResponse = await handleIssueCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate);
     var responseDetails = issueResponse.details ? issueResponse.details : '';

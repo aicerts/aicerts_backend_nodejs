@@ -17,6 +17,8 @@ const { Issues, BatchIssues } = require("../config/schema");
 // Regular expression to match MM/DD/YYYY format
 const regex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/\d{4}$/;
 
+const specialCharsRegex = /[!@#$%^&*(),.?":{}|<>]/; // Regular expression for special characters
+
 // Example usage: Excel Headers
 const expectedHeadersSchema = [
     'certificationID',
@@ -94,9 +96,15 @@ const handleExcelFile = async (_path) => {
                         const matchingIDs = [];
                         const repetitiveNumbers = await findRepetitiveIdNumbers(certificationIDs);
                         const invalidIdList = await validateBatchCertificateIDs(certificationIDs);
+                        const invalidNamesList = await validateBatchCertificateNames(holderNames);
 
                         if(invalidIdList != false) {
                             return { status: "FAILED", response: false, message: messageCode.msgInvalidCertIds, Details: invalidIdList };
+                            
+                        }
+
+                        if(invalidNamesList != false) {
+                            return { status: "FAILED", response: false, message: messageCode.msgNoSpecialCharacters, Details: invalidNamesList };
                             
                         }
 
@@ -161,7 +169,7 @@ const validateBatchCertificateIDs = async (data) => {
 
     data.forEach(num => {
         const str = num.toString(); // Convert number to string
-        if (str.length < min_length || str.length > max_length) {
+        if (str.length < min_length || str.length > max_length || specialCharsRegex.test(str)) {
             invalidStrings.push(str);
         }
     });
@@ -172,6 +180,23 @@ const validateBatchCertificateIDs = async (data) => {
         return false; // Return false if all strings are valid
     }
 };
+
+const validateBatchCertificateNames = async (names) => {
+    const invalidNames = [];
+
+    names.forEach(name => {
+        const str = name.toString(); // Convert number to string
+        if (specialCharsRegex.test(str) || str.length > 30) {
+            invalidNames.push(str);
+        }
+    });
+
+    if (invalidNames.length > 0) {
+        return invalidNames; // Return array of invalid strings
+    } else {
+        return false; // Return false if all strings are valid
+    }
+}
 
 const findRepetitiveIdNumbers = async (data) => {
     const countMap = {};
