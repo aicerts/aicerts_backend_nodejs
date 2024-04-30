@@ -9,7 +9,7 @@ const thresholdYear = parseInt(process.env.THRESHOLD_YEAR);
 // Parse environment variables for password length constraints
 const min_length = (parseInt(process.env.MIN_LENGTH) || 12);
 const max_length = (parseInt(process.env.MAX_LENGTH) || 20);
-const cert_limit = (parseInt(process.env.BATCH_LIMIT) || 150);
+const cert_limit = (parseInt(process.env.BATCH_LIMIT) || 250);
 
 // Import MongoDB models
 const { Issues, BatchIssues } = require("../config/schema");
