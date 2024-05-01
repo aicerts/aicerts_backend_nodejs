@@ -1,9 +1,6 @@
 // Load environment variables from .env file
 require('dotenv').config();
 
-// Initialize scheduler
-require('./src/config/scheduler');
-
 // Import required modules
 const express = require("express");
 const swaggerJsdoc = require('swagger-jsdoc');
@@ -16,7 +13,7 @@ const multer = require('multer');
 const app = express();
 
 // Define the port number
-const port = process.env.PORT || 8000;
+const port = process.env.PORT || 8001;
 
 // Import routes
 const tasksRoutes = require('./src/routes/index');
@@ -36,14 +33,6 @@ const swaggerOptions = {
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 
-// Configure CORS with whitelisted routes
-// const corsOptions = {
-//   origin: ['https://example.com'], // Add allowed origins
-//   methods: ['GET', 'POST'], // Add allowed methods
-// };
-
-// Middleware
-// app.use(cors(corsOptions)); // Use CORS middleware with custom options
 app.use(cors());
 app.use(bodyParser.json());
 
@@ -65,13 +54,6 @@ app.use((err, req, res, next) => {
   }
 });
 
-// Handling uncaught exceptions
-process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
-  // Perform cleanup tasks if needed
-  process.exit(1); // Exit the process with a failure code
-});
-
 app.use('/', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Graceful Shutdown
@@ -85,6 +67,6 @@ process.on('SIGINT', () => {
 });
 
 // Start the server
-app.listen(port, () => {
-  console.log(`Server listening on http://localhost:${port}`);
+const server = app.listen(port, () => {
+    console.log(`Server is running on port ${port}`);
 });
