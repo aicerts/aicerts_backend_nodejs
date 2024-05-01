@@ -122,12 +122,12 @@ const handleExcelFile = async (_path) => {
                             
                         }
 
-                        const validateGrantDates = await compareEpochDates(invalidGrantDateFormat.validDates);
-                        const validateExpirationDates = await compareEpochDates(invalidExpirationDateFormat.validDates);
-                        if((validateGrantDates).length > 0 || (validateExpirationDates).length > 0){
-                            return { status: "FAILED", response: false, message: messageCode.msgInvalidDates, Details: `Grant Dates ${validateGrantDates}, Issued Dates ${validateExpirationDates}` };
+                        // const validateGrantDates = await compareEpochDates(invalidGrantDateFormat.validDates);
+                        // const validateExpirationDates = await compareEpochDates(invalidExpirationDateFormat.validDates);
+                        // if((validateGrantDates).length > 0 || (validateExpirationDates).length > 0){
+                        //     return { status: "FAILED", response: false, message: messageCode.msgInvalidDates, Details: `Grant Dates ${validateGrantDates}, Issued Dates ${validateExpirationDates}` };
                             
-                        }
+                        // }
 
                         const validateCertificateDates = await compareGrantExpiredSetDates(invalidGrantDateFormat.validDates, invalidExpirationDateFormat.validDates);
                         if(validateCertificateDates.length > 0){
@@ -247,6 +247,10 @@ const compareEpochDates = async (datesList) => {
     const invalidDates = [];
     // Get today's date
     const currentDate = new Date();
+    // Subtract 1 day in milliseconds (1 day = 24 hours * 60 minutes * 60 seconds * 1000 milliseconds)
+    const yesterday = new Date(currentDate);
+    yesterday.setDate(currentDate.getDate() - 1);
+    console.log("Today", currentDate, yesterday);
     // Function to convert date string to Date object using the provided pattern
     const convertToDate = (dateString) => {
       const [month, day, year] = dateString.split('/');

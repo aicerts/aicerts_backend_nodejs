@@ -9,7 +9,7 @@ module.exports = {
 
     // Handle Excel File messages
     msgInvalidExcel : "Invalid Excel file, Please try again",
-    msgExcelLimit : "Application can support upto 150 (Excel file should have 150 certifications maximum)",
+    msgExcelLimit : "Application can support upto 250 (Excel file should have 150 certifications maximum)",
     msgInvalidCertIds : "Excel file has invalid certification IDs length (each: min 12 - max 20) / has special characters",
     msgExcelRepetetionIds : "Excel file has repetition in certification IDs",
     msgInvalidDateFormats: "File has invalid Date format, Recommended format MM/DD/YYYY, Expiration year must not exceed 9999",
