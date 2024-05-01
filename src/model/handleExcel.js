@@ -18,6 +18,7 @@ const { Issues, BatchIssues } = require("../config/schema");
 const regex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/\d{4}$/;
 
 const specialCharsRegex = /[!@#$%^&*(),.?":{}|<>]/; // Regular expression for special characters
+const onlyNumericsRegex = /^[0-9]+$/;
 
 // Example usage: Excel Headers
 const expectedHeadersSchema = [
@@ -186,7 +187,7 @@ const validateBatchCertificateNames = async (names) => {
 
     names.forEach(name => {
         const str = name.toString(); // Convert number to string
-        if (specialCharsRegex.test(str) || str.length > 30) {
+        if (onlyNumericsRegex.test(str) || specialCharsRegex.test(str) || str.length > 30) {
             invalidNames.push(str);
         }
     });
@@ -239,7 +240,6 @@ const findInvalidDates = async (dates) => {
             invalidDates.push(0);
        }
     }
-
     return { validDates, invalidDates };
 };
 
@@ -300,7 +300,6 @@ const validateDates = async (dates)  => {
         const numericMonth = parseInt(month, 10);
         const numericDay = parseInt(day, 10);
         const numericYear = parseInt(year, 10);
-
         // Check if month, day, and year are within valid ranges
         if (numericMonth > 0 && numericMonth <= 12 && numericDay > 0 && numericDay <= 31 && numericYear >= 1900 && numericYear <= 9999) {
             if ((numericMonth == 1 || numericMonth == 3 || numericMonth == 5 || numericMonth == 7 ||
