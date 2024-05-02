@@ -23,7 +23,7 @@ const { User, Issues, BatchIssues } = require("../config/schema");
 const abi = require("../config/abi.json");
 
 const specialCharsRegex = /[!@#$%^&*(),.?":{}|<>]/; // Regular expression for special characters
-const onlyNumericsRegex = /^[0-9]+$/;
+const onlyAlphabets = /^[a-zA-Z]*$/;
 
 // Importing functions from a custom module
 const {
@@ -93,8 +93,19 @@ const issuePdf = async (req, res) => {
     var _grantDate = req.body.grantDate;
     var _expirationDate = req.body.expirationDate;
 
-    if(onlyNumericsRegex.test(name) || specialCharsRegex.test(name) || specialCharsRegex.test(certificateNumber)){
+    if(!onlyAlphabets.test(name)){
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgOnlyAlphabets });
+    }
+
+    if(specialCharsRegex.test(certificateNumber)){
       return res.status(400).json({ status: "FAILED", message: messageCode.msgNoSpecialCharacters });
+    }
+
+    var grantDateFormat = await convertDateFormat(_grantDate);
+    var expirationDateFormat = await convertDateFormat(_expirationDate);
+
+    if(!grantDateFormat || !expirationDateFormat){
+      return res.status(400).json({ status: "FAILED", message: `${messageCode.msgInvalidDate}: ${_grantDate}, ${_expirationDate}` });
     }
   
     const issueResponse = await handleIssuePdfCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate, req.file.path);
@@ -145,6 +156,13 @@ const issue = async (req, res) => {
 
   if(specialCharsRegex.test(name) || specialCharsRegex.test(certificateNumber)){
     return res.status(400).json({ status: "FAILED", message: messageCode.msgNoSpecialCharacters });
+  }
+
+  var grantDateFormat = await convertDateFormat(_grantDate);
+  var expirationDateFormat = await convertDateFormat(_expirationDate);
+
+  if(!grantDateFormat || !expirationDateFormat){
+    return res.status(400).json({ status: "FAILED", message: `${messageCode.msgInvalidDate}: ${_grantDate}, ${_expirationDate}` });
   }
 
   const issueResponse = await handleIssueCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate);
@@ -447,6 +465,13 @@ const authIssue = async (req, res) => {
 
     if(specialCharsRegex.test(name) || specialCharsRegex.test(certificateNumber)){
       return res.status(400).json({ status: "FAILED", message: messageCode.msgNoSpecialCharacters });
+    }
+
+    var grantDateFormat = await convertDateFormat(_grantDate);
+    var expirationDateFormat = await convertDateFormat(_expirationDate);
+
+    if(!grantDateFormat || !expirationDateFormat){
+      return res.status(400).json({ status: "FAILED", message: `${messageCode.msgInvalidDate}: ${_grantDate}, ${_expirationDate}` });
     }
 
     const issueResponse = await handleIssueCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate);

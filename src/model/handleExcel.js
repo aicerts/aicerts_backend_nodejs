@@ -19,6 +19,7 @@ const regex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/\d{4}$/;
 
 const specialCharsRegex = /[!@#$%^&*(),.?":{}|<>]/; // Regular expression for special characters
 const onlyNumericsRegex = /^[0-9]+$/;
+const onlyAlphabets = /^[a-zA-Z]*$/;
 
 // Example usage: Excel Headers
 const expectedHeadersSchema = [
@@ -105,7 +106,7 @@ const handleExcelFile = async (_path) => {
                         }
 
                         if(invalidNamesList != false) {
-                            return { status: "FAILED", response: false, message: messageCode.msgNoSpecialCharacters, Details: invalidNamesList };
+                            return { status: "FAILED", response: false, message: messageCode.msgOnlyAlphabets, Details: invalidNamesList };
                             
                         }
 
@@ -187,7 +188,7 @@ const validateBatchCertificateNames = async (names) => {
 
     names.forEach(name => {
         const str = name.toString(); // Convert number to string
-        if (onlyNumericsRegex.test(str) || specialCharsRegex.test(str) || str.length > 30) {
+        if (!onlyAlphabets.test(str) || str.length > 30) {
             invalidNames.push(str);
         }
     });
