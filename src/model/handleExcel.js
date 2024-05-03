@@ -188,7 +188,7 @@ const validateBatchCertificateNames = async (names) => {
 
     names.forEach(name => {
         const str = name.toString(); // Convert number to string
-        if (!onlyAlphabets.test(str) || str.length > 30) {
+        if (str.length > 50) {
             invalidNames.push(str);
         }
     });
