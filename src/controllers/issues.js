@@ -23,7 +23,7 @@ const { User, Issues, BatchIssues } = require("../config/schema");
 const abi = require("../config/abi.json");
 
 const specialCharsRegex = /[!@#$%^&*(),.?":{}|<>]/; // Regular expression for special characters
-const onlyAlphabets = /^[a-zA-Z]*$/;
+
 
 // Importing functions from a custom module
 const {
@@ -93,10 +93,7 @@ const issuePdf = async (req, res) => {
     var _grantDate = req.body.grantDate;
     var _expirationDate = req.body.expirationDate;
 
-    if(!onlyAlphabets.test(name)){
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgOnlyAlphabets });
-    }
-
+    
     if(specialCharsRegex.test(certificateNumber)){
       return res.status(400).json({ status: "FAILED", message: messageCode.msgNoSpecialCharacters });
     }
@@ -154,7 +151,7 @@ const issue = async (req, res) => {
   var _grantDate = req.body.grantDate;
   var _expirationDate = req.body.expirationDate;
 
-  if(specialCharsRegex.test(name) || specialCharsRegex.test(certificateNumber)){
+  if(specialCharsRegex.test(certificateNumber)){
     return res.status(400).json({ status: "FAILED", message: messageCode.msgNoSpecialCharacters });
   }
 
