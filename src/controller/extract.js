@@ -6,6 +6,7 @@ const archiver = require('archiver');
 
 const {
     cleanUploadFolder, // Function to check if the database connection is established
+    deleteFolder
   } = require('../model/tasks');
 
 const { handleExcelFile } = require('../model/handleExcel');

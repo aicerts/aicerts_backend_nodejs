@@ -1,5 +1,4 @@
 require('dotenv').config();
-const readXlsxFile = require('read-excel-file/node');
 const path = require("path");
 const Excel = require('exceljs');
 
