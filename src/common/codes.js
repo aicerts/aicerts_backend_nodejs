@@ -9,14 +9,15 @@ module.exports = {
 
     // Handle Excel File messages
     msgInvalidExcel : "Invalid Excel file, Please try again",
-    msgExcelLimit : "Application can support upto 150 (Excel file should have 150 certifications maximum)",
+    msgExcelLimit : "Application can support upto 250 (Excel file should have 150 certifications maximum)",
     msgInvalidCertIds : "Excel file has invalid certification IDs length (each: min 12 - max 20) / has special characters",
     msgExcelRepetetionIds : "Excel file has repetition in certification IDs",
     msgInvalidDateFormats: "File has invalid Date format, Recommended format MM/DD/YYYY, Expiration year must not exceed 9999",
     msgInvalidDateFormat: "File has invalid Date format, Recommended format MM/DD/YYYY",
     msgInvalidDates: "File has invalid Dates",
-    msgNoSpecialCharacters : "No special characters are allowed in name / Certification ID",
-    msgOlderDateThanNewDate : "File has Future grant date than Expiration Date",
+    msgOnlyAlphabets: "Only alphabets allowed in Name (no numbers or special characters)",
+    msgNoSpecialCharacters : "No special characters are allowed in Certification ID",
+    msgOlderDateThanNewDate : "Grant date should be older than Expiration Date",
     msgExcelHasExistingIds : "Excel file has Existing Certification IDs",
     msgInvalidHeaders : "Invalid headers in the Excel file.",
     msgExcelSheetname : "The Excel file Sheet name should be - Batch.",

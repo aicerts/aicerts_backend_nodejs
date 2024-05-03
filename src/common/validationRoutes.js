@@ -3,6 +3,8 @@ const { body } = require('express-validator');
 const messageCode = require("./codes");
 
 const specialCharsRegex = /[!@#$%^&*(),.?":{}|<>]/; // Regular expression for special characters
+// Regular expression to match only alphabets (both uppercase and lowercase)
+const onlyAlphabets = /^[a-zA-Z]*$/;
 
 const validationRoutes = {
     issuePdf: [
@@ -14,14 +16,14 @@ const validationRoutes = {
     issue: [
         body("email").notEmpty().trim().isEmail().withMessage(messageCode.msgInvalidEmail).not().equals("string").withMessage(messageCode.msgInvalidEmail),
         body("certificateNumber").notEmpty().trim().isString().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide).not().matches(specialCharsRegex).withMessage(messageCode.msgNoSpecialCharacters).isLength({ min: 12, max: 20 }).withMessage(messageCode.msgCertLength),
-        body("name").notEmpty().trim().isString().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide).not().matches(specialCharsRegex).withMessage(messageCode.msgNoSpecialCharacters).isLength({ max: 40 }).withMessage(messageCode.msgMaxLength),
+        body("name").notEmpty().trim().isString().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide).matches(onlyAlphabets).withMessage(messageCode.msgOnlyAlphabets).isLength({ max: 40 }).withMessage(messageCode.msgMaxLength),
         body("course").notEmpty().trim().isString().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide).isLength({ max: 150 }).withMessage(messageCode.msgMaxLengthCourse),
         body(["grantDate, expirationDate"]).not().equals("string").withMessage(messageCode.msgInputProvide)
     ],
     authIssue: [
         body("email").notEmpty().trim().isEmail().withMessage(messageCode.msgInvalidEmail).not().equals("string").withMessage(messageCode.msgInvalidEmail),
         body("certificateNumber").notEmpty().trim().isString().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide).not().matches(specialCharsRegex).withMessage(messageCode.msgNoSpecialCharacters).isLength({ min: 12, max: 20 }).withMessage(messageCode.msgCertLength),
-        body("name").notEmpty().trim().isString().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide).not().matches(specialCharsRegex).withMessage(messageCode.msgNoSpecialCharacters).isLength({ max: 40 }).withMessage(messageCode.msgMaxLength),
+        body("name").notEmpty().trim().isString().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide).matches(onlyAlphabets).withMessage(messageCode.msgOnlyAlphabets).isLength({ max: 40 }).withMessage(messageCode.msgMaxLength),
         body("course").notEmpty().trim().isString().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide).isLength({ max: 150 }).withMessage(messageCode.msgMaxLengthCourse),
         body(["grantDate, expirationDate"]).not().equals("string").withMessage(messageCode.msgInputProvide)
     ],

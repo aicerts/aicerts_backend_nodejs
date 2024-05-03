@@ -18,6 +18,8 @@ const { Issues, BatchIssues } = require("../config/schema");
 const regex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/\d{4}$/;
 
 const specialCharsRegex = /[!@#$%^&*(),.?":{}|<>]/; // Regular expression for special characters
+const onlyNumericsRegex = /^[0-9]+$/;
+const onlyAlphabets = /^[a-zA-Z]*$/;
 
 // Example usage: Excel Headers
 const expectedHeadersSchema = [
@@ -104,7 +106,7 @@ const handleExcelFile = async (_path) => {
                         }
 
                         if(invalidNamesList != false) {
-                            return { status: "FAILED", response: false, message: messageCode.msgNoSpecialCharacters, Details: invalidNamesList };
+                            return { status: "FAILED", response: false, message: messageCode.msgOnlyAlphabets, Details: invalidNamesList };
                             
                         }
 
@@ -121,12 +123,12 @@ const handleExcelFile = async (_path) => {
                             
                         }
 
-                        const validateGrantDates = await compareEpochDates(invalidGrantDateFormat.validDates);
-                        const validateExpirationDates = await compareEpochDates(invalidExpirationDateFormat.validDates);
-                        if((validateGrantDates).length > 0 || (validateExpirationDates).length > 0){
-                            return { status: "FAILED", response: false, message: messageCode.msgInvalidDates, Details: `Grant Dates ${validateGrantDates}, Issued Dates ${validateExpirationDates}` };
+                        // const validateGrantDates = await compareEpochDates(invalidGrantDateFormat.validDates);
+                        // const validateExpirationDates = await compareEpochDates(invalidExpirationDateFormat.validDates);
+                        // if((validateGrantDates).length > 0 || (validateExpirationDates).length > 0){
+                        //     return { status: "FAILED", response: false, message: messageCode.msgInvalidDates, Details: `Grant Dates ${validateGrantDates}, Issued Dates ${validateExpirationDates}` };
                             
-                        }
+                        // }
 
                         const validateCertificateDates = await compareGrantExpiredSetDates(invalidGrantDateFormat.validDates, invalidExpirationDateFormat.validDates);
                         if(validateCertificateDates.length > 0){
@@ -186,7 +188,7 @@ const validateBatchCertificateNames = async (names) => {
 
     names.forEach(name => {
         const str = name.toString(); // Convert number to string
-        if (specialCharsRegex.test(str) || str.length > 30) {
+        if (!onlyAlphabets.test(str) || str.length > 30) {
             invalidNames.push(str);
         }
     });
@@ -239,7 +241,6 @@ const findInvalidDates = async (dates) => {
             invalidDates.push(0);
        }
     }
-
     return { validDates, invalidDates };
 };
 
@@ -247,6 +248,10 @@ const compareEpochDates = async (datesList) => {
     const invalidDates = [];
     // Get today's date
     const currentDate = new Date();
+    // Subtract 1 day in milliseconds (1 day = 24 hours * 60 minutes * 60 seconds * 1000 milliseconds)
+    const yesterday = new Date(currentDate);
+    yesterday.setDate(currentDate.getDate() - 1);
+    console.log("Today", currentDate, yesterday);
     // Function to convert date string to Date object using the provided pattern
     const convertToDate = (dateString) => {
       const [month, day, year] = dateString.split('/');
@@ -300,7 +305,6 @@ const validateDates = async (dates)  => {
         const numericMonth = parseInt(month, 10);
         const numericDay = parseInt(day, 10);
         const numericYear = parseInt(year, 10);
-
         // Check if month, day, and year are within valid ranges
         if (numericMonth > 0 && numericMonth <= 12 && numericDay > 0 && numericDay <= 31 && numericYear >= 1900 && numericYear <= 9999) {
             if ((numericMonth == 1 || numericMonth == 3 || numericMonth == 5 || numericMonth == 7 ||

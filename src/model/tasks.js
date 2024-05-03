@@ -101,6 +101,38 @@ const connectToPolygon = async () => {
 // Function to convert the Date format
 const convertDateFormat = async (dateString) => {
 
+  if(dateString.length < 11){
+    // Parse the date string to extract month, day, and year
+    const [month, day, year] = dateString.split('/');
+    let formatDate = `${month.padStart(2, '0')}/${day.padStart(2, '0')}/${year}`;
+    const numericMonth = parseInt(month, 10);
+    const numericDay = parseInt(day, 10);
+    const numericYear = parseInt(year, 10);
+    // Check if month, day, and year are within valid ranges
+    if (numericMonth > 0 && numericMonth <= 12 && numericDay > 0 && numericDay <= 31 && numericYear >= 1900 && numericYear <= 9999) {
+        if ((numericMonth == 1 || numericMonth == 3 || numericMonth == 5 || numericMonth == 7 ||
+            numericMonth == 8 || numericMonth == 10 || numericMonth == 12) && numericDay <= 31) {
+            return formatDate;
+        } else if ((numericMonth == 4 || numericMonth == 6 || numericMonth == 9 || numericMonth == 11) && numericDay <= 30) {
+          return formatDate;
+        } else if (numericMonth == 2 && numericDay <= 29) {
+            if (numericYear % 4 == 0 && numericDay <= 29) {
+                // Leap year: February has 29 days
+                return formatDate;
+            } else if (numericYear % 4 != 0 && numericDay <= 28) {
+                // Non-leap year: February has 28 days
+                return formatDate;
+            } else {
+                return null;
+            }
+        } else {
+            return null;
+        }
+    } else {
+        return null;
+    }
+} 
+
   var formatString = 'ddd MMM DD YYYY HH:mm:ss [GMT]ZZ';
   // Define the possible date formats
   const formats = ['ddd MMM DD YYYY HH:mm:ss [GMT]ZZ', 'M/D/YY','M/D/YYYY', 'MM/DD/YYYY', 'DD/MM/YYYY', 'DD MMMM, YYYY', 'DD MMM, YYYY', 'MMMM d, yyyy', 'MM/DD/YY'];
@@ -116,6 +148,7 @@ const convertDateFormat = async (dateString) => {
 
   // Check if a valid date object was obtained
   if (dateObject && dateObject.isValid()) {
+    
     // Convert the dateObject to moment (if it's not already)
     const momentDate = moment(dateObject);
 
