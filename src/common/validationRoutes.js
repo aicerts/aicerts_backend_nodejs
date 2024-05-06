@@ -3,8 +3,6 @@ const { body } = require('express-validator');
 const messageCode = require("./codes");
 
 const specialCharsRegex = /[!@#$%^&*(),.?":{}|<>]/; // Regular expression for special characters
-// Regular expression to match only alphabets (both uppercase and lowercase)
-const onlyAlphabets = /^[a-zA-Z]*$/;
 
 const validationRoutes = {
     issuePdf: [

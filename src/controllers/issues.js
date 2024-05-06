@@ -222,7 +222,7 @@ try
       excelData.response === false) {
 
       let errorMessage = messageCode.msgPlsEnterValid;
-      var _details = excelData.Details;
+      var _details = excelData.Details || "";
       if (!idExist) {
         errorMessage = messageCode.msgInvalidIssuer;
         var _details = idExist.email;
