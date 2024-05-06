@@ -102,6 +102,13 @@ const connectToPolygon = async () => {
 const convertDateFormat = async (dateString) => {
 
   if(dateString.length < 11){
+    if(dateString.length < 9){
+      // Parse the original date with the format MM/DD/YY
+      var _parsedDate = moment(dateString, 'MM/DD/YY');
+      // Format the parsed date to the desired format MM/DD/YYYY
+      var _formattedDate = _parsedDate.format('MM/DD/YYYY');
+      return _formattedDate;
+    }
     // Parse the date string to extract month, day, and year
     const [month, day, year] = dateString.split('/');
     let formatDate = `${month.padStart(2, '0')}/${day.padStart(2, '0')}/${year}`;
