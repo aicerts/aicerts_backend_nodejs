@@ -80,7 +80,7 @@ const handleExcelFile = async (_path) => {
                     var notNullCertificationNames = certificationNames.filter(item => item == null);
                    
                     if(nonNullGrantDates.length != 0 || nonNullExpiryDates.length != 0 || notNullCertificationIDs.length != 0 || notNullHolderNames.length != 0 || notNullCertificationNames.length != 0){
-                        return { status: "FAILED", response: false, message: messageCode.msgMissingDetailsInExcel};
+                        return { status: "FAILED", response: false, message: messageCode.msgMissingDetailsInExcel, Details:""};
                     }
 
                     var checkValidateGrantDates = await validateDates(_certificationGrantDates);
