@@ -382,15 +382,12 @@ const extractCertificateInfo = async (qrCodeText) => {
         }
       }
     }
-    var convertGrant = moment(certificateInfo['Grant Date'], "DD MMMM YYYY").format("MM/DD/YYYY");
-    var convertExpiration = moment(certificateInfo['Expiration Date'], "DD MMMM YYYY").format("MM/DD/YYYY");
-
     var convertedCertData = {
       "Certificate Number": certificateInfo["Certificate Number"],
       "Name": certificateInfo["Name"],
       "Course Name": certificateInfo["Course Name"],
-      "Grant Date": convertGrant || certificateInfo['Grant Date'],
-      "Expiration Date": convertExpiration || certificateInfo['Expiration Date'],
+      "Grant Date": certificateInfo['Grant Date'],
+      "Expiration Date": certificateInfo['Expiration Date'],
       "Polygon URL": certificateInfo["Polygon URL"]
     };
     return convertedCertData;
