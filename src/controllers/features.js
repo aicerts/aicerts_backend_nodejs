@@ -13,6 +13,11 @@ const {
     handleRenewBatchOfCertifications, 
     handleUpdateBatchCertificationStatus } = require('../services/feature');
 
+// Importing functions from a custom module
+const {
+    convertDateFormat,
+  } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
+
 var messageCode = require("../common/codes");
 
 /**
@@ -31,6 +36,17 @@ const renewCert = async (req, res) => {
         const email = req.body.email;
         const certificateNumber = req.body.certificateNumber;
         var _expirationDate = req.body.expirationDate;
+
+        if(req.body.expirationDate == 1 || req.body.expirationDate == null || req.body.expirationDate == "string"){
+            var _expirationDate = 1;
+            } else {
+              var _expirationDate = await convertDateFormat(req.body.expirationDate);
+            }
+      
+          if(_expirationDate == null){
+            res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidExpirationDate, details: req.body.expirationDate });
+            return;
+          }
 
         const renewResponse = await handleRenewCertification(email, certificateNumber, _expirationDate);
         var responseDetails = renewResponse.details ? renewResponse.details : '';
@@ -89,7 +105,10 @@ const renewBatchCertificate = async (req, res) => {
         // Extracting required data from the request body
         const email = req.body.email;
         const _batchId = req.body.batch;
-        const expirationDate = req.body.expirationDate;
+        var expirationDate = req.body.expirationDate;
+        if(req.body.expirationDate == "1" || req.body.expirationDate == "string" || req.body.expirationDate == null){
+            var expirationDate = 1;
+        }
         var batchId = parseInt(_batchId);
 
         const batchResponse = await handleRenewBatchOfCertifications(email, batchId, expirationDate);

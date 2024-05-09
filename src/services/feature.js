@@ -53,13 +53,13 @@ const max_length = parseInt(process.env.MAX_LENGTH);
 var messageCode = require("../common/codes");
 
 const handleRenewCertification = async (email, certificateNumber, _expirationDate) => {
-    const expirationDate = await convertDateFormat(_expirationDate);
+    const expirationDate = _expirationDate != 1 ? await convertDateFormat(_expirationDate) : 1;
     // Get today's date
     var today = new Date().toLocaleString("en-US", { timeZone: "America/New_York" }); // Adjust timeZone as per the US Standard Time zone
     // Convert today's date to epoch time (in milliseconds)
     var todayEpoch = new Date(today).getTime() / 1000; // Convert milliseconds to seconds
 
-    var epochExpiration = await convertDateToEpoch(expirationDate);
+    var epochExpiration = _expirationDate != 1 ? await convertDateToEpoch(expirationDate) : 1;
     var validExpiration = todayEpoch + (32 * 24 * 60 * 60); // Add 32 days (30 * 24 hours * 60 minutes * 60 seconds);
 
     try {
@@ -76,7 +76,7 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
             (!idExist || idExist.status !== 1) || // User does not exist
             !certificateNumber || // Missing certificate number
             (!expirationDate || expirationDate == 'Invalid date') ||
-            (epochExpiration < validExpiration)
+            (epochExpiration != 1 && epochExpiration < validExpiration)
         ) {
             // Prepare error message
             let errorMessage = messageCode.msgPlsEnterValid;
@@ -90,7 +90,7 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
             } else if (idExist.status !== 1) {
                 errorMessage = messageCode.msgUnauthIssuer;
             }
-            else if (epochExpiration < validExpiration) {
+            else if (epochExpiration != 1 && epochExpiration < validExpiration) {
                 errorMessage = messageCode.msgInvalidExpiration;
             }
             // Respond with error message
@@ -98,9 +98,12 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
         }
 
         if (isNumberExist) {
+            if(isNumberExist.expirationDate == "1"){
+                return ({ code: 400, status: "FAILED", message: messageCode.msgUpdateExpirationNotPossible });
+            }
 
-            var epochExpiration = await convertDateToEpoch(isNumberExist.expirationDate);
-            if (epochExpiration < todayEpoch) {
+            var epochExpiration = expirationDate != 1 ? await convertDateToEpoch(isNumberExist.expirationDate) : 1 ;
+            if (expirationDate != 1 && epochExpiration < todayEpoch) {
                 return ({ code: 400, status: "FAILED", message: messageCode.msgCertExpired });
             }
 
@@ -108,17 +111,19 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
 
                 // Blockchain calls
                 const getCertificateStatus = await newContract.getCertificateStatus(certificateNumber);
-                var batchStatus = parseInt(getCertificateStatus);
-                if (batchStatus == 3) {
+                var certStatus = parseInt(getCertificateStatus);
+                if (certStatus == 3) {
                     // Respond with error message
                     return ({ code: 400, status: "FAILED", message: messageCode.msgNotPossibleOnRevoked });
                 }
 
-                const certDateValidation = await expirationDateVariaton(isNumberExist.expirationDate, expirationDate);
+                if(expirationDate != 1){
+                var certDateValidation = await expirationDateVariaton(isNumberExist.expirationDate, expirationDate);
 
                 if (certDateValidation == 0 || certDateValidation == 2) {
                     // Respond with error message
                     return ({ code: 400, status: "FAILED", message: `${messageCode.msgEpirationMustGreater}: ${isNumberExist.expirationDate}` });
+                }
                 }
 
                 // Prepare fields for the certificate
@@ -127,7 +132,7 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                     name: isNumberExist.name,
                     courseName: isNumberExist.course,
                     Grant_Date: isNumberExist.grantDate,
-                    Expiration_Date: expirationDate,
+                    Expiration_Date: expirationDate != 1 ? expirationDate : "1",
                 };
                 // Hash sensitive fields
                 const hashedFields = {};
@@ -141,6 +146,10 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                     const isPaused = await newContract.paused();
                     const issuerAuthorized = await newContract.hasRole(process.env.ISSUER_ROLE, idExist.issuerId);
                     const verifyOnChain = await newContract.verifyCertificateById(certificateNumber);
+                    var certExpiration = parseInt(verifyOnChain[1]);
+                    if(certExpiration == 1){
+                        return ({ code: 400, status: "FAILED", message: messageCode.msgUpdateExpirationNotPossible });
+                    }
                     if (
                         issuerAuthorized === false ||
                         isPaused === true
@@ -155,8 +164,8 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                     }
 
                     if (verifyOnChain[0] == true) {
-
                         try {
+                        console.log("Testing", combinedHash, epochExpiration);
                             // Perform Expiration extension
                             const tx = await newContract.renewCertificate(
                                 certificateNumber,
@@ -247,6 +256,7 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                             certificateHash: combinedHash,
                             certificateNumber: certificateNumber,
                             course: isNumberExist.course,
+                            name: isNumberExist.name,
                             expirationDate: expirationDate,
                             email: email,
                             certStatus: 2
@@ -282,6 +292,9 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
             }
 
         } else if (isNumberExistInBatch) {
+            if(isNumberExistInBatch.expirationDate == "1"){
+                return ({ code: 400, status: "FAILED", message: messageCode.msgUpdateExpirationNotPossible });
+            }
 
             try {
                 //blockchain calls
@@ -302,11 +315,13 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                         return ({ code: 400, status: "FAILED", message: messageCode.msgNotPossibleOnRevoked });
                     }
 
+                    if(expirationDate != 1){
                     const certDateValidation = await expirationDateVariaton(isNumberExistInBatch.expirationDate, expirationDate);
 
                     if (certDateValidation == 0 || certDateValidation == 2) {
                         // Respond with error message
                         return ({ code: 400, status: "FAILED", message: `${messageCode.msgEpirationMustGreater}: ${isNumberExistInBatch.expirationDate}` });
+                    }
                     }
 
                     try {
@@ -333,7 +348,7 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                             name: isNumberExistInBatch.name,
                             courseName: isNumberExistInBatch.course,
                             Grant_Date: isNumberExistInBatch.grantDate,
-                            Expiration_Date: expirationDate,
+                            Expiration_Date: expirationDate != 1 ? expirationDate : "1",
                         };
                         // Hash sensitive fields
                         const hashedFields = {};
@@ -403,7 +418,7 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                                         Name: ${fields.name},
                                         Certification Name: ${fields.courseName},
                                         Grant Date: ${fields.Grant_Date},
-                                        Expiration Date: ${expirationDate}`;
+                                        Expiration Date: ${fields.Expiration_Date}`;
                                 } else {
                                     // Directly include the URL in QR code
                                     qrCodeData = urlLink;
@@ -428,7 +443,7 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
 
                                 // Save Issue details (modified)
                                 isNumberExistInBatch.transactionHash = txHash;
-                                isNumberExistInBatch.expirationDate = expirationDate;
+                                isNumberExistInBatch.expirationDate = fields.Expiration_Date;
                                 isNumberExistInBatch.certificateStatus = 2;
                                 isNumberExistInBatch.issueDate = Date.now();
 
@@ -454,7 +469,8 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                                     certificateHash: combinedHash,
                                     certificateNumber: certificateNumber,
                                     course: isNumberExistInBatch.course,
-                                    expirationDate: expirationDate,
+                                    name: isNumberExistInBatch.name,
+                                    expirationDate: fields.Expiration_Date,
                                     email: email,
                                     certStatus: 2
                                 };
@@ -612,6 +628,7 @@ const handleUpdateCertificationStatus = async (email, certificateNumber, certSta
                             transactionHash: txHash,
                             certificateNumber: certificateNumber,
                             course: isNumberExist.course,
+                            name: isNumberExist.name,
                             expirationDate: isNumberExist.expirationDate,
                             email: email,
                             certStatus: certStatus
@@ -689,6 +706,7 @@ const handleUpdateCertificationStatus = async (email, certificateNumber, certSta
                             transactionHash: txHash,
                             certificateNumber: certificateNumber,
                             course: isNumberExistInBatch.course,
+                            name: isNumberExistInBatch.name,
                             expirationDate: isNumberExistInBatch.expirationDate,
                             email: email,
                             certStatus: certStatus
@@ -723,13 +741,13 @@ const handleUpdateCertificationStatus = async (email, certificateNumber, certSta
 };
 
 const handleRenewBatchOfCertifications = async (email, batchId, batchExpirationDate) => {
-    const expirationDate = await convertDateFormat(batchExpirationDate);
+    const expirationDate = batchExpirationDate != 1 ? await convertDateFormat(batchExpirationDate) : 1 ;
     // Get today's date
     var today = new Date(); // Adjust timeZone as per the US Standard Time zone
     // Convert today's date to epoch time (in milliseconds)
     var todayEpoch = today.getTime() / 1000; // Convert milliseconds to seconds
 
-    var epochExpiration = await convertDateToEpoch(expirationDate);
+    var epochExpiration = batchExpirationDate != 1 ? await convertDateToEpoch(expirationDate) : 1 ;
 
     try {
         // Check mongoose connection
@@ -769,6 +787,9 @@ const handleRenewBatchOfCertifications = async (email, batchId, batchExpirationD
                 return ({ code: 400, status: "FAILED", message: messageCode.msgInvalidBatch });
             }
             var batchResponse = parseInt(verifyBatchResponse[1]);
+            if(batchResponse == 1){
+                return ({ code: 400, status: "FAILED", message: messageCode.msgUpdateBatchExpirationNotPossible });
+            }
             if (verifyBatchResponse[0] === true && batchResponse != 0) {
                 var batchEpoch = parseInt(verifyBatchResponse[1]);
                 if (batchEpoch < todayEpoch) {

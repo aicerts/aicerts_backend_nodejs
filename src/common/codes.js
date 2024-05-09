@@ -9,16 +9,19 @@ module.exports = {
 
     // Handle Excel File messages
     msgInvalidExcel : "Invalid Excel file, Please try again",
-    msgExcelLimit : "Application can support upto 150 (Excel file should have 150 certifications maximum)",
+    msgExcelLimit : "Application can support upto 250 (Excel file should have 250 certifications maximum)",
     msgInvalidCertIds : "Excel file has invalid certification IDs length (each: min 12 - max 20)",
     msgExcelRepetetionIds : "Excel file has repetition in certification IDs",
     msgInvalidDateFormat: "File has invalid Date format",
     msgInvalidDates: "File has invalid Dates",
+    msgInvalidGrantDate: "File has invalid Grant Date format",
+    msgInvalidExpirationDate: "File has invalid Expiration Date format",
     msgOlderDateThanNewDate : "File has Future grant date than Expiration Date",
     msgExcelHasExistingIds : "Excel file has Existing Certification IDs",
     msgInvalidHeaders : "Invalid headers in the Excel file.",
     msgExcelSheetname : "The Excel file Sheet name should be - Batch.",
     msgMissingDetailsInExcel : "The Excel file has missing fields, Please fill all required fields and try again",
+    msgFaileToIssueAfterRetry : "Failed to issue certification after retries. Please try agail...",
 
 
     // Validation Error codes Issues (Route)
@@ -77,6 +80,7 @@ module.exports = {
     msgCertNotExist : "Certification doesn't exist",
     msgCertValidNoDetails: "Certification is valid but No Details found",
     msgAllIssuersFetched : "All Issuer details fetched successfully",
+    msgAllQueryFetched : "Requested details fetched successfully",
     msgErrorOnFetching : "An error occurred while fetching Issuer details",
     msgProvideValidStatus : "Please provide valid status as 1 : approve or 2 : reject",
     msgProvideValidCertStatus : "Please provide valid status",
@@ -104,10 +108,11 @@ module.exports = {
     msgInvalidDate : "Invalid Date, Please check and try again ...",
     msgInvalidDateFormat : "Please provide valid Date format",
     msgOlderGrantDate : "Older grant date mentioned",
-    msgInvalidExpiration : "Please provide expiration date as more than 30 days and try again...",
-
+    msgInvalidExpiration : "Please provide valid expiration date or as more than 30 days and try again...",
+    msgUpdateExpirationNotPossible : "Extension of Expiration not possible on infinite Expiration certification",
+    msgUpdateBatchExpirationNotPossible : "Extension of Batch Expiration not possible on infinite Expiration",
+    
     //Renew/status update Messages
-    msgInvalidExpiration : "Provide valid Expiration date",
     msgCertBadRenewStatus : "Extend Expiration date not possible on the certification",
     msgEpirationMustGreater : "Please provide greater exipration date than existed expiration date",
     msgCertRenewedSuccess : "Certification expiration extended successfully",

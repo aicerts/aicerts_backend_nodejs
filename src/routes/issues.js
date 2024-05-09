@@ -62,7 +62,6 @@ const storage = multer.diskStorage({
  *               - name
  *               - course
  *               - grantDate
- *               - expirationDate
  *     responses:
  *       '200':
  *         description: Successful certificate issuance
@@ -128,7 +127,7 @@ const storage = multer.diskStorage({
  *               message: Internal server error.
  */
 
-router.post('/issue', validationRoute.issue, ensureAuthenticated, adminController.issue);
+router.post('/issue', validationRoute.issue, adminController.issue);
 
 /**
  * @swagger
@@ -175,7 +174,6 @@ router.post('/issue', validationRoute.issue, ensureAuthenticated, adminControlle
  *               - name
  *               - course
  *               - grantDate
- *               - expirationDate
  *               - file
  *     responses:
  *       '200':
@@ -232,7 +230,7 @@ router.post('/issue', validationRoute.issue, ensureAuthenticated, adminControlle
  *               message: Internal Server Error.
  */
 
-router.post('/issue-pdf', _upload.single("file"), ensureAuthenticated, adminController.issuePdf);
+router.post('/issue-pdf', _upload.single("file"), adminController.issuePdf);
 
 /**
  * @swagger
@@ -322,6 +320,6 @@ router.post('/issue-pdf', _upload.single("file"), ensureAuthenticated, adminCont
  *               error: Internal Server Error
  */
 
-router.post('/batch-certificate-issue', __upload.single("excelFile"), ensureAuthenticated, adminController.batchIssueCertificate);
+router.post('/batch-certificate-issue', __upload.single("excelFile"), adminController.batchIssueCertificate);
 
 module.exports=router;

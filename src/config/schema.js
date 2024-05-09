@@ -72,6 +72,7 @@ const IssueStatusSchema = new mongoose.Schema({
   batchId: { type: Number, default: null },
   transactionHash: { type: String, required: true }, // TransactionHash field is of type String and is required
   certificateNumber: { type: String, required: true }, // CertificateNumber field is of type String and is required
+  name: { type: String, required: true }, // Name field is of type String and is required
   course: { type: String, required: true },
   expirationDate: { type: String, required: true }, // ExpirationDate field is of type String and is required
   certStatus: { type: Number, required: true },

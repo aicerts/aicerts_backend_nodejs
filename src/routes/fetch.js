@@ -48,14 +48,14 @@ const __upload = multer({dest: "../../uploads/"});
  *                   example: An error occurred while fetching user details
  */
 
-router.get('/get-all-issuers',ensureAuthenticated, ensureAuthenticated, adminController.getAllIssuers);
+router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers);
 
 /**
  * @swagger
  * /api/get-issuers-log:
  *   post:
  *     summary: Get details of all issuers log with query params
- *     description: API to fetch all issuer details who are unapproved
+ *     description: API to fetch all issuer details queryCode (1-All Issued, 2-All Renewed}expiration extended}, 3-All Reveoked, 4-All reactivatd, 5-All expired, 6-Current Issued & Renewed, 7-Current Revoked).
  *     tags: [Fetch/Upload]
  *     security:
  *       - BearerAuth: []

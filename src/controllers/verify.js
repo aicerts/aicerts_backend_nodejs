@@ -22,7 +22,7 @@ const abi = require("../config/abi.json");
 
 // Importing functions from a custom module
 const {
-  convertDateOnVerification,extractQRCodeDataFromPDF, // Function to extract QR code data from a PDF file
+  convertDateOnVerification, extractQRCodeDataFromPDF, // Function to extract QR code data from a PDF file
   cleanUploadFolder, // Function to clean up the upload folder
   isDBConnected // Function to check if the database connection is established
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
@@ -64,7 +64,7 @@ const verify = async (req, res) => {
   if (pdfDoc.getPageCount() > 1) {
     // Respond with success status and certificate details
     await cleanUploadFolder();
-    return res.status(400).json({ status: "FAILED", message: messageCode.msgMultiPagePdf});
+    return res.status(400).json({ status: "FAILED", message: messageCode.msgMultiPagePdf });
   }
 
   try {
@@ -158,7 +158,7 @@ const decodeCertificate = async (req, res) => {
 const verifyCertificationId = async (req, res) => {
   var validResult = validationResult(req);
   if (!validResult.isEmpty()) {
-    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid ,details: validResult.array() });
+    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
   const inputId = req.body.id;
   try {
@@ -201,8 +201,8 @@ const verifyCertificationId = async (req, res) => {
           var completeResponse = {
             'Certificate Number': singleIssueExist.certificateNumber,
             'Course Name': singleIssueExist.course,
-            'Expiration Date': await convertDateOnVerification(singleIssueExist.expirationDate),
-            'Grant Date': await convertDateOnVerification(singleIssueExist.grantDate),
+            'Expiration Date': singleIssueExist.expirationDate,
+            'Grant Date': singleIssueExist.grantDate,
             'Name': singleIssueExist.name,
             'Polygon URL': _polygonLink
           };
@@ -236,8 +236,8 @@ const verifyCertificationId = async (req, res) => {
             var completeResponse = {
               'Certificate Number': batchIssueExist.certificateNumber,
               'Course Name': batchIssueExist.course,
-              'Expiration Date': await convertDateOnVerification(batchIssueExist.expirationDate),
-              'Grant Date': await convertDateOnVerification(batchIssueExist.grantDate),
+              'Expiration Date': batchIssueExist.expirationDate,
+              'Grant Date': batchIssueExist.grantDate,
               'Name': batchIssueExist.name,
               'Polygon URL': _polygonLink
             };
@@ -258,7 +258,7 @@ const verifyCertificationId = async (req, res) => {
         }
       }
     }
-    } catch (error) {
+  } catch (error) {
     return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
   }
 };
@@ -267,7 +267,7 @@ const verifyCertificationId = async (req, res) => {
 module.exports = {
   // Function to verify a certificate with a PDF QR code
   verify,
-  
+
   // Function to verify a Single/Batch certification with an ID
   verifyCertificationId,
 

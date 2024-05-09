@@ -9,13 +9,15 @@ const thresholdYear = parseInt(process.env.THRESHOLD_YEAR);
 // Parse environment variables for password length constraints
 const min_length = (parseInt(process.env.MIN_LENGTH) || 12);
 const max_length = (parseInt(process.env.MAX_LENGTH) || 20);
-const cert_limit = (parseInt(process.env.BATCH_LIMIT) || 150);
+const cert_limit = (parseInt(process.env.BATCH_LIMIT) || 250);
 
 // Import MongoDB models
 const { Issues, BatchIssues } = require("../config/schema");
 
 // Regular expression to match MM/DD/YY format
-const regex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/\d{2}$/;
+const regex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/\d{4}$/;
+
+const specialCharsRegex = /[!@#$%^&*(),.?":{}|<>]/; // Regular expression for special characters
 
 // Example usage: Excel Headers
 const expectedHeadersSchema = [
@@ -24,7 +26,7 @@ const expectedHeadersSchema = [
     'certificationName',
     'grantDate',
     'expirationDate'
-  ];
+];
 
 const messageCode = require("../common/codes");
 
@@ -51,85 +53,97 @@ const handleExcelFile = async (_path) => {
                     return obj; // Return the fetched rows
                 });
 
-                    // Limit Records to certain limit in the Batch
-                    if(rows && rows.length > cert_limit && cert_limit != 0) {
-                        return { status: "FAILED", response: false, message: messageCode.msgExcelLimit, Details: `Total Records : ${rows.length}` };
+                // Limit Records to certain limit in the Batch
+                if (rows && rows.length > cert_limit && cert_limit != 0) {
+                    return { status: "FAILED", response: false, message: messageCode.msgExcelLimit, Details: `Total Records : ${rows.length}` };
+                }
+
+                // Batch Certification Formated Details
+                var rawBatchData = targetData;
+
+                var certificationIDs = rawBatchData.map(item => item.certificationID);
+
+                var certificationGrantDates = rawBatchData.map(item => item.grantDate);
+
+                var certificationExpirationDates = rawBatchData.map(item => item.expirationDate);
+
+                var holderNames = rawBatchData.map(item => item.name);
+
+                var certificationNames = rawBatchData.map(item => item.certificationName);
+
+
+                var nonNullGrantDates = certificationGrantDates.filter(date => (date == null || date == 1));
+                var nonNullExpiryDates = certificationExpirationDates.filter(date => date == null);
+                var notNullCertificationIDs = certificationIDs.filter(item => item == null);
+                var notNullHolderNames = holderNames.filter(item => item == null);
+                var notNullCertificationNames = certificationNames.filter(item => item == null);
+
+                if (nonNullGrantDates.length != 0 || notNullCertificationIDs.length != 0 || notNullHolderNames.length != 0 || notNullCertificationNames.length != 0) {
+                    return { status: "FAILED", response: false, message: messageCode.msgMissingDetailsInExcel };
+                }
+
+                var checkValidateGrantDates = await validateGrantDates(certificationGrantDates);
+                var checkValidateExpirationDates = await validateExpirationDates(certificationExpirationDates);
+
+                if ((checkValidateGrantDates.invalidDates).length > 0 || (checkValidateExpirationDates.invalidDates).length > 0) {
+                    return { status: "FAILED", response: false, message: messageCode.msgInvalidDateFormat, Details: `Grant Dates ${checkValidateGrantDates.invalidDates}, Issued Dates ${checkValidateExpirationDates.invalidDates}` };
+                }
+
+                var certificationGrantDates = checkValidateGrantDates.validDates;
+                var certificationExpirationDates = checkValidateExpirationDates.validDates;
+
+                // Initialize an empty list to store matching IDs
+                const matchingIDs = [];
+                const repetitiveNumbers = await findRepetitiveIdNumbers(certificationIDs);
+                const invalidIdList = await validateBatchCertificateIDs(certificationIDs);
+                const invalidNamesList = await validateBatchCertificateNames(holderNames);
+
+                if (invalidIdList != false) {
+                    return { status: "FAILED", response: false, message: messageCode.msgInvalidCertIds, Details: invalidIdList };
+                }
+
+                if (invalidNamesList != false) {
+                    return { status: "FAILED", response: false, message: messageCode.msgOnlyAlphabets, Details: invalidNamesList };
+                }
+
+                if (repetitiveNumbers.length > 0) {
+                    return { status: "FAILED", response: false, message: messageCode.msgExcelRepetetionIds, Details: repetitiveNumbers };
+                }
+
+                const invalidGrantDateFormat = await findInvalidDates(certificationGrantDates);
+                const invalidExpirationDateFormat = await findInvalidDates(certificationExpirationDates);
+
+                if ((invalidGrantDateFormat.invalidDates).length > 0 || (invalidExpirationDateFormat.invalidDates).length > 0) {
+                    return { status: "FAILED", response: false, message: messageCode.msgInvalidDateFormat, Details: `Grant Dates ${invalidGrantDateFormat.invalidDates}, Issued Dates ${invalidExpirationDateFormat.invalidDates}` };
+                }
+
+                // const validateGrantDates = await compareEpochDates(invalidGrantDateFormat.validDates);
+                // const validateExpirationDates = await compareEpochDates(invalidExpirationDateFormat.validDates);
+                // if ((validateGrantDates).length > 0 || (validateExpirationDates).length > 0) {
+                //     return { status: "FAILED", response: false, message: messageCode.msgInvalidDates, Details: `Grant Dates ${validateGrantDates}, Issued Dates ${validateExpirationDates}` };
+
+                // }
+
+                const validateCertificateDates = await compareGrantExpiredSetDates(invalidGrantDateFormat.validDates, invalidExpirationDateFormat.validDates);
+                if (validateCertificateDates.length > 0) {
+                    return { status: "FAILED", response: false, message: messageCode.msgOlderDateThanNewDate, Details: `${validateCertificateDates}` };
+
+                }
+
+                // Assuming BatchIssues is your MongoDB model
+                for (const id of certificationIDs) {
+                    const issueExist = await Issues.findOne({ certificateNumber: id });
+                    const _issueExist = await BatchIssues.findOne({ certificateNumber: id });
+                    if (issueExist || _issueExist) {
+                        matchingIDs.push(id);
                     }
+                }
 
-                    // Batch Certification Formated Details
-                    var rawBatchData = targetData;
+                if (matchingIDs.length > 0) {
 
-                    var certificationIDs = rawBatchData.map(item => item.certificationID);
+                    return { status: "FAILED", response: false, message: messageCode.msgExcelHasExistingIds, Details: matchingIDs };
 
-                    var certificationGrantDates = rawBatchData.map(item => item.grantDate);
-                
-                    var certificationExpirationDates = rawBatchData.map(item => item.expirationDate);
-
-                    var holderNames = rawBatchData.map(item => item.name);
-
-                    var certificationNames = rawBatchData.map(item => item.certificationName);
-
-
-                    var nonNullGrantDates = certificationGrantDates.filter(date => date == null);
-                    var nonNullExpiryDates = certificationExpirationDates.filter(date => date == null);
-                    var notNullCertificationIDs = certificationIDs.filter(item => item == null);
-                    var notNullHolderNames = holderNames.filter(item => item == null);
-                    var notNullCertificationNames = certificationNames.filter(item => item == null);
-
-                    if(nonNullGrantDates.length != 0 || nonNullExpiryDates.length != 0 || notNullCertificationIDs.length != 0 || notNullHolderNames.length != 0 || notNullCertificationNames.length != 0){
-                        return { status: "FAILED", response: false, message: messageCode.msgMissingDetailsInExcel};
-                    }
-
-                        // Initialize an empty list to store matching IDs
-                        const matchingIDs = [];
-                        const repetitiveNumbers = await findRepetitiveIdNumbers(certificationIDs);
-                        const invalidIdList = await validateBatchCertificateIDs(certificationIDs);
-
-                        if(invalidIdList != false) {
-                            return { status: "FAILED", response: false, message: messageCode.msgInvalidCertIds, Details: invalidIdList };
-                            
-                        }
-
-                        if (repetitiveNumbers.length > 0) {
-                            return { status: "FAILED", response: false, message: messageCode.msgExcelRepetetionIds, Details: repetitiveNumbers };
-                            
-                        }
-
-                        const invalidGrantDateFormat = await findInvalidDates(certificationGrantDates);
-                        const invalidExpirationDateFormat = await findInvalidDates(certificationExpirationDates);
-                        
-                        if((invalidGrantDateFormat.invalidDates).length > 0 || (invalidExpirationDateFormat.invalidDates).length > 0){
-                            return { status: "FAILED", response: false, message: messageCode.msgInvalidDateFormat, Details: `Grant Dates ${invalidGrantDateFormat.invalidDates}, Issued Dates ${invalidExpirationDateFormat.invalidDates}` };
-                            
-                        }
-
-                        const validateGrantDates = await compareEpochDates(invalidGrantDateFormat.validDates);
-                        const validateExpirationDates = await compareEpochDates(invalidExpirationDateFormat.validDates);
-                        if((validateGrantDates).length > 0 || (validateExpirationDates).length > 0){
-                            return { status: "FAILED", response: false, message: messageCode.msgInvalidDates, Details: `Grant Dates ${validateGrantDates}, Issued Dates ${validateExpirationDates}` };
-                            
-                        }
-
-                        const validateCertificateDates = await compareGrantExpiredSetDates(invalidGrantDateFormat.validDates, invalidExpirationDateFormat.validDates);
-                        if(validateCertificateDates.length > 0){
-                            return { status: "FAILED", response: false, message: messageCode.msgOlderDateThanNewDate, Details: `${validateCertificateDates}` };
-                            
-                        }
-
-                        // Assuming BatchIssues is your MongoDB model
-                        for (const id of certificationIDs) {
-                        const issueExist = await Issues.findOne({ certificateNumber: id });
-                        const _issueExist = await BatchIssues.findOne({ certificateNumber: id });
-                        if (issueExist || _issueExist) {
-                            matchingIDs.push(id);
-                        }
-                        }
-
-                        if (matchingIDs.length > 0) {
-
-                            return { status: "FAILED", response: false, message: messageCode.msgExcelHasExistingIds, Details: matchingIDs };
-                            
-                        }   
+                }
                 return { status: "SUCCESS", response: true, message: [targetData, rows.length, rows] };
 
             } else {
@@ -150,13 +164,30 @@ const validateBatchCertificateIDs = async (data) => {
 
     data.forEach(num => {
         const str = num.toString(); // Convert number to string
-        if (str.length < min_length || str.length > max_length) {
+        if (str.length < min_length || str.length > max_length || specialCharsRegex.test(str)) {
             invalidStrings.push(str);
         }
     });
 
     if (invalidStrings.length > 0) {
         return invalidStrings; // Return array of invalid strings
+    } else {
+        return false; // Return false if all strings are valid
+    }
+};
+
+const validateBatchCertificateNames = async (names) => {
+    const invalidNames = [];
+
+    names.forEach(name => {
+        const str = name.toString(); // Convert number to string
+        if (str.length > 30) {
+            invalidNames.push(str);
+        }
+    });
+
+    if (invalidNames.length > 0) {
+        return invalidNames; // Return array of invalid strings
     } else {
         return false; // Return false if all strings are valid
     }
@@ -186,72 +217,132 @@ const findInvalidDates = async (dates) => {
     const invalidDates = [];
 
     for (let dateString of dates) {
-        if(dateString){
-        // Check if the date matches the regex for valid dates with 2-digit years
+        if (dateString) {
+            // Check if the date matches the regex for valid dates with 2-digit years
             if (regex.test(dateString)) {
                 validDates.push(dateString);
-            } else {
+            } else if(dateString == 1 || dateString == null){
+                validDates.push(dateString);
+            }else {
                 // Check if the year component has 3 digits, indicating an invalid date
-                const year = parseInt(dateString.split('/')[2]);
-                if (year >= 98) {
+                const year = parseInt(dateString.split('/')[4]);
+                if (year >= process.env.THRESHOLD_YEAR) {
                     invalidDates.push(dateString);
                 } else {
                     validDates.push(dateString);
                 }
             }
-       } else {
+        } else {
             invalidDates.push(0);
-       }
+        }
     }
-
     return { validDates, invalidDates };
 };
 
-const compareEpochDates = async (datesList) => {
-    const invalidDates = [];
-    // Get today's date
-    const currentDate = new Date();
-    // Function to convert date string to Date object using the provided pattern
-    const convertToDate = (dateString) => {
-      const [month, day, year] = dateString.split('/');
-      return new Date(2000 + parseInt(year), parseInt(month) - 1, parseInt(day));
-    };
-  
-    // Compare each date in the list with today's date
-    for (const date of datesList) {
-      const comparisonDate = convertToDate(date);
-      if (comparisonDate.getFullYear() < thresholdYear) {
-        if (comparisonDate < currentDate) {
-          invalidDates.push(moment(comparisonDate).format('MM/DD/YY'));
-        }
-      } else {
-        invalidDates.push(moment(comparisonDate).format('MM/DD/YY'));
-      }
-    }
-    return invalidDates;
-  };
 
-  // Function to compare two grant & expiration of dates
+// Function to compare two grant & expiration of dates
 const compareGrantExpiredSetDates = async (grantList, expirationList) => {
     const dateSets = [];
     const length = Math.min(grantList.length, expirationList.length);
-  
+
     for (let i = 0; i < length; i++) {
-      const grantDateParts = grantList[i].split('/');
-      const expirationDateParts = expirationList[i].split('/');
-      var j = i+2;
-  
-      // Create Date objects for comparison
-      const grantDate = new Date(`20${grantDateParts[2]}`, grantDateParts[0] - 1, grantDateParts[1]);
-      const expirationDate = new Date(`20${expirationDateParts[2]}`, expirationDateParts[0] - 1, expirationDateParts[1]);
-  
-      if (grantDate > expirationDate) {
-        dateSets.push(grantList[i] + "-" + expirationList[i] + " at Row No " + j );
-      }
+        
+        if(expirationList[i] != 1 && expirationList[i] != null) {
+            const grantDateParts = grantList[i].split('/');
+            const expirationDateParts = expirationList[i].split('/');
+            var j = i + 2;
+
+            // Create Date objects for comparison
+            const grantDate = new Date(`20${grantDateParts[2]}`, grantDateParts[0] - 1, grantDateParts[1]);
+            const expirationDate = new Date(`20${expirationDateParts[2]}`, expirationDateParts[0] - 1, expirationDateParts[1]);
+
+            if (grantDate > expirationDate) {
+                dateSets.push(grantList[i] + "-" + expirationList[i] + " at Row No " + j);
+            }
+        } 
     }
-  
     return dateSets;
-  };
+};
+
+// Function to validate dates
+const validateGrantDates = async (dates) => {
+    const validDates = [];
+    const invalidDates = [];
+    for (const date of dates) {
+        // Parse the date string to extract month, day, and year
+        const [month, day, year] = date.split('/');
+        let formattedDate = `${month.padStart(2, '0')}/${day.padStart(2, '0')}/${year}`;
+        const numericMonth = parseInt(month, 10);
+        const numericDay = parseInt(day, 10);
+        const numericYear = parseInt(year, 10);
+        // Check if month, day, and year are within valid ranges
+        if (numericMonth > 0 && numericMonth <= 12 && numericDay > 0 && numericDay <= 31 && numericYear >= 1900 && numericYear <= 9999) {
+            if ((numericMonth == 1 || numericMonth == 3 || numericMonth == 5 || numericMonth == 7 ||
+                numericMonth == 8 || numericMonth == 10 || numericMonth == 12) && numericDay <= 31) {
+                validDates.push(formattedDate);
+            } else if ((numericMonth == 4 || numericMonth == 6 || numericMonth == 9 || numericMonth == 11) && numericDay <= 30) {
+                validDates.push(formattedDate);
+            } else if (numericMonth == 2 && numericDay <= 29) {
+                if (numericYear % 4 == 0 && numericDay <= 29) {
+                    // Leap year: February has 29 days
+                    validDates.push(formattedDate);
+                } else if (numericYear % 4 != 0 && numericDay <= 28) {
+                    // Non-leap year: February has 28 days
+                    validDates.push(formattedDate);
+                } else {
+                    invalidDates.push(date);
+                }
+            } else {
+                invalidDates.push(date);
+            }
+        } else {
+            invalidDates.push(date);
+        }
+    }
+    return { validDates, invalidDates };
+};
+
+// Function to validate dates
+const validateExpirationDates = async (dates) => {
+    const validDates = [];
+    const invalidDates = [];
+    for (const date of dates) {
+        if(date == 1 || !date){
+            validDates.push(1);
+        } else{
+        // Parse the date string to extract month, day, and year
+        const [month, day, year] = date.split('/');
+        let formattedDate = `${month.padStart(2, '0')}/${day.padStart(2, '0')}/${year}`;
+        const numericMonth = parseInt(month, 10);
+        const numericDay = parseInt(day, 10);
+        const numericYear = parseInt(year, 10);
+        // Check if month, day, and year are within valid ranges
+        if (numericMonth > 0 && numericMonth <= 12 && numericDay > 0 && numericDay <= 31 && numericYear >= 1900 && numericYear <= 9999) {
+            if ((numericMonth == 1 || numericMonth == 3 || numericMonth == 5 || numericMonth == 7 ||
+                numericMonth == 8 || numericMonth == 10 || numericMonth == 12) && numericDay <= 31) {
+                validDates.push(formattedDate);
+            } else if ((numericMonth == 4 || numericMonth == 6 || numericMonth == 9 || numericMonth == 11) && numericDay <= 30) {
+                validDates.push(formattedDate);
+            } else if (numericMonth == 2 && numericDay <= 29) {
+                if (numericYear % 4 == 0 && numericDay <= 29) {
+                    // Leap year: February has 29 days
+                    validDates.push(formattedDate);
+                } else if (numericYear % 4 != 0 && numericDay <= 28) {
+                    // Non-leap year: February has 28 days
+                    validDates.push(formattedDate);
+                } else {
+                    invalidDates.push(date);
+                }
+            } else {
+                invalidDates.push(date);
+            }
+        } else {
+            invalidDates.push(date);
+        }
+    }
+    }
+    return { validDates, invalidDates };
+};
 
 
 module.exports = { handleExcelFile };
