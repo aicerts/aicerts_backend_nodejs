@@ -127,7 +127,7 @@ const storage = multer.diskStorage({
  *               message: Internal server error.
  */
 
-router.post('/issue', validationRoute.issue, adminController.issue);
+router.post('/issue', validationRoute.issue, ensureAuthenticated, adminController.issue);
 
 /**
  * @swagger
@@ -230,7 +230,7 @@ router.post('/issue', validationRoute.issue, adminController.issue);
  *               message: Internal Server Error.
  */
 
-router.post('/issue-pdf', _upload.single("file"), adminController.issuePdf);
+router.post('/issue-pdf', _upload.single("file"), ensureAuthenticated, adminController.issuePdf);
 
 /**
  * @swagger
@@ -320,6 +320,6 @@ router.post('/issue-pdf', _upload.single("file"), adminController.issuePdf);
  *               error: Internal Server Error
  */
 
-router.post('/batch-certificate-issue', __upload.single("excelFile"), adminController.batchIssueCertificate);
+router.post('/batch-certificate-issue', __upload.single("excelFile"), ensureAuthenticated, adminController.batchIssueCertificate);
 
 module.exports=router;
