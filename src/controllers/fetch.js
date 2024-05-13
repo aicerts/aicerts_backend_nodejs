@@ -154,7 +154,6 @@ const fetchIssuesLogDetails = async (req, res) => {
 
     // Check if user with provided email exists
     const issuerExist = await User.findOne({ email : email });
-    console.log("The user", issuerExist);
 
     if (!issuerExist) {
       return res.status(400).json({ status: "FAILED", message: messageCode.msgUserNotFound });

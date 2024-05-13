@@ -133,4 +133,9 @@ module.exports = {
     msgCertExpired : "Provided Certification details were expired",
     msgRevokeNotPossible : "Operation not possible on provided Certification",
 
+    // Verify certID/pdf Messages
+    msgInvalidCert: "Invalid Certification",
+    msgCertRevoked: "Certification has revoked",
+    msgCertExpired: "Certification has expired",
+
 };
