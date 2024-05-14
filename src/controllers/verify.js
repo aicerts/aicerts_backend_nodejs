@@ -70,22 +70,157 @@ const verify = async (req, res) => {
   try {
     // Extract QR code data from the PDF file
     const certificateData = await extractQRCodeDataFromPDF(file);
+
     if (certificateData === false) {
       await cleanUploadFolder();
       return res.status(400).json({ status: "FAILED", message: messageCode.msgCertNotValid });
     }
 
-    // Extract blockchain URL from the certificate data
-    const blockchainUrl = certificateData["Polygon URL"];
+    const certificationNumber = certificateData['Certificate Number'];
+    const singleIssueExist = await Issues.findOne({ certificateNumber: certificationNumber });
+    const batchIssueExist = await BatchIssues.findOne({ certificateNumber: certificationNumber });
 
-    // Check if a blockchain URL exists and is valid
-    if (blockchainUrl && blockchainUrl.length > 0) {
-      // Respond with success status and certificate details
-      res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, Details: certificateData });
+    // Validation checks for request data
+    if (singleIssueExist) {
+      try {
+        // Blockchain processing.
+        const verifyCert = await newContract.verifyCertificateById(certificationNumber);
+        const _certStatus = await newContract.getCertificateStatus(certificationNumber);
+
+        var verifyCertStatus = parseInt(verifyCert[3]);
+        var certStatus = parseInt(_certStatus);
+        if (certStatus == 3) {
+          res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
+          await cleanUploadFolder();
+          return;
+        }
+
+        if (verifyCert[0] == false && verifyCertStatus == 5) {
+          res.status(400).json({ status: "FAILED", message: messageCode.msgCertExpired });
+          await cleanUploadFolder();
+          return;
+        }
+
+        if (verifyCert[0] == true) {
+
+          const foundCertification = certificateData;
+
+          const verificationResponse = {
+            status: "SUCCESS",
+            message: "Certification is valid",
+            details: foundCertification
+          };
+          res.status(200).json(verificationResponse);
+          await cleanUploadFolder();
+          return;
+        } else if (verifyCert[0] == false) {
+          res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
+          await cleanUploadFolder();
+          return;
+        }
+
+      } catch (error) {
+        res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
+        await cleanUploadFolder();
+        return;
+      }
+    } else if (batchIssueExist) {
+      const batchNumber = (batchIssueExist.batchId) - 1;
+      const dataHash = batchIssueExist.certificateHash;
+      const proof = batchIssueExist.proofHash;
+      const hashProof = batchIssueExist.encodedProof;
+      try {
+        // Blockchain processing.
+        const batchVerifyResponse = await newContract.verifyBatchCertification(batchNumber, dataHash, proof);
+        const _responseStatus = await newContract.verifyCertificateInBatch(hashProof);
+        var responseStatus = parseInt(_responseStatus);
+        if (responseStatus == 3) {
+          res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
+          if (fs.existsSync(file)) {
+            fs.unlinkSync(file);
+          }
+          return;
+        }
+
+        if (responseStatus == 5) {
+          res.status(400).json({ status: "FAILED", message: messageCode.msgCertExpired });
+          if (fs.existsSync(file)) {
+            fs.unlinkSync(file);
+          }
+          return;
+        }
+
+        if (batchVerifyResponse === true) {
+
+          try {
+
+            var completeResponse = certificateData;
+
+            const _verificationResponse = {
+              status: "SUCCESS",
+              message: "Certification is valid",
+              details: completeResponse
+            };
+
+            res.status(200).json(_verificationResponse);
+            if (fs.existsSync(file)) {
+              fs.unlinkSync(file);
+            }
+            return;
+
+          } catch (error) {
+            res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+            if (fs.existsSync(file)) {
+              fs.unlinkSync(file);
+            }
+            return;
+          }
+        } else {
+          res.status(400).json({ status: "FAILED", message: messageCode.msgCertNotExist });
+          if (fs.existsSync(file)) {
+            fs.unlinkSync(file);
+          }
+          return;
+        }
+      } catch (error) {
+        res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
+        if (fs.existsSync(file)) {
+          fs.unlinkSync(file);
+        }
+        return;
+      }
+
+    } else if (!batchIssueExist && !singleIssueExist) {
+      // Extract blockchain URL from the certificate data
+      const blockchainUrl = certificateData["Polygon URL"];
+
+      // Check if a blockchain URL exists and is valid
+      if (blockchainUrl && blockchainUrl.length > 0) {
+        // Respond with success status and certificate details
+        res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, Details: certificateData });
+        // await cleanUploadFolder();
+        if (fs.existsSync(file)) {
+          fs.unlinkSync(file);
+        }
+        return;
+      } else {
+        // Respond with failure status if no valid blockchain URL is found
+        res.status(400).json({ status: "FAILED", message: messageCode.msgCertNotValid });
+        if (fs.existsSync(file)) {
+          fs.unlinkSync(file);
+        }
+        return;
+      }
+
     } else {
       // Respond with failure status if no valid blockchain URL is found
       res.status(400).json({ status: "FAILED", message: messageCode.msgCertNotValid });
+      if (fs.existsSync(file)) {
+        fs.unlinkSync(file);
+      }
+      return;
     }
+
   } catch (error) {
     // If an error occurs during verification, respond with failure status
     const verificationResponse = {
@@ -94,6 +229,11 @@ const verify = async (req, res) => {
     };
 
     res.status(400).json(verificationResponse);
+    // Clean up the upload folder
+    if (fs.existsSync(file)) {
+      fs.unlinkSync(file);
+    }
+    return;
   }
 
   // Delete the uploaded file after verification
