@@ -102,7 +102,7 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                 return ({ code: 400, status: "FAILED", message: messageCode.msgUpdateExpirationNotPossible });
             }
 
-            var epochExpiration = expirationDate != 1 ? await convertDateToEpoch(isNumberExist.expirationDate) : 1 ;
+            var epochExpiration = expirationDate != 1 ? await convertDateToEpoch(expirationDate) : 1 ;
             if (expirationDate != 1 && epochExpiration < todayEpoch) {
                 return ({ code: 400, status: "FAILED", message: messageCode.msgCertExpired });
             }
@@ -165,7 +165,6 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
 
                     if (verifyOnChain[0] == true) {
                         try {
-                        console.log("Testing", combinedHash, epochExpiration);
                             // Perform Expiration extension
                             const tx = await newContract.renewCertificate(
                                 certificateNumber,

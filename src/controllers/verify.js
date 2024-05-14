@@ -168,42 +168,40 @@ const verifyCertificationId = async (req, res) => {
 
     const singleIssueExist = await Issues.findOne({ certificateNumber: inputId });
     const batchIssueExist = await BatchIssues.findOne({ certificateNumber: inputId });
-    // Blockchain processing.
-    const response = await newContract.verifyCertificateById(inputId);
 
     // Validation checks for request data
-    if ([inputId].some(value => typeof value !== "string" || value == "string") || (!batchIssueExist && response === false)) {
-      // res.status(400).json({ message: "Please provide valid details" });
-      let errorMessage = messageCode.msgPlsEnterValid;
-
-      // Check for specific error conditions and update the error message accordingly
-      if (!batchIssueExist && response === false) {
-        errorMessage = messageCode.msgCertNotValid;
-      }
-
+    if (!batchIssueExist && !singleIssueExist) {
       // Respond with error message
-      return res.status(400).json({ status: "FAILED", message: errorMessage });
-    } else {
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgCertNotValid });
+    }
 
-      if (response == true && singleIssueExist != null) {
-        if (singleIssueExist == null) {
-          const _verificationResponse = {
-            status: "FAILED",
-            message: messageCode.msgCertValidNoDetails,
-            details: inputId
-          };
+    if (singleIssueExist) {
+      try {
+        // Blockchain processing.
+        const verifyCert = await newContract.verifyCertificateById(inputId);
+        const _certStatus = await newContract.getCertificateStatus(inputId);
 
-          return res.status(400).json(_verificationResponse);
+        var verifyCertStatus = parseInt(verifyCert[3]);
+        var certStatus = parseInt(_certStatus);
+        if (certStatus == 3) {
+          return res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
         }
-        try {
+
+        if (verifyCert[0] == false && verifyCertStatus == 5) {
+          return res.status(400).json({ status: "FAILED", message: messageCode.msgCertExpired });
+        }
+
+
+        if (verifyCert[0] == true) {
+
           var _polygonLink = `https://${process.env.NETWORK}/tx/${singleIssueExist.transactionHash}`;
 
           var completeResponse = {
             'Certificate Number': singleIssueExist.certificateNumber,
-            'Course Name': singleIssueExist.course,
-            'Expiration Date': singleIssueExist.expirationDate,
-            'Grant Date': singleIssueExist.grantDate,
             'Name': singleIssueExist.name,
+            'Course Name': singleIssueExist.course,
+            'Grant Date': singleIssueExist.grantDate,
+            'Expiration Date': singleIssueExist.expirationDate,
             'Polygon URL': _polygonLink
           };
 
@@ -215,30 +213,44 @@ const verifyCertificationId = async (req, res) => {
             details: foundCertification
           };
           res.status(200).json(verificationResponse);
-
-        } catch (error) {
-          return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+        } else if (verifyCert[0] == false) {
+          return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
         }
 
-      } else if (batchIssueExist != null) {
-        const batchNumber = (batchIssueExist.batchId) - 1;
-        const dataHash = batchIssueExist.certificateHash;
-        const proof = batchIssueExist.proofHash;
+      } catch (error) {
+        return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
+      }
 
+    } else if (batchIssueExist) {
+      const batchNumber = (batchIssueExist.batchId) - 1;
+      const dataHash = batchIssueExist.certificateHash;
+      const proof = batchIssueExist.proofHash;
+      const hashProof = batchIssueExist.encodedProof;
+      try {
         // Blockchain processing.
-        const val = await newContract.verifyCertificateInBatch(batchNumber, dataHash, proof);
+        const batchVerifyResponse = await newContract.verifyBatchCertification(batchNumber, dataHash, proof);
+        const _responseStatus = await newContract.verifyCertificateInBatch(hashProof);
+        var responseStatus = parseInt(_responseStatus);
+        if (responseStatus == 3) {
+          return res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
+        }
 
-        if (val === true) {
+        if (responseStatus == 5) {
+          return res.status(400).json({ status: "FAILED", message: messageCode.msgCertExpired });
+        }
+
+        if (batchVerifyResponse === true) {
+
           try {
 
             var _polygonLink = `https://${process.env.NETWORK}/tx/${batchIssueExist.transactionHash}`;
 
             var completeResponse = {
               'Certificate Number': batchIssueExist.certificateNumber,
-              'Course Name': batchIssueExist.course,
-              'Expiration Date': batchIssueExist.expirationDate,
-              'Grant Date': batchIssueExist.grantDate,
               'Name': batchIssueExist.name,
+              'Course Name': batchIssueExist.course,
+              'Grant Date': batchIssueExist.grantDate,
+              'Expiration Date': batchIssueExist.expirationDate,
               'Polygon URL': _polygonLink
             };
 
@@ -256,6 +268,8 @@ const verifyCertificationId = async (req, res) => {
         } else {
           return res.status(400).json({ status: "FAILED", message: messageCode.msgCertNotExist });
         }
+      } catch (error) {
+        return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
       }
     }
   } catch (error) {
