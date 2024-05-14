@@ -125,6 +125,196 @@ const uploadFileToS3 = async (req, res) => {
   }
 };
 
+
+const uploadCertificateToS3 = async (req, res) => {
+  const file = req?.file;
+  const filePath = file?.path;
+  const certificateId = req?.body?.certificateId;
+  const type = parseInt(req?.body?.type, 10); // Parse type to integer
+
+  // Validate request parameters
+  if (!file || !certificateId || !type) {
+    return res.status(400).send({ status: "FAILED", message: "file, certificateId, and type are required" });
+  }
+
+  // Check if the certificate exists with the specified type
+  let certificate;
+  try {
+    if (type === 1 || type === 2) {
+      const typeField = type === 1 ? 'withpdf' : 'withoutpdf';
+      certificate = await Issues.findOne({ _id: certificateId, type: typeField });
+    } else if (type === 3) {
+      certificate = await BatchIssues.findOne({ _id: certificateId });
+    }
+
+    if (!certificate) {
+      return res.status(404).send({ status: "FAILED", message: "Certificate not found with the specified type" });
+    }
+  } catch (error) {
+    console.error('Error finding certificate:', error);
+    return res.status(500).send({ status: "FAILED", message: 'An error occurred while checking the certificate' });
+  }
+
+  const bucketName = process.env.BUCKET_NAME;
+  const keyName = file.originalname;
+
+  const s3 = new AWS.S3();
+  const fileStream = fs.createReadStream(filePath);
+
+  const uploadParams = {
+    Bucket: bucketName,
+    Key: keyName,
+    Body: fileStream
+  };
+
+  try {
+    const data = await s3.upload(uploadParams).promise();
+    console.log('File uploaded successfully to', data.Location);
+    
+    // Update schemas based on the type
+    switch (type) {
+      case 1:
+        await updateIssuesSchema(certificateId, data.Location, 'withpdf');
+        break;
+      case 2:
+        await updateIssuesSchema(certificateId, data.Location, 'withoutpdf');
+        break;
+      case 3:
+        await updateBatchIssuesSchema(certificateId, data.Location);
+        break;
+      default:
+        console.error('Invalid type:', type);
+        return res.status(400).send({ status: "FAILED", message: 'Invalid type' });
+    }
+
+    res.status(200).send({ status: "SUCCESS", message: 'File uploaded successfully', fileUrl: data.Location });
+  } catch (error) {
+    console.error('Error uploading file:', error);
+    res.status(500).send({ status: "FAILED", message: 'An error occurred while uploading the file', details: error.message });
+  }
+};
+
+// Function to update IssuesSchema for type 1 and 2
+async function updateIssuesSchema(certificateId, url, type) {
+  try {
+    // Update IssuesSchema using certificateId
+    // Example code assuming mongoose is used for MongoDB
+    await Issues.findOneAndUpdate(
+      { _id: certificateId },
+      { $set: { url: url, type: type } }
+    );
+  } catch (error) {
+    console.error('Error updating IssuesSchema:', error);
+    throw error;
+  }
+}
+
+// Function to update BatchIssuesSchema for type 3
+async function updateBatchIssuesSchema(certificateId, url) {
+  try {
+    // Update BatchIssuesSchema using certificateId
+    // Example code assuming mongoose is used for MongoDB
+    await BatchIssues.findOneAndUpdate(
+      { _id: certificateId },
+      { $set: { url: url } }
+    );
+  } catch (error) {
+    console.error('Error updating BatchIssuesSchema:', error);
+    throw error;
+  }
+}
+
+
+const getSingleCertificates = async (req, res) => {
+  try {
+    const { issuerId, type } = req.body;
+
+    // Validate request body
+    if (!issuerId || (type !== 1 && type !== 2)) {
+      return res.status(400).json({ status: "FAILED", message: "issuerId and valid type (1 or 2) are required" });
+    }
+
+  // Convert type to integer if it is a string
+  const typeInt = parseInt(type, 10);
+
+  // Determine the type field value based on the provided type
+  let typeField;
+  if (typeInt == 1) {
+    typeField = 'withpdf';
+  } else if (typeInt == 2) {
+    typeField = 'withoutpdf';
+  } else {
+    return res.status(400).json({ status: "FAILED", message: "Invalid type provided" });
+  }
+
+    // Fetch certificates based on issuerId and type
+    const certificates = await Issues.find({ issuerId, type: typeField });
+
+    // Respond with success and the certificates
+    res.json({
+      status: 'SUCCESS',
+      data: certificates,
+      message: 'Certificates fetched successfully'
+    });
+  } catch (error) {
+    console.error('Error fetching certificates:', error);
+
+    // Respond with failure message
+    res.status(500).json({
+      status: 'FAILED',
+      message: 'An error occurred while fetching the certificates',
+      details: error.message
+    });
+  }
+};
+
+const getBatchCertificates = async (req, res) => {
+  try {
+    const { issuerId } = req.body;
+
+    // Validate issuerId
+    if (!issuerId) {
+      return res.status(400).json({ status: "FAILED", message: "issuerId is required" });
+    }
+
+    // Fetch all batch certificates for the given issuerId
+    const batchCertificates = await BatchIssues.find({ issuerId });
+
+    // Group certificates by issueDate
+    const groupedCertificates = batchCertificates.reduce((acc, certificate) => {
+      const issueDate = certificate.issueDate.toISOString().split('T')[0]; // Format date as YYYY-MM-DD
+      if (!acc[issueDate]) {
+        acc[issueDate] = [];
+      }
+      acc[issueDate].push(certificate);
+      return acc;
+    }, {});
+
+    // Transform grouped certificates into an array of objects
+    const result = Object.keys(groupedCertificates).map(issueDate => ({
+      issueDate,
+      certificates: groupedCertificates[issueDate]
+    }));
+
+    // Respond with success and the grouped certificates
+    res.json({
+      status: 'SUCCESS',
+      data: result,
+      message: 'Batch certificates fetched successfully'
+    });
+  } catch (error) {
+    console.error('Error fetching batch certificates:', error);
+
+    // Respond with failure message
+    res.status(500).json({
+      status: 'FAILED',
+      message: 'An error occurred while fetching the batch certificates',
+      details: error.message
+    });
+  }
+};
+
+
 /**
  * API to fetch details with Query-parameter.
  *
@@ -295,4 +485,7 @@ module.exports = {
   // Function to fetch details from Issuers log
   fetchIssuesLogDetails,
 
+  uploadCertificateToS3,
+  getSingleCertificates,
+  getBatchCertificates
 };

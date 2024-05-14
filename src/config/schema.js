@@ -48,7 +48,8 @@ const BatchIssuesSchema = new Schema({
     grantDate: { type: String, required: true },
     expirationDate: { type: String, required: true },
     certificateStatus: { type: Number, default: 1 },
-    issueDate: { type: Date, default: Date.now }
+    issueDate: { type: Date, default: Date.now },
+    url:{ type: String}
 });
 
 // Define the schema for the Issues model
@@ -62,7 +63,9 @@ const IssuesSchema = new mongoose.Schema({
   grantDate: { type: String, required: true }, // GrantDate field is of type String and is required
   expirationDate: { type: String, required: true }, // ExpirationDate field is of type String and is required
   certificateStatus: { type: Number, required: true, default: 1 },
-  issueDate: { type: Date, default: Date.now } // issueDate field is of type Date and defaults to the current date/time
+  issueDate: { type: Date, default: Date.now } ,// issueDate field is of type Date and defaults to the current date/time
+  url:{ type: String},
+  type:{type: String}
 });
 
 // Define the schema for the IssueStatus model
