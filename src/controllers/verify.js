@@ -63,7 +63,9 @@ const verify = async (req, res) => {
 
   if (pdfDoc.getPageCount() > 1) {
     // Respond with success status and certificate details
-    await cleanUploadFolder();
+    if (fs.existsSync(file)) {
+      fs.unlinkSync(file);
+    }
     return res.status(400).json({ status: "FAILED", message: messageCode.msgMultiPagePdf });
   }
 
@@ -72,7 +74,9 @@ const verify = async (req, res) => {
     const certificateData = await extractQRCodeDataFromPDF(file);
 
     if (certificateData === false) {
-      await cleanUploadFolder();
+      if (fs.existsSync(file)) {
+        fs.unlinkSync(file);
+      }
       return res.status(400).json({ status: "FAILED", message: messageCode.msgCertNotValid });
     }
 
@@ -91,13 +95,17 @@ const verify = async (req, res) => {
         var certStatus = parseInt(_certStatus);
         if (certStatus == 3) {
           res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
-          await cleanUploadFolder();
+          if (fs.existsSync(file)) {
+            fs.unlinkSync(file);
+          }
           return;
         }
 
         if (verifyCert[0] == false && verifyCertStatus == 5) {
           res.status(400).json({ status: "FAILED", message: messageCode.msgCertExpired });
-          await cleanUploadFolder();
+          if (fs.existsSync(file)) {
+            fs.unlinkSync(file);
+          }
           return;
         }
 
@@ -111,17 +119,23 @@ const verify = async (req, res) => {
             details: foundCertification
           };
           res.status(200).json(verificationResponse);
-          await cleanUploadFolder();
+          if (fs.existsSync(file)) {
+            fs.unlinkSync(file);
+          }
           return;
         } else if (verifyCert[0] == false) {
           res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
-          await cleanUploadFolder();
+          if (fs.existsSync(file)) {
+            fs.unlinkSync(file);
+          }
           return;
         }
 
       } catch (error) {
         res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
-        await cleanUploadFolder();
+        if (fs.existsSync(file)) {
+          fs.unlinkSync(file);
+        }
         return;
       }
     } else if (batchIssueExist) {
