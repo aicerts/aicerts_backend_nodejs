@@ -153,26 +153,37 @@ const fetchIssuesLogDetails = async (req, res) => {
     console.log(dbStatusMessage);
 
     // Check if user with provided email exists
-    const issuerExist = await User.findOne({ email : email });
+    const issuerExist = await User.findOne({ email: email });
 
     if (!issuerExist) {
       return res.status(400).json({ status: "FAILED", message: messageCode.msgUserNotFound });
     }
 
-    if(queryCode || queryParams){
-    var inputQuery = parseInt(queryCode || queryParams);
-    switch (inputQuery) {
-      case 1:  // Get the all issued certs count
+    if (queryCode || queryParams) {
+      var inputQuery = parseInt(queryCode || queryParams);
+      switch (inputQuery) {
+        case 1:  // Get the all issued certs count
           // var queryResponse = await IssueStatus.find({
           //   email: req.body.email,
           //   $and: [{ certStatus: { $eq: 1 }, expirationDate: { $gt: formattedDate }}]
           // });
           // // Sort the data based on the 'lastUpdate' date in descending order
           // queryResponse.sort((b, a) => new Date(b.expirationDate) - new Date(a.expirationDate));
-          var queryResponse = issuerExist.certificatesIssued;
+          var issueCount = issuerExist.certificatesIssued;
+          var renewCount = issuerExist.certificatesRenewed;
+          var revokedCount = await IssueStatus.find({
+            email: req.body.email,
+            certStatus: 3
+          });
+          var reactivatedCount = await IssueStatus.find({
+            email: req.body.email,
+            certStatus: 4
+          });
+          var queryResponse = { issued: issueCount, renewed: renewCount, revoked: revokedCount.length, reactivated: reactivatedCount.length };
 
-        break;
-      case 2:
+
+          break;
+        case 2:
           // var queryResponse = await IssueStatus.find({
           //   email: req.body.email,
           //   $and: [{ certStatus: { $eq: 2 }, expirationDate: { $gt: formattedDate }}]
@@ -180,90 +191,90 @@ const fetchIssuesLogDetails = async (req, res) => {
           // // Sort the data based on the 'lastUpdate' date in descending order
           // queryResponse.sort((b, a) => new Date(b.expirationDate) - new Date(a.expirationDate));
           var queryResponse = issuerExist.certificatesRenewed;
-        break;
-      case 3:
+          break;
+        case 3:
           var queryResponse = await IssueStatus.find({
             email: req.body.email,
-            $and: [{ certStatus: { $eq: 3 }, expirationDate: { $gt: formattedDate }}]
+            $and: [{ certStatus: { $eq: 3 }, expirationDate: { $gt: formattedDate } }]
           });
           // Sort the data based on the 'lastUpdate' date in descending order
           queryResponse.sort((b, a) => new Date(b.expirationDate) - new Date(a.expirationDate));
-        break;
-      case 4:
+          break;
+        case 4:
           var queryResponse = await IssueStatus.find({
             email: req.body.email,
-            $and: [{ certStatus: { $eq: 4 }, expirationDate: { $gt: formattedDate }}]
+            $and: [{ certStatus: { $eq: 4 }, expirationDate: { $gt: formattedDate } }]
           });
           // Sort the data based on the 'lastUpdate' date in descending order
           queryResponse.sort((b, a) => new Date(b.expirationDate) - new Date(a.expirationDate));
-        break;
-      case 5:
+          break;
+        case 5:
           var queryResponse = await IssueStatus.find({
             email: req.body.email,
-            $and: [{ expirationDate: { $lt: formattedDate }}]
+            $and: [{ expirationDate: { $lt: formattedDate } }]
           });
           // Sort the data based on the 'lastUpdate' date in descending order
           queryResponse.sort((b, a) => new Date(b.expirationDate) - new Date(a.expirationDate));
-        break;
-      case 6:
-        var query1Promise = Issues.find({
+          break;
+        case 6:
+          var query1Promise = Issues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: { $in: [1, 2] }
-        }).lean(); // Use lean() to convert documents to plain JavaScript objects
-        
-        var query2Promise = BatchIssues.find({
+          }).lean(); // Use lean() to convert documents to plain JavaScript objects
+
+          var query2Promise = BatchIssues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: { $in: [1, 2] }
-        }).lean(); // Use lean() to convert documents to plain JavaScript objects
-        
-        // Wait for both queries to resolve
-        var [queryResponse1, queryResponse2] = await Promise.all([query1Promise, query2Promise]);
-        
-        // Merge the results into a single array
-        var queryResponse = [...queryResponse1, ...queryResponse2];
-        // Sort the data based on the 'issueDate' date in descending order
-        queryResponse.sort((a, b) => new Date(a.expirationDate) - new Date(b.expirationDate));
-        break;
-      case 7://To fetch Revoked certifications and count
-        var query1Promise = Issues.find({
+          }).lean(); // Use lean() to convert documents to plain JavaScript objects
+
+          // Wait for both queries to resolve
+          var [queryResponse1, queryResponse2] = await Promise.all([query1Promise, query2Promise]);
+
+          // Merge the results into a single array
+          var queryResponse = [...queryResponse1, ...queryResponse2];
+          // Sort the data based on the 'issueDate' date in descending order
+          queryResponse.sort((a, b) => new Date(a.expirationDate) - new Date(b.expirationDate));
+          break;
+        case 7://To fetch Revoked certifications and count
+          var query1Promise = Issues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: 3
-        }).lean(); // Use lean() to convert documents to plain JavaScript objects
-        
-        var query2Promise = BatchIssues.find({
+          }).lean(); // Use lean() to convert documents to plain JavaScript objects
+
+          var query2Promise = BatchIssues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: 3
-        }).lean(); // Use lean() to convert documents to plain JavaScript objects
-        
-        // Wait for both queries to resolve
-        var [queryResponse1, queryResponse2] = await Promise.all([query1Promise, query2Promise]);
-        
-        // Merge the results into a single array
-        var queryResponse = [...queryResponse1, ...queryResponse2];
-        // Sort the data based on the 'issueDate' date in descending order
-        queryResponse.sort((a, b) => new Date(a.expirationDate) - new Date(b.expirationDate));
-        break;
-      case 8:
+          }).lean(); // Use lean() to convert documents to plain JavaScript objects
+
+          // Wait for both queries to resolve
+          var [queryResponse1, queryResponse2] = await Promise.all([query1Promise, query2Promise]);
+
+          // Merge the results into a single array
+          var queryResponse = [...queryResponse1, ...queryResponse2];
+          // Sort the data based on the 'issueDate' date in descending order
+          queryResponse.sort((a, b) => new Date(a.expirationDate) - new Date(b.expirationDate));
+          break;
+        case 8:
           var queryResponse = await Issues.find({
             issuerId: issuerExist.issuerId,
-            $and: [{ certificateStatus: { $eq: 3 }}]
+            $and: [{ certificateStatus: { $eq: 3 } }]
           });
-        break;
-      default:
-        var queryResponse = 0;
-        var totalResponses = 0;
-        var responseMessage = messageCode.msgNoMatchFound;
-    };
-  } else {
-    var queryResponse = 0;
-    var totalResponses = 0;
-    var responseMessage = messageCode.msgNoMatchFound;
-  }
+          break;
+        default:
+          var queryResponse = 0;
+          var totalResponses = 0;
+          var responseMessage = messageCode.msgNoMatchFound;
+      };
+    } else {
+      var queryResponse = 0;
+      var totalResponses = 0;
+      var responseMessage = messageCode.msgNoMatchFound;
+    }
 
     var totalResponses = queryResponse.length || queryResponse > 0;
     var responseStatus = totalResponses > 0 ? 'SUCCESS' : 'FAILED';
     var responseMessage = totalResponses > 0 ? messageCode.msgAllQueryFetched : messageCode.msgNoMatchFound;
-          
+
     // Respond with success and all user details
     res.json({
       status: responseStatus,
