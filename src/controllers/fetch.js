@@ -303,7 +303,7 @@ const fetchIssuesLogDetails = async (req, res) => {
       var responseMessage = messageCode.msgNoMatchFound;
     }
 
-    var totalResponses = queryResponse.length || queryResponse > 0;
+    var totalResponses = queryResponse.length || Object.keys(queryResponse).length;
     var responseStatus = totalResponses > 0 ? 'SUCCESS' : 'FAILED';
     var responseMessage = totalResponses > 0 ? messageCode.msgAllQueryFetched : messageCode.msgNoMatchFound;
 
