@@ -265,7 +265,28 @@ const fetchIssuesLogDetails = async (req, res) => {
           // Sort the data based on the 'issueDate' date in descending order
           queryResponse.sort((a, b) => new Date(a.expirationDate) - new Date(b.expirationDate));
           break;
-        case 8:
+          case 8:
+            var query1Promise = Issues.find({
+              issuerId: issuerExist.issuerId,
+              certificateStatus: { $in: [1, 2] },
+              expirationDate: {$ne: "1"}
+            }).lean(); // Use lean() to convert documents to plain JavaScript objects
+  
+            var query2Promise = BatchIssues.find({
+              issuerId: issuerExist.issuerId,
+              certificateStatus: { $in: [1, 2] },
+              expirationDate: {$ne: "1"}
+            }).lean(); // Use lean() to convert documents to plain JavaScript objects
+  
+            // Wait for both queries to resolve
+            var [queryResponse1, queryResponse2] = await Promise.all([query1Promise, query2Promise]);
+  
+            // Merge the results into a single array
+            var queryResponse = [...queryResponse1, ...queryResponse2];
+            // Sort the data based on the 'issueDate' date in descending order
+            queryResponse.sort((a, b) => new Date(a.expirationDate) - new Date(b.expirationDate));
+            break;
+        case 9:
           var queryResponse = await Issues.find({
             issuerId: issuerExist.issuerId,
             $and: [{ certificateStatus: { $eq: 3 } }]
