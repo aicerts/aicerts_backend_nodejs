@@ -93,6 +93,8 @@ const getIssuerByEmail = async (req, res) => {
   }
 };
 
+
+
 /**
  * API to Upload Files to AWS-S3 bucket.
  *
@@ -205,7 +207,7 @@ const fetchIssuesLogDetails = async (req, res) => {
           });
           var __queryResponse = await IssueStatus.find({
             email: req.body.email,
-            $and: [{ certStatus: { $eq: 1 }, expirationDate: { $ne: "1" }}]
+            $and: [{ certStatus: { $eq: 2 }, expirationDate: { $ne: "1" }}]
           });
           var queryResponse = {_queryResponse, __queryResponse};
           // Sort the data based on the 'lastUpdate' date in descending order
@@ -323,6 +325,26 @@ const fetchIssuesLogDetails = async (req, res) => {
     });
   }
 };
+
+/**
+ * API to fetch Graph details with Query-parameter.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
+const fetchGraphDetails = async (req, res) => {
+  const value = req.params.value; // Get the value from the URL parameter
+
+  console.log("Destination value", value, typeof value);
+
+  // Send the fetched graph data as a response
+  res.json({
+    status: "SUCCESS",
+    message: 'Graph data fetched successfully',
+    data: value,
+  });
+  return;
+}
 
 const uploadCertificateToS3 = async (req, res) => {
   const file = req?.file;
@@ -523,6 +545,9 @@ module.exports = {
 
   // Function to fetch details from Issuers log
   fetchIssuesLogDetails,
+
+  // Function to fetch details for Graph from Issuer log
+  fetchGraphDetails,
 
   uploadCertificateToS3,
   getSingleCertificates,

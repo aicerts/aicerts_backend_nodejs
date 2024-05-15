@@ -54,8 +54,8 @@ router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers
  * @swagger
  * /api/get-issuers-log:
  *   post:
- *     summary: Get details of all issuers log with query params
- *     description: API to fetch all issuer details queryCode (1-All Issued, 2-All Renewed}expiration extended}, 3-All Reveoked, 4-All reactivatd, 5-All expired, 6-Current Issued & Renewed, 7-Current Revoked).
+ *     summary: Get details of all issuers log with query code
+ *     description: API to fetch all issuer details queryCode (1-All Stats {Issued, Renewed, Revoked, Reactivated}, 2-All Details {for revoke}, 3-All Details {for expiration extended} , 4-All Revoked, 5-All expired, 6-Current Details {for revoke}, 7-Current Revoked, 8-Current Details {for expiration extended}).
  *     tags: [Fetch/Upload]
  *     security:
  *       - BearerAuth: []
@@ -119,6 +119,69 @@ router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers
  */
 
 router.post('/get-issuers-log', validationRoute.queryCode, adminController.fetchIssuesLogDetails);
+
+/**
+ * @swagger
+ * /api/get-graph-data/{value}:
+ *   post:
+ *     summary: Fetch graph data based on a value
+ *     description: Retrieve graph data based on the provided value.
+ *     tags: [Fetch/Upload]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: value
+ *         description: The value used to fetch graph data. Must be a number.
+ *         required: true
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       '200':
+ *         description: Successfully fetched graph data.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: integer
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Indicates if the request was successful.
+ *                 message:
+ *                   type: string
+ *                   description: A message indicating the result of the operation.
+ *                 data:
+ *                   type: integer
+ *                   description: The fetched graph data.
+ * 
+ *       '400':
+ *         description: Invalid request due to missing or invalid parameters.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Invalid request due to missing or invalid parameters.
+ *       '500':
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Internal Server Error.
+ */
+router.post('/get-graph-data/:value', adminController.fetchGraphDetails);
 
 /**
  * @swagger
@@ -245,7 +308,6 @@ router.post('/get-issuer-by-email', validationRoute.emailCheck, adminController.
  */
 
 router.post('/upload',__upload.single('file'),(req, res)=>  adminController.uploadFileToS3(req, res));
-
 
 /**
  * @swagger
@@ -416,7 +478,6 @@ router.post('/upload-certificate',__upload.single('file'),(req, res)=>  adminCon
  */
 
 router.post('/get-single-certificates', adminController.getSingleCertificates);
-
 
 /**
  * @swagger
