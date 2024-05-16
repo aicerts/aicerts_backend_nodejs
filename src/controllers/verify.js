@@ -293,9 +293,18 @@ const decodeCertificate = async (req, res) => {
         const singleIssueExist = await Issues.findOne({ certificateNumber: originalData.Certificate_Number });
         const batchIssueExist = await BatchIssues.findOne({ certificateNumber: originalData.Certificate_Number });
         if (originalData.Certificate_Number != "" && (singleIssueExist || batchIssueExist)) {
-          if ((singleIssueExist && singleIssueExist.certificateStatus == 3) || (batchIssueExist && batchIssueExist.certificateStatus == 3)) {
-            isValid = false;
-            messageContent = "Certification has Revoked";
+          if (singleIssueExist) {
+            var certSingleStatus = singleIssueExist.certificateStatus || 0;
+            if ((certSingleStatus != 0) && (certSingleStatus == 3)) {
+              isValid = false;
+              messageContent = "Certification has Revoked";
+            }
+          } else if (batchIssueExist) {
+            var certBatchStatus = batchIssueExist.certificateStatus || 0;
+            if ((certBatchStatus != 0) && (certBatchStatus == 3)) {
+              isValid = false;
+              messageContent = "Certification has Revoked";
+            }
           }
         }
       }
