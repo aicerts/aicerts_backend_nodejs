@@ -122,20 +122,26 @@ router.post('/get-issuers-log', validationRoute.queryCode, adminController.fetch
 
 /**
  * @swagger
- * /api/get-graph-data/{value}:
- *   post:
- *     summary: Fetch graph data based on a value
- *     description: Retrieve graph data based on the provided value.
+ * /api/get-graph-data/{year}/{email}:
+ *   get:
+ *     summary: Fetch graph data based on a year
+ *     description: Retrieve graph data based on the provided year-YYYY & email.
  *     tags: [Fetch/Upload]
  *     security:
  *       - BearerAuth: []
  *     parameters:
  *       - in: path
- *         name: value
- *         description: The value used to fetch graph data. Must be a number.
+ *         name: year
+ *         description: The value used to fetch graph data. Must be a year-YYYY (number).
  *         required: true
  *         schema:
  *           type: integer
+ *       - in: path
+ *         name: email
+ *         description: The valid user email.
+ *         required: true
+ *         schema:
+ *           type: string
  *     responses:
  *       '200':
  *         description: Successfully fetched graph data.
@@ -153,7 +159,10 @@ router.post('/get-issuers-log', validationRoute.queryCode, adminController.fetch
  *                 data:
  *                   type: integer
  *                   description: The fetched graph data.
- * 
+ *             example:
+ *               status: "SUCCESS"
+ *               message: Graph data fetched successfully.
+ *               data: []
  *       '400':
  *         description: Invalid request due to missing or invalid parameters.
  *         content:
@@ -181,7 +190,80 @@ router.post('/get-issuers-log', validationRoute.queryCode, adminController.fetch
  *               status: "FAILED"
  *               message: Internal Server Error.
  */
-router.post('/get-graph-data/:value', adminController.fetchGraphDetails);
+router.get('/get-graph-data/:year/:email', adminController.fetchGraphDetails);
+
+/**
+ * @swagger
+ * /api/get-status-graph-data/{value}/{email}:
+ *   get:
+ *     summary: Fetch graph data based on a year
+ *     description: Retrieve graph data based on the provided value (month-MM or year-YYYY) & email.
+ *     tags: [Fetch/Upload]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: value
+ *         description: The value used to fetch graph data (month-MM or year-YYYY). Must be a number.
+ *         required: true
+ *         schema:
+ *           type: integer
+ *       - in: path
+ *         name: email
+ *         description: The valid user email.
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: Successfully fetched graph data.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: integer
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Indicates if the request was successful.
+ *                 message:
+ *                   type: string
+ *                   description: A message indicating the result of the operation.
+ *                 data:
+ *                   type: integer
+ *                   description: The fetched graph data.
+ *             example:
+ *               status: "SUCCESS"
+ *               message: Graph data fetched successfully.
+ *               data: []
+ *       '400':
+ *         description: Invalid request due to missing or invalid parameters.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Invalid request due to missing or invalid parameters.
+ *       '500':
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Internal Server Error.
+ */
+
+router.get('/get-status-graph-data/:value/:email', adminController.fetchGraphStatusDetails);
 
 /**
  * @swagger

@@ -89,18 +89,18 @@ const issuePdf = async (req, res) => {
     const name = req.body.name;
     const courseName = req.body.course;
     var _grantDate = await convertDateFormat(req.body.grantDate);
-    
-    if(_grantDate == "1" || _grantDate == null || _grantDate == "string"){
+
+    if (_grantDate == "1" || _grantDate == null || _grantDate == "string") {
       res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidGrantDate, details: req.body.grantDate });
       return;
     }
-    if(req.body.expirationDate == 1 || req.body.expirationDate == null || req.body.expirationDate == "string"){
+    if (req.body.expirationDate == 1 || req.body.expirationDate == null || req.body.expirationDate == "string") {
       var _expirationDate = 1;
-      } else {
-        var _expirationDate = await convertDateFormat(req.body.expirationDate);
-      }
+    } else {
+      var _expirationDate = await convertDateFormat(req.body.expirationDate);
+    }
 
-    if(_expirationDate == null){
+    if (_expirationDate == null) {
       res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidExpirationDate, details: req.body.expirationDate });
       return;
     }
@@ -146,18 +146,18 @@ const issue = async (req, res) => {
     const name = req.body.name;
     const courseName = req.body.course;
     var _grantDate = await convertDateFormat(req.body.grantDate);
-    
-    if(_grantDate == "1" || _grantDate == null || _grantDate == "string"){
+
+    if (_grantDate == "1" || _grantDate == null || _grantDate == "string") {
       res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidGrantDate, details: req.body.grantDate });
       return;
     }
-    if(req.body.expirationDate == 1 || req.body.expirationDate == null || req.body.expirationDate == "string"){
+    if (req.body.expirationDate == 1 || req.body.expirationDate == null || req.body.expirationDate == "string") {
       var _expirationDate = 1;
-      } else {
-        var _expirationDate = await convertDateFormat(req.body.expirationDate);
-      }
+    } else {
+      var _expirationDate = await convertDateFormat(req.body.expirationDate);
+    }
 
-    if(_expirationDate == null){
+    if (_expirationDate == null) {
       res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidExpirationDate, details: req.body.expirationDate });
       return;
     }
@@ -195,6 +195,10 @@ const batchIssueCertificate = async (req, res) => {
   try {
     await isDBConnected();
     const idExist = await User.findOne({ email });
+    if (!idExist) {
+      res.status(400).json({ status: "FAILED", message: messageCode.msgUserNotFound });
+      return;
+    }
     var filePath = req.file.path;
 
     // Fetch the records from the Excel file

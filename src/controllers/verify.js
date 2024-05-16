@@ -22,7 +22,7 @@ const abi = require("../config/abi.json");
 
 // Importing functions from a custom module
 const {
-  convertDateOnVerification, extractQRCodeDataFromPDF, // Function to extract QR code data from a PDF file
+  extractQRCodeDataFromPDF, // Function to extract QR code data from a PDF file
   cleanUploadFolder, // Function to clean up the upload folder
   isDBConnected // Function to check if the database connection is established
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
@@ -276,6 +276,7 @@ const decodeCertificate = async (req, res) => {
 
     const originalData = JSON.parse(decryptedData);
     let isValid = false;
+    let messageContent = "Not Verified"
     let parsedData;
     if (originalData !== null) {
       parsedData = {
@@ -287,14 +288,24 @@ const decodeCertificate = async (req, res) => {
         "Polygon URL": originalData.polygonLink || ""
       };
       isValid = true
+      var dbStatus = await isDBConnected();
+      if (dbStatus != false) {
+        const singleIssueExist = await Issues.findOne({ certificateNumber: originalData.Certificate_Number });
+        const batchIssueExist = await BatchIssues.findOne({ certificateNumber: originalData.Certificate_Number });
+        if (originalData.Certificate_Number != "" && (singleIssueExist || batchIssueExist)) {
+          if ((singleIssueExist && singleIssueExist.certificateStatus == 3) || (batchIssueExist && batchIssueExist.certificateStatus == 3)) {
+            isValid = false;
+            messageContent = "Certification has Revoked";
+          }
+        }
+      }
     }
-
 
     // Respond with the verification status and decrypted data if valid
     if (isValid) {
       res.status(200).json({ status: "PASSED", message: "Verified", data: parsedData });
     } else {
-      res.status(200).json({ status: "FAILED", message: "Not Verified" });
+      res.status(200).json({ status: "FAILED", message: messageContent });
     }
   } catch (error) {
     // Handle errors and send an appropriate response

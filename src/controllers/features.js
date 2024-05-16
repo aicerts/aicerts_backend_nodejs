@@ -37,12 +37,11 @@ const renewCert = async (req, res) => {
         const certificateNumber = req.body.certificateNumber;
         var _expirationDate = req.body.expirationDate;
 
-        if(req.body.expirationDate == 1 || req.body.expirationDate == null || req.body.expirationDate == "string"){
+        if(req.body.expirationDate == "1" || req.body.expirationDate == 1 || req.body.expirationDate == null || req.body.expirationDate == "string"){
             var _expirationDate = 1;
             } else {
               var _expirationDate = await convertDateFormat(req.body.expirationDate);
             }
-      
           if(_expirationDate == null){
             res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidExpirationDate, details: req.body.expirationDate });
             return;

@@ -138,4 +138,11 @@ module.exports = {
     msgCertRevoked: "Certification has revoked",
     msgCertExpired: "Certification has expired",
 
+    // Graph Analytics
+    msgInvalidGraphInput: "Please provide valid Graph Input",
+    msgUnableToGetGraphData: "Unable to fetched Graph data",
+    msgGraphDataFetched: "Graph data fetched successfully",
+    msgUserEmailNotFound: "Invalid email provided",
+    msgDbError: "Unable to connect with Database, Please try again",
+
 };

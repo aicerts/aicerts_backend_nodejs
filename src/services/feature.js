@@ -98,11 +98,11 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
         }
 
         if (isNumberExist) {
-            if(isNumberExist.expirationDate == "1"){
+            if (isNumberExist.expirationDate == "1") {
                 return ({ code: 400, status: "FAILED", message: messageCode.msgUpdateExpirationNotPossible });
             }
 
-            var epochExpiration = expirationDate != 1 ? await convertDateToEpoch(expirationDate) : 1 ;
+            var epochExpiration = expirationDate != 1 ? await convertDateToEpoch(expirationDate) : 1;
             if (expirationDate != 1 && epochExpiration < todayEpoch) {
                 return ({ code: 400, status: "FAILED", message: messageCode.msgCertExpired });
             }
@@ -117,13 +117,13 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                     return ({ code: 400, status: "FAILED", message: messageCode.msgNotPossibleOnRevoked });
                 }
 
-                if(expirationDate != 1){
-                var certDateValidation = await expirationDateVariaton(isNumberExist.expirationDate, expirationDate);
+                if (expirationDate != 1) {
+                    var certDateValidation = await expirationDateVariaton(isNumberExist.expirationDate, expirationDate);
 
-                if (certDateValidation == 0 || certDateValidation == 2) {
-                    // Respond with error message
-                    return ({ code: 400, status: "FAILED", message: `${messageCode.msgEpirationMustGreater}: ${isNumberExist.expirationDate}` });
-                }
+                    if (certDateValidation == 0 || certDateValidation == 2) {
+                        // Respond with error message
+                        return ({ code: 400, status: "FAILED", message: `${messageCode.msgEpirationMustGreater}: ${isNumberExist.expirationDate}` });
+                    }
                 }
 
                 // Prepare fields for the certificate
@@ -147,7 +147,7 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                     const issuerAuthorized = await newContract.hasRole(process.env.ISSUER_ROLE, idExist.issuerId);
                     const verifyOnChain = await newContract.verifyCertificateById(certificateNumber);
                     var certExpiration = parseInt(verifyOnChain[1]);
-                    if(certExpiration == 1){
+                    if (certExpiration == 1) {
                         return ({ code: 400, status: "FAILED", message: messageCode.msgUpdateExpirationNotPossible });
                     }
                     if (
@@ -291,7 +291,7 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
             }
 
         } else if (isNumberExistInBatch) {
-            if(isNumberExistInBatch.expirationDate == "1"){
+            if (isNumberExistInBatch.expirationDate == "1") {
                 return ({ code: 400, status: "FAILED", message: messageCode.msgUpdateExpirationNotPossible });
             }
 
@@ -314,13 +314,13 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                         return ({ code: 400, status: "FAILED", message: messageCode.msgNotPossibleOnRevoked });
                     }
 
-                    if(expirationDate != 1){
-                    const certDateValidation = await expirationDateVariaton(isNumberExistInBatch.expirationDate, expirationDate);
+                    if (expirationDate != 1) {
+                        const certDateValidation = await expirationDateVariaton(isNumberExistInBatch.expirationDate, expirationDate);
 
-                    if (certDateValidation == 0 || certDateValidation == 2) {
-                        // Respond with error message
-                        return ({ code: 400, status: "FAILED", message: `${messageCode.msgEpirationMustGreater}: ${isNumberExistInBatch.expirationDate}` });
-                    }
+                        if (certDateValidation == 0 || certDateValidation == 2) {
+                            // Respond with error message
+                            return ({ code: 400, status: "FAILED", message: `${messageCode.msgEpirationMustGreater}: ${isNumberExistInBatch.expirationDate}` });
+                        }
                     }
 
                     try {
@@ -571,19 +571,24 @@ const handleUpdateCertificationStatus = async (email, certificateNumber, certSta
             }
 
             if (isNumberExist) {
+                    if (isNumberExist.certificateStatus != 3 && certStatus == 4) {
+                        return ({ code: 400, status: "FAILED", message: messageCode.msgReactivationNotPossible });
+                    }
+
+                    if (isNumberExist.certificateStatus == parseInt(certStatus)) {
+                        return ({ code: 400, status: "FAILED", message: messageCode.msgStatusAlreadyExist });
+                    }
 
                 try {
                     var _getCertificateStatus = await newContract.getCertificateStatus(certificateNumber);
                     var getVerifyResponse = await newContract.verifyCertificateById(certificateNumber);
                     var statusResponse = parseInt(getVerifyResponse[2]);
 
-                    var epochExpiration = await convertDateToEpoch(isNumberExist.expirationDate);
-                    if ((epochExpiration < todayEpoch) || (getVerifyResponse[0] == true && statusResponse == 5)) {
-                        return ({ code: 400, status: "FAILED", message: messageCode.msgCertExpired });
-                    }
-
-                    if (isNumberExist.certificateStatus != 3 && certStatus == 4) {
-                        return ({ code: 400, status: "FAILED", message: messageCode.msgReactivationNotPossible });
+                    if (isNumberExist.expirationDate != "1") {
+                        var epochExpiration = await convertDateToEpoch(isNumberExist.expirationDate);
+                        if ((epochExpiration < todayEpoch) || (getVerifyResponse[0] == true && statusResponse == 5)) {
+                            return ({ code: 400, status: "FAILED", message: messageCode.msgCertExpired });
+                        }
                     }
 
                     var getCertificateStatus = parseInt(_getCertificateStatus);
@@ -649,9 +654,11 @@ const handleUpdateCertificationStatus = async (email, certificateNumber, certSta
 
             } else if (isNumberExistInBatch) {
 
-                var epochExpiration = await convertDateToEpoch(isNumberExistInBatch.expirationDate);
-                if (epochExpiration < todayEpoch) {
-                    return ({ code: 400, status: "FAILED", message: messageCode.msgCertExpired });
+                if (isNumberExistInBatch.expirationDate != "1") {
+                    var epochExpiration = await convertDateToEpoch(isNumberExistInBatch.expirationDate);
+                    if (epochExpiration < todayEpoch) {
+                        return ({ code: 400, status: "FAILED", message: messageCode.msgCertExpired });
+                    }
                 }
 
                 if (isNumberExistInBatch.certificateStatus != 3 && certStatus == 4) {
@@ -740,13 +747,13 @@ const handleUpdateCertificationStatus = async (email, certificateNumber, certSta
 };
 
 const handleRenewBatchOfCertifications = async (email, batchId, batchExpirationDate) => {
-    const expirationDate = batchExpirationDate != 1 ? await convertDateFormat(batchExpirationDate) : 1 ;
+    const expirationDate = batchExpirationDate != 1 ? await convertDateFormat(batchExpirationDate) : 1;
     // Get today's date
     var today = new Date(); // Adjust timeZone as per the US Standard Time zone
     // Convert today's date to epoch time (in milliseconds)
     var todayEpoch = today.getTime() / 1000; // Convert milliseconds to seconds
 
-    var epochExpiration = batchExpirationDate != 1 ? await convertDateToEpoch(expirationDate) : 1 ;
+    var epochExpiration = batchExpirationDate != 1 ? await convertDateToEpoch(expirationDate) : 1;
 
     try {
         // Check mongoose connection
@@ -786,7 +793,7 @@ const handleRenewBatchOfCertifications = async (email, batchId, batchExpirationD
                 return ({ code: 400, status: "FAILED", message: messageCode.msgInvalidBatch });
             }
             var batchResponse = parseInt(verifyBatchResponse[1]);
-            if(batchResponse == 1){
+            if (batchResponse == 1) {
                 return ({ code: 400, status: "FAILED", message: messageCode.msgUpdateBatchExpirationNotPossible });
             }
             if (verifyBatchResponse[0] === true && batchResponse != 0) {
@@ -796,7 +803,7 @@ const handleRenewBatchOfCertifications = async (email, batchId, batchExpirationD
                 }
 
                 var batchStatusResponse = parseInt(verifyBatchResponse[2]);
-                if(batchStatusResponse == 3){
+                if (batchStatusResponse == 3) {
                     return ({ code: 400, status: "FAILED", message: messageCode.msgNotPossibleOnRevokedBatch });
                 }
 
@@ -850,10 +857,10 @@ const handleRenewBatchOfCertifications = async (email, batchId, batchExpirationD
 };
 
 const handleUpdateBatchCertificationStatus = async (email, batchId, certStatus) => {
-        // Get today's date
-        var today = new Date(); // Adjust timeZone as per the US Standard Time zone
-        // Convert today's date to epoch time (in milliseconds)
-        var todayEpoch = today.getTime() / 1000; // Convert milliseconds to seconds
+    // Get today's date
+    var today = new Date(); // Adjust timeZone as per the US Standard Time zone
+    // Convert today's date to epoch time (in milliseconds)
+    var todayEpoch = today.getTime() / 1000; // Convert milliseconds to seconds
     try {
         // Check mongoose connection
         const dbStatus = await isDBConnected();
