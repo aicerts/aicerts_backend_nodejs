@@ -122,6 +122,79 @@ router.post('/get-issuers-log', validationRoute.queryCode, adminController.fetch
 
 /**
  * @swagger
+ * /api/get-issuer/{input}/{email}:
+ *   get:
+ *     summary: Fetch Issue data based on the name or Certification ID input & user email search
+ *     description: Retrieve Issue data based on the provided the name or Certification ID as input & email.
+ *     tags: [Fetch/Upload]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: input
+ *         description: The input (name or Certification ID) used to fetch Issue details.
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: email
+ *         description: The valid user email.
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: Successfully fetched issue data.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: integer
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Indicates if the request was successful.
+ *                 message:
+ *                   type: string
+ *                   description: A message indicating the result of the operation.
+ *                 data:
+ *                   type: object
+ *                   description: The fetched issue data.
+ *             example:
+ *               status: "SUCCESS"
+ *               message: Issue data fetched successfully.
+ *               data: []
+ *       '400':
+ *         description: Invalid request due to missing or invalid parameters.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Invalid request due to missing or invalid parameters.
+ *       '500':
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Internal Server Error.
+ */
+
+router.get('/get-issuer/:input/:email', adminController.getIssueDetails);
+
+/**
+ * @swagger
  * /api/get-graph-data/{year}/{email}:
  *   get:
  *     summary: Fetch graph data based on a year
@@ -190,6 +263,7 @@ router.post('/get-issuers-log', validationRoute.queryCode, adminController.fetch
  *               status: "FAILED"
  *               message: Internal Server Error.
  */
+
 router.get('/get-graph-data/:year/:email', adminController.fetchGraphDetails);
 
 /**

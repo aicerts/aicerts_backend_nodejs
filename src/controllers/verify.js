@@ -6,6 +6,7 @@ const express = require("express");
 const app = express(); // Create an instance of the Express application
 const path = require("path");
 const fs = require("fs");
+const moment = require('moment');
 const { ethers } = require("ethers"); // Ethereum JavaScript library
 const { validationResult } = require("express-validator");
 // Import custom cryptoFunction module for encryption and decryption
@@ -47,6 +48,7 @@ const signer = new ethers.Wallet(process.env.PRIVATE_KEY, fallbackProvider);
 const newContract = new ethers.Contract(contractAddress, abi, signer);
 
 var messageCode = require("../common/codes");
+const e = require('express');
 
 /**
  * Verify Certification page with PDF QR - Blockchain URL.
@@ -60,6 +62,15 @@ const verify = async (req, res) => {
 
   var fileBuffer = fs.readFileSync(file);
   var pdfDoc = await PDFDocument.load(fileBuffer);
+  // Get today's date
+  const getTodayDate = async () => {
+    const today = new Date();
+    const month = String(today.getMonth() + 1).padStart(2, '0'); // Add leading zero if month is less than 10
+    const day = String(today.getDate()).padStart(2, '0'); // Add leading zero if day is less than 10
+    const year = today.getFullYear();
+    return `${month}/${day}/${year}`;
+  };
+  const todayDate = await getTodayDate();
 
   if (pdfDoc.getPageCount() > 1) {
     // Respond with success status and certificate details
@@ -86,6 +97,17 @@ const verify = async (req, res) => {
 
     // Validation checks for request data
     if (singleIssueExist) {
+      if (certificateData['Expiration Date'] == '1') {
+        res.status(200).json({
+          status: "SUCCESS",
+          message: "Certification is valid",
+          details: certificateData
+        });
+        if (fs.existsSync(file)) {
+          fs.unlinkSync(file);
+        }
+        return;
+      }
       try {
         // Blockchain processing.
         const verifyCert = await newContract.verifyCertificateById(certificationNumber);
@@ -139,6 +161,30 @@ const verify = async (req, res) => {
         return;
       }
     } else if (batchIssueExist) {
+
+      if (certificateData['Expiration Date'] == '1') {
+        res.status(200).json({
+          status: "SUCCESS",
+          message: "Certification is valid",
+          details: certificateData
+        });
+        if (fs.existsSync(file)) {
+          fs.unlinkSync(file);
+        }
+        return;
+      }
+      if (certificateData['Expiration Date'].length == 10) {
+        // Convert data string to a Date object
+        const dataDate = new Date(certificateData['Expiration Date']);
+        console.log("Dates", dataDate, todayDate);
+        if (dataDate < todayDate) {
+          res.status(400).json({ status: "FAILED", message: messageCode.msgCertExpired });
+          if (fs.existsSync(file)) {
+            fs.unlinkSync(file);
+          }
+          return;
+        }
+      }
       const batchNumber = (batchIssueExist.batchId) - 1;
       const dataHash = batchIssueExist.certificateHash;
       const proof = batchIssueExist.proofHash;
@@ -205,8 +251,32 @@ const verify = async (req, res) => {
       }
 
     } else if (!batchIssueExist && !singleIssueExist) {
+      if (certificateData['Expiration Date'] == '1') {
+        res.status(200).json({
+          status: "SUCCESS",
+          message: "Certification is valid",
+          details: certificateData
+        });
+        if (fs.existsSync(file)) {
+          fs.unlinkSync(file);
+        }
+        return;
+      }
       // Extract blockchain URL from the certificate data
       const blockchainUrl = certificateData["Polygon URL"];
+
+      var fomatedDate = await detectDateFormat(certificateData['Expiration Date']);
+
+      if (fomatedDate != null) {
+        var compareDate = await compareDates(fomatedDate, todayDate);
+        if (!compareDate) {
+          res.status(400).json({ status: "FAILED", message: messageCode.msgCertExpired });
+          if (fs.existsSync(file)) {
+            fs.unlinkSync(file);
+          }
+          return;
+        }
+      }
 
       // Check if a blockchain URL exists and is valid
       if (blockchainUrl && blockchainUrl.length > 0) {
@@ -335,6 +405,14 @@ const verifyCertificationId = async (req, res) => {
     return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
   const inputId = req.body.id;
+  // Get today's date
+  const getTodayDate = async () => {
+    const today = new Date();
+    const month = String(today.getMonth() + 1).padStart(2, '0'); // Add leading zero if month is less than 10
+    const day = String(today.getDate()).padStart(2, '0'); // Add leading zero if day is less than 10
+    const year = today.getFullYear();
+    return `${month}/${day}/${year}`;
+  };
   try {
     var dbStatus = await isDBConnected();
     const dbStatusMessage = (dbStatus == true) ? messageCode.msgDbReady : messageCode.msgDbNotReady;
@@ -350,6 +428,25 @@ const verifyCertificationId = async (req, res) => {
     }
 
     if (singleIssueExist) {
+
+      if (singleIssueExist.expirationDate == '1') {
+        var _polygonLink = `https://${process.env.NETWORK}/tx/${singleIssueExist.transactionHash}`;
+
+        var completeResponse = {
+          'Certificate Number': singleIssueExist.certificateNumber,
+          'Name': singleIssueExist.name,
+          'Course Name': singleIssueExist.course,
+          'Grant Date': singleIssueExist.grantDate,
+          'Expiration Date': singleIssueExist.expirationDate,
+          'Polygon URL': _polygonLink
+        };
+        res.status(200).json({
+          status: "SUCCESS",
+          message: "Certification is valid",
+          details: completeResponse
+        });
+        return;
+      }
       try {
         // Blockchain processing.
         const verifyCert = await newContract.verifyCertificateById(inputId);
@@ -364,7 +461,6 @@ const verifyCertificationId = async (req, res) => {
         if (verifyCert[0] == false && verifyCertStatus == 5) {
           return res.status(400).json({ status: "FAILED", message: messageCode.msgCertExpired });
         }
-
 
         if (verifyCert[0] == true) {
 
@@ -396,6 +492,33 @@ const verifyCertificationId = async (req, res) => {
       }
 
     } else if (batchIssueExist) {
+      if (batchIssueExist.expirationDate == '1') {
+        var _polygonLink = `https://${process.env.NETWORK}/tx/${batchIssueExist.transactionHash}`;
+
+        var completeResponse = {
+          'Certificate Number': batchIssueExist.certificateNumber,
+          'Name': batchIssueExist.name,
+          'Course Name': batchIssueExist.course,
+          'Grant Date': batchIssueExist.grantDate,
+          'Expiration Date': batchIssueExist.expirationDate,
+          'Polygon URL': _polygonLink
+        };
+        res.status(200).json({
+          status: "SUCCESS",
+          message: "Certification is valid",
+          details: completeResponse
+        });
+        return;
+      }
+      if ((batchIssueExist.expirationDate).length == 10) {
+        var dateToday = await getTodayDate();
+        var expirationDate = batchIssueExist.expirationDate;
+        var compareResult = await compareDates(expirationDate, dateToday);
+        if (!compareResult) {
+          res.status(400).json({ status: "FAILED", message: messageCode.msgCertExpired });
+          return;
+        }
+      }
       const batchNumber = (batchIssueExist.batchId) - 1;
       const dataHash = batchIssueExist.certificateHash;
       const proof = batchIssueExist.proofHash;
@@ -451,6 +574,37 @@ const verifyCertificationId = async (req, res) => {
   }
 };
 
+const detectDateFormat = async (dateString) => {
+  const formats = ['DD MMMM YYYY', 'MMMM DD YYYY', 'MM/DD/YY', 'MM/DD/YYYY'];
+
+  for (let format of formats) {
+    const parsedDate = moment(dateString, format, true);
+    if (parsedDate.isValid()) {
+      // Convert to MM/DD/YYYY format
+      const convertedDate = parsedDate.format('MM/DD/YYYY');
+      return convertedDate;
+    }
+  }
+  return null;
+};
+
+const compareDates = async (dateString1, dateString2) => {
+  // Split the date strings into components
+  const [month1, day1, year1] = dateString1.split('/');
+  const [month2, day2, year2] = dateString2.split('/');
+
+  // Create date objects for comparison
+  const date1 = new Date(year1, month1 - 1, day1);
+  const date2 = new Date(year2, month2 - 1, day2);
+
+  if (date1 > date2) {
+    return true;
+  } else if (date1 == date2) {
+    return true;
+  } else {
+    return false;
+  }
+};
 
 module.exports = {
   // Function to verify a certificate with a PDF QR code

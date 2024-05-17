@@ -96,7 +96,92 @@ const getIssuerByEmail = async (req, res) => {
   }
 };
 
+/**
+ * API to fetch details of Certification by giving name / certification ID.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
+const getIssueDetails = async (req, res) => {
 
+  const input = req.params.input;
+  const email = req.params.email;
+  var responseData;
+
+  if (!input || !email) {
+    return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidInput });
+  }
+
+  try {
+    var dbStatus = await isDBConnected();
+
+    if (dbStatus == false) {
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgDbNotReady });
+    }
+
+    // Check if user with provided email exists
+    const issuerExist = await User.findOne({ email: email });
+
+    if (!issuerExist) {
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgUserNotFound });
+    }
+
+    try {
+      // check if the input is Existed cert ID or name
+      var isIssueSingle = await Issues.findOne({
+        issuerId: issuerExist.issuerId,
+        certificateNumber: input
+      });
+
+      var isIssueBatch = await BatchIssues.findOne({
+        issuerId: issuerExist.issuerId,
+        certificateNumber: input
+      });
+
+      if (isIssueSingle || isIssueBatch) {
+        responseData = isIssueSingle != null ? isIssueSingle : isIssueBatch;
+        return res.status(200).json({ status: "SUCCESS", message: messageCode.msgIssueFound, data: responseData });
+      }
+
+    } catch (error) {
+      return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
+    }
+
+    try {
+
+      var isIssueSingleName = Issues.find({
+        issuerId: issuerExist.issuerId,
+        name: input
+      }).lean();
+
+      var isIssueBatchName = BatchIssues.find({
+        issuerId: issuerExist.issuerId,
+        name: input
+      }).lean();
+
+      var [singleNameResponse, batchNameResponse] = await Promise.all([isIssueSingleName, isIssueBatchName]);
+
+      if (singleNameResponse.length != 0 || batchNameResponse.length != 0) {
+        if (singleNameResponse.length != 0 || batchNameResponse.length != 0) {
+          responseData = singleNameResponse.length != 0 ? singleNameResponse : batchNameResponse;
+        }
+        if (singleNameResponse.length != 0 && batchNameResponse.length != 0) {
+          responseData = [...singleNameResponse, ...batchNameResponse];
+        }
+        return res.status(200).json({ status: "SUCCESS", message: messageCode.msgIssueFound, data: responseData });
+      }
+    } catch (error) {
+      return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
+    }
+
+    return res.status(400).json({ status: "FAILED", message: messageCode.msgIssueNotFound });
+
+  } catch (error) {
+    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
+  }
+
+
+}
 
 /**
  * API to Upload Files to AWS-S3 bucket.
@@ -151,6 +236,18 @@ const fetchIssuesLogDetails = async (req, res) => {
     var today = new Date();
     // Formatting the parsed date into ISO 8601 format with timezone
     var formattedDate = today.toISOString();
+
+    // Get today's date
+    const getTodayDate = async () => {
+      const today = new Date();
+      const month = String(today.getMonth() + 1).padStart(2, '0'); // Add leading zero if month is less than 10
+      const day = String(today.getDate()).padStart(2, '0'); // Add leading zero if day is less than 10
+      const year = today.getFullYear();
+      return `${month}/${day}/${year}`;
+    };
+    const todayDate = await getTodayDate();
+
+    console.log("date", todayDate);
 
     // Check mongoose connection
     const dbStatus = await isDBConnected();
@@ -229,12 +326,12 @@ const fetchIssuesLogDetails = async (req, res) => {
         case 6:
           var query1Promise = Issues.find({
             issuerId: issuerExist.issuerId,
-            certificateStatus: { $in: [1, 2] }
+            certificateStatus: { $in: [1, 2, 4] }
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           var query2Promise = BatchIssues.find({
             issuerId: issuerExist.issuerId,
-            certificateStatus: { $in: [1, 2] }
+            certificateStatus: { $in: [1, 2, 4] }
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           // Wait for both queries to resolve
@@ -243,7 +340,7 @@ const fetchIssuesLogDetails = async (req, res) => {
           // Merge the results into a single array
           var _queryResponse = [...queryResponse1, ...queryResponse2];
           // Sort the data based on the 'issueDate' date in descending order
-          _queryResponse.sort((a, b) => new Date(a.expirationDate) - new Date(b.expirationDate));
+          _queryResponse.sort((a, b) => new Date(b.issueDate) - new Date(a.issueDate));
           // Take only the first 30 records
           var queryResponse = _queryResponse.slice(0, Math.min(_queryResponse.length, 30));
           break;
@@ -264,8 +361,8 @@ const fetchIssuesLogDetails = async (req, res) => {
           // Merge the results into a single array
           var _queryResponse = [...queryResponse1, ...queryResponse2];
           // Sort the data based on the 'issueDate' date in descending order
-          _queryResponse.sort((a, b) => new Date(a.expirationDate) - new Date(b.expirationDate));
-          
+          _queryResponse.sort((a, b) => new Date(b.issueDate) - new Date(a.issueDate));
+
           // Take only the first 30 records
           var queryResponse = _queryResponse.slice(0, Math.min(_queryResponse.length, 30));
           break;
@@ -286,11 +383,15 @@ const fetchIssuesLogDetails = async (req, res) => {
           var [queryResponse1, queryResponse2] = await Promise.all([query1Promise, query2Promise]);
 
           // Merge the results into a single array
-          var _queryResponse = [...queryResponse1, ...queryResponse2];
-          // Sort the data based on the 'issueDate' date in descending order
-          _queryResponse.sort((a, b) => new Date(a.expirationDate) - new Date(b.expirationDate));
+          var queryResponse = [...queryResponse1, ...queryResponse2];
+
+          // Filter the data to show only expiration dates on or after today
+          queryResponse = queryResponse.filter(item => new Date(item.expirationDate) >= new Date(todayDate));
+
+          // Sort the data based on the 'expirationDate' date in descending order
+          queryResponse.sort((a, b) => new Date(a.expirationDate) - new Date(b.expirationDate));
           // Take only the first 30 records
-          var queryResponse = _queryResponse.slice(0, Math.min(_queryResponse.length, 30));
+          var queryResponse = queryResponse.slice(0, Math.min(queryResponse.length, 30));
           break;
         case 9:
           var queryResponse = await Issues.find({
@@ -327,6 +428,24 @@ const fetchIssuesLogDetails = async (req, res) => {
       status: 'FAILED',
       message: messageCode.msgErrorOnFetching
     });
+  }
+};
+
+const compareDates = async (dateString1, dateString2) => {
+  // Split the date strings into components
+  const [month1, day1, year1] = dateString1.split('/');
+  const [month2, day2, year2] = dateString2.split('/');
+
+  // Create date objects for comparison
+  const date1 = new Date(year1, month1 - 1, day1);
+  const date2 = new Date(year2, month2 - 1, day2);
+
+  if (date1 > date2) {
+    return true;
+  } else if (date1 == date2) {
+    return true;
+  } else {
+    return false;
   }
 };
 
@@ -517,7 +636,7 @@ const fetchGraphStatusDetails = async (req, res) => {
       var getRenewDetailsDaysCount = await getMonthAggregatedCertsDetails(fetchAllCertificateRenewes, value, today.getFullYear());
       var getRevokedDetailsDaysCount = await getMonthAggregatedCertsDetails(fetchAllCertificateRevoked, value, today.getFullYear());
       var getReactivatedDetailsDaysCount = await getMonthAggregatedCertsDetails(fetchAllCertificateReactivated, value, today.getFullYear());
-      
+
       const mergedDaysDetails = getIssueDetailsDaysCount.map((singleItem, index) => ({
         day: singleItem.day,
         count: [singleItem.count, getRenewDetailsDaysCount[index].count, getRevokedDetailsDaysCount[index].count, getReactivatedDetailsDaysCount[index].count]
@@ -772,6 +891,9 @@ module.exports = {
 
   // Function to fetch issuer details
   getIssuerByEmail,
+
+  // Function to fetch details of Certification by giving name / certification ID.
+  getIssueDetails,
 
   // Function to Upload Files to AWS-S3 bucket
   uploadFileToS3,
