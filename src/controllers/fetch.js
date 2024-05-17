@@ -431,24 +431,6 @@ const fetchIssuesLogDetails = async (req, res) => {
   }
 };
 
-const compareDates = async (dateString1, dateString2) => {
-  // Split the date strings into components
-  const [month1, day1, year1] = dateString1.split('/');
-  const [month2, day2, year2] = dateString2.split('/');
-
-  // Create date objects for comparison
-  const date1 = new Date(year1, month1 - 1, day1);
-  const date2 = new Date(year2, month2 - 1, day2);
-
-  if (date1 > date2) {
-    return true;
-  } else if (date1 == date2) {
-    return true;
-  } else {
-    return false;
-  }
-};
-
 /**
  * API to fetch Graph details with Single & Batch issue in the Year.
  *
