@@ -25,7 +25,8 @@ const abi = require("../config/abi.json");
 const {
   extractQRCodeDataFromPDF, // Function to extract QR code data from a PDF file
   cleanUploadFolder, // Function to clean up the upload folder
-  isDBConnected // Function to check if the database connection is established
+  isDBConnected, // Function to check if the database connection is established
+  insertIssueStatus
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
 // Retrieve contract address from environment variable
@@ -91,6 +92,17 @@ const verify = async (req, res) => {
       return res.status(400).json({ status: "FAILED", message: messageCode.msgCertNotValid });
     }
 
+    var verifyLog = {
+      email: "-",
+      issuerId: "-",
+      transactionHash: "-",
+      certificateNumber: certificateData["Certificate Number"],
+      name: certificateData["Name"],
+      course: certificateData["Course Name"],
+      expirationDate: certificateData["Expiration Date"],
+      certStatus: 6
+    };
+
     const certificationNumber = certificateData['Certificate Number'];
     const singleIssueExist = await Issues.findOne({ certificateNumber: certificationNumber });
     const batchIssueExist = await BatchIssues.findOne({ certificateNumber: certificationNumber });
@@ -98,6 +110,12 @@ const verify = async (req, res) => {
     // Validation checks for request data
     if (singleIssueExist) {
       if (certificateData['Expiration Date'] == '1') {
+
+        var dbStatus = await isDBConnected();
+        if (dbStatus) {
+          await insertIssueStatus(verifyLog);
+        }
+
         res.status(200).json({
           status: "SUCCESS",
           message: "Certification is valid",
@@ -135,6 +153,15 @@ const verify = async (req, res) => {
 
           const foundCertification = certificateData;
 
+          verifyLog.expirationDate = singleIssueExist.expirationDate;
+
+          var dbStatus = await isDBConnected();
+          if (dbStatus != false) {
+            await insertIssueStatus(verifyLog);
+          }
+
+          foundCertification['Expiration Date'] = singleIssueExist.expirationDate;
+
           const verificationResponse = {
             status: "SUCCESS",
             message: "Certification is valid",
@@ -163,6 +190,15 @@ const verify = async (req, res) => {
     } else if (batchIssueExist) {
 
       if (certificateData['Expiration Date'] == '1') {
+
+        // Add the batchId parameter
+        verifyLog.batchId = batchIssueExist.batchId;
+
+        var dbStatus = await isDBConnected();
+        if (dbStatus != false) {
+          await insertIssueStatus(verifyLog);
+        }
+
         res.status(200).json({
           status: "SUCCESS",
           message: "Certification is valid",
@@ -176,7 +212,6 @@ const verify = async (req, res) => {
       if (certificateData['Expiration Date'].length == 10) {
         // Convert data string to a Date object
         const dataDate = new Date(certificateData['Expiration Date']);
-        console.log("Dates", dataDate, todayDate);
         if (dataDate < todayDate) {
           res.status(400).json({ status: "FAILED", message: messageCode.msgCertExpired });
           if (fs.existsSync(file)) {
@@ -216,6 +251,19 @@ const verify = async (req, res) => {
 
             var completeResponse = certificateData;
 
+            // Add the batchId parameter
+            verifyLog.batchId = batchIssueExist.batchId;
+
+
+            verifyLog.expirationDate = batchIssueExist.expirationDate;
+
+            var dbStatus = await isDBConnected();
+            if (dbStatus != false) {
+              await insertIssueStatus(verifyLog);
+            }
+
+            completeResponse['Expiration Date'] = batchIssueExist.expirationDate;
+
             const _verificationResponse = {
               status: "SUCCESS",
               message: "Certification is valid",
@@ -252,6 +300,10 @@ const verify = async (req, res) => {
 
     } else if (!batchIssueExist && !singleIssueExist) {
       if (certificateData['Expiration Date'] == '1') {
+        var dbStatus = await isDBConnected();
+        if (dbStatus != false) {
+          await insertIssueStatus(verifyLog);
+        }
         res.status(200).json({
           status: "SUCCESS",
           message: "Certification is valid",
@@ -280,6 +332,10 @@ const verify = async (req, res) => {
 
       // Check if a blockchain URL exists and is valid
       if (blockchainUrl && blockchainUrl.length > 0) {
+        var dbStatus = await isDBConnected();
+        if (dbStatus != false) {
+          await insertIssueStatus(verifyLog);
+        }
         // Respond with success status and certificate details
         res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, Details: certificateData });
         // await cleanUploadFolder();
@@ -357,6 +413,17 @@ const decodeCertificate = async (req, res) => {
         "Name": originalData.name || "",
         "Polygon URL": originalData.polygonLink || ""
       };
+
+      var verifyLog = {
+        email: "-",
+        issuerId: "-",
+        transactionHash: "-",
+        certificateNumber: parsedData["Certificate Number"],
+        name: parsedData["Name"],
+        course: parsedData["Course Name"],
+        expirationDate: parsedData["Expiration Date"],
+        certStatus: 6
+      };
       isValid = true
       var dbStatus = await isDBConnected();
       if (dbStatus != false) {
@@ -364,12 +431,16 @@ const decodeCertificate = async (req, res) => {
         const batchIssueExist = await BatchIssues.findOne({ certificateNumber: originalData.Certificate_Number });
         if (originalData.Certificate_Number != "" && (singleIssueExist || batchIssueExist)) {
           if (singleIssueExist) {
+            parsedData['Expiration Date'] = singleIssueExist.expirationDate;
             var certSingleStatus = singleIssueExist.certificateStatus || 0;
             if ((certSingleStatus != 0) && (certSingleStatus == 3)) {
               isValid = false;
               messageContent = "Certification has Revoked";
             }
           } else if (batchIssueExist) {
+            parsedData['Expiration Date'] = batchIssueExist.expirationDate;
+            // Add the batchId parameter
+            verifyLog.batchId = batchIssueExist.batchId;
             var certBatchStatus = batchIssueExist.certificateStatus || 0;
             if ((certBatchStatus != 0) && (certBatchStatus == 3)) {
               isValid = false;
@@ -382,6 +453,9 @@ const decodeCertificate = async (req, res) => {
 
     // Respond with the verification status and decrypted data if valid
     if (isValid) {
+      if (dbStatus) {
+        await insertIssueStatus(verifyLog);
+      }
       res.status(200).json({ status: "PASSED", message: "Verified", data: parsedData });
     } else {
       res.status(200).json({ status: "FAILED", message: messageContent });
@@ -429,6 +503,17 @@ const verifyCertificationId = async (req, res) => {
 
     if (singleIssueExist) {
 
+      var verifyLog = {
+        email: "-",
+        issuerId: "-",
+        transactionHash: "-",
+        certificateNumber: singleIssueExist.certificateNumber,
+        name: singleIssueExist.name,
+        course: singleIssueExist.course,
+        expirationDate: singleIssueExist.expirationDate,
+        certStatus: 6
+      };
+
       if (singleIssueExist.expirationDate == '1') {
         var _polygonLink = `https://${process.env.NETWORK}/tx/${singleIssueExist.transactionHash}`;
 
@@ -440,6 +525,11 @@ const verifyCertificationId = async (req, res) => {
           'Expiration Date': singleIssueExist.expirationDate,
           'Polygon URL': _polygonLink
         };
+
+        if (dbStatus) {
+          await insertIssueStatus(verifyLog);
+        }
+
         res.status(200).json({
           status: "SUCCESS",
           message: "Certification is valid",
@@ -477,6 +567,10 @@ const verifyCertificationId = async (req, res) => {
 
           const foundCertification = (singleIssueExist != null) ? completeResponse : inputId;
 
+          if (dbStatus) {
+            await insertIssueStatus(verifyLog);
+          }
+
           const verificationResponse = {
             status: "SUCCESS",
             message: "Certification is valid",
@@ -492,6 +586,19 @@ const verifyCertificationId = async (req, res) => {
       }
 
     } else if (batchIssueExist) {
+
+      var verifyLog = {
+        email: "-",
+        issuerId: "-",
+        transactionHash: "-",
+        batchId: batchIssueExist.batchId,
+        certificateNumber: batchIssueExist.certificateNumber,
+        name: batchIssueExist.name,
+        course: batchIssueExist.course,
+        expirationDate: batchIssueExist.expirationDate,
+        certStatus: 6
+      };
+
       if (batchIssueExist.expirationDate == '1') {
         var _polygonLink = `https://${process.env.NETWORK}/tx/${batchIssueExist.transactionHash}`;
 
@@ -503,6 +610,11 @@ const verifyCertificationId = async (req, res) => {
           'Expiration Date': batchIssueExist.expirationDate,
           'Polygon URL': _polygonLink
         };
+
+        if (dbStatus) {
+          await insertIssueStatus(verifyLog);
+        }
+
         res.status(200).json({
           status: "SUCCESS",
           message: "Certification is valid",
@@ -550,6 +662,10 @@ const verifyCertificationId = async (req, res) => {
               'Expiration Date': batchIssueExist.expirationDate,
               'Polygon URL': _polygonLink
             };
+
+            if (dbStatus) {
+              await insertIssueStatus(verifyLog);
+            }
 
             const _verificationResponse = {
               status: "SUCCESS",

@@ -421,6 +421,85 @@ router.post('/get-issuer-by-email', validationRoute.emailCheck, adminController.
 
 /**
  * @swagger
+ * /api/get-verification-details:
+ *   post:
+ *     summary: Get Verification details with course name input
+ *     description: API to Fetch Verification details on course name request.
+ *     tags: [Fetch/Upload]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               course:
+ *                 type: string
+ *                 description: Course name to search.
+ *     responses:
+ *       '200':
+ *         description: Courses count searched in verification fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: SUCCESS
+ *                 data:
+ *                   type: object
+ *                   description: Response count details
+ *                 message:
+ *                   type: string
+ *                   example: Course search count fetched successfully
+ *       '400':
+ *         description: Bad request or issuer not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: Issuer not found (or) Bad request!
+ *       '422':
+ *         description: User given invalid input (Unprocessable Entity)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Error message for invalid input.
+ *       '500':
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred during the process!
+ */
+router.post('/get-verification-details', validationRoute.courseCheck, adminController.getVerificationDetailsByCourse);
+
+/**
+ * @swagger
  * /api/upload:
  *   post:
  *     summary: Upload a file to AWS S3 bucket1

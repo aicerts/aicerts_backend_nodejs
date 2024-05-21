@@ -302,21 +302,6 @@ const insertCertificateData = async (data) => {
     // Save the new Issues document to the database
     const result = await newIssue.save();
 
-    // Insert data into status MongoDB
-    // const logIssueStatus = {
-    //   email: data.email,
-    //   issuerId: data.issuerId, // ID field is of type String and is required
-    //   batchId: null,
-    //   transactionHash: data.transactionHash, // TransactionHash field is of type String and is required
-    //   name: data.name,
-    //   certificateNumber: data.certificateNumber, // CertificateNumber field is of type String and is required
-    //   course: data.course,
-    //   expirationDate: data.expirationDate, // ExpirationDate field is of type String and is required
-    //   certStatus: data.certStatus
-    // };
-
-    // await insertIssueStatus(logIssueStatus);
-
     const updateIssuerLog = await insertIssueStatus(data);
 
     const idExist = await User.findOne({ issuerId: data.issuerId });
@@ -376,14 +361,15 @@ const insertIssueStatus = async (issueData) => {
     // Format the date in ISO 8601 format with UTC offset
     // const statusDate = await convertExpirationStatusLog(issueData.expirationDate);
     // Parsing input date using moment
-    const parsedDate = issueData.expirationDate != "1" ? moment(issueData.expirationDate, 'MM/DD/YYYY') : "1";
+    const parsedDate = issueData.expirationDate != '1' ? moment(issueData.expirationDate, 'MM/DD/YYYY') : '1';
     // Formatting the parsed date into ISO 8601 format with timezone
-    const formattedDate = parsedDate != "1" ? parsedDate.toISOString() : "1";
+    const formattedDate = parsedDate != '1' ? parsedDate.toISOString() : '1';
     // Check if issueData.batchId is provided, otherwise assign null
     const batchId = issueData.batchId || null;
     const email = issueData.email || null;
     const issuerId = issueData.issuerId || null;
     const transactionHash = issueData.transactionHash || null;
+    
     // Insert data into status MongoDB
     const newIssueStatus = new IssueStatus({
       email: email,
@@ -397,7 +383,6 @@ const insertIssueStatus = async (issueData) => {
       certStatus: issueData.certStatus,
       lastUpdate: Date.now()
     });
-
     const updateLog = await newIssueStatus.save();
   }
 };

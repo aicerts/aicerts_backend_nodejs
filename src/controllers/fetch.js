@@ -179,9 +179,7 @@ const getIssueDetails = async (req, res) => {
   } catch (error) {
     return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
   }
-
-
-}
+};
 
 /**
  * API to Upload Files to AWS-S3 bucket.
@@ -212,6 +210,50 @@ const uploadFileToS3 = async (req, res) => {
   } catch (error) {
     console.error('Error uploading file:', error);
     res.status(500).send({ status: "FAILED", error: 'An error occurred while uploading the file', details: error });
+  }
+};
+
+/**
+ * API to fetch details of Verification results input as Course name.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
+const getVerificationDetailsByCourse = async (req, res) => {
+  var validResult = validationResult(req);
+  if (!validResult.isEmpty()) {
+    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+  }
+  try {
+    // Check mongoose connection
+    const dbStatus = await isDBConnected();
+    const dbStatusMessage = (dbStatus == true) ? messageCode.msgDbReady : messageCode.msgDbNotReady;
+    console.log(dbStatusMessage);
+
+    const { course } = req.body;
+
+    const verificationSingleResponse = await IssueStatus.find({ certStatus: 6, course: course, batchId: null });
+    const verificationBatchResponse = await IssueStatus.find({ certStatus: 6, course: course, batchId: {$ne: null} });
+
+    var responseCount = [verificationSingleResponse.length, verificationBatchResponse.length];
+    if (verificationSingleResponse.length != 0 || verificationBatchResponse.length != 0) {
+      res.json({
+        status: 'SUCCESS',
+        data: responseCount,
+        message: `Verification results fetched successfully with searched course: ${course}`
+      });
+    } else {
+      res.json({
+        status: 'FAILED',
+        data: responseCount,
+        message: `No match found by course: ${course}`
+      });
+    }
+  } catch (error) {
+    res.json({
+      status: 'FAILED',
+      message: messageCode.msgErrorOnFetching
+    });
   }
 };
 
@@ -761,7 +803,7 @@ async function updateIssuesSchema(certificateId, url, type) {
     console.error('Error updating IssuesSchema:', error);
     throw error;
   }
-}
+};
 
 // Function to update BatchIssuesSchema for type 3
 async function updateBatchIssuesSchema(certificateId, url) {
@@ -776,8 +818,7 @@ async function updateBatchIssuesSchema(certificateId, url) {
     console.error('Error updating BatchIssuesSchema:', error);
     throw error;
   }
-}
-
+};
 
 const getSingleCertificates = async (req, res) => {
   try {
@@ -873,6 +914,9 @@ module.exports = {
 
   // Function to fetch issuer details
   getIssuerByEmail,
+
+  // Function to fetch verification details
+  getVerificationDetailsByCourse,
 
   // Function to fetch details of Certification by giving name / certification ID.
   getIssueDetails,
