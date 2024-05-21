@@ -423,8 +423,8 @@ router.post('/get-issuer-by-email', validationRoute.emailCheck, adminController.
  * @swagger
  * /api/get-verification-details:
  *   post:
- *     summary: Get Verification details with course name input
- *     description: API to Fetch Verification details [single, batch, total] on course name request.
+ *     summary: Get Verification details with Issuer email & course name input
+ *     description: API to Fetch Verification details [single, batch, total] on Issuer email & course name request.
  *     tags: [Fetch/Upload]
  *     security:
  *       - BearerAuth: []
@@ -435,6 +435,9 @@ router.post('/get-issuer-by-email', validationRoute.emailCheck, adminController.
  *           schema:
  *             type: object
  *             properties:
+ *               email:
+ *                 type: string
+ *                 description: Provide valid Issuer email.
  *               course:
  *                 type: string
  *                 description: Course name to search.
@@ -496,6 +499,7 @@ router.post('/get-issuer-by-email', validationRoute.emailCheck, adminController.
  *                   type: string
  *                   example: An error occurred during the process!
  */
+
 router.post('/get-verification-details', validationRoute.courseCheck, adminController.getVerificationDetailsByCourse);
 
 /**

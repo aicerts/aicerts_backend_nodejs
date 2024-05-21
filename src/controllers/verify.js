@@ -109,8 +109,14 @@ const verify = async (req, res) => {
 
     // Validation checks for request data
     if (singleIssueExist) {
+      
+      if(singleIssueExist.certificateStatus == 3){
+        return res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
+      }
+
       if (certificateData['Expiration Date'] == '1') {
 
+        verifyLog.issuerId = singleIssueExist.issuerId;
         var dbStatus = await isDBConnected();
         if (dbStatus) {
           await insertIssueStatus(verifyLog);
@@ -153,6 +159,7 @@ const verify = async (req, res) => {
 
           const foundCertification = certificateData;
 
+          verifyLog.issuerId = singleIssueExist.issuerId;
           verifyLog.expirationDate = singleIssueExist.expirationDate;
 
           var dbStatus = await isDBConnected();
@@ -189,10 +196,15 @@ const verify = async (req, res) => {
       }
     } else if (batchIssueExist) {
 
+      if(batchIssueExist.certificateStatus == 3){
+        return res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
+      }
+
       if (certificateData['Expiration Date'] == '1') {
 
         // Add the batchId parameter
         verifyLog.batchId = batchIssueExist.batchId;
+        verifyLog.issuerId = batchIssueExist.issuerId;
 
         var dbStatus = await isDBConnected();
         if (dbStatus != false) {
@@ -253,8 +265,7 @@ const verify = async (req, res) => {
 
             // Add the batchId parameter
             verifyLog.batchId = batchIssueExist.batchId;
-
-
+            verifyLog.issuerId = batchIssueExist.issuerId;
             verifyLog.expirationDate = batchIssueExist.expirationDate;
 
             var dbStatus = await isDBConnected();
@@ -431,6 +442,7 @@ const decodeCertificate = async (req, res) => {
         const batchIssueExist = await BatchIssues.findOne({ certificateNumber: originalData.Certificate_Number });
         if (originalData.Certificate_Number != "" && (singleIssueExist || batchIssueExist)) {
           if (singleIssueExist) {
+            verifyLog.issuerId = singleIssueExist.issuerId;
             parsedData['Expiration Date'] = singleIssueExist.expirationDate;
             var certSingleStatus = singleIssueExist.certificateStatus || 0;
             if ((certSingleStatus != 0) && (certSingleStatus == 3)) {
@@ -438,6 +450,7 @@ const decodeCertificate = async (req, res) => {
               messageContent = "Certification has Revoked";
             }
           } else if (batchIssueExist) {
+            verifyLog.issuerId = batchIssueExist.issuerId;
             parsedData['Expiration Date'] = batchIssueExist.expirationDate;
             // Add the batchId parameter
             verifyLog.batchId = batchIssueExist.batchId;
@@ -505,7 +518,7 @@ const verifyCertificationId = async (req, res) => {
 
       var verifyLog = {
         email: "-",
-        issuerId: "-",
+        issuerId: singleIssueExist.issuerId,
         transactionHash: "-",
         certificateNumber: singleIssueExist.certificateNumber,
         name: singleIssueExist.name,
@@ -513,6 +526,10 @@ const verifyCertificationId = async (req, res) => {
         expirationDate: singleIssueExist.expirationDate,
         certStatus: 6
       };
+
+      if(singleIssueExist.certificateStatus == 3){
+        return res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
+      }
 
       if (singleIssueExist.expirationDate == '1') {
         var _polygonLink = `https://${process.env.NETWORK}/tx/${singleIssueExist.transactionHash}`;
@@ -589,7 +606,7 @@ const verifyCertificationId = async (req, res) => {
 
       var verifyLog = {
         email: "-",
-        issuerId: "-",
+        issuerId: batchIssueExist.issuerId,
         transactionHash: "-",
         batchId: batchIssueExist.batchId,
         certificateNumber: batchIssueExist.certificateNumber,
@@ -598,6 +615,10 @@ const verifyCertificationId = async (req, res) => {
         expirationDate: batchIssueExist.expirationDate,
         certStatus: 6
       };
+
+      if(batchIssueExist.certificateStatus == 3){
+        return res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
+      }
 
       if (batchIssueExist.expirationDate == '1') {
         var _polygonLink = `https://${process.env.NETWORK}/tx/${batchIssueExist.transactionHash}`;

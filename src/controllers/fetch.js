@@ -225,35 +225,44 @@ const getVerificationDetailsByCourse = async (req, res) => {
     return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
   try {
+
+    const email = req.body.email;
+    const course = req.body.course;
     // Check mongoose connection
     const dbStatus = await isDBConnected();
     const dbStatusMessage = (dbStatus == true) ? messageCode.msgDbReady : messageCode.msgDbNotReady;
     console.log(dbStatusMessage);
 
-    const { course } = req.body;
+    const isEmailExist = await User.findOne({ email: email });
+    if(!isEmailExist){
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgUserEmailNotFound });
+    }
 
-    const verificationCommonResponse = await IssueStatus.find({ certStatus: 6, course: course });
+    var issuerId = isEmailExist.issuerId;
 
-    const verificationSingleResponse = await IssueStatus.find({ certStatus: 6, course: course, batchId: null });
-    const verificationBatchResponse = await IssueStatus.find({ certStatus: 6, course: course, batchId: {$ne: null} });
+    const verificationCommonResponse = await IssueStatus.find({ issuerId: issuerId, certStatus: 6, course: course });
+
+    const verificationSingleResponse = await IssueStatus.find({ issuerId: issuerId, certStatus: 6, course: course, batchId: null });
+    const verificationBatchResponse = await IssueStatus.find({ issuerId: issuerId, certStatus: 6, course: course, batchId: {$ne: null} });
 
     var responseCount = [verificationSingleResponse.length, verificationBatchResponse.length, verificationCommonResponse.length];
     if (verificationSingleResponse.length > 0 || verificationBatchResponse.length > 0) {
-      res.json({
+      res.status(200).json({
         status: 'SUCCESS',
         data: responseCount,
         message: `Verification results fetched successfully with searched course: ${course}`
       });
     } else {
-      res.json({
+      res.status(400).json({
         status: 'FAILED',
         data: responseCount,
         message: `No match found by course: ${course}`
       });
     }
   } catch (error) {
-    res.json({
+    res.status(500).json({
       status: 'FAILED',
+      data: error,
       message: messageCode.msgErrorOnFetching
     });
   }
