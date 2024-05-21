@@ -232,11 +232,13 @@ const getVerificationDetailsByCourse = async (req, res) => {
 
     const { course } = req.body;
 
+    const verificationCommonResponse = await IssueStatus.find({ certStatus: 6, course: course });
+
     const verificationSingleResponse = await IssueStatus.find({ certStatus: 6, course: course, batchId: null });
     const verificationBatchResponse = await IssueStatus.find({ certStatus: 6, course: course, batchId: {$ne: null} });
 
-    var responseCount = [verificationSingleResponse.length, verificationBatchResponse.length];
-    if (verificationSingleResponse.length != 0 || verificationBatchResponse.length != 0) {
+    var responseCount = [verificationSingleResponse.length, verificationBatchResponse.length, verificationCommonResponse.length];
+    if (verificationSingleResponse.length > 0 || verificationBatchResponse.length > 0) {
       res.json({
         status: 'SUCCESS',
         data: responseCount,

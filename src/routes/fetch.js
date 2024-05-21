@@ -424,7 +424,7 @@ router.post('/get-issuer-by-email', validationRoute.emailCheck, adminController.
  * /api/get-verification-details:
  *   post:
  *     summary: Get Verification details with course name input
- *     description: API to Fetch Verification details on course name request.
+ *     description: API to Fetch Verification details [single, batch, total] on course name request.
  *     tags: [Fetch/Upload]
  *     security:
  *       - BearerAuth: []
@@ -440,7 +440,7 @@ router.post('/get-issuer-by-email', validationRoute.emailCheck, adminController.
  *                 description: Course name to search.
  *     responses:
  *       '200':
- *         description: Courses count searched in verification fetched successfully
+ *         description: Courses count searched in verification fetched successfully. format [single, batch, total]
  *         content:
  *           application/json:
  *             schema:
@@ -451,7 +451,7 @@ router.post('/get-issuer-by-email', validationRoute.emailCheck, adminController.
  *                   example: SUCCESS
  *                 data:
  *                   type: object
- *                   description: Response count details
+ *                   description: Response count details of [single, batch, total]
  *                 message:
  *                   type: string
  *                   example: Course search count fetched successfully
