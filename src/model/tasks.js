@@ -84,7 +84,7 @@ const signer = new ethers.Wallet(process.env.PRIVATE_KEY, fallbackProvider);
 const sim_contract = new ethers.Contract(contractAddress, abi, signer);
 
 // Import the Issues models from the schema defined in "../config/schema"
-const { User, Issues, BatchIssues, IssueStatus } = require("../config/schema");
+const { User, Issues, BatchIssues, IssueStatus, VerificationLog } = require("../config/schema");
 
 //Connect to polygon
 const connectToPolygon = async () => {
@@ -103,7 +103,7 @@ const connectToPolygon = async () => {
 
 // Function to convert the Date format
 const convertDateFormat = async (dateString) => {
-  if(dateString == 1){
+  if (dateString == 1) {
     return "1";
   }
   if (dateString.length < 11) {
@@ -179,19 +179,19 @@ const convertDateFormat = async (dateString) => {
 // Convert Date format for the Display on Verification
 const convertDateOnVerification = async (dateString) => {
 
-  if(dateString != 1){
-  var formatString = 'MM/DD/YYYY';
+  if (dateString != 1) {
+    var formatString = 'MM/DD/YYYY';
 
-  // Attempt to parse the input date string using the specified format
-  const dateObject = moment(dateString, formatString, true);
-  if (dateObject.isValid()) {
-    // Format the date to 'MM/DD/YYYY'
-    var formattedDate = moment(dateObject).format(formatString);
-    return formattedDate;
+    // Attempt to parse the input date string using the specified format
+    const dateObject = moment(dateString, formatString, true);
+    if (dateObject.isValid()) {
+      // Format the date to 'MM/DD/YYYY'
+      var formattedDate = moment(dateObject).format(formatString);
+      return formattedDate;
+    }
+  } else if (dateString == 1) {
+    return dateString;
   }
-} else if (dateString == 1){
-  return dateString;
-}
 
 };
 
@@ -211,9 +211,9 @@ const convertDateToEpoch = async (dateString) => {
 
     return epochValue;
 
-  } else if (dateString == 1){
+  } else if (dateString == 1) {
     return dateString
-  }else {
+  } else {
     return false;
   }
 };
@@ -240,7 +240,7 @@ const convertEpochToDate = async (epochTimestamp) => {
 };
 
 const convertExpirationStatusLog = async (_date) => {
-  if(_date == "1" || _date == null){
+  if (_date == "1" || _date == null) {
     return "1";
   }
   // Parse the date string into a Date object
@@ -369,7 +369,7 @@ const insertIssueStatus = async (issueData) => {
     const email = issueData.email || null;
     const issuerId = issueData.issuerId || null;
     const transactionHash = issueData.transactionHash || null;
-    
+
     // Insert data into status MongoDB
     const newIssueStatus = new IssueStatus({
       email: email,
@@ -384,6 +384,76 @@ const insertIssueStatus = async (issueData) => {
       lastUpdate: Date.now()
     });
     const updateLog = await newIssueStatus.save();
+  }
+};
+
+const verificationLogEntry = async (verificationData) => {
+  if (verificationData) {
+    var dbStatus = await isDBConnected();
+    if (dbStatus) {
+      var isIssuerExist = await User.findOne({ issuerId: verificationData.issuerId });
+      if (isIssuerExist) {
+
+        try {
+          // Find or create the verification log for the user
+          const filter = { email: isIssuerExist.email };
+          const update = {
+            $setOnInsert: { // Set fields if the document is inserted
+              email: isIssuerExist.email,
+              issuerId: verificationData.issuerId,
+            },
+            $set: { // Update the lastUpdate field
+              lastUpdate: Date.now(),
+            },
+            $inc: { // Increment the count for the course or initialize it to 1 if it doesn't exist
+              [`courses.${verificationData.course}`]: 1,
+            }
+          };
+          const options = {
+            upsert: true, // Create a new document if it doesn't exist
+            new: true, // Return the updated document
+            useFindAndModify: false, // To use findOneAndUpdate() without deprecation warning
+          };
+
+          var updatedDocument = await VerificationLog.findOneAndUpdate(filter, update, options);
+
+          // console.log('Document updated:', updatedDocument);
+
+        } catch (error) {
+          console.error("Internal server error", error);
+        }
+      } else if (verificationData.issuerId == "default") {
+
+        try {
+          // Find or create the verification log for the user
+          const filter = { email: verificationData.issuerId };
+          const update = {
+            $setOnInsert: { // Set fields if the document is inserted
+              email: verificationData.issuerId,
+              issuerId: verificationData.issuerId,
+            },
+            $set: { // Update the lastUpdate field
+              lastUpdate: Date.now(),
+            },
+            $inc: { // Increment the count for the course or initialize it to 1 if it doesn't exist
+              [`courses.${verificationData.course}`]: 1,
+            }
+          };
+          const options = {
+            upsert: true, // Create a new document if it doesn't exist
+            new: true, // Return the updated document
+            useFindAndModify: false, // To use findOneAndUpdate() without deprecation warning
+          };
+
+          var updatedDocument = await VerificationLog.findOneAndUpdate(filter, update, options);
+
+          // console.log('Document updated:', updatedDocument);
+
+        } catch (error) {
+          console.error("Internal server error", error);
+        }
+      }
+    }
   }
 };
 
@@ -805,7 +875,7 @@ module.exports = {
   // Function to extract certificate information from a QR code text
   extractCertificateInfo,
 
-  // Function to convert the Date format
+  // Function to convert the Date format MM/DD/YYYY
   convertDateFormat,
 
   convertDateOnVerification,
@@ -817,6 +887,8 @@ module.exports = {
   insertIssueStatus,
 
   getCertificationStatus,
+
+  verificationLogEntry,
 
   // Function to extract QR code data from a PDF file
   extractQRCodeDataFromPDF,

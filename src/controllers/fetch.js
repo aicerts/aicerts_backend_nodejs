@@ -11,7 +11,7 @@ const { validationResult } = require("express-validator");
 const moment = require('moment');
 
 // Import MongoDB models
-const { User, Issues, BatchIssues, IssueStatus } = require("../config/schema");
+const { User, Issues, BatchIssues, IssueStatus, VerificationLog } = require("../config/schema");
 
 // Importing functions from a custom module
 const {
@@ -227,37 +227,32 @@ const getVerificationDetailsByCourse = async (req, res) => {
   try {
 
     const email = req.body.email;
-    const course = req.body.course;
     // Check mongoose connection
     const dbStatus = await isDBConnected();
-    const dbStatusMessage = (dbStatus == true) ? messageCode.msgDbReady : messageCode.msgDbNotReady;
-    console.log(dbStatusMessage);
 
     const isEmailExist = await User.findOne({ email: email });
+
     if(!isEmailExist){
       return res.status(400).json({ status: "FAILED", message: messageCode.msgUserEmailNotFound });
     }
 
-    var issuerId = isEmailExist.issuerId;
+    const verificationCommonResponse = await VerificationLog.findOne({ email: email });
 
-    const verificationCommonResponse = await IssueStatus.find({ issuerId: issuerId, certStatus: 6, course: course });
-
-    const verificationSingleResponse = await IssueStatus.find({ issuerId: issuerId, certStatus: 6, course: course, batchId: null });
-    const verificationBatchResponse = await IssueStatus.find({ issuerId: issuerId, certStatus: 6, course: course, batchId: {$ne: null} });
-
-    var responseCount = [verificationSingleResponse.length, verificationBatchResponse.length, verificationCommonResponse.length];
-    if (verificationSingleResponse.length > 0 || verificationBatchResponse.length > 0) {
+if (verificationCommonResponse) {
+      var responseCount = verificationCommonResponse.courses;
       res.status(200).json({
         status: 'SUCCESS',
         data: responseCount,
-        message: `Verification results fetched successfully with searched course: ${course}`
+        message: `Verification results fetched successfully with searched course`
       });
+      return;
     } else {
       res.status(400).json({
         status: 'FAILED',
-        data: responseCount,
-        message: `No match found by course: ${course}`
+        data: 0,
+        message: `No verification results found`
       });
+      return;
     }
   } catch (error) {
     res.status(500).json({
