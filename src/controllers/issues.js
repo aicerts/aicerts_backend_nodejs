@@ -111,12 +111,37 @@ const issuePdf = async (req, res) => {
 
       // Set response headers for PDF download
       const certificateName = `${certificateNumber}_certificate.pdf`;
-      res.set({
-        "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${certificateName}"`,
-      });
+      // res.set({
+      //   "Content-Type": "application/pdf",
+      //   "Content-Disposition": `attachment; filename="${certificateName}"`,
+      // });
 
-      return res.send(issueResponse.file);
+      // res.send(issueResponse.file);
+
+      // Assuming you also want to send the image along with the PDF file
+      // Set response headers for image download
+      // const certificateImageName = `${certificateNumber}.png`;
+      // res.set({
+      //   'Content-Type': 'image/png',
+      //   'Content-Disposition': `attachment; filename="${certificateImageName}"`, // Change filename as needed
+      // });
+
+      // // Send image
+      // res.send(issueResponse.image);
+
+      // Combine PDF file buffer and image buffer into a single buffer
+      const combinedBuffer = Buffer.concat([issueResponse.file, issueResponse.image]);
+      console.log("Buffers", issueResponse.file, issueResponse.image, combinedBuffer);
+
+      // Set response headers for combined file download
+      res.set({
+        'Content-Type': 'application/octet-stream', // Set appropriate content type for combined file
+        'Content-Disposition': `attachment; filename="${certificateName}"`, // Change filename as needed
+       });
+
+      // Send combined file
+      res.send(combinedBuffer);
+      return;
 
     } else {
       return res.status(issueResponse.code).json({ status: issueResponse.status, message: issueResponse.message, details: responseDetails });
