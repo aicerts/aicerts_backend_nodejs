@@ -20,10 +20,10 @@ const validationRoutes = {
     ],
     authIssue: [
         body("email").notEmpty().trim().isEmail().withMessage(messageCode.msgInvalidEmail).not().equals("string").withMessage(messageCode.msgInvalidEmail),
-        body("certificateNumber").notEmpty().trim().isString().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide).not().matches(specialCharsRegex).withMessage(messageCode.msgNoSpecialCharacters).isLength({ min: 12, max: 20 }).withMessage(messageCode.msgCertLength),
+        body("certificateNumber").notEmpty().trim().isString().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide).not().matches(specialCharsRegex).withMessage(messageCode.msgNoSpecialCharacters).isLength({ min: 5, max: 25 }).withMessage(messageCode.msgCertificationLength),
         body("name").notEmpty().trim().isString().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide).isLength({ max: 40 }).withMessage(messageCode.msgMaxLength),
         body("course").notEmpty().trim().isString().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide).isLength({ max: 150 }).withMessage(messageCode.msgMaxLengthCourse),
-        body(["grantDate, expirationDate"]).not().equals("string").withMessage(messageCode.msgInputProvide)
+        body("grantDate").not().equals("string").withMessage(messageCode.msgInputProvide)
     ],
     signUp: [
         body(["name"]).notEmpty().trim().isString().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide).isLength({ max: 30 }).withMessage(messageCode.msgMaxLength),

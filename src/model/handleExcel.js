@@ -73,8 +73,8 @@ const handleExcelFile = async (_path) => {
 
                     var certificationNames = rawBatchData.map(item => item.certificationName);
 
-                    var nonNullGrantDates = _certificationGrantDates.filter(date => date == null);
-                    var nonNullExpiryDates = _certificationExpirationDates.filter(date => date == null);
+                    var nonNullGrantDates = _certificationGrantDates.filter(date => (date == null ||date == 1 || date == "1" || date == ""));
+                    var nonNullExpiryDates = _certificationExpirationDates.filter(date => (date == null || date == 1 || date == "1" || date == ""));
                     var notNullCertificationIDs = certificationIDs.filter(item => item == null);
                     var notNullHolderNames = holderNames.filter(item => item == null);
                     var notNullCertificationNames = certificationNames.filter(item => item == null);
@@ -88,7 +88,7 @@ const handleExcelFile = async (_path) => {
 
 
                     if((checkValidateGrantDates.invalidDates).length > 0 || (checkValidateExpirationDates.invalidDates).length > 0){
-                        return { status: "FAILED", response: false, message: messageCode.msgInvalidDateFormat, Details: `Grant Dates ${checkValidateGrantDates.invalidDates}, Issued Dates ${checkValidateExpirationDates.invalidDates}` };
+                        return { status: "FAILED", response: false, message: messageCode.msgInvalidDateFormat, Details: `Grant Dates ${checkValidateGrantDates.invalidDates}, Expiration Dates ${checkValidateExpirationDates.invalidDates}` };
                     }
 
                     var certificationGrantDates = checkValidateGrantDates.validDates;
@@ -119,7 +119,7 @@ const handleExcelFile = async (_path) => {
                         const invalidExpirationDateFormat = await findInvalidDates(certificationExpirationDates);
                         
                         if((invalidGrantDateFormat.invalidDates).length > 0 || (invalidExpirationDateFormat.invalidDates).length > 0){
-                            return { status: "FAILED", response: false, message: messageCode.msgInvalidDateFormat, Details: `Grant Dates ${invalidGrantDateFormat.invalidDates}, Issued Dates ${invalidExpirationDateFormat.invalidDates}` };
+                            return { status: "FAILED", response: false, message: messageCode.msgInvalidDateFormat, Details: `Grant Dates ${invalidGrantDateFormat.invalidDates}, Expiration Dates ${invalidExpirationDateFormat.invalidDates}` };
                             
                         }
 

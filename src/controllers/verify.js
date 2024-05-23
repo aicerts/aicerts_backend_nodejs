@@ -188,6 +188,25 @@ const verifyCertificationId = async (req, res) => {
     } else {
 
       if (response == true && singleIssueExist != null) {
+        if(singleIssueExist.expirationDate == '1'){
+          var _polygonLink = `https://${process.env.NETWORK}/tx/${singleIssueExist.transactionHash}`;
+
+          var completeResponse = {
+            'Certificate Number': singleIssueExist.certificateNumber,
+            'Course Name': singleIssueExist.course,
+            'Expiration Date': await convertDateFormat(singleIssueExist.expirationDate),
+            'Grant Date': await convertDateFormat(singleIssueExist.grantDate),
+            'Name': singleIssueExist.name,
+            'Polygon URL': _polygonLink
+          };
+
+          const verificationResponse = {
+            status: "SUCCESS",
+            message: "Certification is valid",
+            details: completeResponse
+          };
+          res.status(200).json(verificationResponse);
+        }
         if (singleIssueExist == null) {
           const _verificationResponse = {
             status: "FAILED",

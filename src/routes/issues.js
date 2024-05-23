@@ -328,7 +328,7 @@ router.post('/batch-certificate-issue', __upload.single("excelFile"), ensureAuth
  * @swagger
  * /api/auth-issue:
  *   post:
- *     summary: API call for issuing a certification (no pdf required) with Authorization token
+ *     summary: API call for issuing a certification (no pdf required) with Authorization token (Optional Expiration Date)
  *     description: API call for issuing a certificate with Request Data Extraction, Validation Checks, Blockchain Processing, Certificate Issuance, Response Handling, Blockchain Interaction, Data Encryption, QR Code Generation, Database Interaction, Error Handling and Asynchronous Operation.
  *     tags:
  *       - Issue Certification (Details)
@@ -356,7 +356,7 @@ router.post('/batch-certificate-issue', __upload.single("excelFile"), ensureAuth
  *                 description: The grant date of the certificate.
  *               expirationDate:
  *                 type: string
- *                 description: The expiration date of the certificate.
+ *                 description: The expiration date of the certificate (optional), can provide "1" / null / "".
  *             required:
  *               - email
  *               - certificateNumber

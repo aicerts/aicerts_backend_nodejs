@@ -17,6 +17,8 @@ module.exports = {
     msgInvalidDates: "File has invalid Dates",
     msgOnlyAlphabets: "Enter valid Name",
     msgNoSpecialCharacters : "No special characters are allowed in Certification ID",
+    msgInvalidGrantDate: "File has invalid Grant Date format",
+    msgInvalidExpirationDate: "File has invalid Expiration Date format",
     msgOlderDateThanNewDate : "Grant date should be older than Expiration Date",
     msgExcelHasExistingIds : "Excel file has Existing Certification IDs",
     msgInvalidHeaders : "Invalid headers in the Excel file.",
@@ -33,6 +35,7 @@ module.exports = {
     msgInvalidFormat : "Entered input format is invalid ",
     msgInvalidDate : "Entered date format is invalid",
     msgCertLength : "Certification ID must between 12 to 20 characters",
+    msgCertificationLength:"Certification ID must between 5 to 25 characters",
     msgMaxLength : "Entered Input must between 8 to 30 characters",
     msgMaxLengthCourse : "Entered Input must not exceed 150 characters",
 
