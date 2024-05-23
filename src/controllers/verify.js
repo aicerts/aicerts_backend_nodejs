@@ -84,9 +84,16 @@ const verify = async (req, res) => {
     if (blockchainUrl && blockchainUrl.length > 0) {
       // Respond with success status and certificate details
       res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, Details: certificateData });
+      if (fs.existsSync(file)) {
+        fs.unlinkSync(file);
+      }
     } else {
       // Respond with failure status if no valid blockchain URL is found
       res.status(400).json({ status: "FAILED", message: messageCode.msgCertNotValid });
+      if (fs.existsSync(file)) {
+        fs.unlinkSync(file);
+      }
+      return;
     }
   } catch (error) {
     // If an error occurs during verification, respond with failure status
@@ -96,6 +103,10 @@ const verify = async (req, res) => {
     };
 
     res.status(400).json(verificationResponse);
+    if (fs.existsSync(file)) {
+      fs.unlinkSync(file);
+    }
+    return;
   }
 
   // Delete the uploaded file after verification
@@ -141,8 +152,10 @@ const decodeCertificate = async (req, res) => {
     // Respond with the verification status and decrypted data if valid
     if (isValid) {
       res.status(200).json({ status: "PASSED", message: "Verified", data: parsedData });
+      return;
     } else {
       res.status(200).json({ status: "FAILED", message: "Not Verified" });
+      return;
     }
   } catch (error) {
     // Handle errors and send an appropriate response
@@ -206,6 +219,7 @@ const verifyCertificationId = async (req, res) => {
             details: completeResponse
           };
           res.status(200).json(verificationResponse);
+          return;
         }
         if (singleIssueExist == null) {
           const _verificationResponse = {
@@ -236,6 +250,7 @@ const verifyCertificationId = async (req, res) => {
             details: foundCertification
           };
           res.status(200).json(verificationResponse);
+          return;
 
         } catch (error) {
           return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
@@ -270,6 +285,7 @@ const verifyCertificationId = async (req, res) => {
             };
 
             res.status(200).json(_verificationResponse);
+            return;
 
           } catch (error) {
             return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });

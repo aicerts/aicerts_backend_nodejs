@@ -36,7 +36,7 @@ const {
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
 const { handleExcelFile } = require('../model/handleExcel');
-const { handleIssueCertification, handleIssuePdfCertification, handleAuthIssueCertification } = require('../model/issue');
+const { handleIssueCertification, handleIssuePdfCertification } = require('../model/issue');
 
 // Retrieve contract address from environment variable
 const contractAddress = process.env.CONTRACT_ADDRESS;
@@ -417,80 +417,6 @@ const batchIssueCertificate = async (req, res) => {
   }
 };
 
-/**
- * API call for Certificate issue without pdf template.
- *
- * @param {Object} req - Express request object.
- * @param {Object} res - Express response object.
- */
-const authIssue = async (req, res) => {
-  const token = req.headers.authorization;
-  try {
-    // Check if the token is provided in the request header
-    if (!token) {
-      return res.status(401).json({ status: "FAILED", message: messageCode.msgAuthMissing });
-    }
-
-    if (decodeKey == 0) {
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidKey });
-    }
-
-    if (token != decodeKey) {
-      return res.status(403).json({ status: "FAILED", message: messageCode.msgInvalidToken });
-    }
-
-  } catch (error) {
-    // Handle any errors that occur during token verification or validation
-    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
-  }
-
-  var validResult = validationResult(req);
-  if (!validResult.isEmpty()) {
-    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
-  }
-
-  try {
-    // Extracting required data from the request body
-    const email = req.body.email;
-    const certificateNumber = req.body.certificateNumber;
-    const name = req.body.name;
-    const courseName = req.body.course;
-    var _grantDate = req.body.grantDate;
-    if (specialCharsRegex.test(certificateNumber)) {
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgNoSpecialCharacters });
-    }
-
-    if(_grantDate == "" || _grantDate == "1" || _grantDate == 1 || _grantDate == null || _grantDate == "string"){
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidGrantDate, details: req.body.grantDate }); 
-    }
-    var _grantDate = await convertDateFormat(req.body.grantDate);
-    if (!_grantDate) {
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidGrantDate, details: req.body.grantDate });
-    }
-
-    if (req.body.expirationDate == "" || req.body.expirationDate == "1" || req.body.expirationDate == 1 ||req.body.expirationDate == null || req.body.expirationDate == "string") {
-      var _expirationDate = 1;
-    } else {
-      var _expirationDate = await convertDateFormat(req.body.expirationDate);
-    }
-
-    if (!_expirationDate) {
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidExpirationDate, details: req.body.expirationDate });
-    }
-
-    const issueResponse = await handleAuthIssueCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate);
-    var responseDetails = issueResponse.details ? issueResponse.details : '';
-    if (issueResponse.code == 200) {
-      return res.status(issueResponse.code).json({ status: issueResponse.status, message: issueResponse.message, qrCodeImage: issueResponse.qrCodeImage, polygonLink: issueResponse.polygonLink, details: responseDetails });
-    }
-
-    res.status(issueResponse.code).json({ status: issueResponse.status, message: issueResponse.message, details: responseDetails });
-  } catch (error) {
-    // Handle any errors that occur during token verification or validation
-    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
-  }
-};
-
 module.exports = {
   // Function to issue a PDF certificate
   issuePdf,
@@ -499,9 +425,6 @@ module.exports = {
   issue,
 
   // Function to issue a Batch of certifications
-  batchIssueCertificate,
-
-  // Function to issue a certification with Authorization Token
-  authIssue
+  batchIssueCertificate
 
 };

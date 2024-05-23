@@ -26,7 +26,7 @@ const storage = multer.diskStorage({
  *   post:
  *     summary: Verify the Certification with QR  - Blockchain URL
  *     description: API Verify the Certification with QR in PDF document format - Blockchain URL. 
- *     tags: [Verifier]
+ *     tags: [Verification]
  *     security:
  *       - BearerAuth: []
  *     requestBody:
@@ -111,7 +111,7 @@ router.post('/verify', _upload.single("pdfFile"), adminController.verify);
  *   post:
  *     summary: Verify Single/Batch Certificates by Certification ID
  *     description: Verify single/batch certificates using their certification ID. It checks whether the certification ID exists in the database and validates it against blockchain records if found.
- *     tags: [Verifier]
+ *     tags: [Verification]
  *     security:
  *       - BearerAuth: []
  *     requestBody:
@@ -192,7 +192,7 @@ router.post('/verify-certification-id', validationRoute.checkId, adminController
  *   post:
  *     summary: Verify a certification with encryption
  *     description: API for decode the certiication with encrypted inputs.
- *     tags: [Verifier]
+ *     tags: [Verification]
  *     requestBody:
  *       required: true
  *       content:

@@ -26,9 +26,9 @@ const swaggerOptions = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'Blockchain API',
-      version: '1.0.0',
-      description: 'API documentation for Blockchain module',
+      title: 'Certs 365',
+      version: '1.0.2',
+      description: 'API documentation for Certs 365 module',
     },
   },
   apis: ['./src/routes/*.js'], // Add other paths if needed
@@ -74,6 +74,11 @@ process.on('uncaughtException', (error) => {
 
 app.use('/', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
+// Start the server
+const server = app.listen(port, () => {
+  console.log(`Server listening on http://localhost:${port}`);
+});
+
 // Graceful Shutdown
 process.on('SIGINT', () => {
   console.log('Received SIGINT. Closing server gracefully.');
@@ -82,9 +87,4 @@ process.on('SIGINT', () => {
     console.log('Server closed.');
     process.exit(0); // Exit the process with a success code
   });
-});
-
-// Start the server
-app.listen(port, () => {
-  console.log(`Server listening on http://localhost:${port}`);
 });
