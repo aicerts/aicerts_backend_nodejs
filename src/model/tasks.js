@@ -585,7 +585,7 @@ const extractQRCodeDataFromPDF = async (pdfFilePath) => {
 
     const pdf2picOptions3 = {
       quality: 100,
-      density: 350,
+      density: 400,
       format: "png",
       width: 4000,
       height: 4000,
