@@ -29,7 +29,6 @@ const specialCharsRegex = /[!@#$%^&*(),.?":{}|<>]/; // Regular expression for sp
 const {
   convertDateFormat,
   insertBatchCertificateData, // Function to insert Batch certificate data into the database
-  dateFormatToStore,
   calculateHash, // Function to calculate the hash of a file
   cleanUploadFolder, // Function to clean up the upload folder
   isDBConnected, // Function to check if the database connection is established
