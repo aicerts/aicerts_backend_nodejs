@@ -125,7 +125,6 @@ const issuePdf = async (req, res) => {
     // Handle any errors that occur during token verification or validation
     return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
   }
-
 };
 
 /**
