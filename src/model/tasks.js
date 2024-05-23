@@ -680,7 +680,7 @@ const createPdfCertificateImage = async (pdfPath, imagePath) => {
     pngFile: true,
   };
   const outputFile = imageRoot;
-  
+
   const res = await poppler.pdfToCairo(file, outputFile, options);
 };
 

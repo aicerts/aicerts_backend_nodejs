@@ -109,35 +109,33 @@ const issuePdf = async (req, res) => {
     var responseDetails = issueResponse.details ? issueResponse.details : '';
     if (issueResponse.code == 200) {
 
-      // Set response headers for PDF download
+      // Set response headers for PDF & PNG to download
       const certificateName = `${certificateNumber}_certificate.pdf`;
-      // res.set({
-      //   "Content-Type": "application/pdf",
-      //   "Content-Disposition": `attachment; filename="${certificateName}"`,
-      // });
-
-      // res.send(issueResponse.file);
-
-      // Assuming you also want to send the image along with the PDF file
-      // Set response headers for image download
       // const certificateImageName = `${certificateNumber}.png`;
-      // res.set({
-      //   'Content-Type': 'image/png',
-      //   'Content-Disposition': `attachment; filename="${certificateImageName}"`, // Change filename as needed
-      // });
-
-      // // Send image
-      // res.send(issueResponse.image);
-
-      // Combine PDF file buffer and image buffer into a single buffer
       const combinedBuffer = Buffer.concat([issueResponse.file, issueResponse.image]);
-      console.log("Buffers", issueResponse.file, issueResponse.image, combinedBuffer);
+      // console.log("Buffers", issueResponse.file, issueResponse.image, combinedBuffer);
+      // try {
+      //   // Write the PDF buffer to a file
+      //   fs.writeFile('output.pdf', issueResponse.file, (err) => {
+      //     if (err) {
+      //       console.error('Error writing PDF file:', err);
+      //       return;
+      //     }
+      //     console.log('PDF file saved successfully');
+      //   });
+
+
+      //   fs.writeFileSync(certificateImageName, issueResponse.image);
+
+      // } catch (error) {
+      //   console.log("Error in png creation", error);
+      // }
 
       // Set response headers for combined file download
       res.set({
         'Content-Type': 'application/octet-stream', // Set appropriate content type for combined file
         'Content-Disposition': `attachment; filename="${certificateName}"`, // Change filename as needed
-       });
+      });
 
       // Send combined file
       res.send(combinedBuffer);
