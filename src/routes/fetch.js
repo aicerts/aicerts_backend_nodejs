@@ -423,8 +423,8 @@ router.post('/get-issuer-by-email', validationRoute.emailCheck, adminController.
  * @swagger
  * /api/get-verification-details:
  *   post:
- *     summary: Get Verification details with Issuer email & course name input
- *     description: API to Fetch Verification details [single, batch, total] on Issuer email & course name request.
+ *     summary: Get Verification details with Issuer email input
+ *     description: API to Fetch Verification details course wise on Issuer email request.
  *     tags: [Fetch/Upload]
  *     security:
  *       - BearerAuth: []
@@ -438,12 +438,9 @@ router.post('/get-issuer-by-email', validationRoute.emailCheck, adminController.
  *               email:
  *                 type: string
  *                 description: Provide valid Issuer email.
- *               course:
- *                 type: string
- *                 description: Course name to search.
  *     responses:
  *       '200':
- *         description: Courses count searched in verification fetched successfully. format [single, batch, total]
+ *         description: Courses wise count searched in verification page details  fetched successfully.
  *         content:
  *           application/json:
  *             schema:
@@ -454,7 +451,7 @@ router.post('/get-issuer-by-email', validationRoute.emailCheck, adminController.
  *                   example: SUCCESS
  *                 data:
  *                   type: object
- *                   description: Response count details of [single, batch, total]
+ *                   description: Response COurse wise count details 
  *                 message:
  *                   type: string
  *                   example: Course search count fetched successfully
@@ -500,7 +497,7 @@ router.post('/get-issuer-by-email', validationRoute.emailCheck, adminController.
  *                   example: An error occurred during the process!
  */
 
-router.post('/get-verification-details', validationRoute.courseCheck, adminController.getVerificationDetailsByCourse);
+router.post('/get-verification-details', validationRoute.emailCheck, adminController.getVerificationDetailsByCourse);
 
 /**
  * @swagger

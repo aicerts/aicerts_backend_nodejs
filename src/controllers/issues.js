@@ -109,14 +109,70 @@ const issuePdf = async (req, res) => {
     var responseDetails = issueResponse.details ? issueResponse.details : '';
     if (issueResponse.code == 200) {
 
-      // Set response headers for PDF download
+      // Set response headers for PDF & PNG to download
       const certificateName = `${certificateNumber}_certificate.pdf`;
+      // const certificateImageName = `${certificateNumber}.png`;
+      const combinedBuffer = Buffer.concat([issueResponse.file, issueResponse.image]);
+      // console.log("Buffers", issueResponse.file, issueResponse.image, combinedBuffer);
+      // try {
+      //   // Write the PDF buffer to a file
+      //   fs.writeFile('output.pdf', issueResponse.file, (err) => {
+      //     if (err) {
+      //       console.error('Error writing PDF file:', err);
+      //       return;
+      //     }
+      //     console.log('PDF file saved successfully');
+      //   });
+
+      //   fs.writeFileSync(certificateImageName, issueResponse.image);
+
+      // } catch (error) {
+      //   console.log("Error in png creation", error);
+      // }
+
+      // Set response headers for combined file download
+      // Assuming combinedBuffer is the concatenated buffer of PDF and PNG
+
+      // Find the positions of PDF and PNG data
+      // const pdfEndIndex = combinedBuffer.indexOf('%%EOF');
+      // const pngStartIndex = combinedBuffer.indexOf(Buffer.from([0x89, 0x50, 0x4E, 0x47]));
+
+      // // Check if both PDF and PNG data are found
+      // if (pdfEndIndex !== -1 && pngStartIndex !== -1) {
+      //   // Extract PDF buffer
+      //   const pdfBuffer = combinedBuffer.slice(0, pdfEndIndex + 6); // Include the %%EOF marker
+
+      //   // Extract PNG buffer
+      //   const pngBuffer = combinedBuffer.slice(pngStartIndex);
+
+      //   // Write buffers to files
+      //   fs.writeFile('certificate.pdf', pdfBuffer, (err) => {
+      //     if (err) {
+      //       console.error('Error writing PDF file:', err);
+      //     } else {
+      //       console.log('PDF file saved successfully.');
+      //     }
+      //   });
+
+      //   fs.writeFile('certificate.png', pngBuffer, (err) => {
+      //     if (err) {
+      //       console.error('Error writing PNG file:', err);
+      //     } else {
+      //       console.log('PNG file saved successfully.');
+      //     }
+      //   });
+      // } else {
+      //   console.error('PDF or PNG data not found in the combined buffer.');
+      // }
+
       res.set({
-        "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${certificateName}"`,
+        'Content-Type': 'application/octet-stream', // Set appropriate content type for combined file
+        'Content-Disposition': `attachment; filename="${certificateName}"`, // Change filename as needed
       });
 
-      return res.send(issueResponse.file);
+      // Send combined file
+      res.send(combinedBuffer);
+      return;
 
     } else {
       return res.status(issueResponse.code).json({ status: issueResponse.status, message: issueResponse.message, details: responseDetails });
