@@ -126,6 +126,7 @@ const login = async (req, res) => {
                   message: messageCode.msgValidCredentials,
                   data: {
                     JWTToken: JWTToken,
+                    _id:data[0]?._id,
                     name: data[0]?.name,
                     organization: data[0]?.organization,
                     email: data[0]?.email

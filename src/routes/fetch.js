@@ -737,6 +737,9 @@ router.post('/get-single-certificates', adminController.getSingleCertificates);
  *               issuerId:
  *                 type: string
  *                 description: Issuer's ID
+ *               date:
+ *                 type: string
+ *                 description: Batch Date
  *             required:
  *               - issuerId
  *     responses:
@@ -817,6 +820,7 @@ router.post('/get-single-certificates', adminController.getSingleCertificates);
  */
 
 router.post('/get-batch-certificates', adminController.getBatchCertificates);
+router.post('/get-batch-certificate-dates', adminController.getBatchCertificateDates);
 
 
 module.exports=router;

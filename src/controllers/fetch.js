@@ -736,11 +736,11 @@ const getMonthAggregatedCertsDetails = async (data, month, year) => {
 const uploadCertificateToS3 = async (req, res) => {
   const file = req?.file;
   const filePath = file?.path;
-  const certificateId = req?.body?.certificateId;
+  const certificateNumber = req?.body?.certificateNumber;
   const type = parseInt(req?.body?.type, 10); // Parse type to integer
 
   // Validate request parameters
-  if (!file || !certificateId || !type) {
+  if (!file || !certificateNumber || !type) {
     return res.status(400).send({ status: "FAILED", message: "file, certificateId, and type are required" });
   }
 
@@ -749,9 +749,9 @@ const uploadCertificateToS3 = async (req, res) => {
   try {
     if (type === 1 || type === 2) {
       const typeField = type === 1 ? 'withpdf' : 'withoutpdf';
-      certificate = await Issues.findOne({ _id: certificateId, type: typeField });
+      certificate = await Issues.findOne({ certificateNumber: certificateNumber });
     } else if (type === 3) {
-      certificate = await BatchIssues.findOne({ _id: certificateId });
+      certificate = await BatchIssues.findOne({ certificateNumber: certificateNumber });
     }
 
     if (!certificate) {
@@ -781,13 +781,13 @@ const uploadCertificateToS3 = async (req, res) => {
     // Update schemas based on the type
     switch (type) {
       case 1:
-        await updateIssuesSchema(certificateId, data.Location, 'withpdf');
+        await updateIssuesSchema(certificateNumber, data.Location, 'withpdf');
         break;
       case 2:
-        await updateIssuesSchema(certificateId, data.Location, 'withoutpdf');
+        await updateIssuesSchema(certificateNumber, data.Location, 'withoutpdf');
         break;
       case 3:
-        await updateBatchIssuesSchema(certificateId, data.Location);
+        await updateBatchIssuesSchema(certificateNumber, data.Location);
         break;
       default:
         console.error('Invalid type:', type);
@@ -802,12 +802,12 @@ const uploadCertificateToS3 = async (req, res) => {
 };
 
 // Function to update IssuesSchema for type 1 and 2
-async function updateIssuesSchema(certificateId, url, type) {
+async function updateIssuesSchema(certificateNumber, url, type) {
   try {
     // Update IssuesSchema using certificateId
     // Example code assuming mongoose is used for MongoDB
     await Issues.findOneAndUpdate(
-      { _id: certificateId },
+      { certificateNumber: certificateNumber },
       { $set: { url: url, type: type } }
     );
   } catch (error) {
@@ -817,12 +817,12 @@ async function updateIssuesSchema(certificateId, url, type) {
 };
 
 // Function to update BatchIssuesSchema for type 3
-async function updateBatchIssuesSchema(certificateId, url) {
+async function updateBatchIssuesSchema(certificateNumber, url) {
   try {
     // Update BatchIssuesSchema using certificateId
     // Example code assuming mongoose is used for MongoDB
     await BatchIssues.findOneAndUpdate(
-      { _id: certificateId },
+      { certificateNumber: certificateNumber },
       { $set: { url: url } }
     );
   } catch (error) {
@@ -874,7 +874,53 @@ const getSingleCertificates = async (req, res) => {
   }
 };
 
-const getBatchCertificates = async (req, res) => {
+// const getBatchCertificates = async (req, res) => {
+//   try {
+//     const { issuerId } = req.body;
+
+//     // Validate issuerId
+//     if (!issuerId) {
+//       return res.status(400).json({ status: "FAILED", message: "issuerId is required" });
+//     }
+
+//     // Fetch all batch certificates for the given issuerId
+//     const batchCertificates = await BatchIssues.find({ issuerId });
+
+//     // Group certificates by issueDate
+//     const groupedCertificates = batchCertificates.reduce((acc, certificate) => {
+//       const issueDate = certificate.issueDate.toISOString().split('T')[0]; // Format date as YYYY-MM-DD
+//       if (!acc[issueDate]) {
+//         acc[issueDate] = [];
+//       }
+//       acc[issueDate].push(certificate);
+//       return acc;
+//     }, {});
+
+//     // Transform grouped certificates into an array of objects
+//     const result = Object.keys(groupedCertificates).map(issueDate => ({
+//       issueDate,
+//       certificates: groupedCertificates[issueDate]
+//     }));
+
+//     // Respond with success and the grouped certificates
+//     res.json({
+//       status: 'SUCCESS',
+//       data: result,
+//       message: 'Batch certificates fetched successfully'
+//     });
+//   } catch (error) {
+//     console.error('Error fetching batch certificates:', error);
+
+//     // Respond with failure message
+//     res.status(500).json({
+//       status: 'FAILED',
+//       message: 'An error occurred while fetching the batch certificates',
+//       details: error.message
+//     });
+//   }
+// };
+
+const getBatchCertificateDates = async (req, res) => {
   try {
     const { issuerId } = req.body;
 
@@ -884,28 +930,55 @@ const getBatchCertificates = async (req, res) => {
     }
 
     // Fetch all batch certificates for the given issuerId
-    const batchCertificates = await BatchIssues.find({ issuerId });
+    const batchCertificates = await BatchIssues.find({ issuerId }).select('issueDate');
 
-    // Group certificates by issueDate
-    const groupedCertificates = batchCertificates.reduce((acc, certificate) => {
-      const issueDate = certificate.issueDate.toISOString().split('T')[0]; // Format date as YYYY-MM-DD
-      if (!acc[issueDate]) {
-        acc[issueDate] = [];
-      }
-      acc[issueDate].push(certificate);
-      return acc;
-    }, {});
+    // Extract unique issue dates
+    const uniqueDates = [...new Set(batchCertificates.map(cert => cert.issueDate.toISOString().split('T')[0]))];
 
-    // Transform grouped certificates into an array of objects
-    const result = Object.keys(groupedCertificates).map(issueDate => ({
-      issueDate,
-      certificates: groupedCertificates[issueDate]
-    }));
-
-    // Respond with success and the grouped certificates
+    // Respond with success and the unique dates
     res.json({
       status: 'SUCCESS',
-      data: result,
+      data: uniqueDates,
+      message: 'Unique issue dates fetched successfully'
+    });
+  } catch (error) {
+    console.error('Error fetching unique issue dates:', error);
+
+    // Respond with failure message
+    res.status(500).json({
+      status: 'FAILED',
+      message: 'An error occurred while fetching the unique issue dates',
+      details: error.message
+    });
+  }
+};
+
+const getBatchCertificates = async (req, res) => {
+  try {
+    const { issuerId, date } = req.body;
+
+    // Validate input
+    if (!issuerId || !date) {
+      return res.status(400).json({ status: "FAILED", message: "issuerId and date are required" });
+    }
+
+    // Convert date to ISO format to compare with the issueDate field
+    const startDate = new Date(date);
+    startDate.setUTCHours(0, 0, 0, 0);
+
+    const endDate = new Date(date);
+    endDate.setUTCHours(23, 59, 59, 999);
+
+    // Fetch all batch certificates for the given issuerId on the specified date
+    const batchCertificates = await BatchIssues.find({
+      issuerId,
+      issueDate: { $gte: startDate, $lte: endDate }
+    });
+
+    // Respond with success and the batch certificates
+    res.json({
+      status: 'SUCCESS',
+      data: batchCertificates,
       message: 'Batch certificates fetched successfully'
     });
   } catch (error) {
@@ -919,6 +992,8 @@ const getBatchCertificates = async (req, res) => {
     });
   }
 };
+
+
 module.exports = {
   // Function to get all issuers (users)
   getAllIssuers,
@@ -945,7 +1020,8 @@ module.exports = {
 
   uploadCertificateToS3,
   getSingleCertificates,
-  getBatchCertificates
+  getBatchCertificates,
+  getBatchCertificateDates
 
 
 };
