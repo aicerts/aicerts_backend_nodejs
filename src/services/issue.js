@@ -509,6 +509,7 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
   }
 };
 
+
 const issueCertificateWithRetry = async (certificateNumber, certificateHash, expirationEpoch, retryCount = 3) => {
 
   try {
