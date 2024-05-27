@@ -88,6 +88,7 @@ const issuePdf = async (req, res) => {
     const certificateNumber = req.body.certificateNumber;
     const name = req.body.name;
     const courseName = req.body.course;
+    const outputFileFormat = req.body.type || null;
     var _grantDate = await convertDateFormat(req.body.grantDate);
 
     if (_grantDate == "1" || _grantDate == null || _grantDate == "string") {
@@ -109,138 +110,31 @@ const issuePdf = async (req, res) => {
     var responseDetails = issueResponse.details ? issueResponse.details : '';
     if (issueResponse.code == 200) {
 
-      // Set response headers for PDF & PNG to download
-      const certificateName = `${certificateNumber}_certificate.pdf`;
+      if (outputFileFormat == '1' || outputFileFormat == 1) {
+        // Set response headers for PNG to download
+        var certificateName = `${certificateNumber}.png`;
+
+        res.set({
+          'Content-Type': "application/png",
+          'Content-Disposition': `attachment; filename="${certificateName}"`, // Change filename as needed
+        });
+
+        // Send Image file
+        res.send(issueResponse.image);
+        return;
+
+      }
+
+      // Set response headers for PDF to download
+      var certificateName = `${certificateNumber}_certificate.pdf`;
 
       res.set({
-        'Content-Type': "application/pdf", 
+        'Content-Type': "application/pdf",
         'Content-Disposition': `attachment; filename="${certificateName}"`, // Change filename as needed
       });
 
-      // Send combined file
+      // Send Pdf file
       res.send(issueResponse.file);
-      return;
-
-    } else {
-      return res.status(issueResponse.code).json({ status: issueResponse.status, message: issueResponse.message, details: responseDetails });
-    }
-
-  } catch (error) {
-    // Handle any errors that occur during token verification or validation
-    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
-  }
-};
-
-/**
- * API call for Certificate issue (PNG) with pdf template.
- *
- * @param {Object} req - Express request object.
- * @param {Object} res - Express response object.
- */
-const issuePdfImage = async (req, res) => {
-  if (!req.file.path) {
-    return res.status(400).json({ status: "FAILED", message: messageCode.msgMustPdf });
-  }
-
-  var fileBuffer = fs.readFileSync(req.file.path);
-  var pdfDoc = await PDFDocument.load(fileBuffer);
-
-  if (pdfDoc.getPageCount() > 1) {
-    // Respond with success status and certificate details
-    await cleanUploadFolder();
-    return res.status(400).json({ status: "FAILED", message: messageCode.msgMultiPagePdf });
-  }
-  try {
-    // Extracting required data from the request body
-    const email = req.body.email;
-    const certificateNumber = req.body.certificateNumber;
-    const name = req.body.name;
-    const courseName = req.body.course;
-    var _grantDate = await convertDateFormat(req.body.grantDate);
-
-    if (_grantDate == "1" || _grantDate == null || _grantDate == "string") {
-      res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidGrantDate, details: req.body.grantDate });
-      return;
-    }
-    if (req.body.expirationDate == 1 || req.body.expirationDate == null || req.body.expirationDate == "string") {
-      var _expirationDate = 1;
-    } else {
-      var _expirationDate = await convertDateFormat(req.body.expirationDate);
-    }
-
-    if (_expirationDate == null) {
-      res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidExpirationDate, details: req.body.expirationDate });
-      return;
-    }
-
-    const issueResponse = await handleIssuePdfCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate, req.file.path);
-    var responseDetails = issueResponse.details ? issueResponse.details : '';
-    if (issueResponse.code == 200) {
-
-      // Set response headers for PDF & PNG to download
-      // const certificateName = `${certificateNumber}_certificate.pdf`;
-      var certificateName = `${certificateNumber}.png`;
-      // const combinedBuffer = Buffer.concat([issueResponse.file, issueResponse.image]);
-      // console.log("Buffers", issueResponse.file, issueResponse.image, combinedBuffer);
-      // try {
-      //   // Write the PDF buffer to a file
-      //   fs.writeFile('output.pdf', issueResponse.file, (err) => {
-      //     if (err) {
-      //       console.error('Error writing PDF file:', err);
-      //       return;
-      //     }
-      //     console.log('PDF file saved successfully');
-      //   });
-
-      //   fs.writeFileSync(certificateImageName, issueResponse.image);
-
-      // } catch (error) {
-      //   console.log("Error in png creation", error);
-      // }
-
-      // Set response headers for combined file download
-      // Assuming combinedBuffer is the concatenated buffer of PDF and PNG
-
-      // Find the positions of PDF and PNG data
-      // const pdfEndIndex = combinedBuffer.indexOf('%%EOF');
-      // const pngStartIndex = combinedBuffer.indexOf(Buffer.from([0x89, 0x50, 0x4E, 0x47]));
-
-      // // Check if both PDF and PNG data are found
-      // if (pdfEndIndex !== -1 && pngStartIndex !== -1) {
-      //   // Extract PDF buffer
-      //   var pdfBuffer = combinedBuffer.slice(0, pdfEndIndex + 6); // Include the %%EOF marker
-
-      //   // Extract PNG buffer
-      //   var pngBuffer = combinedBuffer.slice(pngStartIndex);
-
-      //   // Write buffers to files
-      //   fs.writeFile('certificate.pdf', pdfBuffer, (err) => {
-      //     if (err) {
-      //       console.error('Error writing PDF file:', err);
-      //     } else {
-      //       console.log('PDF file saved successfully.');
-      //     }
-      //   });
-
-      //   fs.writeFile('certificate.png', pngBuffer, (err) => {
-      //     if (err) {
-      //       console.error('Error writing PNG file:', err);
-      //     } else {
-      //       console.log('PNG file saved successfully.');
-      //     }
-      //   });
-      // } else {
-      //   console.error('PDF or PNG data not found in the combined buffer.');
-      // }
-
-      res.set({
-        // 'Content-Type': 'application/octet-stream', // Set appropriate content type for combined file
-        'Content-Type': 'application/png', // Set appropriate content type for combined file
-        'Content-Disposition': `attachment; filename="${certificateName}"`, // Change filename as needed
-      });
-
-      // Send combined file
-      res.send(issueResponse.image);
       return;
 
     } else {
@@ -560,7 +454,6 @@ const batchIssueCertificate = async (req, res) => {
 module.exports = {
   // Function to issue a PDF certificate
   issuePdf,
-  issuePdfImage,
 
   // Function to issue a certification
   issue,
