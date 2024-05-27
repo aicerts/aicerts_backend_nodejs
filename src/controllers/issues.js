@@ -110,8 +110,8 @@ const issuePdf = async (req, res) => {
     if (issueResponse.code == 200) {
 
       // Set response headers for PDF & PNG to download
-      const certificateName = `${certificateNumber}_certificate.pdf`;
-      // const certificateImageName = `${certificateNumber}.png`;
+      // const certificateName = `${certificateNumber}_certificate.pdf`;
+      const certificateName = `${certificateNumber}.png`;
       const combinedBuffer = Buffer.concat([issueResponse.file, issueResponse.image]);
       // console.log("Buffers", issueResponse.file, issueResponse.image, combinedBuffer);
       // try {
@@ -171,7 +171,7 @@ const issuePdf = async (req, res) => {
       });
 
       // Send combined file
-      res.send(combinedBuffer);
+      res.send(issueResponse.image);
       return;
 
     } else {

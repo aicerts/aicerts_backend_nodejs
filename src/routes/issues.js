@@ -177,15 +177,15 @@ router.post('/issue', validationRoute.issue, ensureAuthenticated, adminControlle
  *               - file
  *     responses:
  *       '200':
- *         description: Successful certificate issuance in PDF format
+ *         description: Successful certificate issuance in PDF/PNG format
  *         content:
- *           application/pdf:
+ *           application/png:
  *             schema:
  *               type: string
  *               format: binary
  *             example:
  *               status: "SUCCESS"
- *               message: PDF file containing the issued certificate.
+ *               message: PDF/PNG file containing the issued certificate.
  *       '400':
  *         description: Certificate already issued or invalid input
  *         content:
