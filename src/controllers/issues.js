@@ -134,16 +134,16 @@ const issuePdf = async (req, res) => {
       // Assuming combinedBuffer is the concatenated buffer of PDF and PNG
 
       // Find the positions of PDF and PNG data
-      // const pdfEndIndex = combinedBuffer.indexOf('%%EOF');
-      // const pngStartIndex = combinedBuffer.indexOf(Buffer.from([0x89, 0x50, 0x4E, 0x47]));
+      const pdfEndIndex = combinedBuffer.indexOf('%%EOF');
+      const pngStartIndex = combinedBuffer.indexOf(Buffer.from([0x89, 0x50, 0x4E, 0x47]));
 
-      // // Check if both PDF and PNG data are found
-      // if (pdfEndIndex !== -1 && pngStartIndex !== -1) {
-      //   // Extract PDF buffer
-      //   const pdfBuffer = combinedBuffer.slice(0, pdfEndIndex + 6); // Include the %%EOF marker
+      // Check if both PDF and PNG data are found
+      if (pdfEndIndex !== -1 && pngStartIndex !== -1) {
+        // Extract PDF buffer
+        var pdfBuffer = combinedBuffer.slice(0, pdfEndIndex + 6); // Include the %%EOF marker
 
-      //   // Extract PNG buffer
-      //   const pngBuffer = combinedBuffer.slice(pngStartIndex);
+        // Extract PNG buffer
+        var pngBuffer = combinedBuffer.slice(pngStartIndex);
 
       //   // Write buffers to files
       //   fs.writeFile('certificate.pdf', pdfBuffer, (err) => {
@@ -163,7 +163,7 @@ const issuePdf = async (req, res) => {
       //   });
       // } else {
       //   console.error('PDF or PNG data not found in the combined buffer.');
-      // }
+      }
 
       res.set({
         'Content-Type': 'application/octet-stream', // Set appropriate content type for combined file
@@ -171,7 +171,7 @@ const issuePdf = async (req, res) => {
       });
 
       // Send combined file
-      res.send(issueResponse.image);
+      res.send(pngBuffer);
       return;
 
     } else {
