@@ -758,8 +758,8 @@ const uploadCertificateToS3 = async (req, res) => {
   }
 
   const bucketName = process.env.BUCKET_NAME;
-  const keyName = file.originalname;
-
+  const timestamp = Date.now(); // Get the current timestamp in milliseconds
+const keyName = `${file.originalname}_${timestamp}`;
   const s3 = new AWS.S3();
   const fileStream = fs.createReadStream(filePath);
 
@@ -925,64 +925,70 @@ const getBatchCertificateDates = async (req, res) => {
     }
 
     // Fetch all batch certificates for the given issuerId
-    const batchCertificates = await BatchIssues.find({ issuerId }).select('issueDate');
+    const batchCertificates = await BatchIssues.find({ issuerId }).sort({ issueDate: 1 });
 
-    // Extract unique issue dates
-    const uniqueDates = [...new Set(batchCertificates.map(cert => cert.issueDate.toISOString().split('T')[0]))];
+    // Create a map to store the first certificate's issueDate for each batchId
+    const batchDateMap = new Map();
 
-    // Respond with success and the unique dates
+    // Iterate through the certificates and store the first occurrence's issueDate for each batchId
+    batchCertificates.forEach(cert => {
+      if (!batchDateMap.has(cert.batchId)) {
+        batchDateMap.set(cert.batchId, { issueDate: cert.issueDate, issuerId: cert.issuerId });
+      }
+    });
+
+    // Convert the map to an array of objects with batchId, issueDate, and issuerId
+    const uniqueBatchDates = Array.from(batchDateMap, ([batchId, value]) => ({
+      batchId,
+      issueDate: value.issueDate,
+      issuerId: value.issuerId
+    }));
+
+    // Respond with success and the unique batch dates
     res.json({
       status: 'SUCCESS',
-      data: uniqueDates,
-      message: 'Unique issue dates fetched successfully'
+      data: uniqueBatchDates,
+      message: 'Unique batch dates fetched successfully'
     });
   } catch (error) {
-    console.error('Error fetching unique issue dates:', error);
+    console.error('Error fetching unique batch dates:', error);
 
     // Respond with failure message
     res.status(500).json({
       status: 'FAILED',
-      message: 'An error occurred while fetching the unique issue dates',
+      message: 'An error occurred while fetching the unique batch dates',
       details: error.message
     });
   }
 };
 
+
+
 const getBatchCertificates = async (req, res) => {
   try {
-    const { issuerId, date } = req.body;
+    const { batchId, issuerId } = req.body;
 
     // Validate input
-    if (!issuerId || !date) {
-      return res.status(400).json({ status: "FAILED", message: "issuerId and date are required" });
+    if (!batchId || !issuerId) {
+      return res.status(400).json({ status: "FAILED", message: "batchId and issuerId are required" });
     }
 
-    // Convert date to ISO format to compare with the issueDate field
-    const startDate = new Date(date);
-    startDate.setUTCHours(0, 0, 0, 0);
+    // Fetch all certificates for the given batchId and issuerId
+    const certificates = await BatchIssues.find({ batchId, issuerId });
 
-    const endDate = new Date(date);
-    endDate.setUTCHours(23, 59, 59, 999);
-
-    // Fetch all batch certificates for the given issuerId on the specified date
-    const batchCertificates = await BatchIssues.find({
-      issuerId,
-      issueDate: { $gte: startDate, $lte: endDate }
-    });
-
-    // Respond with success and the batch certificates
+    // Respond with success and the certificates
     res.json({
       status: 'SUCCESS',
-      data: batchCertificates,
-      message: 'Batch certificates fetched successfully'
+      data: certificates,
+      message: 'Certificates fetched successfully'
     });
   } catch (error) {
-    console.error('Error fetching batch certificates:', error);
+    console.error('Error fetching certificates:', error);
 
     // Respond with failure message
     res.status(500).json({
       status: 'FAILED',
-      message: 'An error occurred while fetching the batch certificates',
+      message: 'An error occurred while fetching the certificates',
       details: error.message
     });
   }
