@@ -188,6 +188,96 @@ router.post('/verify-certification-id', validationRoute.checkId, adminController
 
 /**
  * @swagger
+ * /api/decode-qr-scan:
+ *   post:
+ *     summary: Verify Single/Batch Certificates by QR Scan response.
+ *     description: Verify single/batch certificates using their QR Scan response.
+ *     tags: [Verification]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               receivedCode:
+ *                 oneOf:
+ *                   - type: string
+ *                     description: URL of the QR Scan details
+ *                   - type: object
+ *                     properties:
+ *                       Verify On Blockchain:
+ *                         type: string
+ *                         description: Verification status on blockchain
+ *                       Certification Number:
+ *                         type: string
+ *                         description: Certification number
+ *                       Name:
+ *                         type: string
+ *                         description: Name of the certificate holder
+ *                       Certification Name:
+ *                         type: string
+ *                         description: Name of the certification
+ *                       Grant Date:
+ *                         type: string
+ *                         description: Date of certification grant
+ *                       Expiration Date:
+ *                         type: string
+ *                         description: Expiration date of the certification
+ *                 description: Certification QR Scan details to be verified
+ *     responses:
+ *       '200':
+ *         description: Successful response
+ *         content:
+ *           application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                status:
+ *                  type: string
+ *                  example: "SUCCESS"
+ *                message:
+ *                  type: string
+ *                  example: "Valid Certificate"
+ *                details:
+ *                  type: object
+ *                  properties:
+ *                    // Define properties of certification details object here
+ *       '400':
+ *         description: Certificate not found
+ *         content:
+ *           application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                status:
+ *                  type: string
+ *                  example: "FAILED"
+ *                message:
+ *                  type: string
+ *                  example: "Certification doesn't exist"
+ *       '500':
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                status:
+ *                  type: string
+ *                  example: "FAILED"
+ *                message:
+ *                  type: string
+ *                  example: "Internal Server error"
+ */
+
+router.post('/decode-qr-scan', adminController.decodeQRScan);
+
+
+/**
+ * @swagger
  * /api/verify-decrypt:
  *   post:
  *     summary: Verify a certification with encryption

@@ -6,6 +6,7 @@ const express = require("express");
 const app = express(); // Create an instance of the Express application
 const path = require("path");
 const fs = require("fs");
+const axios = require('axios');
 const moment = require('moment');
 const { ethers } = require("ethers"); // Ethereum JavaScript library
 const { validationResult } = require("express-validator");
@@ -26,7 +27,7 @@ const {
   extractQRCodeDataFromPDF, // Function to extract QR code data from a PDF file
   cleanUploadFolder, // Function to clean up the upload folder
   isDBConnected, // Function to check if the database connection is established
-  insertIssueStatus,
+  extractCertificateInfo,
   verificationLogEntry
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
@@ -104,8 +105,8 @@ const verify = async (req, res) => {
 
     // Validation checks for request data
     if (singleIssueExist) {
-      
-      if(singleIssueExist.certificateStatus == 3){
+
+      if (singleIssueExist.certificateStatus == 3) {
         res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
         if (fs.existsSync(file)) {
           fs.unlinkSync(file);
@@ -194,7 +195,7 @@ const verify = async (req, res) => {
       }
     } else if (batchIssueExist) {
 
-      if(batchIssueExist.certificateStatus == 3){
+      if (batchIssueExist.certificateStatus == 3) {
         res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
         if (fs.existsSync(file)) {
           fs.unlinkSync(file);
@@ -396,6 +397,47 @@ const verify = async (req, res) => {
 };
 
 /**
+ * Handles the decoding of a certificate from an encrypted link Fetched after Mobile/Webcam Scan.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
+const decodeQRScan = async (req, res) => {
+  const receivedCode = req.body.receivedCode;
+
+  if (!receivedCode) {
+    // Respond with error message
+    return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidInput });
+  }
+console.log("Input QR data", receivedCode);
+  try {
+    if (receivedCode.startsWith("https://tinyurl.com")) {
+
+      var reponseUrl = await expandTinyUrl(receivedCode);
+      if (reponseUrl) {
+        var extractQRData = await extractCertificateInfo(reponseUrl);
+      }
+
+      if (extractQRData) {
+
+        console.log("The received data", receivedCode, reponseUrl, extractQRData);
+
+        res.status(200).json({ status: "PASSED", message: "Verified", data: extractQRData });
+        return;
+      }
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
+
+    }
+  } catch (error) {
+    // Handle errors and send an appropriate response
+    console.error(error);
+    res.status(500).json({ message: messageCode.msgInternalError });
+  }
+
+};
+
+
+/**
  * Handles the decoding of a certificate from an encrypted link.
  *
  * @param {Object} req - Express request object.
@@ -512,7 +554,7 @@ const verifyCertificationId = async (req, res) => {
         course: singleIssueExist.course
       };
 
-      if(singleIssueExist.certificateStatus == 3){
+      if (singleIssueExist.certificateStatus == 3) {
         return res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
       }
 
@@ -594,7 +636,7 @@ const verifyCertificationId = async (req, res) => {
         course: batchIssueExist.course
       };
 
-      if(batchIssueExist.certificateStatus == 3){
+      if (batchIssueExist.certificateStatus == 3) {
         return res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
       }
 
@@ -689,6 +731,20 @@ const verifyCertificationId = async (req, res) => {
   }
 };
 
+
+const expandTinyUrl = async (tinyUrl) => {
+  try {
+    const response = await axios.head(tinyUrl, {
+      maxRedirects: 0,
+      validateStatus: status => status >= 200 && status < 400
+    });
+    return response.headers.location;
+  } catch (error) {
+    console.error('Error expanding TinyURL:', error.message);
+    return null;
+  }
+};
+
 const detectDateFormat = async (dateString) => {
   const formats = ['DD MMMM YYYY', 'MMMM DD YYYY', 'MM/DD/YY', 'MM/DD/YYYY'];
 
@@ -729,5 +785,7 @@ module.exports = {
   verifyCertificationId,
 
   // Function to decode a certificate
-  decodeCertificate
+  decodeCertificate,
+
+  decodeQRScan
 };
