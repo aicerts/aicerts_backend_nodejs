@@ -409,7 +409,7 @@ const decodeQRScan = async (req, res) => {
     // Respond with error message
     return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidInput });
   }
-console.log("Input QR data", receivedCode);
+  console.log("Input QR data", receivedCode);
   try {
     if (receivedCode.startsWith("https://tinyurl.com")) {
 
@@ -418,6 +418,18 @@ console.log("Input QR data", receivedCode);
         var extractQRData = await extractCertificateInfo(reponseUrl);
       }
 
+      if (extractQRData) {
+
+        console.log("The received data", receivedCode, reponseUrl, extractQRData);
+
+        res.status(200).json({ status: "PASSED", message: "Verified", data: extractQRData });
+        return;
+      }
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
+
+    } else if (receivedCode.startsWith("https://verify")) {
+
+      var extractQRData = await extractCertificateInfo(reponseUrl);
       if (extractQRData) {
 
         console.log("The received data", receivedCode, reponseUrl, extractQRData);
