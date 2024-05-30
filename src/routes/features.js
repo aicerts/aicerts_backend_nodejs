@@ -1,36 +1,17 @@
 const express = require('express');
 const router = express.Router();
 const { ensureAuthenticated } = require("../config/auth"); // Import authentication middleware
-const multer = require('multer');
-const { fileFilter } = require('../model/tasks'); // Import file filter function
-const adminController = require('../controllers/issues');
+const adminController = require('../controllers/features');
 const validationRoute = require("../common/validationRoutes");
-
-// Configure multer storage options
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-      cb(null, "./uploads"); // Set the destination where files will be saved
-    },
-    filename: (req, file, cb) => {
-      // Set the filename based on the Certificate_Number from the request body
-      const Certificate_Number = req.body.Certificate_Number;
-      cb(null, file.originalname);
-    },
-  });
-
-  // Initialize multer with configured storage and file filter
-  const _upload = multer({ storage, fileFilter });
-  
-  const __upload = multer({dest: "./uploads/"});
 
 /**
  * @swagger
- * /api/issue:
+ * /api/renew-cert:
  *   post:
- *     summary: API call for issuing a certificate (no pdf required)
+ *     summary: API call for Renew a certificate (no pdf required)
  *     description: API call for issuing a certificate with Request Data Extraction, Validation Checks, Blockchain Processing, Certificate Issuance, Response Handling, Blockchain Interaction, Data Encryption, QR Code Generation, Database Interaction, Error Handling and Asynchronous Operation.
  *     tags:
- *       - Issue Certification (Details)
+ *       - Renew Certification (Details)
  *     requestBody:
  *       required: true
  *       content:
@@ -44,24 +25,13 @@ const storage = multer.diskStorage({
  *               certificateNumber:
  *                 type: string
  *                 description: The certificate number.
- *               name:
- *                 type: string
- *                 description: The name associated with the certificate.
- *               course:
- *                 type: string
- *                 description: The course name associated with the certificate.
- *               grantDate:
- *                 type: string
- *                 description: The grant date of the certificate.
  *               expirationDate:
  *                 type: string
  *                 description: The expiration date of the certificate.
  *             required:
  *               - email
  *               - certificateNumber
- *               - name
- *               - course
- *               - grantDate
+ *               - expirationDate
  *     responses:
  *       '200':
  *         description: Successful certificate issuance
@@ -127,20 +97,20 @@ const storage = multer.diskStorage({
  *               message: Internal server error.
  */
 
-router.post('/issue', validationRoute.issue, ensureAuthenticated, adminController.issue);
+router.post('/renew-cert', validationRoute.renewIssue, ensureAuthenticated, adminController.renewCert);
 
 /**
  * @swagger
- * /api/issue-pdf:
+ * /api/update-cert-status:
  *   post:
- *     summary: API call for issuing certificates with a PDF template
- *     description: API call for issuing certificates with Request Data Extraction, Validation Checks, Blockchain Processing, Certificate Issuance, PDF Generation, Database Interaction, Response Handling, PDF Template, QR Code Integration, File Handling, Asynchronous Operation, Cleanup and Response Format.
+ *     summary: API call for certificate status update
+ *     description: API call for update a certificate status (Revoked, Reactivated ...).
  *     tags:
- *       - Issue Certification (*Upload pdf)
+ *       - Revoke/Reactivate Certification (Details)
  *     requestBody:
  *       required: true
  *       content:
- *         multipart/form-data:
+ *         application/json:
  *           schema:
  *             type: object
  *             properties:
@@ -150,42 +120,31 @@ router.post('/issue', validationRoute.issue, ensureAuthenticated, adminControlle
  *               certificateNumber:
  *                 type: string
  *                 description: The certificate number.
- *               name:
- *                 type: string
- *                 description: The name associated with the certificate.
- *               course:
- *                 type: string
- *                 description: The course name associated with the certificate.
- *               grantDate:
- *                 type: string
- *                 description: The grant date of the certificate.
- *               expirationDate:
- *                 type: string
- *                 description: The expiration date of the certificate.
- *               file:
- *                 type: string
- *                 format: binary
- *                 description: PDF file to be uploaded.
- *                 x-parser:
- *                   expression: file.originalname.endsWith('.pdf') // Allow only PDF files
+ *               certStatus:
+ *                 type: number
+ *                 description: The certificate status.
  *             required:
  *               - email
  *               - certificateNumber
- *               - name
- *               - course
- *               - grantDate
- *               - file
+ *               - certStatus
  *     responses:
  *       '200':
- *         description: Successful certificate issuance in PDF format
+ *         description: Successful certificate issuance
  *         content:
- *           application/pdf:
+ *           application/json:
  *             schema:
- *               type: string
- *               format: binary
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *                 details:
+ *                   type: object
  *             example:
  *               status: "SUCCESS"
- *               message: PDF file containing the issued certificate.
+ *               message: Certificate issued successfully.
+ *               details: Certificate details.
  *       '400':
  *         description: Certificate already issued or invalid input
  *         content:
@@ -199,7 +158,7 @@ router.post('/issue', validationRoute.issue, ensureAuthenticated, adminControlle
  *                   type: string
  *             example:
  *               status: "FAILED"
- *               message: Error message for certificate already issued or invalid input.
+ *               message: Error message for certificate status update input.
  *       '422':
  *         description: User given invalid input (Unprocessable Entity)
  *         content:
@@ -227,76 +186,71 @@ router.post('/issue', validationRoute.issue, ensureAuthenticated, adminControlle
  *                   type: string
  *             example:
  *               status: "FAILED"
- *               message: Internal Server Error.
+ *               message: Internal server error.
  */
 
-router.post('/issue-pdf', _upload.single("file"), ensureAuthenticated, adminController.issuePdf);
+router.post('/update-cert-status', validationRoute.updateStatus, ensureAuthenticated, adminController.updateCertStatus);
 
 /**
  * @swagger
- * /api/batch-certificate-issue:
+ * /api/renew-batch:
  *   post:
- *     summary: API call for issuing batch certificates.
- *     description: API call for issuing batch certificates with Request Data Extraction, Validation Checks, Excel Data Processing, Blockchain Processing, Certificate Issuance, Response Handling, Excel File Processing, Blockchain Verification, Merkle Tree Generation, QR Code Integration, Database Interaction, Error Handling and Asynchronous Operation. 
- *     tags: [Issue Batch (*Upload Excel)]
+ *     summary: API call for Batch Certificates Renewal.
+ *     description: API call for update a Batch of certificates expiration date.
+ *     tags:
+ *       - Renew Certification (Details)
  *     requestBody:
  *       required: true
  *       content:
- *         multipart/form-data:
+ *         application/json:
  *           schema:
  *             type: object
  *             properties:
  *               email:
  *                 type: string
  *                 description: The issuer email.
- *               excelFile:
+ *               batch:
+ *                 type: number
+ *                 description: The certificate Batch number.
+ *               expirationDate:
  *                 type: string
- *                 format: binary
- *                 description: Excel file to be uploaded. Must not be blank.
+ *                 description: The certificate Batch new Expiration date.
  *             required:
  *               - email
- *               - excelFile
+ *               - batch
+ *               - expirationDate
  *     responses:
  *       '200':
- *         description: Batch issuance successful
+ *         description: Successful Batch certificates renewed
  *         content:
  *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *                 details:
+ *                   type: object
  *             example:
  *               status: "SUCCESS"
- *               message: Batch of Certificates issued successfully
- *               polygonLink: https://your-network.com/tx/transactionHash
- *               details:
- *                 - id: 2323a323cb
- *                   batchID: 1
- *                   transactionHash: 12345678
- *                   certuficateHash: 122113523
- *                   certificateNumber: ASD2121
- *                   name: ABC
- *                   course: Advanced AI
- *                   grantDate: 12-12-24
- *                   expirationDate: 12-12-25
- *                   issueDate: 12-12-24
- *                   qrCode: rewrewr34242423
- *                 - id: 2323a323cb
- *                   batchID: 1
- *                   transactionHash: 12345673
- *                   certuficateHash: 122113529
- *                   certificateNumber: ASD3131
- *                   name: XYZ
- *                   course: Advanced AI
- *                   grantDate: 12-11-24
- *                   expirationDate: 12-11-25
- *                   issueDate: 12-11-24
- *                   qrCode: rewrewr34242423
- *                 # Add more certifications details if needed
+ *               message: Batch Certificate renewed successfully.
+ *               details: Certificate details.
  *       '400':
- *         description: Bad Request
+ *         description: Certificate already issued or invalid input
  *         content:
  *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
  *             example:
- *               error: Bad Request
  *               status: "FAILED"
- *               message: Please provide valid Certification(Batch) details.
+ *               message: Error message for batch expiration date update.
  *       '422':
  *         description: User given invalid input (Unprocessable Entity)
  *         content:
@@ -315,11 +269,110 @@ router.post('/issue-pdf', _upload.single("file"), ensureAuthenticated, adminCont
  *         description: Internal Server Error
  *         content:
  *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
  *             example:
  *               status: "FAILED"
- *               error: Internal Server Error
+ *               message: Internal server error.
  */
 
-router.post('/batch-certificate-issue', __upload.single("excelFile"), ensureAuthenticated, adminController.batchIssueCertificate);
+router.post('/renew-batch', validationRoute.renewBatch, ensureAuthenticated, adminController.renewBatchCertificate);
+
+/**
+ * @swagger
+ * /api/update-batch-status:
+ *   post:
+ *     summary: API call for Batch certificate status update
+ *     description: API call for update a Batch certificate status (Revoked, Reactivated ...).
+ *     tags:
+ *       - Revoke/Reactivate Certification (Details)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: The issuer email.
+ *               batch:
+ *                 type: number
+ *                 description: The certificate number.
+ *               status:
+ *                 type: number
+ *                 description: The certificate status.
+ *             required:
+ *               - email
+ *               - certificateNumber
+ *               - status
+ *     responses:
+ *       '200':
+ *         description: Successful Batch Certification Status
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *                 details:
+ *                   type: object
+ *             example:
+ *               status: "SUCCESS"
+ *               message: Batch Certificate status updated successfully.
+ *               details: Batch status update details.
+ *       '400':
+ *         description: Batch Certification status already issued or invalid input
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Error message for Batch certification status update input.
+ *       '422':
+ *         description: User given invalid input (Unprocessable Entity)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Error message for invalid input.
+ *       '500':
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Internal server error.
+ */
+
+router.post('/update-batch-status', validationRoute.updateBatch, ensureAuthenticated, adminController.updateBatchStatus);
 
 module.exports=router;

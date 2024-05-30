@@ -19,6 +19,8 @@ const abi = require("../config/abi.json");
 // Importing functions from a custom module
 const {
   convertDateFormat,
+  convertDateToEpoch,
+  holdExecution,
   insertCertificateData, // Function to insert certificate data into the database
   addLinkToPdf, // Function to add a link to a PDF file
   verifyPDFDimensions, //Verify the uploading pdf template dimensions
@@ -53,23 +55,36 @@ const max_length = parseInt(process.env.MAX_LENGTH);
 var messageCode = require("../common/codes");
 
 const handleIssueCertification = async(email, certificateNumber, name, courseName, _grantDate, _expirationDate) => {
-      // Extracting required data from the request body
-      const grantDate = await convertDateFormat(_grantDate);
-      const expirationDate = await convertDateFormat(_expirationDate);
-    
+  const grantDate = await convertDateFormat(_grantDate);
+  const expirationDate = await convertDateFormat(_expirationDate);
+  // Get today's date
+  var today = new Date(); // Adjust timeZone as per the US Standard Time zone
+  // Convert today's date to epoch time (in milliseconds)
+  var todayEpoch = today.getTime() / 1000; // Convert milliseconds to seconds
+
+  var epochGrant = await convertDateToEpoch(grantDate);
+  var epochExpiration = expirationDate != 1 ? await convertDateToEpoch(expirationDate) : 1;
+  var validExpiration = todayEpoch + (32 * 24 * 60 * 60); // Add 32 days (30 * 24 hours * 60 minutes * 60 seconds);
+
+  if(
+    !grantDate || 
+    !expirationDate ||
+    (epochExpiration != 1 && epochGrant > epochExpiration) ||
+    (epochExpiration != 1 && epochExpiration < validExpiration)
+  ) {
+    var errorMessage = messageCode.msgInvalidDate;
+    if(!grantDate || !expirationDate) {
+      errorMessage = messageCode.msgInvalidDateFormat;
+    } else if(epochExpiration != 1 && epochGrant > epochExpiration){
+      errorMessage = messageCode.msgOlderGrantDate;
+    } else if(epochExpiration != 1 && epochExpiration < validExpiration){
+    errorMessage = messageCode.msgInvalidExpiration;
+  }
+  return ({ code: 400, status: "FAILED", message: errorMessage });
+  }
     try
     {
-      if(grantDate && expirationDate){
-      // check copmare dates are valid
-      var compareResult = await compareInputDates(grantDate, expirationDate);
-      if(compareResult == 0 || compareResult == 2){
-        return ({ code: 400, status: "FAILED", message: `${messageCode.msgProvideValidDates} : Grant date: ${grantDate}, Expiration date: ${expirationDate}` });
-      }
-      } else {
-        return ({ code: 400, status: "FAILED", message: `${messageCode.msgProvideValidDates} : Grant date: ${_grantDate}, Expiration date: ${_expirationDate}` });
-      }
-
-    await isDBConnected();
+        await isDBConnected();
     // Check if user with provided email exists
     const idExist = await User.findOne({ email });
     // Check if certificate number already exists
@@ -88,7 +103,7 @@ const handleIssueCertification = async(email, certificateNumber, name, courseNam
         !courseName || // Missing course name
         (!grantDate || grantDate == 'Invalid date') || // Missing grant date
         (!expirationDate || expirationDate == 'Invalid date') || // Missing expiration date
-        [certificateNumber, name, courseName, grantDate, expirationDate].some(value => typeof value !== 'string' || value == 'string') || // Some values are not strings
+        [certificateNumber, name, courseName, grantDate].some(value => typeof value !== 'string' || value == 'string') || // Some values are not strings
         certificateNumber.length > max_length || // Certificate number exceeds maximum length
         certificateNumber.length < min_length // Certificate number is shorter than minimum length
     ) {
@@ -140,9 +155,8 @@ const handleIssueCertification = async(email, certificateNumber, name, courseNam
         }
             const issuerAuthorized = await newContract.hasRole(process.env.ISSUER_ROLE, idExist.issuerId);
             const val = await newContract.verifyCertificateById(certificateNumber);
-
             if (
-            val === true ||
+            val[0] === true ||
             isPaused === true
             ) {
             // Certificate already issued / contract paused
@@ -155,29 +169,10 @@ const handleIssueCertification = async(email, certificateNumber, name, courseNam
             return ({ code: 400, status: "FAILED", message: messageContent });
             
             } else {
-            try {
-                // If simulation successful, issue the certificate on blockchain
-                const tx = await newContract.issueCertificate(
-                certificateNumber,
-                combinedHash
-                );
 
-                // await tx.wait();
-                var txHash = tx.hash;
-
-                // Generate link URL for the certificate on blockchain
-                var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
-
-            } catch (error) {
-                if (error.reason) {
-                // Extract and handle the error reason
-                console.log("Error reason:", error.reason);
-                return ({ code: 400, status: "FAILED", message: error.reason });
-                } else {
-                // If there's no specific reason provided, handle the error generally
-                console.error(messageCode.msgFailedOpsAtBlockchain, error);
-                return ({ code: 400, status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain, details: error });
-                }
+            var { txHash, polygonLink } = await issueCertificateWithRetry(certificateNumber, combinedHash, epochExpiration);
+            if (!polygonLink) {
+              return ({ code: 400, status: false, message: messageCode.msgFaileToIssueAfterRetry, details: certificateNumber });
             }
 
             // Generate encrypted URL with certificate data
@@ -215,7 +210,6 @@ const handleIssueCertification = async(email, certificateNumber, name, courseNam
                 console.log(dbStatusMessage);
 
                 const issuerId = idExist.issuerId;
-
                 var certificateData = {
                 issuerId,
                 transactionHash: txHash,
@@ -224,9 +218,10 @@ const handleIssueCertification = async(email, certificateNumber, name, courseNam
                 name: fields.name,
                 course: fields.courseName,
                 grantDate: fields.Grant_Date,
-                expirationDate: fields.Expiration_Date
+                expirationDate: fields.Expiration_Date,
+                email: email,
+                certStatus: 1
                 };
-
                 // Insert certificate data into database
                 await insertCertificateData(certificateData);
 
@@ -268,21 +263,35 @@ const handleIssueCertification = async(email, certificateNumber, name, courseNam
 
 const handleIssuePdfCertification = async(email, certificateNumber, name, courseName, _grantDate, _expirationDate, _pdfPath) => {
     const pdfPath = _pdfPath;
-    const grantDate = await convertDateFormat(_grantDate);
-    const expirationDate = await convertDateFormat(_expirationDate);
+  const grantDate = await convertDateFormat(_grantDate);
+  const expirationDate = await convertDateFormat(_expirationDate);
+  // Get today's date
+  var today = new Date().toLocaleString("en-US", {timeZone: "America/New_York"}); // Adjust timeZone as per the US Standard Time zone
+  // Convert today's date to epoch time (in milliseconds)
+  var todayEpoch = new Date(today).getTime() / 1000; // Convert milliseconds to seconds
+
+  var epochGrant = await convertDateToEpoch(grantDate);
+  var epochExpiration = expirationDate != 1 ? await convertDateToEpoch(expirationDate) : 1;
+  var validExpiration = todayEpoch + (32 * 24 * 60 * 60); // Add 32 days (30 * 24 hours * 60 minutes * 60 seconds);
+
+  if(
+    !grantDate || 
+    !expirationDate ||
+    (epochExpiration != 1 && epochGrant > epochExpiration) ||
+    (epochExpiration != 1 && epochExpiration < validExpiration)
+  ) {
+    var errorMessage = messageCode.msgInvalidDate;
+    if(!grantDate || !expirationDate) {
+      errorMessage = messageCode.msgInvalidDateFormat;
+    } else if(epochExpiration != 1 && epochGrant > epochExpiration){
+      errorMessage = messageCode.msgOlderGrantDate;
+    } else if(epochExpiration != 1 && epochExpiration < validExpiration){
+    errorMessage = messageCode.msgInvalidExpiration;
+  }
+  return ({ code: 400, status: "FAILED", message: errorMessage });
+  }
   
   try{
-    // check copmare dates are valid
-    if(grantDate && expirationDate){
-      // check copmare dates are valid
-      var compareResult = await compareInputDates(grantDate, expirationDate);
-      if(compareResult == 0 || compareResult == 2){
-        return ({ code: 400, status: "FAILED", message: `${messageCode.msgProvideValidDates} : Grant date: ${grantDate}, Expiration date: ${expirationDate}` });
-      }
-      } else {
-        return ({ code: 400, status: "FAILED", message: `${messageCode.msgProvideValidDates} : Grant date: ${_grantDate}, Expiration date: ${_expirationDate}` });
-    }
-
     await isDBConnected();
     // Check if user with provided email exists
     const idExist = await User.findOne({ email });
@@ -312,7 +321,7 @@ const handleIssuePdfCertification = async(email, certificateNumber, name, course
       !courseName || // Missing course name
       !grantDate || // Missing grant date
       !expirationDate || // Missing expiration date
-      [certificateNumber, name, courseName, grantDate, expirationDate].some(value => typeof value !== 'string' || value == 'string') || // Some values are not strings
+      [certificateNumber, name, courseName, grantDate].some(value => typeof value !== 'string' || value == 'string') || // Some values are not strings
       certificateNumber.length > max_length || // Certificate number exceeds maximum length
       certificateNumber.length < min_length // Certificate number is shorter than minimum length
     ) {
@@ -367,8 +376,9 @@ const handleIssuePdfCertification = async(email, certificateNumber, name, course
         const val = await newContract.verifyCertificateById(certificateNumber);
   
         if (
-          val === true ||
-          isPaused === true
+          val[0] === true ||
+          isPaused === true ||
+          issuerAuthorized === false
         ) {
           // Certificate already issued / contract paused
           var messageContent = messageCode.msgCertIssued;
@@ -380,33 +390,15 @@ const handleIssuePdfCertification = async(email, certificateNumber, name, course
           return ({ code: 400, status: "FAILED", message: messageContent });
         }
         else {
-  
-          try {
-            // If simulation successful, issue the certificate on blockchain
-            const tx = await newContract.issueCertificate(
-              fields.Certificate_Number,
-              combinedHash
-            );
-  
-            var txHash = tx.hash;
-  
-            // Generate link URL for the certificate on blockchain
-            var linkUrl = `https://${process.env.NETWORK}/tx/${txHash}`;
-  
-          } catch (error) {
-            if (error.reason) {
-              // Extract and handle the error reason
-              return ({ code: 400, status: "FAILED", message: error.reason });
-            } else {
-              // If there's no specific reason provided, handle the error generally
-              console.error(messageCode.msgFailedOpsAtBlockchain, error);
-              return ({ code: 400, status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain, details: error });
+
+          var { txHash, polygonLink } = await issueCertificateWithRetry(certificateNumber, combinedHash, epochExpiration);
+            if (!polygonLink) {
+              return ({ code: 400, status: false, message: messageCode.msgFaileToIssueAfterRetry, details: certificateNumber });
             }
-          }
-  
+
           // Generate encrypted URL with certificate data
           const dataWithLink = {
-            ...fields, polygonLink: linkUrl
+            ...fields, polygonLink: polygonLink
           }
           const urlLink = generateEncryptedUrl(dataWithLink);
           const legacyQR = false;
@@ -414,7 +406,7 @@ const handleIssuePdfCertification = async(email, certificateNumber, name, course
           let qrCodeData = '';
           if (legacyQR) {
             // Include additional data in QR code
-            qrCodeData = `Verify On Blockchain: ${linkUrl},
+            qrCodeData = `Verify On Blockchain: ${polygonLink},
             Certification Number: ${dataWithLink.Certificate_Number},
             Name: ${dataWithLink.name},
             Certification Name: ${dataWithLink.courseName},
@@ -436,7 +428,7 @@ const handleIssuePdfCertification = async(email, certificateNumber, name, course
           const opdf = await addLinkToPdf(
             path.join("./", '.', file),
             outputPdf,
-            linkUrl,
+            polygonLink,
             qrCodeImage,
             combinedHash
           );
@@ -452,7 +444,7 @@ const handleIssuePdfCertification = async(email, certificateNumber, name, course
   
             // Insert certificate data into database
             const issuerId = idExist.issuerId;
-            const certificateData = {
+            var certificateData = {
               issuerId,
               transactionHash: txHash,
               certificateHash: combinedHash,
@@ -460,7 +452,9 @@ const handleIssuePdfCertification = async(email, certificateNumber, name, course
               name: fields.name,
               course: fields.courseName,
               grantDate: fields.Grant_Date,
-              expirationDate: fields.Expiration_Date
+              expirationDate: fields.Expiration_Date,
+              email: email,
+              certStatus: 1
             };
             await insertCertificateData(certificateData);
 
@@ -499,24 +493,41 @@ const handleIssuePdfCertification = async(email, certificateNumber, name, course
   }
 };
 
-// Function to parse MM/DD/YYYY date string into a Date object
-const parseDate = async (dateString) => {
-  const [month, day, year] = dateString.split('/');
-  return new Date(`${month}/${day}/${year}`);
-};
+const issueCertificateWithRetry = async (certificateNumber, certificateHash, expirationEpoch, retryCount = 3) => {
 
-const compareInputDates = async (_grantDate, _expirationDate) => {
-  // Parse the date strings into Date objects
-  const grantDate = await parseDate(_grantDate);
-  const expirationDate = await parseDate(_expirationDate);
+  try {
+    // Issue Single Certifications on Blockchain
+    const tx = await newContract.issueCertificate(
+      certificateNumber,
+      certificateHash,
+      expirationEpoch
+    );
 
-  // Compare the dates
-  if (grantDate < expirationDate) {
-      return 1;
-  } else if (grantDate > expirationDate) {
-      return 2;
-  } else {
-      return 0;
+    var txHash = tx.hash;
+
+    var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
+
+    return { txHash, polygonLink };
+
+  } catch (error) {
+    if (retryCount > 0 && error.code === 'ETIMEDOUT') {
+      console.log(`Connection timed out. Retrying... Attempts left: ${retryCount}`);
+      // Retry after a delay (e.g., 2 seconds)
+      await holdExecution(2000);
+      return issueCertificateWithRetry(certificateNumber, certificateHash, expirationEpoch, retryCount - 1);
+    } else if (error.code === 'NONCE_EXPIRED') {
+      // Extract and handle the error reason
+      // console.log("Error reason:", error.reason);
+      return null;
+    } else if (error.reason) {
+      // Extract and handle the error reason
+      // console.log("Error reason:", error.reason);
+      return null;
+    } else {
+      // If there's no specific reason provided, handle the error generally
+      // console.error(messageCode.msgFailedOpsAtBlockchain, error);
+      return null;
+    }
   }
 };
 

@@ -30,7 +30,8 @@ const UserSchema = new Schema({
   designation: { type:String },
   username: { type: String, unique: true },
   rejectedDate: { type: Date, default: null },
-  certificatesIssued: { type: Number }
+  certificatesIssued: { type: Number },
+  certificatesRenewed: { type: Number }
 });
 
 // Batch Issues Schema
@@ -46,7 +47,9 @@ const BatchIssuesSchema = new Schema({
     course: { type: String, required: true },
     grantDate: { type: String, required: true },
     expirationDate: { type: String, required: true },
-    issueDate: { type: Date, default: Date.now }
+    certificateStatus: { type: Number, default: 1 },
+    issueDate: { type: Date, default: Date.now },
+    url:{ type: String}
 });
 
 // Define the schema for the Issues model
@@ -60,17 +63,35 @@ const IssuesSchema = new mongoose.Schema({
   grantDate: { type: String, required: true }, // GrantDate field is of type String and is required
   expirationDate: { type: String, required: true }, // ExpirationDate field is of type String and is required
   certificateStatus: { type: Number, required: true, default: 1 },
-  issueDate: { type: Date, default: Date.now } // issueDate field is of type Date and defaults to the current date/time
+  issueDate: { type: Date, default: Date.now } ,// issueDate field is of type Date and defaults to the current date/time
+  url:{ type: String},
+  type:{type: String}
+});
+
+// Define the schema for the IssueStatus model
+const IssueStatusSchema = new mongoose.Schema({
+  email: { type: String, required: true },
+  issuerId: { type: String, required: true }, // ID field is of type String and is required
+  batchId: { type: Number, default: null },
+  transactionHash: { type: String, required: true }, // TransactionHash field is of type String and is required
+  certificateNumber: { type: String, required: true }, // CertificateNumber field is of type String and is required
+  name: { type: String, required: true }, // Name field is of type String and is required
+  course: { type: String, required: true },
+  expirationDate: { type: String, required: true }, // ExpirationDate field is of type String and is required
+  certStatus: { type: Number, required: true },
+  lastUpdate: { type: Date, default: Date.now } // IssueDate field is of type Date and defaults to the current date/time
 });
 
 const Admin = mongoose.model('Admin', AdminSchema);
 const User = mongoose.model('User', UserSchema);
 const Issues = mongoose.model('Issues', IssuesSchema);
 const BatchIssues = mongoose.model('BatchIssues', BatchIssuesSchema);
+const IssueStatus = mongoose.model('IssueStatus', IssueStatusSchema);
 
 module.exports = {
     Admin,
     User,
     Issues,
-    BatchIssues
+    BatchIssues,
+    IssueStatus
 };

@@ -10,18 +10,18 @@ module.exports = {
     // Handle Excel File messages
     msgInvalidExcel : "Invalid Excel file, Please try again",
     msgExcelLimit : "Application can support upto 250 (Excel file should have 250 certifications maximum)",
-    msgInvalidCertIds : "Excel file has invalid certification IDs length (each: min 12 - max 20) / has special characters",
+    msgInvalidCertIds : "Excel file has invalid certification IDs length (each: min 12 - max 20)",
     msgExcelRepetetionIds : "Excel file has repetition in certification IDs",
-    msgInvalidDateFormats: "File has invalid Date format, Recommended format MM/DD/YYYY, Expiration year must not exceed 9999",
-    msgInvalidDateFormat: "File has invalid Date format, Recommended format MM/DD/YYYY",
+    msgInvalidDateFormat: "File has invalid Date format",
     msgInvalidDates: "File has invalid Dates",
-    msgOnlyAlphabets: "Enter valid Name",
-    msgNoSpecialCharacters : "No special characters are allowed in Certification ID",
-    msgOlderDateThanNewDate : "Grant date should be older than Expiration Date",
+    msgInvalidGrantDate: "File has invalid Grant Date format",
+    msgInvalidExpirationDate: "File has invalid Expiration Date format",
+    msgOlderDateThanNewDate : "File has Future grant date than Expiration Date",
     msgExcelHasExistingIds : "Excel file has Existing Certification IDs",
     msgInvalidHeaders : "Invalid headers in the Excel file.",
     msgExcelSheetname : "The Excel file Sheet name should be - Batch.",
     msgMissingDetailsInExcel : "The Excel file has missing fields, Please fill all required fields and try again",
+    msgFaileToIssueAfterRetry : "Failed to issue certification after retries. Please try agail...",
 
 
     // Validation Error codes Issues (Route)
@@ -48,7 +48,7 @@ module.exports = {
     msgInvalidIssuer : "Invalid Issuer email",
     msgCertIdRequired : "Certification ID is required",
     msgUnauthIssuer : "Unauthorised Issuer Email",
-    msgProvideValidDates : "Please provide valid dates (MM/DD/YYYY)",
+    msgProvideValidDates : "Please provide valid dates",
     msgInvalidEthereum : "Invalid Ethereum address format",
     msgCertIssuedSuccess : "Certification issued successfully",
     msgBatchIssuedSuccess: "Batch of Certifications issued successfully",
@@ -79,13 +79,16 @@ module.exports = {
     msgCertValid: "Certification is Valid",
     msgCertNotExist : "Certification doesn't exist",
     msgCertValidNoDetails: "Certification is valid but No Details found",
-    msgAllIssuersFetched : "All user details fetched successfully",
+    msgAllIssuersFetched : "All Issuer details fetched successfully",
+    msgAllQueryFetched : "Requested details fetched successfully",
     msgErrorOnFetching : "An error occurred while fetching Issuer details",
     msgProvideValidStatus : "Please provide valid status as 1 : approve or 2 : reject",
+    msgProvideValidCertStatus : "Please provide valid status",
 
     // Blockchain route Messages
-    msgInvalidInput : "Invalid Input parameter",
+    msgInvalidInput : "Invalid Input provided",
     msgUserNotFound : "Issuer not found!",
+    msgNoMatchFound : "No matching results found",
     msgIssuerRejectSuccess : "Issuer Rejected successfully",
     msgExistRejectIssuer : "Existed Rejected Issuer",
     msgRejecetedAlready : "Issuer Rejected already",
@@ -98,5 +101,51 @@ module.exports = {
     msgIssuerRoleGrant : "Issuer Role Granted",
     msgAdminRevoke : "Admin Role Revoked",
     msgIssuerRoleRevoke : "Issuer Role Revoked",
-    msgBalanceCheck : "Balance check successful"
+    msgBalanceCheck : "Balance check successful",
+    msgNonZero : "Input must not zero or Negative",
+
+    // Dates Messages
+    msgInvalidDate : "Invalid Date, Please check and try again ...",
+    msgInvalidDateFormat : "Please provide valid Date format",
+    msgOlderGrantDate : "Older grant date mentioned",
+    msgInvalidExpiration : "Please provide valid expiration date or as more than 30 days and try again...",
+    msgUpdateExpirationNotPossible : "Extension of Expiration not possible on infinite Expiration certification",
+    msgUpdateBatchExpirationNotPossible : "Extension of Batch Expiration not possible on infinite Expiration",
+    
+    //Renew/status update Messages
+    msgCertBadRenewStatus : "Extend Expiration date not possible on the certification",
+    msgEpirationMustGreater : "Please provide greater exipration date than existed expiration date",
+    msgCertRenewedSuccess : "Certification expiration extended successfully",
+    msgCommonBatchExpiration : "Batch of certification has common Expiration date",
+    msgStatusAlreadyExist : "The certification status existed",
+    msgBatchStatusRenened : "Batch expirataion renewed",
+    msgBatchStatusUpdated : "Batch status updated",
+    msgInvalidBatch : "Invalid batch details provided",
+    msgBatchStatusUpdatedNotPossible : "Batch status updating operation not possible",
+    msgOperationNotPossible : "Operation not possible on the certification",
+    msgNotPossibleBatch : "Operation not possible on the Batch certification",
+    msgReactivationNotPossible : "Certification must be revoked to perform Reactivation",
+    msgNotPossibleOnRevoked : "Operation not possible on the Revoked certification",
+    msgNotPossibleOnRevokedBatch : "Operation not possible on the Revoked Batch certification",
+    msgInvalidRootPassed : "Invalid Batch certification value passed",
+    msgBatchRenewed : "Batch Expiration date updated / Renewed",
+    msgBatchExpired : "Provided Batch details were expired",
+    msgCertExpired : "Provided Certification details were expired",
+    msgRevokeNotPossible : "Operation not possible on provided Certification",
+
+    // Verify certID/pdf Messages
+    msgInvalidCert: "Invalid Certification",
+    msgCertRevoked: "Certification has revoked",
+    msgCertExpired: "Certification has expired",
+
+    // Admin dashboard & Graph Analytics
+    msgInvalidGraphInput: "Please provide valid Graph Input",
+    msgUnableToGetGraphData: "Unable to fetched Graph data",
+    msgGraphDataFetched: "Graph data fetched successfully",
+    msgUserEmailNotFound: "Invalid email provided",
+    msgDbError: "Unable to connect with Database, Please try again",
+    msgIssueFound: "Certification details found",
+    msgIssueNotFound: "Certification details not found",
+    
+
 };

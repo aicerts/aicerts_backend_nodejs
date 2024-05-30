@@ -20,6 +20,9 @@ const { decryptData } = require("../common/cryptoFunction"); // Custom functions
 const retryDelay = parseInt(process.env.TIME_DELAY);
 const maxRetries = 3; // Maximum number of retries
 
+// Regular expression to match MM/DD/YY format
+const regex = /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{4}$/;
+
 // Create a nodemailer transporter using the provided configuration
 const transporter = nodemailer.createTransport({
   // Specify the email service provider (e.g., Gmail, Outlook)
@@ -81,7 +84,7 @@ const signer = new ethers.Wallet(process.env.PRIVATE_KEY, fallbackProvider);
 const sim_contract = new ethers.Contract(contractAddress, abi, signer);
 
 // Import the Issues models from the schema defined in "../config/schema"
-const { User, Issues, BatchIssues } = require("../config/schema");
+const { User, Issues, BatchIssues, IssueStatus } = require("../config/schema");
 
 //Connect to polygon
 const connectToPolygon = async () => {
@@ -100,8 +103,10 @@ const connectToPolygon = async () => {
 
 // Function to convert the Date format
 const convertDateFormat = async (dateString) => {
-
-  if(dateString.length < 11){
+  if(dateString == 1){
+    return "1";
+  }
+  if (dateString.length < 11) {
     // Parse the date string to extract month, day, and year
     const [month, day, year] = dateString.split('/');
     let formatDate = `${month.padStart(2, '0')}/${day.padStart(2, '0')}/${year}`;
@@ -110,32 +115,32 @@ const convertDateFormat = async (dateString) => {
     const numericYear = parseInt(year, 10);
     // Check if month, day, and year are within valid ranges
     if (numericMonth > 0 && numericMonth <= 12 && numericDay > 0 && numericDay <= 31 && numericYear >= 1900 && numericYear <= 9999) {
-        if ((numericMonth == 1 || numericMonth == 3 || numericMonth == 5 || numericMonth == 7 ||
-            numericMonth == 8 || numericMonth == 10 || numericMonth == 12) && numericDay <= 31) {
-            return formatDate;
-        } else if ((numericMonth == 4 || numericMonth == 6 || numericMonth == 9 || numericMonth == 11) && numericDay <= 30) {
+      if ((numericMonth == 1 || numericMonth == 3 || numericMonth == 5 || numericMonth == 7 ||
+        numericMonth == 8 || numericMonth == 10 || numericMonth == 12) && numericDay <= 31) {
+        return formatDate;
+      } else if ((numericMonth == 4 || numericMonth == 6 || numericMonth == 9 || numericMonth == 11) && numericDay <= 30) {
+        return formatDate;
+      } else if (numericMonth == 2 && numericDay <= 29) {
+        if (numericYear % 4 == 0 && numericDay <= 29) {
+          // Leap year: February has 29 days
           return formatDate;
-        } else if (numericMonth == 2 && numericDay <= 29) {
-            if (numericYear % 4 == 0 && numericDay <= 29) {
-                // Leap year: February has 29 days
-                return formatDate;
-            } else if (numericYear % 4 != 0 && numericDay <= 28) {
-                // Non-leap year: February has 28 days
-                return formatDate;
-            } else {
-                return null;
-            }
+        } else if (numericYear % 4 != 0 && numericDay <= 28) {
+          // Non-leap year: February has 28 days
+          return formatDate;
         } else {
-            return null;
+          return null;
         }
-    } else {
+      } else {
         return null;
+      }
+    } else {
+      return null;
     }
-} 
+  }
 
   var formatString = 'ddd MMM DD YYYY HH:mm:ss [GMT]ZZ';
   // Define the possible date formats
-  const formats = ['ddd MMM DD YYYY HH:mm:ss [GMT]ZZ', 'M/D/YY','M/D/YYYY', 'MM/DD/YYYY', 'DD/MM/YYYY', 'DD MMMM, YYYY', 'DD MMM, YYYY', 'MMMM d, yyyy', 'MM/DD/YY'];
+  const formats = ['ddd MMM DD YYYY HH:mm:ss [GMT]ZZ', 'M/D/YY', 'M/D/YYYY', 'MM/DD/YYYY', 'DD/MM/YYYY', 'DD MMMM, YYYY', 'DD MMM, YYYY', 'MMMM d, yyyy', 'MM/DD/YY'];
 
   // Attempt to parse the input date string using each format
   let dateObject;
@@ -148,7 +153,7 @@ const convertDateFormat = async (dateString) => {
 
   // Check if a valid date object was obtained
   if (dateObject && dateObject.isValid()) {
-    
+
     // Convert the dateObject to moment (if it's not already)
     const momentDate = moment(dateObject);
 
@@ -174,6 +179,7 @@ const convertDateFormat = async (dateString) => {
 // Convert Date format for the Display on Verification
 const convertDateOnVerification = async (dateString) => {
 
+  if(dateString != 1){
   var formatString = 'MM/DD/YYYY';
 
   // Attempt to parse the input date string using the specified format
@@ -183,19 +189,69 @@ const convertDateOnVerification = async (dateString) => {
     var formattedDate = moment(dateObject).format(formatString);
     return formattedDate;
   }
+} else if (dateString == 1){
+  return dateString;
+}
+
 };
 
-const dateFormatToStore = async(inputDate) => {
-  // Split the input date string by '/'
-  const parts = inputDate.split('/');
-    
-  // Check if the month and day already have two digits
-  const month = parts[0].length === 2 ? parts[0] : ('0' + parts[0]).slice(-2);
-  const day = parts[1].length === 2 ? parts[1] : ('0' + parts[1]).slice(-2);
-  const year = parts[4];
-  
-  // Concatenate the formatted parts with '/'
-  return `${month}/${day}/${year}`;
+// Function to convert MM/DD/YY to epoch date format
+const convertDateToEpoch = async (dateString) => {
+
+  if (dateString != 1) {
+
+    // Split the date string into month, day, and year
+    const [month, day, year] = dateString.split('/');
+
+    // Create a new Date object with the provided date components
+    const dateObject = new Date(`${month}/${day}/${year}`);
+
+    // Get the Unix timestamp (epoch value) by calling getTime() method
+    const epochValue = dateObject.getTime() / 1000; // Convert milliseconds to seconds
+
+    return epochValue;
+
+  } else if (dateString == 1){
+    return dateString
+  }else {
+    return false;
+  }
+};
+
+const convertEpochToDate = async (epochTimestamp) => {
+  if (!epochTimestamp || epochTimestamp == 0) {
+    return false;
+  } else if (epochTimestamp == 1) {
+    return epochTimestamp;
+  } else {
+    // Create a new Date object with the epoch timestamp (in milliseconds)
+    const regularIntValue = parseInt(epochTimestamp.toString());
+    const dateObject = new Date(regularIntValue * 1000); // Convert seconds to milliseconds
+
+    // Extract the month, day, and year components from the date object
+    const month = String(dateObject.getMonth() + 1).padStart(2, '0'); // Month starts from 0
+    const day = String(dateObject.getDate()).padStart(2, '0');
+    const year = String(dateObject.getFullYear()).slice(-4); // Get last 4 digits of the year
+
+    // Construct the MM/DD/YY date format string
+    const dateString = `${month}/${day}/${year}`;
+    return dateString;
+  }
+};
+
+const convertExpirationStatusLog = async (_date) => {
+  if(_date == "1" || _date == null){
+    return "1";
+  }
+  // Parse the date string into a Date object
+  const dateParts = (_date).split('/');
+  const year = parseInt(dateParts[4]) + 2000; // Assuming 4-digit year represents 2000s
+  const month = parseInt(dateParts[0]) - 1; // Months are zero-indexed
+  const day = parseInt(dateParts[1]);
+  // Create a Date object
+  const date = new Date(year, month, day);
+  // Format the date in ISO 8601 format with UTC offset
+  return date.toISOString();
 };
 
 // Verify Certification ID from both collections (single / batch)
@@ -239,29 +295,36 @@ const insertCertificateData = async (data) => {
       course: data.course,
       grantDate: data.grantDate,
       expirationDate: data.expirationDate,
-      certificateStatus: 1,
+      certificateStatus: data.certStatus,
       issueDate: Date.now() // Set the issue date to the current timestamp
     });
 
     // Save the new Issues document to the database
     const result = await newIssue.save();
 
+    // Insert data into status MongoDB
+    // const logIssueStatus = {
+    //   email: data.email,
+    //   issuerId: data.issuerId, // ID field is of type String and is required
+    //   batchId: null,
+    //   transactionHash: data.transactionHash, // TransactionHash field is of type String and is required
+    //   name: data.name,
+    //   certificateNumber: data.certificateNumber, // CertificateNumber field is of type String and is required
+    //   course: data.course,
+    //   expirationDate: data.expirationDate, // ExpirationDate field is of type String and is required
+    //   certStatus: data.certStatus
+    // };
+
+    // await insertIssueStatus(logIssueStatus);
+
+    const updateIssuerLog = await insertIssueStatus(data);
+
     const idExist = await User.findOne({ issuerId: data.issuerId });
 
-    if (idExist) {
-      // If user with given id exists, update certificatesIssued count
-      const previousCount = idExist.certificatesIssued || 0; // Initialize to 0 if certificatesIssued field doesn't exist
-      idExist.certificatesIssued = previousCount + 1;
-      await idExist.save(); // Save the changes to the existing user
-    } else {
-      // If user with given id doesn't exist, create a new user instance
-      const newUser = new User({
-        issuerId: data.issuerId,
-        certificatesIssued: 1 // Initialize certificatesIssued count to 1 for the new user
-        // Add other required fields here if needed
-      });
-      await newUser.save(); // Save the new user instance
-    }
+    // If user with given id exists, update certificatesIssued count
+    const previousCount = idExist.certificatesIssued || 0; // Initialize to 0 if certificatesIssued field doesn't exist
+    idExist.certificatesIssued = previousCount + 1;
+    await idExist.save(); // Save the changes to the existing user
 
     // Logging confirmation message
     console.log("Certificate data inserted");
@@ -274,7 +337,6 @@ const insertCertificateData = async (data) => {
 // Function to insert certification data into MongoDB
 const insertBatchCertificateData = async (data) => {
   try {
-
     // Insert data into MongoDB
     const newBatchIssue = new BatchIssues({
       issuerId: data.issuerId,
@@ -288,30 +350,55 @@ const insertBatchCertificateData = async (data) => {
       course: data.course,
       grantDate: data.grantDate,
       expirationDate: data.expirationDate,
+      certificateStatus: data.certStatus,
       issueDate: Date.now()
     });
 
     const result = await newBatchIssue.save();
 
+    const updateIssuerLog = await insertIssueStatus(data);
+
     const idExist = await User.findOne({ issuerId: data.issuerId });
 
-    if (idExist) {
-      // If user with given id exists, update certificatesIssued count
-      const previousCount = idExist.certificatesIssued || 0; // Initialize to 0 if certificatesIssued field doesn't exist
-      idExist.certificatesIssued = previousCount + 1;
-      await idExist.save(); // Save the changes to the existing user
-    } else {
-      // If user with given id doesn't exist, create a new user instance
-      const newUser = new User({
-        issuerId: data.issuerId,
-        certificatesIssued: 1 // Initialize certificatesIssued count to 1 for the new user
-        // Add other required fields here if needed
-      });
-      await newUser.save(); // Save the new user instance
-    }
+    // If user with given id exists, update certificatesIssued count
+    const previousCount = idExist.certificatesIssued || 0; // Initialize to 0 if certificatesIssued field doesn't exist
+    idExist.certificatesIssued = previousCount + 1;
+    await idExist.save(); // Save the changes to the existing user
 
   } catch (error) {
     console.error("Error connecting to MongoDB:", error);
+  }
+};
+
+// Function to store issues log in the DB
+const insertIssueStatus = async (issueData) => {
+  if (issueData) {
+    // Format the date in ISO 8601 format with UTC offset
+    // const statusDate = await convertExpirationStatusLog(issueData.expirationDate);
+    // Parsing input date using moment
+    const parsedDate = issueData.expirationDate != "1" ? moment(issueData.expirationDate, 'MM/DD/YYYY') : "1";
+    // Formatting the parsed date into ISO 8601 format with timezone
+    const formattedDate = parsedDate != "1" ? parsedDate.toISOString() : "1";
+    // Check if issueData.batchId is provided, otherwise assign null
+    const batchId = issueData.batchId || null;
+    const email = issueData.email || null;
+    const issuerId = issueData.issuerId || null;
+    const transactionHash = issueData.transactionHash || null;
+    // Insert data into status MongoDB
+    const newIssueStatus = new IssueStatus({
+      email: email,
+      issuerId: issuerId, // ID field is of type String and is required
+      batchId: batchId,
+      transactionHash: transactionHash, // TransactionHash field is of type String and is required
+      certificateNumber: issueData.certificateNumber, // CertificateNumber field is of type String and is required
+      course: issueData.course,
+      name: issueData.name,
+      expirationDate: formattedDate, // ExpirationDate field is of type String and is required
+      certStatus: issueData.certStatus,
+      lastUpdate: Date.now()
+    });
+
+    const updateLog = await newIssueStatus.save();
   }
 };
 
@@ -335,10 +422,10 @@ const extractCertificateInfo = async (qrCodeText) => {
     // Create a new object with desired key-value mappings for certificate information
     const convertedData = {
       "Certificate Number": parsedData.Certificate_Number,
-      "Course Name": parsedData.courseName,
-      "Expiration Date": parsedData.Expiration_Date,
-      "Grant Date": parsedData.Grant_Date,
       "Name": parsedData.name,
+      "Course Name": parsedData.courseName,
+      "Grant Date": parsedData.Grant_Date,
+      "Expiration Date": parsedData.Expiration_Date,
       "Polygon URL": parsedData.polygonLink
     };
     // console.log("Data of Redirect", convertedData);
@@ -392,7 +479,6 @@ const extractCertificateInfo = async (qrCodeText) => {
     };
     return convertedCertData;
   }
-
 };
 
 const holdExecution = (delay) => {
@@ -443,7 +529,7 @@ const extractQRCodeDataFromPDF = async (pdfFilePath) => {
 
     const pdf2picOptions3 = {
       quality: 100,
-      density: 400,
+      density: 350,
       format: "png",
       width: 4000,
       height: 4000,
@@ -486,53 +572,47 @@ const addLinkToPdf = async (
   qrCode, // QR code image to be added to the PDF
   combinedHash // Combined hash value to be displayed (optional)
 ) => {
-    // Read existing PDF file bytes
-    const existingPdfBytes = fs.readFileSync(inputPath);
+  // Read existing PDF file bytes
+  const existingPdfBytes = fs.readFileSync(inputPath);
 
-    // Load existing PDF document
-    const pdfDoc = await pdf.PDFDocument.load(existingPdfBytes);
+  // Load existing PDF document
+  const pdfDoc = await pdf.PDFDocument.load(existingPdfBytes);
 
-    // Get the first page of the PDF document
-    const page = pdfDoc.getPage(0);
+  // Get the first page of the PDF document
+  const page = pdfDoc.getPage(0);
 
-    // Get page width and height
-    const width = page.getWidth();
-    const height = page.getHeight();
+  // Get page width and height
+  const width = page.getWidth();
+  const height = page.getHeight();
 
-    // Add link URL to the PDF page
-    page.drawText(linkUrl, {
-      x: 62, // X coordinate of the text
-      y: 30, // Y coordinate of the text
-      size: 8, // Font size
-    });
+  // Add link URL to the PDF page
+  page.drawText(linkUrl, {
+    x: 62, // X coordinate of the text
+    y: 30, // Y coordinate of the text
+    size: 8, // Font size
+  });
 
-    // page.drawText(combinedHash, {
-    //   x: 5,
-    //   y: 10,
-    //   size: 3
-    // });
+  //Adding qr code
+  const pdfDc = await PDFDocument.create();
+  // Adding QR code to the PDF page
+  const pngImage = await pdfDoc.embedPng(qrCode); // Embed QR code image
+  const pngDims = pngImage.scale(0.36); // Scale QR code image
 
-    //Adding qr code
-    const pdfDc = await PDFDocument.create();
-    // Adding QR code to the PDF page
-    const pngImage = await pdfDoc.embedPng(qrCode); // Embed QR code image
-    const pngDims = pngImage.scale(0.36); // Scale QR code image
+  page.drawImage(pngImage, {
+    x: width - pngDims.width - 108,
+    y: 135,
+    width: pngDims.width,
+    height: pngDims.height,
+  });
+  qrX = width - pngDims.width - 75;
+  qrY = 75;
+  qrWidth = pngDims.width;
+  qrHeight = pngDims.height;
 
-    page.drawImage(pngImage, {
-      x: width - pngDims.width - 108,
-      y: 135,
-      width: pngDims.width,
-      height: pngDims.height,
-    });
-    qrX = width - pngDims.width - 75;
-    qrY = 75;
-    qrWidth = pngDims.width;
-    qrHeight = pngDims.height;
+  const pdfBytes = await pdfDoc.save();
 
-    const pdfBytes = await pdfDoc.save();
-
-    fs.writeFileSync(outputPath, pdfBytes);
-    return pdfBytes;
+  fs.writeFileSync(outputPath, pdfBytes);
+  return pdfBytes;
 };
 
 const verifyPDFDimensions = async (pdfPath) => {
@@ -702,6 +782,27 @@ const rejectEmail = async (name, email) => {
   }
 };
 
+const getCertificationStatus = async (certStatus) => {
+  var inputStatus = parseInt(certStatus);
+  switch (inputStatus) {
+    case 0:
+      return "Not Issued";
+    case 1:
+      return "Issued";
+    case 2:
+      return "Renewed";
+    case 3:
+      return "Revoked";
+    case 4:
+      return "Reactivated";
+    case 5:
+      return "Expired";
+    case 6:
+      return "Verified";
+    default:
+      return "Unknown";
+  };
+};
 
 module.exports = {
   // Connect to Polygon 
@@ -722,9 +823,15 @@ module.exports = {
   // Function to convert the Date format
   convertDateFormat,
 
-  dateFormatToStore,
-
   convertDateOnVerification,
+
+  convertDateToEpoch,
+
+  convertEpochToDate,
+
+  insertIssueStatus,
+
+  getCertificationStatus,
 
   // Function to extract QR code data from a PDF file
   extractQRCodeDataFromPDF,
