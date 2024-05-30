@@ -390,7 +390,7 @@ router.get('/check-balance', ensureAuthenticated, ensureAuthenticated, adminCont
  *                   description: Error message indicating an error during the validation process.
  */
 
-router.post('/create-validate-issuer', validationRoute.emailCheck, ensureAuthenticated, adminController.createAndValidateIssuerIdUponLogin);
+router.post('/create-validate-issuer', validationRoute.emailCheck, adminController.createAndValidateIssuerIdUponLogin);
 
 
 // /**

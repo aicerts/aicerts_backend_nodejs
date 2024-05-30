@@ -467,7 +467,25 @@ const createAndValidateIssuerIdUponLogin = async (req, res) => {
       if (!userExist) {
         return res.status(400).json({ status: "FAILED", message: messageCode.msgUserNotFound });
       }
+
+      var {_id, id} = userExist;
+      console.log("Details of IDS", typeof _id, typeof id);
+      console.log("length", Object.keys(userExist).length);
+      var i = 0;
       if (userExist.issuerId == undefined) {
+        // Loop through each property in the data object
+        for (const value of Object.values(userExist)) {
+          // Check if the property is 'id' and the value is a valid Ethereum address
+          // if ((key === 'id' || key === '_id') && ethers.utils.isAddress(userExist[key])) {
+          //   console.log('Valid Ethereum address:', userExist[key]);
+          // }
+          console.log("logs", value, i++);
+        }
+
+
+return res.status(400).json({ status: "FAILED", message: messageCode.msgWorkInProgress });
+      
+
         try {
 
           while (attempts < 3 && !getNewId) {
