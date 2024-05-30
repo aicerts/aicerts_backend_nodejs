@@ -292,7 +292,7 @@ const addTrustedOwner = async (req, res) => {
 
         var { txHash, polygonLink } = await grantOrRevokeRoleWithRetry("grant", assigningRole, userExist.issuerId);
           if (!polygonLink || !txHash) {
-            return res.status(400).json({ status: "FAILED", message: messageCode.msgFaileToRevokeRoleRetry });
+            return res.status(400).json({ status: "FAILED", message: messageCode.msgFaileToGrantRoleRetry });
           }
 
         const messageInfo = (assignRole == 0) ? messageCode.msgAdminGrant : messageCode.msgIssuerRoleGrant;
