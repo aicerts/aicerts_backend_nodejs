@@ -468,23 +468,29 @@ const createAndValidateIssuerIdUponLogin = async (req, res) => {
         return res.status(400).json({ status: "FAILED", message: messageCode.msgUserNotFound });
       }
 
-      var {_id, id} = userExist;
-      console.log("Details of IDS", typeof _id, typeof id);
-      console.log("length", Object.keys(userExist).length);
-      var i = 0;
+      var values = Object.values(userExist);
+      const lastElement = values[values.length - 1];
+
+      var getIssuerId = 0;
       if (userExist.issuerId == undefined) {
         // Loop through each property in the data object
-        for (const value of Object.values(userExist)) {
-          // Check if the property is 'id' and the value is a valid Ethereum address
-          // if ((key === 'id' || key === '_id') && ethers.utils.isAddress(userExist[key])) {
-          //   console.log('Valid Ethereum address:', userExist[key]);
-          // }
-          console.log("logs", value, i++);
+        for (const value of Object.values(lastElement)) {
+          if(ethers.isAddress(value)){
+            getIssuerId = value;
+          } 
         }
 
+        if(getIssuerId != 0){
+          // Save verification details
+          userExist.issuerId = getIssuerId;
+          userExist.approved = true;
+          userExist.status = 1;
+          userExist.rejectedDate = null;
+          userExist.certificatesRenewed = 0;
+          await userExist.save();
 
-return res.status(400).json({ status: "FAILED", message: messageCode.msgWorkInProgress });
-      
+          return res.status(200).json({ status: "SUCCESS", message: messageCode.msgIssuerIdExist });
+        }     
 
         try {
 
@@ -507,6 +513,7 @@ return res.status(400).json({ status: "FAILED", message: messageCode.msgWorkInPr
           userExist.approved = true;
           userExist.status = 1;
           userExist.rejectedDate = null;
+          userExist.certificatesRenewed = 0;
           await userExist.save();
 
           return res.status(200).json({ status: "WORKING", message: messageCode.msgIssuerApproveSuccess, details: polygonLink });
