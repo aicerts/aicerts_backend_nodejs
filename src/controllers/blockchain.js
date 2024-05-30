@@ -41,6 +41,8 @@ const signer = new ethers.Wallet(process.env.PRIVATE_KEY, fallbackProvider);
 const newContract = new ethers.Contract(contractAddress, abi, signer);
 
 var messageCode = require("../common/codes");
+
+var linkUrl = process.env.NETWORK || "polygon";
 /**
  * Define a route that takes a hash parameter.
  *
@@ -291,9 +293,9 @@ const addTrustedOwner = async (req, res) => {
         // }
 
         var { txHash, polygonLink } = await grantOrRevokeRoleWithRetry("grant", assigningRole, userExist.issuerId);
-          if (!polygonLink || !txHash) {
-            return res.status(400).json({ status: "FAILED", message: messageCode.msgFaileToGrantRoleRetry });
-          }
+        if (!polygonLink || !txHash) {
+          return res.status(400).json({ status: "FAILED", message: messageCode.msgFaileToGrantRoleRetry });
+        }
 
         const messageInfo = (assignRole == 0) ? messageCode.msgAdminGrant : messageCode.msgIssuerRoleGrant;
 
@@ -372,9 +374,9 @@ const removeTrustedOwner = async (req, res) => {
         // }
 
         var { txHash, polygonLink } = await grantOrRevokeRoleWithRetry("revoke", assigningRole, userExist.issuerId);
-          if (!polygonLink || !txHash) {
-            return res.status(400).json({ status: "FAILED", message: messageCode.msgFaileToRevokeRoleRetry });
-          }
+        if (!polygonLink || !txHash) {
+          return res.status(400).json({ status: "FAILED", message: messageCode.msgFaileToRevokeRoleRetry });
+        }
 
         const messageInfo = (assignRole == 0) ? messageCode.msgAdminRevoke : messageCode.msgIssuerRoleRevoke;
 
@@ -453,6 +455,8 @@ const createAndValidateIssuerIdUponLogin = async (req, res) => {
   }
 
   const email = req.body.email;
+  let attempts = 0;
+  let getNewId = null;
 
   try {
     var dbStatus = isDBConnected();
@@ -466,7 +470,14 @@ const createAndValidateIssuerIdUponLogin = async (req, res) => {
       if (userExist.issuerId == undefined) {
         try {
 
-          var getNewId = await generateAccount();
+          while (attempts < 3 && !getNewId) {
+            getNewId = await generateAccount();
+            attempts++;
+          }
+
+          if (!getNewId) {
+            return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidEthereum });
+          }
 
           var { txHash, polygonLink } = await grantOrRevokeRoleWithRetry("grant", process.env.ISSUER_ROLE, getNewId);
           if (!polygonLink || !txHash) {
@@ -478,8 +489,8 @@ const createAndValidateIssuerIdUponLogin = async (req, res) => {
           userExist.approved = true;
           userExist.status = 1;
           userExist.rejectedDate = null;
-          await userExist.save();  
-          
+          await userExist.save();
+
           return res.status(200).json({ status: "WORKING", message: messageCode.msgIssuerApproveSuccess, details: polygonLink });
 
         } catch (error) {

@@ -399,7 +399,7 @@ router.post('/create-validate-issuer', validationRoute.emailCheck, ensureAuthent
 //  *   get:
 //  *     summary: Get Polygon link URL
 //  *     description: API route handler is designed to respond to incoming HTTP.  
-//  *     tags: [Polygon]
+//  *     tags: [Blockchain]
 //  *     responses:
 //  *       200:
 //  *         description: Successful response with Polygon link URL

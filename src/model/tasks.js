@@ -863,7 +863,8 @@ const generateAccount = async () => {
     // return wallet.address;
   } catch (error) {
     console.error("Error generating Ethereum account:", error);
-    throw error; // Re-throw the error to be handled by the caller
+    // throw error; // Re-throw the error to be handled by the caller
+    return null;
   }
 };
 
