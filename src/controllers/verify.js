@@ -644,6 +644,9 @@ const verifyCertificationId = async (req, res) => {
       } catch (error) {
         return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
       }
+    } catch (error) {
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
+    }
 
     } else if (batchIssueExist) {
 
@@ -740,43 +743,14 @@ const verifyCertificationId = async (req, res) => {
       } catch (error) {
         return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
       }
-    }
+    
+  }
   } catch (error) {
     return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
   }
+
 };
 
-const detectDateFormat = async (dateString) => {
-  const formats = ['DD MMMM YYYY', 'MMMM DD YYYY', 'MM/DD/YY', 'MM/DD/YYYY'];
-
-  for (let format of formats) {
-    const parsedDate = moment(dateString, format, true);
-    if (parsedDate.isValid()) {
-      // Convert to MM/DD/YYYY format
-      const convertedDate = parsedDate.format('MM/DD/YYYY');
-      return convertedDate;
-    }
-  }
-  return null;
-};
-
-const compareDates = async (dateString1, dateString2) => {
-  // Split the date strings into components
-  const [month1, day1, year1] = dateString1.split('/');
-  const [month2, day2, year2] = dateString2.split('/');
-
-  // Create date objects for comparison
-  const date1 = new Date(year1, month1 - 1, day1);
-  const date2 = new Date(year2, month2 - 1, day2);
-
-  if (date1 > date2) {
-    return true;
-  } else if (date1 == date2) {
-    return true;
-  } else {
-    return false;
-  }
-};
 
 const expandTinyUrl = async (tinyUrl) => {
   try {
