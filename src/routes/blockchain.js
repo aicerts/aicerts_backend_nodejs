@@ -312,13 +312,94 @@ router.post('/remove-trusted-owner', validationRoute.checkAddress, ensureAuthent
 
 router.get('/check-balance', ensureAuthenticated, ensureAuthenticated, adminController.checkBalance);
 
+/**
+ * @swagger
+ * /api/create-validate-issuer:
+ *   post:
+ *     summary: Create Issuer ID and Approve Status during Issuer login
+ *     description: API to Create Issuer ID and Approve Status during Issuer login (to perform the Issuing Certification over the Blockchain)
+ *     tags: [Blockchain]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: Email of the issuer ID creation and to be approved
+ *             example:
+ *               email: issuer@example.com
+ *     responses:
+ *       '200':
+ *         description: Successful operation. Returns status of the email and a success message.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the operation (SUCCESS).
+ *                 email:
+ *                   type: string
+ *                   description: Status of the email (sent or NA).
+ *                 message:
+ *                   type: string
+ *                   description: Success message indicating approval.
+ *       '400':
+ *         description: Invalid input parameter or issuer status. Returns a failure message.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the operation (FAILED).
+ *                 message:
+ *                   type: string
+ *                   description: Error message detailing the issue.
+ *       '422':
+ *         description: User given invalid input (Unprocessable Entity)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Error message for invalid input.
+ *       '500':
+ *         description: Internal server error. Returns a failure message.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the operation (FAILED).
+ *                 message:
+ *                   type: string
+ *                   description: Error message indicating an error during the validation process.
+ */
+
+router.post('/create-validate-issuer', validationRoute.emailCheck, adminController.createAndValidateIssuerIdUponLogin);
+
+
 // /**
 //  * @swagger
 //  * /api/polygonlink:
 //  *   get:
 //  *     summary: Get Polygon link URL
 //  *     description: API route handler is designed to respond to incoming HTTP.  
-//  *     tags: [Polygon]
+//  *     tags: [Blockchain]
 //  *     responses:
 //  *       200:
 //  *         description: Successful response with Polygon link URL
@@ -333,5 +414,6 @@ router.get('/check-balance', ensureAuthenticated, ensureAuthenticated, adminCont
 //  */
 
 router.get('/polygonlink', adminController.polygonLink);
+
 
 module.exports=router;

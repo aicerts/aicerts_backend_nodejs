@@ -168,6 +168,9 @@ router.post('/issue', validationRoute.issue, ensureAuthenticated, adminControlle
  *                 description: PDF file to be uploaded.
  *                 x-parser:
  *                   expression: file.originalname.endsWith('.pdf') // Allow only PDF files
+ *               type:
+ *                 type: integer
+ *                 description: The file format of the response certification.
  *             required:
  *               - email
  *               - certificateNumber
@@ -177,7 +180,7 @@ router.post('/issue', validationRoute.issue, ensureAuthenticated, adminControlle
  *               - file
  *     responses:
  *       '200':
- *         description: Successful certificate issuance in PDF format
+ *         description: Successful certificate issuance in PDF/PNG format
  *         content:
  *           application/pdf:
  *             schema:
@@ -185,7 +188,14 @@ router.post('/issue', validationRoute.issue, ensureAuthenticated, adminControlle
  *               format: binary
  *             example:
  *               status: "SUCCESS"
- *               message: PDF file containing the issued certificate.
+ *               message: PDF/PNG file containing the issued certificate.
+ *           application/png:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *             example:
+ *               status: "SUCCESS"
+ *               message: PDF/PNG file containing the issued certificate.
  *       '400':
  *         description: Certificate already issued or invalid input
  *         content:

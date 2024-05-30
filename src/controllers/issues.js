@@ -88,6 +88,7 @@ const issuePdf = async (req, res) => {
     const certificateNumber = req.body.certificateNumber;
     const name = req.body.name;
     const courseName = req.body.course;
+    const outputFileFormat = req.body.type || null;
     var _grantDate = await convertDateFormat(req.body.grantDate);
 
     if (_grantDate == "1" || _grantDate == null || _grantDate == "string") {
@@ -109,14 +110,32 @@ const issuePdf = async (req, res) => {
     var responseDetails = issueResponse.details ? issueResponse.details : '';
     if (issueResponse.code == 200) {
 
-      // Set response headers for PDF download
-      const certificateName = `${certificateNumber}_certificate.pdf`;
+      if (outputFileFormat == '1' || outputFileFormat == 1) {
+        // Set response headers for PNG to download
+        var certificateName = `${certificateNumber}.png`;
+
+        res.set({
+          'Content-Type': "application/png",
+          'Content-Disposition': `attachment; filename="${certificateName}"`, // Change filename as needed
+        });
+
+        // Send Image file
+        res.send(issueResponse.image);
+        return;
+
+      }
+
+      // Set response headers for PDF to download
+      var certificateName = `${certificateNumber}_certificate.pdf`;
+
       res.set({
-        "Content-Type": "application/pdf",
-        "Content-Disposition": `attachment; filename="${certificateName}"`,
+        'Content-Type': "application/pdf",
+        'Content-Disposition': `attachment; filename="${certificateName}"`, // Change filename as needed
       });
 
-      return res.send(issueResponse.file);
+      // Send Pdf file
+      res.send(issueResponse.file);
+      return;
 
     } else {
       return res.status(issueResponse.code).json({ status: issueResponse.status, message: issueResponse.message, details: responseDetails });
@@ -318,7 +337,6 @@ const batchIssueCertificate = async (req, res) => {
             var txHash = tx.hash;
 
             var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
-
           } catch (error) {
             if (error.reason) {
               // Extract and handle the error reason

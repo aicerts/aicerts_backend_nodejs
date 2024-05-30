@@ -5,6 +5,7 @@ require('dotenv').config();
 const crypto = require('crypto'); // Module for cryptographic functions
 const pdf = require("pdf-lib"); // Library for creating and modifying PDF documents
 const { PDFDocument } = pdf;
+const { Poppler } = require("node-poppler");
 const fs = require("fs"); // File system module
 const path = require("path"); // Module for working with file paths
 const { fromPath } = require("pdf2pic"); // Converter from PDF to images
@@ -84,7 +85,7 @@ const signer = new ethers.Wallet(process.env.PRIVATE_KEY, fallbackProvider);
 const sim_contract = new ethers.Contract(contractAddress, abi, signer);
 
 // Import the Issues models from the schema defined in "../config/schema"
-const { User, Issues, BatchIssues, IssueStatus } = require("../config/schema");
+const { User, Issues, BatchIssues, IssueStatus, VerificationLog } = require("../config/schema");
 
 //Connect to polygon
 const connectToPolygon = async () => {
@@ -103,7 +104,7 @@ const connectToPolygon = async () => {
 
 // Function to convert the Date format
 const convertDateFormat = async (dateString) => {
-  if(dateString == 1){
+  if (dateString == 1) {
     return "1";
   }
   if (dateString.length < 11) {
@@ -179,19 +180,19 @@ const convertDateFormat = async (dateString) => {
 // Convert Date format for the Display on Verification
 const convertDateOnVerification = async (dateString) => {
 
-  if(dateString != 1){
-  var formatString = 'MM/DD/YYYY';
+  if (dateString != 1) {
+    var formatString = 'MM/DD/YYYY';
 
-  // Attempt to parse the input date string using the specified format
-  const dateObject = moment(dateString, formatString, true);
-  if (dateObject.isValid()) {
-    // Format the date to 'MM/DD/YYYY'
-    var formattedDate = moment(dateObject).format(formatString);
-    return formattedDate;
+    // Attempt to parse the input date string using the specified format
+    const dateObject = moment(dateString, formatString, true);
+    if (dateObject.isValid()) {
+      // Format the date to 'MM/DD/YYYY'
+      var formattedDate = moment(dateObject).format(formatString);
+      return formattedDate;
+    }
+  } else if (dateString == 1) {
+    return dateString;
   }
-} else if (dateString == 1){
-  return dateString;
-}
 
 };
 
@@ -211,9 +212,9 @@ const convertDateToEpoch = async (dateString) => {
 
     return epochValue;
 
-  } else if (dateString == 1){
+  } else if (dateString == 1) {
     return dateString
-  }else {
+  } else {
     return false;
   }
 };
@@ -240,7 +241,7 @@ const convertEpochToDate = async (epochTimestamp) => {
 };
 
 const convertExpirationStatusLog = async (_date) => {
-  if(_date == "1" || _date == null){
+  if (_date == "1" || _date == null) {
     return "1";
   }
   // Parse the date string into a Date object
@@ -302,21 +303,6 @@ const insertCertificateData = async (data) => {
     // Save the new Issues document to the database
     const result = await newIssue.save();
 
-    // Insert data into status MongoDB
-    // const logIssueStatus = {
-    //   email: data.email,
-    //   issuerId: data.issuerId, // ID field is of type String and is required
-    //   batchId: null,
-    //   transactionHash: data.transactionHash, // TransactionHash field is of type String and is required
-    //   name: data.name,
-    //   certificateNumber: data.certificateNumber, // CertificateNumber field is of type String and is required
-    //   course: data.course,
-    //   expirationDate: data.expirationDate, // ExpirationDate field is of type String and is required
-    //   certStatus: data.certStatus
-    // };
-
-    // await insertIssueStatus(logIssueStatus);
-
     const updateIssuerLog = await insertIssueStatus(data);
 
     const idExist = await User.findOne({ issuerId: data.issuerId });
@@ -376,14 +362,15 @@ const insertIssueStatus = async (issueData) => {
     // Format the date in ISO 8601 format with UTC offset
     // const statusDate = await convertExpirationStatusLog(issueData.expirationDate);
     // Parsing input date using moment
-    const parsedDate = issueData.expirationDate != "1" ? moment(issueData.expirationDate, 'MM/DD/YYYY') : "1";
+    const parsedDate = issueData.expirationDate != '1' ? moment(issueData.expirationDate, 'MM/DD/YYYY') : '1';
     // Formatting the parsed date into ISO 8601 format with timezone
-    const formattedDate = parsedDate != "1" ? parsedDate.toISOString() : "1";
+    const formattedDate = parsedDate != '1' ? parsedDate.toISOString() : '1';
     // Check if issueData.batchId is provided, otherwise assign null
     const batchId = issueData.batchId || null;
     const email = issueData.email || null;
     const issuerId = issueData.issuerId || null;
     const transactionHash = issueData.transactionHash || null;
+    
     // Insert data into status MongoDB
     const newIssueStatus = new IssueStatus({
       email: email,
@@ -397,8 +384,77 @@ const insertIssueStatus = async (issueData) => {
       certStatus: issueData.certStatus,
       lastUpdate: Date.now()
     });
-
     const updateLog = await newIssueStatus.save();
+  }
+};
+
+const verificationLogEntry = async (verificationData) => {
+  if (verificationData) {
+    var dbStatus = await isDBConnected();
+    if (dbStatus) {
+      var isIssuerExist = await User.findOne({ issuerId: verificationData.issuerId });
+      if (isIssuerExist) {
+
+        try {
+          // Find or create the verification log for the user
+          const filter = { email: isIssuerExist.email };
+          const update = {
+            $setOnInsert: { // Set fields if the document is inserted
+              email: isIssuerExist.email,
+              issuerId: verificationData.issuerId,
+            },
+            $set: { // Update the lastUpdate field
+              lastUpdate: Date.now(),
+            },
+            $inc: { // Increment the count for the course or initialize it to 1 if it doesn't exist
+              [`courses.${verificationData.course}`]: 1,
+            }
+          };
+          const options = {
+            upsert: true, // Create a new document if it doesn't exist
+            new: true, // Return the updated document
+            useFindAndModify: false, // To use findOneAndUpdate() without deprecation warning
+          };
+
+          var updatedDocument = await VerificationLog.findOneAndUpdate(filter, update, options);
+
+          // console.log('Document updated:', updatedDocument);
+
+        } catch (error) {
+          console.error("Internal server error", error);
+        }
+      } else if (verificationData.issuerId == "default") {
+
+        try {
+          // Find or create the verification log for the user
+          const filter = { email: verificationData.issuerId };
+          const update = {
+            $setOnInsert: { // Set fields if the document is inserted
+              email: verificationData.issuerId,
+              issuerId: verificationData.issuerId,
+            },
+            $set: { // Update the lastUpdate field
+              lastUpdate: Date.now(),
+            },
+            $inc: { // Increment the count for the course or initialize it to 1 if it doesn't exist
+              [`courses.${verificationData.course}`]: 1,
+            }
+          };
+          const options = {
+            upsert: true, // Create a new document if it doesn't exist
+            new: true, // Return the updated document
+            useFindAndModify: false, // To use findOneAndUpdate() without deprecation warning
+          };
+
+          var updatedDocument = await VerificationLog.findOneAndUpdate(filter, update, options);
+
+          // console.log('Document updated:', updatedDocument);
+
+        } catch (error) {
+          console.error("Internal server error", error);
+        }
+      }
+    }
   }
 };
 
@@ -529,7 +585,7 @@ const extractQRCodeDataFromPDF = async (pdfFilePath) => {
 
     const pdf2picOptions3 = {
       quality: 100,
-      density: 350,
+      density: 400,
       format: "png",
       width: 4000,
       height: 4000,
@@ -613,6 +669,19 @@ const addLinkToPdf = async (
 
   fs.writeFileSync(outputPath, pdfBytes);
   return pdfBytes;
+};
+
+// Function to create an Image File for Issue with pdf
+const createPdfCertificateImage = async (pdfPath, imagePath) => {
+  var imageRoot = path.join(__dirname, '..', '..', 'uploads', imagePath);
+  const file = pdfPath;
+  const poppler = new Poppler();
+  const options = {
+    pngFile: true,
+  };
+  const outputFile = imageRoot;
+
+  const res = await poppler.pdfToCairo(file, outputFile, options);
 };
 
 const verifyPDFDimensions = async (pdfPath) => {
@@ -782,6 +851,23 @@ const rejectEmail = async (name, email) => {
   }
 };
 
+// Function to generate a new Ethereum account with a private key
+const generateAccount = async () => {
+  try {
+    const id = crypto.randomBytes(32).toString('hex');
+    const privateKey = "0x" + id;
+    const wallet = new ethers.Wallet(privateKey);
+    const addressWithoutPrefix = wallet.address; // Remove '0x' from the address
+    // const addressWithoutPrefix = wallet.address.substring(2); // Remove '0x' from the address
+    return addressWithoutPrefix;
+    // return wallet.address;
+  } catch (error) {
+    console.error("Error generating Ethereum account:", error);
+    // throw error; // Re-throw the error to be handled by the caller
+    return null;
+  }
+};
+
 const getCertificationStatus = async (certStatus) => {
   var inputStatus = parseInt(certStatus);
   switch (inputStatus) {
@@ -820,7 +906,7 @@ module.exports = {
   // Function to extract certificate information from a QR code text
   extractCertificateInfo,
 
-  // Function to convert the Date format
+  // Function to convert the Date format MM/DD/YYYY
   convertDateFormat,
 
   convertDateOnVerification,
@@ -832,6 +918,10 @@ module.exports = {
   insertIssueStatus,
 
   getCertificationStatus,
+
+  verificationLogEntry,
+
+  createPdfCertificateImage,
 
   // Function to extract QR code data from a PDF file
   extractQRCodeDataFromPDF,
@@ -864,5 +954,8 @@ module.exports = {
   holdExecution,
 
   // Function to send an email (rejected)
-  rejectEmail
+  rejectEmail,
+
+  // Function to generate a new Ethereum account with a private key
+  generateAccount
 };

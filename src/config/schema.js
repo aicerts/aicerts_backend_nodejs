@@ -82,16 +82,27 @@ const IssueStatusSchema = new mongoose.Schema({
   lastUpdate: { type: Date, default: Date.now } // IssueDate field is of type Date and defaults to the current date/time
 });
 
+// Define the schema for the VerificationLog model
+const VerificationLogSchema = new mongoose.Schema({
+  email: { type: String, required: true },
+  issuerId: { type: String, required: true }, // ID field is of type String and is required
+  courses: { type: Object, required: true }, // Using Object type for dynamic key-value pairs
+  lastUpdate: { type: Date, default: Date.now } // IssueDate field is of type Date and defaults to the current date/time
+});
+
 const Admin = mongoose.model('Admin', AdminSchema);
 const User = mongoose.model('User', UserSchema);
 const Issues = mongoose.model('Issues', IssuesSchema);
 const BatchIssues = mongoose.model('BatchIssues', BatchIssuesSchema);
 const IssueStatus = mongoose.model('IssueStatus', IssueStatusSchema);
+const VerificationLog = mongoose.model('VerificationLog', VerificationLogSchema);
 
 module.exports = {
     Admin,
     User,
     Issues,
     BatchIssues,
+    IssueStatus,
+    VerificationLog,
     IssueStatus
 };

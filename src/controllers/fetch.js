@@ -11,7 +11,7 @@ const { validationResult } = require("express-validator");
 const moment = require('moment');
 
 // Import MongoDB models
-const { User, Issues, BatchIssues, IssueStatus } = require("../config/schema");
+const { User, Issues, BatchIssues, IssueStatus, VerificationLog } = require("../config/schema");
 
 // Importing functions from a custom module
 const {
@@ -179,9 +179,7 @@ const getIssueDetails = async (req, res) => {
   } catch (error) {
     return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
   }
-
-
-}
+};
 
 /**
  * API to Upload Files to AWS-S3 bucket.
@@ -212,6 +210,56 @@ const uploadFileToS3 = async (req, res) => {
   } catch (error) {
     console.error('Error uploading file:', error);
     res.status(500).send({ status: "FAILED", error: 'An error occurred while uploading the file', details: error });
+  }
+};
+
+/**
+ * API to fetch details of Verification results input as Course name.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
+const getVerificationDetailsByCourse = async (req, res) => {
+  var validResult = validationResult(req);
+  if (!validResult.isEmpty()) {
+    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+  }
+  try {
+
+    const email = req.body.email;
+    // Check mongoose connection
+    const dbStatus = await isDBConnected();
+
+    const isEmailExist = await User.findOne({ email: email });
+
+    if(!isEmailExist){
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgUserEmailNotFound });
+    }
+
+    const verificationCommonResponse = await VerificationLog.findOne({ email: email });
+
+if (verificationCommonResponse) {
+      var responseCount = verificationCommonResponse.courses;
+      res.status(200).json({
+        status: 'SUCCESS',
+        data: responseCount,
+        message: `Verification results fetched successfully with searched course`
+      });
+      return;
+    } else {
+      res.status(400).json({
+        status: 'FAILED',
+        data: 0,
+        message: `No verification results found`
+      });
+      return;
+    }
+  } catch (error) {
+    res.status(500).json({
+      status: 'FAILED',
+      data: error,
+      message: messageCode.msgErrorOnFetching
+    });
   }
 };
 
@@ -683,11 +731,11 @@ const getMonthAggregatedCertsDetails = async (data, month, year) => {
 const uploadCertificateToS3 = async (req, res) => {
   const file = req?.file;
   const filePath = file?.path;
-  const certificateId = req?.body?.certificateId;
+  const certificateNumber = req?.body?.certificateNumber;
   const type = parseInt(req?.body?.type, 10); // Parse type to integer
 
   // Validate request parameters
-  if (!file || !certificateId || !type) {
+  if (!file || !certificateNumber || !type) {
     return res.status(400).send({ status: "FAILED", message: "file, certificateId, and type are required" });
   }
 
@@ -696,9 +744,9 @@ const uploadCertificateToS3 = async (req, res) => {
   try {
     if (type === 1 || type === 2) {
       const typeField = type === 1 ? 'withpdf' : 'withoutpdf';
-      certificate = await Issues.findOne({ _id: certificateId, type: typeField });
+      certificate = await Issues.findOne({ certificateNumber: certificateNumber });
     } else if (type === 3) {
-      certificate = await BatchIssues.findOne({ _id: certificateId });
+      certificate = await BatchIssues.findOne({ certificateNumber: certificateNumber });
     }
 
     if (!certificate) {
@@ -710,8 +758,8 @@ const uploadCertificateToS3 = async (req, res) => {
   }
 
   const bucketName = process.env.BUCKET_NAME;
-  const keyName = file.originalname;
-
+  const timestamp = Date.now(); // Get the current timestamp in milliseconds
+  const keyName = `${file.originalname}_${timestamp}`;
   const s3 = new AWS.S3();
   const fileStream = fs.createReadStream(filePath);
 
@@ -728,13 +776,13 @@ const uploadCertificateToS3 = async (req, res) => {
     // Update schemas based on the type
     switch (type) {
       case 1:
-        await updateIssuesSchema(certificateId, data.Location, 'withpdf');
+        await updateIssuesSchema(certificateNumber, data.Location, 'withpdf');
         break;
       case 2:
-        await updateIssuesSchema(certificateId, data.Location, 'withoutpdf');
+        await updateIssuesSchema(certificateNumber, data.Location, 'withoutpdf');
         break;
       case 3:
-        await updateBatchIssuesSchema(certificateId, data.Location);
+        await updateBatchIssuesSchema(certificateNumber, data.Location);
         break;
       default:
         console.error('Invalid type:', type);
@@ -749,35 +797,34 @@ const uploadCertificateToS3 = async (req, res) => {
 };
 
 // Function to update IssuesSchema for type 1 and 2
-async function updateIssuesSchema(certificateId, url, type) {
+async function updateIssuesSchema(certificateNumber, url, type) {
   try {
     // Update IssuesSchema using certificateId
     // Example code assuming mongoose is used for MongoDB
     await Issues.findOneAndUpdate(
-      { _id: certificateId },
+      { certificateNumber: certificateNumber },
       { $set: { url: url, type: type } }
     );
   } catch (error) {
     console.error('Error updating IssuesSchema:', error);
     throw error;
   }
-}
+};
 
 // Function to update BatchIssuesSchema for type 3
-async function updateBatchIssuesSchema(certificateId, url) {
+async function updateBatchIssuesSchema(certificateNumber, url) {
   try {
     // Update BatchIssuesSchema using certificateId
     // Example code assuming mongoose is used for MongoDB
     await BatchIssues.findOneAndUpdate(
-      { _id: certificateId },
+      { certificateNumber: certificateNumber },
       { $set: { url: url } }
     );
   } catch (error) {
     console.error('Error updating BatchIssuesSchema:', error);
     throw error;
   }
-}
-
+};
 
 const getSingleCertificates = async (req, res) => {
   try {
@@ -822,7 +869,53 @@ const getSingleCertificates = async (req, res) => {
   }
 };
 
-const getBatchCertificates = async (req, res) => {
+// const getBatchCertificates = async (req, res) => {
+//   try {
+//     const { issuerId } = req.body;
+
+//     // Validate issuerId
+//     if (!issuerId) {
+//       return res.status(400).json({ status: "FAILED", message: "issuerId is required" });
+//     }
+
+//     // Fetch all batch certificates for the given issuerId
+//     const batchCertificates = await BatchIssues.find({ issuerId });
+
+//     // Group certificates by issueDate
+//     const groupedCertificates = batchCertificates.reduce((acc, certificate) => {
+//       const issueDate = certificate.issueDate.toISOString().split('T')[0]; // Format date as YYYY-MM-DD
+//       if (!acc[issueDate]) {
+//         acc[issueDate] = [];
+//       }
+//       acc[issueDate].push(certificate);
+//       return acc;
+//     }, {});
+
+//     // Transform grouped certificates into an array of objects
+//     const result = Object.keys(groupedCertificates).map(issueDate => ({
+//       issueDate,
+//       certificates: groupedCertificates[issueDate]
+//     }));
+
+//     // Respond with success and the grouped certificates
+//     res.json({
+//       status: 'SUCCESS',
+//       data: result,
+//       message: 'Batch certificates fetched successfully'
+//     });
+//   } catch (error) {
+//     console.error('Error fetching batch certificates:', error);
+
+//     // Respond with failure message
+//     res.status(500).json({
+//       status: 'FAILED',
+//       message: 'An error occurred while fetching the batch certificates',
+//       details: error.message
+//     });
+//   }
+// };
+
+const getBatchCertificateDates = async (req, res) => {
   try {
     const { issuerId } = req.body;
 
@@ -832,47 +925,85 @@ const getBatchCertificates = async (req, res) => {
     }
 
     // Fetch all batch certificates for the given issuerId
-    const batchCertificates = await BatchIssues.find({ issuerId });
+    const batchCertificates = await BatchIssues.find({ issuerId }).sort({ issueDate: 1 });
 
-    // Group certificates by issueDate
-    const groupedCertificates = batchCertificates.reduce((acc, certificate) => {
-      const issueDate = certificate.issueDate.toISOString().split('T')[0]; // Format date as YYYY-MM-DD
-      if (!acc[issueDate]) {
-        acc[issueDate] = [];
+    // Create a map to store the first certificate's issueDate for each batchId
+    const batchDateMap = new Map();
+
+    // Iterate through the certificates and store the first occurrence's issueDate for each batchId
+    batchCertificates.forEach(cert => {
+      if (!batchDateMap.has(cert.batchId)) {
+        batchDateMap.set(cert.batchId, { issueDate: cert.issueDate, issuerId: cert.issuerId });
       }
-      acc[issueDate].push(certificate);
-      return acc;
-    }, {});
+    });
 
-    // Transform grouped certificates into an array of objects
-    const result = Object.keys(groupedCertificates).map(issueDate => ({
-      issueDate,
-      certificates: groupedCertificates[issueDate]
+    // Convert the map to an array of objects with batchId, issueDate, and issuerId
+    const uniqueBatchDates = Array.from(batchDateMap, ([batchId, value]) => ({
+      batchId,
+      issueDate: value.issueDate,
+      issuerId: value.issuerId
     }));
 
-    // Respond with success and the grouped certificates
+    // Respond with success and the unique batch dates
     res.json({
       status: 'SUCCESS',
-      data: result,
-      message: 'Batch certificates fetched successfully'
+      data: uniqueBatchDates,
+      message: 'Unique batch dates fetched successfully'
     });
   } catch (error) {
-    console.error('Error fetching batch certificates:', error);
+    console.error('Error fetching unique batch dates:', error);
 
     // Respond with failure message
     res.status(500).json({
       status: 'FAILED',
-      message: 'An error occurred while fetching the batch certificates',
+      message: 'An error occurred while fetching the unique batch dates',
       details: error.message
     });
   }
 };
+
+
+
+const getBatchCertificates = async (req, res) => {
+  try {
+    const { batchId, issuerId } = req.body;
+
+    // Validate input
+    if (!batchId || !issuerId) {
+      return res.status(400).json({ status: "FAILED", message: "batchId and issuerId are required" });
+    }
+
+    // Fetch all certificates for the given batchId and issuerId
+    const certificates = await BatchIssues.find({ batchId, issuerId });
+
+    // Respond with success and the certificates
+    res.json({
+      status: 'SUCCESS',
+      data: certificates,
+      message: 'Certificates fetched successfully'
+    });
+  } catch (error) {
+    console.error('Error fetching certificates:', error);
+
+    // Respond with failure message
+    res.status(500).json({
+      status: 'FAILED',
+      message: 'An error occurred while fetching the certificates',
+      details: error.message
+    });
+  }
+};
+
+
 module.exports = {
   // Function to get all issuers (users)
   getAllIssuers,
 
   // Function to fetch issuer details
   getIssuerByEmail,
+
+  // Function to fetch verification details
+  getVerificationDetailsByCourse,
 
   // Function to fetch details of Certification by giving name / certification ID.
   getIssueDetails,
@@ -890,7 +1021,7 @@ module.exports = {
 
   uploadCertificateToS3,
   getSingleCertificates,
-  getBatchCertificates
-
+  getBatchCertificates,
+  getBatchCertificateDates
 
 };

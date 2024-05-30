@@ -6,6 +6,7 @@ module.exports = {
     
     // Response code messages
     msgInternalError : "Internal server error",
+    msgWorkInProgress: "🚧 !⚠! Work In Porgress !⚠! 🚧",
 
     // Handle Excel File messages
     msgInvalidExcel : "Invalid Excel file, Please try again",
@@ -21,7 +22,9 @@ module.exports = {
     msgInvalidHeaders : "Invalid headers in the Excel file.",
     msgExcelSheetname : "The Excel file Sheet name should be - Batch.",
     msgMissingDetailsInExcel : "The Excel file has missing fields, Please fill all required fields and try again",
-    msgFaileToIssueAfterRetry : "Failed to issue certification after retries. Please try agail...",
+    msgFaileToIssueAfterRetry : "Failed to issue certification after retries. Please try again...",
+    msgFaileToGrantRoleRetry : "Failed to Grant Role after retries. Please try again...",
+    msgFaileToRevokeRoleRetry : "Failed to Revoke Role after retries. Please try again...",
 
 
     // Validation Error codes Issues (Route)
@@ -146,6 +149,7 @@ module.exports = {
     msgDbError: "Unable to connect with Database, Please try again",
     msgIssueFound: "Certification details found",
     msgIssueNotFound: "Certification details not found",
+    msgIssuerIdExist: "Issuer ID existed in Issuer Details",
     
 
 };

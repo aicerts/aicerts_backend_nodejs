@@ -86,7 +86,8 @@ const handleExcelFile = async (_path) => {
                 var checkValidateExpirationDates = await validateExpirationDates(certificationExpirationDates);
 
                 if ((checkValidateGrantDates.invalidDates).length > 0 || (checkValidateExpirationDates.invalidDates).length > 0) {
-                    return { status: "FAILED", response: false, message: messageCode.msgInvalidDateFormat, Details: `Grant Dates ${checkValidateGrantDates.invalidDates}, Issued Dates ${checkValidateExpirationDates.invalidDates}` };
+                    return { status: "FAILED", response: false, message: messageCode.msgInvalidDateFormat, Details: `Grant Dates ${checkValidateGrantDates.invalidDates}, Expiration Dates ${checkValidateExpirationDates.invalidDates}` };
+
                 }
 
                 var certificationGrantDates = checkValidateGrantDates.validDates;
@@ -114,13 +115,15 @@ const handleExcelFile = async (_path) => {
                 const invalidExpirationDateFormat = await findInvalidDates(certificationExpirationDates);
 
                 if ((invalidGrantDateFormat.invalidDates).length > 0 || (invalidExpirationDateFormat.invalidDates).length > 0) {
-                    return { status: "FAILED", response: false, message: messageCode.msgInvalidDateFormat, Details: `Grant Dates ${invalidGrantDateFormat.invalidDates}, Issued Dates ${invalidExpirationDateFormat.invalidDates}` };
+                    return { status: "FAILED", response: false, message: messageCode.msgInvalidDateFormat, Details: `Grant Dates ${invalidGrantDateFormat.invalidDates}, Expiration Dates ${invalidExpirationDateFormat.invalidDates}` };
+
                 }
 
                 // const validateGrantDates = await compareEpochDates(invalidGrantDateFormat.validDates);
                 // const validateExpirationDates = await compareEpochDates(invalidExpirationDateFormat.validDates);
                 // if ((validateGrantDates).length > 0 || (validateExpirationDates).length > 0) {
-                //     return { status: "FAILED", response: false, message: messageCode.msgInvalidDates, Details: `Grant Dates ${validateGrantDates}, Issued Dates ${validateExpirationDates}` };
+                //     return { status: "FAILED", response: false, message: messageCode.msgInvalidDates, Details: `Grant Dates ${validateGrantDates}, Expiration Dates ${validateExpirationDates}` };
+
 
                 // }
 
