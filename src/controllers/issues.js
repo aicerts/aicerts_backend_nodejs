@@ -337,7 +337,6 @@ const batchIssueCertificate = async (req, res) => {
             var txHash = tx.hash;
 
             var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
-
           } catch (error) {
             if (error.reason) {
               // Extract and handle the error reason

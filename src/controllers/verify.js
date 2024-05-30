@@ -569,6 +569,10 @@ const verifyCertificationId = async (req, res) => {
       if (singleIssueExist.certificateStatus == 3) {
         return res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
       }
+      try {
+        // Blockchain processing.
+        const verifyCert = await newContract.verifyCertificateById(inputId);
+        const _certStatus = await newContract.getCertificateStatus(inputId);
 
       if (singleIssueExist.expirationDate == '1') {
         var _polygonLink = `https://${process.env.NETWORK}/tx/${singleIssueExist.transactionHash}`;
@@ -667,7 +671,6 @@ const verifyCertificationId = async (req, res) => {
         if (dbStatus) {
           await verificationLogEntry(verifyLog);
         }
-
         res.status(200).json({
           status: "SUCCESS",
           message: "Certification is valid",
@@ -743,6 +746,37 @@ const verifyCertificationId = async (req, res) => {
   }
 };
 
+const detectDateFormat = async (dateString) => {
+  const formats = ['DD MMMM YYYY', 'MMMM DD YYYY', 'MM/DD/YY', 'MM/DD/YYYY'];
+
+  for (let format of formats) {
+    const parsedDate = moment(dateString, format, true);
+    if (parsedDate.isValid()) {
+      // Convert to MM/DD/YYYY format
+      const convertedDate = parsedDate.format('MM/DD/YYYY');
+      return convertedDate;
+    }
+  }
+  return null;
+};
+
+const compareDates = async (dateString1, dateString2) => {
+  // Split the date strings into components
+  const [month1, day1, year1] = dateString1.split('/');
+  const [month2, day2, year2] = dateString2.split('/');
+
+  // Create date objects for comparison
+  const date1 = new Date(year1, month1 - 1, day1);
+  const date2 = new Date(year2, month2 - 1, day2);
+
+  if (date1 > date2) {
+    return true;
+  } else if (date1 == date2) {
+    return true;
+  } else {
+    return false;
+  }
+};
 
 const expandTinyUrl = async (tinyUrl) => {
   try {

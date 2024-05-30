@@ -299,7 +299,7 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
     const isNumberExist = await Issues.findOne({ certificateNumber: certificateNumber });
     // Check if certificate number already exists in the Batch
     const isNumberExistInBatch = await BatchIssues.findOne({ certificateNumber: certificateNumber });
-
+    
     var _result = '';
     const templateData = await verifyPDFDimensions(pdfPath)
       .then(result => {
@@ -309,7 +309,7 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
       .catch(error => {
         console.error("Error during verification:", error);
       });
-
+    
     // Validation checks for request data
     if (
       (!idExist || idExist.status !== 1) || // User does not exist
@@ -327,7 +327,7 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
     ) {
       // res.status(400).json({ message: "Please provide valid details" });
       let errorMessage = messageCode.msgPlsEnterValid;
-
+      
       // Check for specific error conditions and update the error message accordingly
       if (isNumberExist || isNumberExistInBatch) {
         errorMessage = messageCode.msgCertIssued;
@@ -364,7 +364,7 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
         hashedFields[field] = calculateHash(fields[field]);
       }
       const combinedHash = calculateHash(JSON.stringify(hashedFields));
-
+      
       try {
         // Verify certificate on blockchain
         const isPaused = await newContract.paused();
@@ -402,7 +402,7 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
           }
           const urlLink = generateEncryptedUrl(dataWithLink);
           const legacyQR = false;
-
+          
           let qrCodeData = '';
           if (legacyQR) {
             // Include additional data in QR code
@@ -451,7 +451,7 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
             const dbStatus = await isDBConnected();
             const dbStatusMessage = (dbStatus == true) ? messageCode.msgDbReady : messageCode.msgDbNotReady;
             console.log(dbStatusMessage);
-
+            
             // Insert certificate data into database
             const issuerId = idExist.issuerId;
             var certificateData = {

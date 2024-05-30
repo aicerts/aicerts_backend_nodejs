@@ -103,5 +103,6 @@ module.exports = {
     Issues,
     BatchIssues,
     IssueStatus,
-    VerificationLog
+    VerificationLog,
+    IssueStatus
 };

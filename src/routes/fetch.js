@@ -817,6 +817,7 @@ router.post('/get-single-certificates', adminController.getSingleCertificates);
  */
 
 router.post('/get-batch-certificates', adminController.getBatchCertificates);
+
 router.post('/get-batch-certificate-dates', adminController.getBatchCertificateDates);
 
 

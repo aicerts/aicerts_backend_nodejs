@@ -759,7 +759,7 @@ const uploadCertificateToS3 = async (req, res) => {
 
   const bucketName = process.env.BUCKET_NAME;
   const timestamp = Date.now(); // Get the current timestamp in milliseconds
-const keyName = `${file.originalname}_${timestamp}`;
+  const keyName = `${file.originalname}_${timestamp}`;
   const s3 = new AWS.S3();
   const fileStream = fs.createReadStream(filePath);
 
@@ -1023,6 +1023,5 @@ module.exports = {
   getSingleCertificates,
   getBatchCertificates,
   getBatchCertificateDates
-
 
 };

@@ -370,7 +370,7 @@ const insertIssueStatus = async (issueData) => {
     const email = issueData.email || null;
     const issuerId = issueData.issuerId || null;
     const transactionHash = issueData.transactionHash || null;
-
+    
     // Insert data into status MongoDB
     const newIssueStatus = new IssueStatus({
       email: email,
