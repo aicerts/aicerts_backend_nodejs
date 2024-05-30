@@ -851,6 +851,22 @@ const rejectEmail = async (name, email) => {
   }
 };
 
+// Function to generate a new Ethereum account with a private key
+const generateAccount = async () => {
+  try {
+    const id = crypto.randomBytes(32).toString('hex');
+    const privateKey = "0x" + id;
+    const wallet = new ethers.Wallet(privateKey);
+    const addressWithoutPrefix = wallet.address; // Remove '0x' from the address
+    // const addressWithoutPrefix = wallet.address.substring(2); // Remove '0x' from the address
+    return addressWithoutPrefix;
+    // return wallet.address;
+  } catch (error) {
+    console.error("Error generating Ethereum account:", error);
+    throw error; // Re-throw the error to be handled by the caller
+  }
+};
+
 const getCertificationStatus = async (certStatus) => {
   var inputStatus = parseInt(certStatus);
   switch (inputStatus) {
@@ -937,5 +953,8 @@ module.exports = {
   holdExecution,
 
   // Function to send an email (rejected)
-  rejectEmail
+  rejectEmail,
+
+  // Function to generate a new Ethereum account with a private key
+  generateAccount
 };

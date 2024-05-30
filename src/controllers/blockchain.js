@@ -14,7 +14,8 @@ const abi = require("../config/abi.json");
 const {
   isDBConnected, // Function to check if the database connection is established
   sendEmail, // Function to send an email on approved
-  rejectEmail // Function to send an email on rejected
+  rejectEmail, // Function to send an email on rejected
+  generateAccount
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
 // Retrieve contract address from environment variable
@@ -47,7 +48,7 @@ var messageCode = require("../common/codes");
  * @param {Object} res - Express response object.
  */
 const polygonLink = async (req, res) => {
-    res.json({ linkUrl });
+  res.json({ linkUrl });
 };
 
 /**
@@ -59,7 +60,7 @@ const polygonLink = async (req, res) => {
 const validateIssuer = async (req, res) => {
   var validResult = validationResult(req);
   if (!validResult.isEmpty()) {
-    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid ,details: validResult.array() });
+    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
   let validationStatus = req.body.status;
   let email = req.body.email;
@@ -83,138 +84,150 @@ const validateIssuer = async (req, res) => {
     const dbStatus = await isDBConnected();
     const dbStatusMessage = (dbStatus == true) ? messageCode.msgDbReady : messageCode.msgDbNotReady;
     console.log(dbStatusMessage);
-  try{
-    const roleStatus = await newContract.hasRole(process.env.ISSUER_ROLE, userExist.issuerId);
+    try {
+      const roleStatus = await newContract.hasRole(process.env.ISSUER_ROLE, userExist.issuerId);
 
-    if(roleStatus === false && validationStatus == 2){
-      if( userExist.status != 2){
-        // Save Issuer rejected details
-        userExist.approved = false;
-        userExist.status = 2;
-        userExist.rejectedDate = Date.now();
-        await userExist.save();
+      if (roleStatus === false && validationStatus == 2) {
+        if (userExist.status != 2) {
+          // Save Issuer rejected details
+          userExist.approved = false;
+          userExist.status = 2;
+          userExist.rejectedDate = Date.now();
+          await userExist.save();
 
-        // If user is not rejected yet, send email and update user's rejected status
-        var mailStatus = await rejectEmail(userExist.name, email);
-        var mailresponse = (mailStatus === true) ? "sent" : "NA";
+          // If user is not rejected yet, send email and update user's rejected status
+          var mailStatus = await rejectEmail(userExist.name, email);
+          var mailresponse = (mailStatus === true) ? "sent" : "NA";
 
-        // Respond with success message indicating user rejected
-        res.json({
-          status: "SUCCESS",
-          email: mailresponse,
-          message: messageCode.msgIssuerRejectSuccess,
-          details: userExist
-        });
-      } else {
-        return res.status(400).json({ status: "FAILED", message: messageCode.msgRejecetedAlready });
+          // Respond with success message indicating user rejected
+          res.json({
+            status: "SUCCESS",
+            email: mailresponse,
+            message: messageCode.msgIssuerRejectSuccess,
+            details: userExist
+          });
+        } else {
+          return res.status(400).json({ status: "FAILED", message: messageCode.msgRejecetedAlready });
+        }
       }
-    }
 
-    else if (validationStatus == 1 && roleStatus === false) {
+      else if (validationStatus == 1 && roleStatus === false) {
 
-      if ((userExist.status == validationStatus) && (roleStatus == true)) {
-        res.status(400).json({ status: "FAILED", message: messageCode.msgExistedVerified });
-      }
-      
-      var grantedStatus;
-      if (roleStatus === false) {
-        try {
-          var tx = await newContract.grantRole(process.env.ISSUER_ROLE, userExist.issuerId);
+        if ((userExist.status == validationStatus) && (roleStatus == true)) {
+          res.status(400).json({ status: "FAILED", message: messageCode.msgExistedVerified });
+        }
+
+        var grantedStatus;
+        if (roleStatus === false) {
+          // try {
+          //   var tx = await newContract.grantRole(process.env.ISSUER_ROLE, userExist.issuerId);
+          //   grantedStatus = "SUCCESS";
+          //   var txHash = tx.hash;
+          //   var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
+
+          // } catch (error) {
+          //   grantedStatus = "FAILED";
+          //   if (error.reason) {
+          //     // Extract and handle the error reason
+          //     console.log("Error reason:", error.reason);
+          //     return res.status(400).json({ status: "FAILED", message: error.reason });
+          //   } else {
+          //     // If there's no specific reason provided, handle the error generally
+          //     console.error(messageCode.msgFailedOpsAtBlockchain, error);
+          //     return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain });
+          //   }
+          // }
+
+          var { txHash, polygonLink } = await grantOrRevokeRoleWithRetry("grant", process.env.ISSUER_ROLE, userExist.issuerId);
+          if (!polygonLink || !txHash) {
+            return res.status(400).json({ status: "FAILED", message: messageCode.msgFaileToGrantRoleRetry });
+          }
           grantedStatus = "SUCCESS";
-          var txHash = tx.hash;
-          var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
 
-        } catch (error) {
-          grantedStatus = "FAILED";
-          if (error.reason) {
-            // Extract and handle the error reason
-            console.log("Error reason:", error.reason);
-            return res.status(400).json({ status: "FAILED", message: error.reason });
-          } else {
-            // If there's no specific reason provided, handle the error generally
-            console.error(messageCode.msgFailedOpsAtBlockchain, error);
-            return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain });
-          }
+          // Save verification details
+          userExist.approved = true;
+          userExist.status = 1;
+          userExist.rejectedDate = null;
+          await userExist.save();
+          // If user is not approved yet, send email and update user's approved status
+          var mailStatus = await sendEmail(userExist.name, email);
+          var mailresponse = (mailStatus === true) ? "sent" : "NA";
+          var _details = grantedStatus == "SUCCESS" ? _details = polygonLink : _details = "";
+          // Respond with success message indicating user approval
+          res.json({
+            status: "SUCCESS",
+            email: mailresponse,
+            grant: grantedStatus,
+            message: messageCode.msgIssuerApproveSuccess,
+            details: _details
+          });
         }
 
-        // Save verification details
-        userExist.approved = true;
-        userExist.status = 1;
-        userExist.rejectedDate = null;
-        await userExist.save();
-        // If user is not approved yet, send email and update user's approved status
-        var mailStatus = await sendEmail(userExist.name, email);
-        var mailresponse = (mailStatus === true) ? "sent" : "NA";
-        var _details = grantedStatus == "SUCCESS" ? _details = polygonLink : _details = "";
-        // Respond with success message indicating user approval
-        res.json({
-          status: "SUCCESS",
-          email: mailresponse,
-          grant: grantedStatus,
-          message: messageCode.msgIssuerApproveSuccess,
-          details: _details
-        });
-      }
+      } else if (validationStatus == 2 && roleStatus === true) {
 
-    } else if (validationStatus == 2 && roleStatus === true) {
+        if ((userExist.status == validationStatus) && (roleStatus == false)) {
+          res.status(400).json({ status: "FAILED", message: messageCode.msgExistRejectIssuer });
+        }
 
-      if ((userExist.status == validationStatus) && (roleStatus == false)) {
-        res.status(400).json({ status: "FAILED", message: messageCode.msgExistRejectIssuer });
-      }
+        var revokedStatus;
+        if (roleStatus === true) {
+          // try {
+          //   var tx = await newContract.revokeRole(process.env.ISSUER_ROLE, userExist.issuerId);
+          //   revokedStatus = "SUCCESS";
+          //   var txHash = tx.hash;
+          //   var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
+          // } catch (error) {
+          //   revokedStatus = "FAILED";
+          //   if (error.reason) {
+          //     // Extract and handle the error reason
+          //     console.log("Error reason:", error.reason);
+          //     return res.status(400).json({ status: "FAILED", message: error.reason });
+          //   } else {
+          //     // If there's no specific reason provided, handle the error generally
+          //     console.error(messageCode.msgFailedOpsAtBlockchain, error);
+          //     return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain });
+          //   }
+          // }
 
-      var revokedStatus;
-      if (roleStatus === true) {
-        try {
-          var tx = await newContract.revokeRole(process.env.ISSUER_ROLE, userExist.issuerId);
+          var { txHash, polygonLink } = await grantOrRevokeRoleWithRetry("revoke", process.env.ISSUER_ROLE, userExist.issuerId);
+          if (!polygonLink || !txHash) {
+            return res.status(400).json({ status: "FAILED", message: messageCode.msgFaileToRevokeRoleRetry });
+          }
           revokedStatus = "SUCCESS";
-          var txHash = tx.hash;
-          var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
-        } catch (error) {
-          revokedStatus = "FAILED";
-          if (error.reason) {
-            // Extract and handle the error reason
-            console.log("Error reason:", error.reason);
-            return res.status(400).json({ status: "FAILED", message: error.reason });
-          } else {
-            // If there's no specific reason provided, handle the error generally
-            console.error(messageCode.msgFailedOpsAtBlockchain, error);
-            return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain });
+
+          // Save Issuer rejected details
+          userExist.approved = false;
+          userExist.status = 2;
+          userExist.rejectedDate = Date.now();
+          await userExist.save();
+
+          try {
+            // If user is not rejected yet, send email and update user's rejected status
+            var mailStatus = await rejectEmail(userExist.name, email);
+            var mailresponse = (mailStatus === true) ? "sent" : "NA";
+            var _details = revokedStatus == "SUCCESS" ? _details = polygonLink : _details = "";
+          } catch (error) {
+            return res.status(400).json({ status: "FAILED", message: mailresponse, details: error });
           }
+          // Respond with success message indicating user rejected
+          res.json({
+            status: "SUCCESS",
+            email: mailresponse,
+            revoke: revokedStatus,
+            message: messageCode.msgIssuerRejectSuccess,
+            details: _details
+          });
         }
-
-        // Save Issuer rejected details
-        userExist.approved = false;
-        userExist.status = 2;
-        userExist.rejectedDate = Date.now();
-        await userExist.save();
-
-        try{
-        // If user is not rejected yet, send email and update user's rejected status
-        var mailStatus = await rejectEmail(userExist.name, email);
-        var mailresponse = (mailStatus === true) ? "sent" : "NA";
-        var _details = revokedStatus == "SUCCESS" ? _details = polygonLink : _details = "";
-        }catch(error){
-          return res.status(400).json({ status: "FAILED", message: mailresponse, details: error });
-        }
-        // Respond with success message indicating user rejected
+      } else if (validationStatus == 1 && roleStatus === true) {
         res.json({
           status: "SUCCESS",
-          email: mailresponse,
-          revoke: revokedStatus,
-          message: messageCode.msgIssuerRejectSuccess,
-          details: _details
+          message: messageCode.msgIssuerApproveSuccess
         });
       }
-    } else if (validationStatus == 1 && roleStatus === true) {
-      res.json({
-        status: "SUCCESS",
-        message: messageCode.msgIssuerApproveSuccess
-      });
+    } catch (error) {
+      // Error occurred during user approval process, respond with failure message
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
     }
-  } catch (error) {
-    // Error occurred during user approval process, respond with failure message
-    return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
-  }
   } catch (error) {
     // Error occurred during user approval process, respond with failure message
     res.json({
@@ -234,7 +247,7 @@ const validateIssuer = async (req, res) => {
 const addTrustedOwner = async (req, res) => {
   var validResult = validationResult(req);
   if (!validResult.isEmpty()) {
-    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid ,details: validResult.array() });
+    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
 
   // const { newOwnerAddress } = req.body;
@@ -252,45 +265,50 @@ const addTrustedOwner = async (req, res) => {
 
       const assigningRole = (assignRole == 0) ? process.env.ADMIN_ROLE : process.env.ISSUER_ROLE;
 
-    try{
-      // Blockchain processing.
-      const response = await newContract.hasRole(assigningRole, newAddress);
-
-      if (response === true) {
-        // Simulation failed, send failure response
-        return res.status(400).json({ status: "FAILED", message: messageCode.msgAddressExistBlockchain });
-      }
-
       try {
-        const tx = await newContract.grantRole(assigningRole, newAddress);
-        var txHash = tx.hash;
-      } catch (error) {
-        // Handle the error During the transaction
-        if (error.reason) {
-          // Extract and handle the error reason
-          console.log("Error reason:", error.reason);
-          return res.status(400).json({ status: "FAILED", message: error.reason });
-        } else {
-          // If there's no specific reason provided, handle the error generally
-          console.error(messageCode.msgFailedOpsAtBlockchain, error);
-            return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain });
+        // Blockchain processing.
+        const response = await newContract.hasRole(assigningRole, newAddress);
+
+        if (response === true) {
+          // Simulation failed, send failure response
+          return res.status(400).json({ status: "FAILED", message: messageCode.msgAddressExistBlockchain });
         }
-      }
 
-      const messageInfo = (assignRole == 0) ? messageCode.msgAdminGrant : messageCode.msgIssuerRoleGrant;
+        // try {
+        //   const tx = await newContract.grantRole(assigningRole, newAddress);
+        //   var txHash = tx.hash;
+        // } catch (error) {
+        //   // Handle the error During the transaction
+        //   if (error.reason) {
+        //     // Extract and handle the error reason
+        //     console.log("Error reason:", error.reason);
+        //     return res.status(400).json({ status: "FAILED", message: error.reason });
+        //   } else {
+        //     // If there's no specific reason provided, handle the error generally
+        //     console.error(messageCode.msgFailedOpsAtBlockchain, error);
+        //     return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain });
+        //   }
+        // }
 
-      // Prepare success response
-      const responseMessage = {
-        status: "SUCCESS",
-        message: messageInfo,
-        details: `https://${process.env.NETWORK}/tx/${txHash}`
-      };
+        var { txHash, polygonLink } = await grantOrRevokeRoleWithRetry("grant", assigningRole, userExist.issuerId);
+          if (!polygonLink || !txHash) {
+            return res.status(400).json({ status: "FAILED", message: messageCode.msgFaileToRevokeRoleRetry });
+          }
 
-      // Send success response
-      res.status(200).json(responseMessage);
+        const messageInfo = (assignRole == 0) ? messageCode.msgAdminGrant : messageCode.msgIssuerRoleGrant;
+
+        // Prepare success response
+        const responseMessage = {
+          status: "SUCCESS",
+          message: messageInfo,
+          details: `https://${process.env.NETWORK}/tx/${txHash}`
+        };
+
+        // Send success response
+        res.status(200).json(responseMessage);
       } catch (error) {
-          // Error occurred during user approval process, respond with failure message
-          return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
+        // Error occurred during user approval process, respond with failure message
+        return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
       }
     }
   } catch (error) {
@@ -309,7 +327,7 @@ const addTrustedOwner = async (req, res) => {
 const removeTrustedOwner = async (req, res) => {
   var validResult = validationResult(req);
   if (!validResult.isEmpty()) {
-    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid ,details: validResult.array() });
+    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
 
   // const { newOwnerAddress } = req.body;
@@ -327,46 +345,51 @@ const removeTrustedOwner = async (req, res) => {
 
       const assigningRole = (assignRole == 0) ? process.env.ADMIN_ROLE : process.env.ISSUER_ROLE;
 
-    try{
-      // Blockchain processing.
-      const response = await newContract.hasRole(assigningRole, newAddress);
-
-      if (response === false) {
-        return res.status(400).json({ status: "FAILED", message: messageCode.msgAddressNotExistBlockchain });
-      }
-
       try {
-        const tx = await newContract.revokeRole(assigningRole, newAddress);
+        // Blockchain processing.
+        const response = await newContract.hasRole(assigningRole, newAddress);
 
-        var txHash = tx.hash;
-
-      } catch (error) {
-        // Handle the error During the transaction
-        if (error.reason) {
-          // Extract and handle the error reason
-          console.log("Error reason:", error.reason);
-          return res.status(400).json({ status: "FAILED", message: error.reason });
-        } else {
-          // If there's no specific reason provided, handle the error generally
-          console.error(messageCode.msgFailedOpsAtBlockchain, error);
-            return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain });
+        if (response === false) {
+          return res.status(400).json({ status: "FAILED", message: messageCode.msgAddressNotExistBlockchain });
         }
+
+        // try {
+        //   const tx = await newContract.revokeRole(assigningRole, newAddress);
+
+        //   var txHash = tx.hash;
+
+        // } catch (error) {
+        //   // Handle the error During the transaction
+        //   if (error.reason) {
+        //     // Extract and handle the error reason
+        //     console.log("Error reason:", error.reason);
+        //     return res.status(400).json({ status: "FAILED", message: error.reason });
+        //   } else {
+        //     // If there's no specific reason provided, handle the error generally
+        //     console.error(messageCode.msgFailedOpsAtBlockchain, error);
+        //     return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain });
+        //   }
+        // }
+
+        var { txHash, polygonLink } = await grantOrRevokeRoleWithRetry("revoke", assigningRole, userExist.issuerId);
+          if (!polygonLink || !txHash) {
+            return res.status(400).json({ status: "FAILED", message: messageCode.msgFaileToRevokeRoleRetry });
+          }
+
+        const messageInfo = (assignRole == 0) ? messageCode.msgAdminRevoke : messageCode.msgIssuerRoleRevoke;
+
+        // Prepare success response
+        const responseMessage = {
+          status: "SUCCESS",
+          message: messageInfo,
+          details: `https://${process.env.NETWORK}/tx/${txHash}`
+        };
+        // Send success response
+        res.status(200).json(responseMessage);
+      } catch (error) {
+        // Error occurred during user approval process, respond with failure message
+        return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
       }
-
-      const messageInfo = (assignRole == 0) ? messageCode.msgAdminRevoke : messageCode.msgIssuerRoleRevoke;
-
-      // Prepare success response
-      const responseMessage = {
-        status: "SUCCESS",
-        message: messageInfo,
-        details: `https://${process.env.NETWORK}/tx/${txHash}`
-      };
-      // Send success response
-      res.status(200).json(responseMessage);
-    } catch (error) {
-      // Error occurred during user approval process, respond with failure message
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
-    }
     }
   } catch (error) {
     // Internal server error occurred, send failure response
@@ -416,12 +439,118 @@ const checkBalance = async (req, res) => {
   }
 };
 
+/**
+ * API to update IssuerId (Ethereum account address) and validate upon login.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
+
+const createAndValidateIssuerIdUponLogin = async (req, res) => {
+  var validResult = validationResult(req);
+  if (!validResult.isEmpty()) {
+    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+  }
+
+  const email = req.body.email;
+
+  try {
+    var dbStatus = isDBConnected();
+
+    if (dbStatus) {
+      // Find user by email
+      const userExist = await User.findOne({ email });
+      if (!userExist) {
+        return res.status(400).json({ status: "FAILED", message: messageCode.msgUserNotFound });
+      }
+      if (userExist.issuerId == undefined) {
+        try {
+
+          var getNewId = await generateAccount();
+
+          var { txHash, polygonLink } = await grantOrRevokeRoleWithRetry("grant", process.env.ISSUER_ROLE, getNewId);
+          if (!polygonLink || !txHash) {
+            return res.status(400).json({ status: "FAILED", message: messageCode.msgFaileToGrantRoleRetry });
+          }
+
+          // Save verification details
+          userExist.issuerId = getNewId;
+          userExist.approved = true;
+          userExist.status = 1;
+          userExist.rejectedDate = null;
+          await userExist.save();  
+          
+          return res.status(200).json({ status: "WORKING", message: messageCode.msgIssuerApproveSuccess, details: polygonLink });
+
+        } catch (error) {
+          return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+        }
+      } else {
+        return res.status(200).json({ status: "FAILED", message: messageCode.msgIssuerIdExist });
+      }
+    } else {
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgDbNotReady });
+    }
+  } catch (error) {
+    // Handle errors
+    console.error(error);
+    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+  }
+};
+
+// Blockchain call for Grant / Revoke Issuer role
+const grantOrRevokeRoleWithRetry = async (roleStatus, role, id, retryCount = 3) => {
+  try {
+    // Issue Single Certifications on Blockchain
+    if (roleStatus == "grant") {
+      var tx = await newContract.grantRole(
+        role,
+        id
+      );
+    } else if (roleStatus == "revoke") {
+      var tx = await newContract.revokeRole(
+        role,
+        id
+      );
+    } else {
+      return null;
+    }
+    var txHash = tx.hash;
+
+    var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
+
+    return { txHash, polygonLink };
+
+  } catch (error) {
+    if (retryCount > 0 && error.code === 'ETIMEDOUT') {
+      console.log(`Connection timed out. Retrying... Attempts left: ${retryCount}`);
+      // Retry after a delay (e.g., 2 seconds)
+      await holdExecution(2000);
+      return grantOrRevokeRoleWithRetry(roleStatus, role, id, retryCount - 1);
+    } else if (error.code === 'NONCE_EXPIRED') {
+      // Extract and handle the error reason
+      // console.log("Error reason:", error.reason);
+      return null;
+    } else if (error.reason) {
+      // Extract and handle the error reason
+      // console.log("Error reason:", error.reason);
+      return null;
+    } else {
+      // If there's no specific reason provided, handle the error generally
+      // console.error(messageCode.msgFailedOpsAtBlockchain, error);
+      return null;
+    }
+  }
+};
+
 module.exports = {
   // Function to generate a Polygon link for a certificate
   polygonLink,
 
   // Function to Approve or Reject the Issuer
   validateIssuer,
+
+  createAndValidateIssuerIdUponLogin,
 
   // Function to grant role to an address
   addTrustedOwner,

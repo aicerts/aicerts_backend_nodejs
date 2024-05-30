@@ -743,7 +743,6 @@ const verifyCertificationId = async (req, res) => {
       } catch (error) {
         return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
       }
-    
   }
   } catch (error) {
     return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
