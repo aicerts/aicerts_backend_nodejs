@@ -516,7 +516,7 @@ const createAndValidateIssuerIdUponLogin = async (req, res) => {
           userExist.certificatesRenewed = 0;
           await userExist.save();
 
-          return res.status(200).json({ status: "WORKING", message: messageCode.msgIssuerApproveSuccess, details: polygonLink });
+          return res.status(200).json({ status: "SUCCESS", message: messageCode.msgIssuerApproveSuccess, details: polygonLink });
 
         } catch (error) {
           return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });

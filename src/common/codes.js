@@ -87,6 +87,7 @@ module.exports = {
     msgErrorOnFetching : "An error occurred while fetching Issuer details",
     msgProvideValidStatus : "Please provide valid status as 1 : approve or 2 : reject",
     msgProvideValidCertStatus : "Please provide valid status",
+    msgTypeRestricted: "Please provide valid type input (1, 2 or 3)",
 
     // Blockchain route Messages
     msgInvalidInput : "Invalid Input provided",

@@ -122,9 +122,9 @@ router.post('/get-issuers-log', validationRoute.queryCode, adminController.fetch
 
 /**
  * @swagger
- * /api/get-issue/{input}/{email}:
+ * /api/get-issue/{input}/{type}/{email}:
  *   get:
- *     summary: Fetch Issue data based on the name or Certification ID & user email as input to search
+ *     summary: Fetch Issue data based on the name or Certification ID, Type (1, 2 or 3) & user email as input to search
  *     description: Retrieve Issue data based on the provided the name or Certification ID as input & email.
  *     tags: [Fetch/Upload]
  *     security:
@@ -136,6 +136,12 @@ router.post('/get-issuers-log', validationRoute.queryCode, adminController.fetch
  *         required: true
  *         schema:
  *           type: string
+ *       - in: path
+ *         name: type
+ *         description: The type (1 get certs to be renew / 2 to get certs to reactivate / 3 to get certs to revoke) used to fetch Issue details.
+ *         required: true
+ *         schema:
+ *           type: integer
  *       - in: path
  *         name: email
  *         description: The valid user email.
@@ -191,7 +197,7 @@ router.post('/get-issuers-log', validationRoute.queryCode, adminController.fetch
  *               message: Internal Server Error.
  */
 
-router.get('/get-issue/:input/:email', adminController.getIssueDetails);
+router.get('/get-issue/:input/:type/:email', adminController.getIssueDetails);
 
 /**
  * @swagger

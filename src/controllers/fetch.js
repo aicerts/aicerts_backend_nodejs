@@ -105,11 +105,17 @@ const getIssuerByEmail = async (req, res) => {
 const getIssueDetails = async (req, res) => {
 
   const input = req.params.input;
+  const _type = req.params.type;
   const email = req.params.email;
   var responseData;
 
   if (!input || !email) {
     return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidInput });
+  }
+
+  var type = parseInt(_type);
+  if (type != 1 && type != 2 && type != 3) {
+    return res.status(400).json({ status: "FAILED", message: messageCode.msgTypeRestricted });
   }
 
   try {
@@ -127,16 +133,50 @@ const getIssueDetails = async (req, res) => {
     }
 
     try {
-      // check if the input is Existed cert ID or name
-      var isIssueSingle = await Issues.findOne({
-        issuerId: issuerExist.issuerId,
-        certificateNumber: input
-      });
+      if (type == 1) {
+        // check if the input is Existed cert ID or name for Renew
+        var isIssueSingle = await Issues.findOne({
+          issuerId: issuerExist.issuerId,
+          certificateNumber: input,
+          certificateStatus: { $in: [1, 2, 4] },
+          expirationDate: { $ne: "1" }
+        });
 
-      var isIssueBatch = await BatchIssues.findOne({
-        issuerId: issuerExist.issuerId,
-        certificateNumber: input
-      });
+        var isIssueBatch = await BatchIssues.findOne({
+          issuerId: issuerExist.issuerId,
+          certificateNumber: input,
+          certificateStatus: { $in: [1, 2, 4] },
+          expirationDate: { $ne: "1" }
+        });
+
+      } else if (type == 2) {
+        // check if the input is Existed cert ID or name for reactivate
+        var isIssueSingle = await Issues.findOne({
+          issuerId: issuerExist.issuerId,
+          certificateNumber: input,
+          certificateStatus: 3
+        });
+
+        var isIssueBatch = await BatchIssues.findOne({
+          issuerId: issuerExist.issuerId,
+          certificateNumber: input,
+          certificateStatus: 3
+        });
+
+      } else if (type == 3) {
+        // check if the input is Existed cert ID or name for revoke
+        var isIssueSingle = await Issues.findOne({
+          issuerId: issuerExist.issuerId,
+          certificateNumber: input,
+          certificateStatus: { $in: [1, 2, 4] }
+        });
+
+        var isIssueBatch = await BatchIssues.findOne({
+          issuerId: issuerExist.issuerId,
+          certificateNumber: input,
+          certificateStatus: { $in: [1, 2, 4] }
+        });
+      }
 
       if (isIssueSingle || isIssueBatch) {
         responseData = isIssueSingle != null ? isIssueSingle : isIssueBatch;
@@ -148,16 +188,50 @@ const getIssueDetails = async (req, res) => {
     }
 
     try {
+      if (type == 1) {
+        // check if the input is Existed cert ID or name for Renew
+        var isIssueSingleName = Issues.find({
+          issuerId: issuerExist.issuerId,
+          name: input,
+          certificateStatus: { $in: [1, 2, 4] },
+          expirationDate: { $ne: "1" }
+        }).lean();
 
-      var isIssueSingleName = Issues.find({
-        issuerId: issuerExist.issuerId,
-        name: input
-      }).lean();
+        var isIssueBatchName = BatchIssues.find({
+          issuerId: issuerExist.issuerId,
+          name: input,
+          certificateStatus: { $in: [1, 2, 4] },
+          expirationDate: { $ne: "1" }
+        }).lean();
 
-      var isIssueBatchName = BatchIssues.find({
-        issuerId: issuerExist.issuerId,
-        name: input
-      }).lean();
+      } else if (type == 2) {
+        // check if the input is Existed cert ID or name for Reactivate
+        var isIssueSingleName = Issues.find({
+          issuerId: issuerExist.issuerId,
+          name: input,
+          certificateStatus: 3
+        }).lean();
+
+        var isIssueBatchName = BatchIssues.find({
+          issuerId: issuerExist.issuerId,
+          name: input,
+          certificateStatus: 3
+        }).lean();
+
+      } else if (type == 3) {
+        // check if the input is Existed cert ID or name for Revoke
+        var isIssueSingleName = Issues.find({
+          issuerId: issuerExist.issuerId,
+          name: input,
+          certificateStatus: { $in: [1, 2, 4] }
+        }).lean();
+
+        var isIssueBatchName = BatchIssues.find({
+          issuerId: issuerExist.issuerId,
+          name: input,
+          certificateStatus: { $in: [1, 2, 4] }
+        }).lean();
+      }
 
       var [singleNameResponse, batchNameResponse] = await Promise.all([isIssueSingleName, isIssueBatchName]);
 
@@ -232,13 +306,13 @@ const getVerificationDetailsByCourse = async (req, res) => {
 
     const isEmailExist = await User.findOne({ email: email });
 
-    if(!isEmailExist){
+    if (!isEmailExist) {
       return res.status(400).json({ status: "FAILED", message: messageCode.msgUserEmailNotFound });
     }
 
     const verificationCommonResponse = await VerificationLog.findOne({ email: email });
 
-if (verificationCommonResponse) {
+    if (verificationCommonResponse) {
       var responseCount = verificationCommonResponse.courses;
       res.status(200).json({
         status: 'SUCCESS',
