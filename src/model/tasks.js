@@ -260,7 +260,7 @@ const isCertificationIdExisted = async (certId) => {
   const dbStaus = await isDBConnected();
 
   if (certId == null || certId == "") {
-    return [{ status: "FAILED", message: "Invalid Data" }];
+    return null;
   }
 
   const singleIssueExist = await Issues.findOne({ certificateNumber: certId });
@@ -269,17 +269,18 @@ const isCertificationIdExisted = async (certId) => {
   try {
     if (singleIssueExist) {
 
-      return [{ status: "SUCCESS", message: "unit", details: singleIssueExist }];
+      return singleIssueExist ;
     } else if (batchIssueExist) {
 
-      return [{ status: "SUCCESS", message: "batch", details: batchIssueExist }];
+      return batchIssueExist;
     } else {
 
-      return [{ status: "FAILED", message: "Certification ID not found" }];
+      return null;
     }
 
   } catch (error) {
     console.error("Error during validation:", error);
+    return null;
   }
 };
 

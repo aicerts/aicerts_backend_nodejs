@@ -28,7 +28,8 @@ const {
   cleanUploadFolder, // Function to clean up the upload folder
   isDBConnected, // Function to check if the database connection is established
   extractCertificateInfo,
-  verificationLogEntry
+  verificationLogEntry,
+  isCertificationIdExisted
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
 // Retrieve contract address from environment variable
@@ -404,7 +405,6 @@ const verify = async (req, res) => {
  */
 const decodeQRScan = async (req, res) => {
   const receivedCode = req.body.receivedCode;
-
   if (!receivedCode) {
     // Respond with error message
     return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidInput });
@@ -412,42 +412,75 @@ const decodeQRScan = async (req, res) => {
   console.log("Input QR data", receivedCode);
   try {
     if (receivedCode.startsWith("https://tinyurl.com")) {
-
       var reponseUrl = await expandTinyUrl(receivedCode);
       if (reponseUrl) {
         var extractQRData = await extractCertificateInfo(reponseUrl);
       }
-
       if (extractQRData) {
-
-        console.log("The received data", receivedCode, reponseUrl, extractQRData);
-
+        try {
+          var dbStatus = await isDBConnected();
+          if (dbStatus) {
+            var getCertificationInfo = await isCertificationIdExisted(extractQRData['Certificate Number']);
+            if (getCertificationInfo) {
+              var formatCertificationStatus = parseInt(getCertificationInfo.certificateStatus);
+              if (formatCertificationStatus && formatCertificationStatus == 3) {
+                return res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
+              }
+            }
+          }
+        } catch (error) {
+          return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+        }
+        console.log("The received data", receivedCode, extractQRData); // log the response
         res.status(200).json({ status: "PASSED", message: "Verified", data: extractQRData });
         return;
       }
       return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
 
     } else if (receivedCode.startsWith("https://verify")) {
-
       var extractQRData = await extractCertificateInfo(reponseUrl);
       if (extractQRData) {
+        try {
+          var dbStatus = await isDBConnected();
+          if (dbStatus) {
+            var getCertificationInfo = await isCertificationIdExisted(extractQRData['Certificate Number']);
+            if (getCertificationInfo) {
+              var formatCertificationStatus = parseInt(getCertificationInfo.certificateStatus);
+              if (formatCertificationStatus && formatCertificationStatus == 3) {
+                return res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
+              }
+            }
+          }
+        } catch (error) {
+          return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+        }
+        console.log("The received data", receivedCode, extractQRData); // log the response
+        res.status(200).json({ status: "PASSED", message: "Verified", data: extractQRData });
+        return;
+      }
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
 
-        console.log("The received data", receivedCode, reponseUrl, extractQRData);
+    } else if (receivedCode.startsWith("Verify")) {
+
+      var extractQRData = await extractCertificateInfo(receivedCode);
+      if (extractQRData) {
+
+        console.log("The received data", receivedCode, extractQRData); // log the response
 
         res.status(200).json({ status: "PASSED", message: "Verified", data: extractQRData });
         return;
       }
       return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
 
+    } else {
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
     }
   } catch (error) {
     // Handle errors and send an appropriate response
     console.error(error);
-    res.status(500).json({ message: messageCode.msgInternalError });
+    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
   }
-
 };
-
 
 /**
  * Handles the decoding of a certificate from an encrypted link.
@@ -485,25 +518,15 @@ const decodeCertificate = async (req, res) => {
       isValid = true
       var dbStatus = await isDBConnected();
       if (dbStatus != false) {
-        const singleIssueExist = await Issues.findOne({ certificateNumber: originalData.Certificate_Number });
-        const batchIssueExist = await BatchIssues.findOne({ certificateNumber: originalData.Certificate_Number });
-        if (originalData.Certificate_Number != "" && (singleIssueExist || batchIssueExist)) {
-          if (singleIssueExist) {
-            verifyLog.issuerId = singleIssueExist.issuerId;
-            parsedData['Expiration Date'] = singleIssueExist.expirationDate;
-            var certSingleStatus = singleIssueExist.certificateStatus || 0;
-            if ((certSingleStatus != 0) && (certSingleStatus == 3)) {
-              isValid = false;
-              messageContent = "Certification has Revoked";
-            }
-          } else if (batchIssueExist) {
-            verifyLog.issuerId = batchIssueExist.issuerId;
-            parsedData['Expiration Date'] = batchIssueExist.expirationDate;
-            var certBatchStatus = batchIssueExist.certificateStatus || 0;
-            if ((certBatchStatus != 0) && (certBatchStatus == 3)) {
-              isValid = false;
-              messageContent = "Certification has Revoked";
-            }
+        var getValidCertificatioInfo = await isCertificationIdExisted(originalData.Certificate_Number);
+        if (getValidCertificatioInfo) {
+          verifyLog.issuerId = getValidCertificatioInfo.issuerId;
+          parsedData['Expiration Date'] = getValidCertificatioInfo.expirationDate;
+          var formatCertificationStatus = parseInt(getCertificationInfo.certificateStatus);
+          var certificationStatus = formatCertificationStatus || 0;
+          if ((certificationStatus != 0) && (certificationStatus == 3)) {
+            isValid = false;
+            messageContent = "Certification has Revoked";
           }
         }
       }
@@ -574,46 +597,7 @@ const verifyCertificationId = async (req, res) => {
         const verifyCert = await newContract.verifyCertificateById(inputId);
         const _certStatus = await newContract.getCertificateStatus(inputId);
 
-      if (singleIssueExist.expirationDate == '1') {
-        var _polygonLink = `https://${process.env.NETWORK}/tx/${singleIssueExist.transactionHash}`;
-
-        var completeResponse = {
-          'Certificate Number': singleIssueExist.certificateNumber,
-          'Name': singleIssueExist.name,
-          'Course Name': singleIssueExist.course,
-          'Grant Date': singleIssueExist.grantDate,
-          'Expiration Date': singleIssueExist.expirationDate,
-          'Polygon URL': _polygonLink
-        };
-
-        if (dbStatus) {
-          await verificationLogEntry(verifyLog);
-        }
-
-        res.status(200).json({
-          status: "SUCCESS",
-          message: "Certification is valid",
-          details: completeResponse
-        });
-        return;
-      }
-      try {
-        // Blockchain processing.
-        const verifyCert = await newContract.verifyCertificateById(inputId);
-        const _certStatus = await newContract.getCertificateStatus(inputId);
-
-        var verifyCertStatus = parseInt(verifyCert[3]);
-        var certStatus = parseInt(_certStatus);
-        if (certStatus == 3) {
-          return res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
-        }
-
-        if (verifyCert[0] == false && verifyCertStatus == 5) {
-          return res.status(400).json({ status: "FAILED", message: messageCode.msgCertExpired });
-        }
-
-        if (verifyCert[0] == true) {
-
+        if (singleIssueExist.expirationDate == '1') {
           var _polygonLink = `https://${process.env.NETWORK}/tx/${singleIssueExist.transactionHash}`;
 
           var completeResponse = {
@@ -625,28 +609,67 @@ const verifyCertificationId = async (req, res) => {
             'Polygon URL': _polygonLink
           };
 
-          const foundCertification = (singleIssueExist != null) ? completeResponse : inputId;
-
           if (dbStatus) {
             await verificationLogEntry(verifyLog);
           }
 
-          const verificationResponse = {
+          res.status(200).json({
             status: "SUCCESS",
             message: "Certification is valid",
-            details: foundCertification
-          };
-          return res.status(200).json(verificationResponse);
-        } else if (verifyCert[0] == false) {
-          return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
+            details: completeResponse
+          });
+          return;
         }
+        try {
+          // Blockchain processing.
+          const verifyCert = await newContract.verifyCertificateById(inputId);
+          const _certStatus = await newContract.getCertificateStatus(inputId);
 
+          var verifyCertStatus = parseInt(verifyCert[3]);
+          var certStatus = parseInt(_certStatus);
+          if (certStatus == 3) {
+            return res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
+          }
+
+          if (verifyCert[0] == false && verifyCertStatus == 5) {
+            return res.status(400).json({ status: "FAILED", message: messageCode.msgCertExpired });
+          }
+
+          if (verifyCert[0] == true) {
+
+            var _polygonLink = `https://${process.env.NETWORK}/tx/${singleIssueExist.transactionHash}`;
+
+            var completeResponse = {
+              'Certificate Number': singleIssueExist.certificateNumber,
+              'Name': singleIssueExist.name,
+              'Course Name': singleIssueExist.course,
+              'Grant Date': singleIssueExist.grantDate,
+              'Expiration Date': singleIssueExist.expirationDate,
+              'Polygon URL': _polygonLink
+            };
+
+            const foundCertification = (singleIssueExist != null) ? completeResponse : inputId;
+
+            if (dbStatus) {
+              await verificationLogEntry(verifyLog);
+            }
+
+            const verificationResponse = {
+              status: "SUCCESS",
+              message: "Certification is valid",
+              details: foundCertification
+            };
+            return res.status(200).json(verificationResponse);
+          } else if (verifyCert[0] == false) {
+            return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
+          }
+
+        } catch (error) {
+          return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
+        }
       } catch (error) {
         return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
       }
-    } catch (error) {
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
-    }
 
     } else if (batchIssueExist) {
 
@@ -743,7 +766,7 @@ const verifyCertificationId = async (req, res) => {
       } catch (error) {
         return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
       }
-  }
+    }
   } catch (error) {
     return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
   }
