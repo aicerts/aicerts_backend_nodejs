@@ -3,7 +3,6 @@ require('dotenv').config();
 
 // Import required modules
 const { validationResult } = require("express-validator");
-const url = require('url');
 
 // Import ABI (Application Binary Interface) from the JSON file located at "../config/abi.json"
 const abi = require("../config/abi.json");
@@ -18,7 +17,8 @@ const {
 const {
     convertDateFormat,
     isCertificationIdExisted,
-    isDBConnected
+    isDBConnected,
+    extractCertificateInfo
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
 var messageCode = require("../common/codes");
@@ -162,50 +162,6 @@ const updateBatchStatus = async (req, res) => {
     }
 };
 
-/**
- * API call to encode/decode for the Short URL.
- *
- * @param {Object} req - Express request object.
- * @param {Object} res - Express response object.
- */
-const shortenUrlToVerify = async (req, res) => {
-    var validResult = validationResult(req);
-    if (!validResult.isEmpty()) {
-        return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
-    }
-
-    const inputUrl = req.body.url;
-
-    if (!inputUrl || !inputUrl.startsWith("https://verify")) {
-        return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidUrl });
-    }
-
-    var urlSize = inputUrl.length;
-
-    if (urlSize < 40) {
-        // Parse the URL
-        const parsedUrl = new URL(inputUrl);
-        // Extract the query parameter
-        const certificationNumber = parsedUrl.searchParams.get('');
-        try{
-            var dbStatus = isDBConnected();
-
-            var isCertExist = await isCertificationIdExisted(certificationNumber);
-
-            
-        console.log(certificationNumber, isCertExist);
-
-
-        } catch(error) {
-            return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
-        }
-        return res.status(200).json({ status: "WORKING", message: messageCode.msgWorkInProgress });
-    } else {
-        return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
-    }
-
-}
-
 module.exports = {
     // Function to renew a certification (single / in batch)
     renewCert,
@@ -218,8 +174,5 @@ module.exports = {
 
     // Function to revoke/reactivate a Batch of certifications
     updateBatchStatus,
-
-    // Function to encode/decode for the Short URL.
-    shortenUrlToVerify
 
 };

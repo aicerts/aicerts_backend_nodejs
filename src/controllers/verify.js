@@ -17,7 +17,7 @@ const pdf = require("pdf-lib"); // Library for creating and modifying PDF docume
 const { PDFDocument } = pdf;
 
 // Import MongoDB models
-const { Issues, BatchIssues } = require("../config/schema");
+const { Issues, BatchIssues, ShortUrl } = require("../config/schema");
 
 // Import ABI (Application Binary Interface) from the JSON file located at "../config/abi.json"
 const abi = require("../config/abi.json");
@@ -53,6 +53,8 @@ const newContract = new ethers.Contract(contractAddress, abi, signer);
 
 var messageCode = require("../common/codes");
 const e = require('express');
+
+const urlLimit = process.env.MAX_URL_SIZE || 40;
 
 /**
  * Verify Certification page with PDF QR - Blockchain URL.
@@ -410,8 +412,11 @@ const decodeQRScan = async (req, res) => {
     return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidInput });
   }
   console.log("Input QR data", receivedCode);
+  
+  var responseUrl = null;
+  var decodeResponse = false;
   try {
-    if (receivedCode.startsWith("https://tinyurl.com")) {
+    if (receivedCode.startsWith(process.env.TINY_URL)) {
       var reponseUrl = await expandTinyUrl(receivedCode);
       if (reponseUrl) {
         var extractQRData = await extractCertificateInfo(reponseUrl);
@@ -437,7 +442,40 @@ const decodeQRScan = async (req, res) => {
       }
       return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
 
-    } else if (receivedCode.startsWith("https://verify")) {
+    } else if (receivedCode.startsWith(process.env.START_URL)) {
+      var urlSize = receivedCode.length;
+      if(urlSize < urlLimit){
+        // Parse the URL
+        const parsedUrl = new URL(receivedCode);
+        // Extract the query parameter
+        const certificationNumber = parsedUrl.searchParams.get('');
+        try {
+            var dbStatus = isDBConnected();
+
+            // var isCertExist = await isCertificationIdExisted(certificationNumber);
+
+            var isUrlExist = await ShortUrl.findOne({ certificateNumber: certificationNumber })
+
+            // console.log(certificationNumber, isUrlExist);
+
+            if (isUrlExist) {
+                console.log("The original url", isUrlExist.url);
+                responseUrl = isUrlExist.url;
+                if (responseUrl && responseUrl.startsWith("https://verify")) {
+                    var decodeResponse = await extractCertificateInfo(responseUrl);
+                } else {
+                    return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidUrl });
+                }
+            }
+
+            var verificationResponse = decodeResponse != false ? decodeResponse : "";
+
+        } catch (error) {
+            return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, error: error });
+        }
+        return res.status(200).json({ status: "WORKING", message: messageCode.msgWorkInProgress, data: verificationResponse });
+      }
+      
       var extractQRData = await extractCertificateInfo(reponseUrl);
       if (extractQRData) {
         try {
@@ -460,7 +498,7 @@ const decodeQRScan = async (req, res) => {
       }
       return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
 
-    } else if (receivedCode.startsWith("Verify")) {
+    } else if (receivedCode.startsWith(process.env.START_LMS)) {
 
       var extractQRData = await extractCertificateInfo(receivedCode);
       if (extractQRData) {

@@ -85,7 +85,7 @@ const signer = new ethers.Wallet(process.env.PRIVATE_KEY, fallbackProvider);
 const sim_contract = new ethers.Contract(contractAddress, abi, signer);
 
 // Import the Issues models from the schema defined in "../config/schema"
-const { User, Issues, BatchIssues, IssueStatus, VerificationLog } = require("../config/schema");
+const { User, Issues, BatchIssues, IssueStatus, VerificationLog, ShortUrl } = require("../config/schema");
 
 //Connect to polygon
 const connectToPolygon = async () => {
@@ -269,7 +269,7 @@ const isCertificationIdExisted = async (certId) => {
   try {
     if (singleIssueExist) {
 
-      return singleIssueExist ;
+      return singleIssueExist;
     } else if (batchIssueExist) {
 
       return batchIssueExist;
@@ -281,6 +281,34 @@ const isCertificationIdExisted = async (certId) => {
   } catch (error) {
     console.error("Error during validation:", error);
     return null;
+  }
+};
+
+// Function to insert url data into DB
+const insertUrlData = async (data) => {
+  if(!data){
+    console.log("invaid data sent to store in DB");
+    return false;
+  }
+  try {
+    isDBConnected();
+    // Store new url details fro provided data
+    const newUrlData = new ShortUrl({
+      email: data.email,
+      certificateNumber: data.certificateNumber,
+      url: data.url
+    });
+    // Save the new shortUrl document to the database
+    const result = await newUrlData.save();
+
+    // Logging confirmation message
+    console.log("URL data inserted");
+    return true;
+
+  } catch (error) {
+    // Handle errors related to database connection or insertion
+    console.error("Error connecting in update URL data", error);
+    return false;
   }
 };
 
@@ -371,7 +399,7 @@ const insertIssueStatus = async (issueData) => {
     const email = issueData.email || null;
     const issuerId = issueData.issuerId || null;
     const transactionHash = issueData.transactionHash || null;
-    
+
     // Insert data into status MongoDB
     const newIssueStatus = new IssueStatus({
       email: email,
@@ -906,6 +934,8 @@ module.exports = {
 
   // Function to extract certificate information from a QR code text
   extractCertificateInfo,
+
+  insertUrlData,
 
   // Function to convert the Date format MM/DD/YYYY
   convertDateFormat,
