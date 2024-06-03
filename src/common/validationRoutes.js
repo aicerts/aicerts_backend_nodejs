@@ -78,6 +78,11 @@ const validationRoutes = {
         body("status").notEmpty().trim().isNumeric().withMessage(messageCode.msgNonEmpty).isIn([1, 2]).withMessage(messageCode.msgProvideValidStatus),
         body("email").notEmpty().trim().isEmail().withMessage(messageCode.msgInvalidEmail)  
     ],
+    searchCertification: [
+        body("email").notEmpty().trim().isEmail().withMessage(messageCode.msgInvalidEmail),
+        body("input").notEmpty().trim().isString().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide),
+        body("type").notEmpty().trim().isNumeric().withMessage(messageCode.msgNonEmpty).isIn([1, 2, 3]).withMessage(messageCode.msgInvalidGraphInput),
+    ],
     checkAddress: [
         body("address").notEmpty().trim().isString().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide).isLength(42).withMessage(messageCode.msgInvalidEthereum)
     ],

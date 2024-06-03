@@ -103,10 +103,14 @@ const getIssuerByEmail = async (req, res) => {
  * @param {Object} res - Express response object.
  */
 const getIssueDetails = async (req, res) => {
+  var validResult = validationResult(req);
+  if (!validResult.isEmpty()) {
+    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+  }
 
-  const input = req.params.input;
-  const _type = req.params.type;
-  const email = req.params.email;
+  const input = req.body.input;
+  const _type = req.body.type;
+  const email = req.body.email;
   var responseData;
 
   if (!input || !email) {
