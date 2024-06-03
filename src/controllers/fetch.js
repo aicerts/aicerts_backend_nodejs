@@ -180,6 +180,7 @@ const getIssueDetails = async (req, res) => {
 
       if (isIssueSingle || isIssueBatch) {
         responseData = isIssueSingle != null ? isIssueSingle : isIssueBatch;
+        responseData = [responseData];
         return res.status(200).json({ status: "SUCCESS", message: messageCode.msgIssueFound, data: responseData });
       }
 
@@ -1036,8 +1037,6 @@ const getBatchCertificateDates = async (req, res) => {
   }
 };
 
-
-
 const getBatchCertificates = async (req, res) => {
   try {
     const { batchId, issuerId } = req.body;
@@ -1067,7 +1066,6 @@ const getBatchCertificates = async (req, res) => {
     });
   }
 };
-
 
 module.exports = {
   // Function to get all issuers (users)

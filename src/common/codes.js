@@ -151,6 +151,9 @@ module.exports = {
     msgIssueFound: "Certification details found",
     msgIssueNotFound: "Certification details not found",
     msgIssuerIdExist: "Issuer ID existed in Issuer Details",
+
+    // URL shortening API
+    msgInvalidUrl: "Please provide vaid URL",
     
 
 };
