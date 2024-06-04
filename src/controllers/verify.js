@@ -411,38 +411,40 @@ const decodeQRScan = async (req, res) => {
     // Respond with error message
     return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidInput });
   }
-  console.log("Input QR data", receivedCode);
+  // console.log("Input QR data", receivedCode);
   
   var responseUrl = null;
   var decodeResponse = false;
   try {
-    if (receivedCode.startsWith(process.env.TINY_URL)) {
-      var reponseUrl = await expandTinyUrl(receivedCode);
-      if (reponseUrl) {
-        var extractQRData = await extractCertificateInfo(reponseUrl);
-      }
-      if (extractQRData) {
-        try {
-          var dbStatus = await isDBConnected();
-          if (dbStatus) {
-            var getCertificationInfo = await isCertificationIdExisted(extractQRData['Certificate Number']);
-            if (getCertificationInfo) {
-              var formatCertificationStatus = parseInt(getCertificationInfo.certificateStatus);
-              if (formatCertificationStatus && formatCertificationStatus == 3) {
-                return res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
-              }
-            }
-          }
-        } catch (error) {
-          return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
-        }
-        console.log("The received data", receivedCode, extractQRData); // log the response
-        res.status(200).json({ status: "PASSED", message: "Verified", data: extractQRData });
-        return;
-      }
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
+    // if (receivedCode.startsWith(process.env.TINY_URL)) {
+    //   var reponseUrl = await expandTinyUrl(receivedCode);
+    //   if (reponseUrl) {
+    //     var extractQRData = await extractCertificateInfo(reponseUrl);
+    //   }
+    //   if (extractQRData) {
+    //     try {
+    //       var dbStatus = await isDBConnected();
+    //       if (dbStatus) {
+    //         var getCertificationInfo = await isCertificationIdExisted(extractQRData['Certificate Number']);
+    //         if (getCertificationInfo) {
+    //           var formatCertificationStatus = parseInt(getCertificationInfo.certificateStatus);
+    //           if (formatCertificationStatus && formatCertificationStatus == 3) {
+    //             return res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
+    //           }
+    //         }
+    //       }
+    //     } catch (error) {
+    //       return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+    //     }
+    //     console.log("The received data", receivedCode, extractQRData); // log the response
+    //     res.status(200).json({ status: "PASSED", message: "Verified", data: extractQRData });
+    //     return;
+    //   }
+    //   return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
 
-    } else if (receivedCode.startsWith(process.env.START_URL)) {
+    // } else 
+    
+    if (receivedCode.startsWith(process.env.START_URL)) {
       var urlSize = receivedCode.length;
       if(urlSize < urlLimit){
         // Parse the URL
@@ -459,7 +461,7 @@ const decodeQRScan = async (req, res) => {
             // console.log(certificationNumber, isUrlExist);
 
             if (isUrlExist) {
-                console.log("The original url", isUrlExist.url);
+                // console.log("The original url", isUrlExist.url);
                 responseUrl = isUrlExist.url;
                 if (responseUrl && responseUrl.startsWith(process.env.START_URL)) {
                     var decodeResponse = await extractCertificateInfo(responseUrl);
@@ -492,8 +494,8 @@ const decodeQRScan = async (req, res) => {
         } catch (error) {
           return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
         }
-        console.log("The received data", receivedCode, extractQRData); // log the response
-        res.status(200).json({ status: "PASSED", message: "Verified", data: extractQRData });
+        // console.log("The received data", receivedCode, extractQRData); // log the response
+        res.status(200).json({ status: "PASSED", message: messageCode.msgCertValid, Details: extractQRData });
         return;
       }
       return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
@@ -503,9 +505,9 @@ const decodeQRScan = async (req, res) => {
       var extractQRData = await extractCertificateInfo(receivedCode);
       if (extractQRData) {
 
-        console.log("The received data", receivedCode, extractQRData); // log the response
+        // console.log("The received data", receivedCode, extractQRData); // log the response
 
-        res.status(200).json({ status: "PASSED", message: "Verified", data: extractQRData });
+        res.status(200).json({ status: "PASSED", message: messageCode.msgCertValid, Details: extractQRData });
         return;
       }
       return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
@@ -812,18 +814,18 @@ const verifyCertificationId = async (req, res) => {
 };
 
 
-const expandTinyUrl = async (tinyUrl) => {
-  try {
-    const response = await axios.head(tinyUrl, {
-      maxRedirects: 0,
-      validateStatus: status => status >= 200 && status < 400
-    });
-    return response.headers.location;
-  } catch (error) {
-    console.error('Error expanding TinyURL:', error.message);
-    return null;
-  }
-};
+// const expandTinyUrl = async (tinyUrl) => {
+//   try {
+//     const response = await axios.head(tinyUrl, {
+//       maxRedirects: 0,
+//       validateStatus: status => status >= 200 && status < 400
+//     });
+//     return response.headers.location;
+//   } catch (error) {
+//     console.error('Error expanding TinyURL:', error.message);
+//     return null;
+//   }
+// };
 
 const detectDateFormat = async (dateString) => {
   const formats = ['DD MMMM YYYY', 'MMMM DD YYYY', 'MM/DD/YY', 'MM/DD/YYYY'];

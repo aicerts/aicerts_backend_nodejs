@@ -262,7 +262,7 @@ const handleIssueCertification = async (email, certificateNumber, name, courseNa
 
 };
 
-const _handleIssuePdfCertification = async (email, certificateNumber, name, courseName, _grantDate, _expirationDate, _pdfPath) => {
+const handleIssuePdfQrCertification = async (email, certificateNumber, name, courseName, _grantDate, _expirationDate, _pdfPath) => {
   const pdfPath = _pdfPath;
   const grantDate = await convertDateFormat(_grantDate);
   const expirationDate = await convertDateFormat(_expirationDate);
@@ -663,7 +663,7 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
         else {
 
           var { txHash, polygonLink } = await issueCertificateWithRetry(certificateNumber, combinedHash, epochExpiration);
-          if (!polygonLink) {
+          if (!polygonLink || !txHash) {
             return ({ code: 400, status: false, message: messageCode.msgFaileToIssueAfterRetry, details: certificateNumber });
           }
 
@@ -822,6 +822,8 @@ const issueCertificateWithRetry = async (certificateNumber, certificateHash, exp
 module.exports = {
   // Function to issue a PDF certificate
   handleIssuePdfCertification,
+
+  handleIssuePdfQrCertification,
 
   // Function to issue a certification
   handleIssueCertification

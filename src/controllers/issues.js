@@ -34,7 +34,7 @@ const {
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
 const { handleExcelFile } = require('../services/handleExcel');
-const { handleIssueCertification, handleIssuePdfCertification } = require('../services/issue');
+const { handleIssueCertification, handleIssuePdfCertification, handleIssuePdfQrCertification } = require('../services/issue');
 
 // Retrieve contract address from environment variable
 const contractAddress = process.env.CONTRACT_ADDRESS;
@@ -107,6 +107,84 @@ const issuePdf = async (req, res) => {
     }
 
     const issueResponse = await handleIssuePdfCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate, req.file.path);
+    var responseDetails = issueResponse.details ? issueResponse.details : '';
+    if (issueResponse.code == 200) {
+
+      if (outputFileFormat == '1' || outputFileFormat == 1) {
+        // Set response headers for PNG to download
+        var certificateName = `${certificateNumber}.png`;
+
+        res.set({
+          'Content-Type': "application/png",
+          'Content-Disposition': `attachment; filename="${certificateName}"`, // Change filename as needed
+        });
+
+        // Send Image file
+        res.send(issueResponse.image);
+        return;
+
+      }
+
+      // Set response headers for PDF to download
+      var certificateName = `${certificateNumber}_certificate.pdf`;
+
+      res.set({
+        'Content-Type': "application/pdf",
+        'Content-Disposition': `attachment; filename="${certificateName}"`, // Change filename as needed
+      });
+
+      // Send Pdf file
+      res.send(issueResponse.file);
+      return;
+
+    } else {
+      return res.status(issueResponse.code).json({ status: issueResponse.status, message: issueResponse.message, details: responseDetails });
+    }
+
+  } catch (error) {
+    // Handle any errors that occur during token verification or validation
+    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
+  }
+};
+
+const issuePdfQr = async (req, res) => {
+  if (!req.file.path) {
+    return res.status(400).json({ status: "FAILED", message: messageCode.msgMustPdf });
+  }
+
+  var fileBuffer = fs.readFileSync(req.file.path);
+  var pdfDoc = await PDFDocument.load(fileBuffer);
+
+  if (pdfDoc.getPageCount() > 1) {
+    // Respond with success status and certificate details
+    await cleanUploadFolder();
+    return res.status(400).json({ status: "FAILED", message: messageCode.msgMultiPagePdf });
+  }
+  try {
+    // Extracting required data from the request body
+    const email = req.body.email;
+    const certificateNumber = req.body.certificateNumber;
+    const name = req.body.name;
+    const courseName = req.body.course;
+    const outputFileFormat = req.body.type || null;
+    var _grantDate = await convertDateFormat(req.body.grantDate);
+
+    if (_grantDate == "1" || _grantDate == null || _grantDate == "string") {
+      res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidGrantDate, details: req.body.grantDate });
+      return;
+    }
+    if (req.body.expirationDate == 1 || req.body.expirationDate == null || req.body.expirationDate == "string") {
+      var _expirationDate = 1;
+    } else {
+      var _expirationDate = await convertDateFormat(req.body.expirationDate);
+    }
+
+    if (_expirationDate == null) {
+      res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidExpirationDate, details: req.body.expirationDate });
+      return;
+    }
+
+    const issueResponse = await handleIssuePdfQrCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate, req.file.path);
     var responseDetails = issueResponse.details ? issueResponse.details : '';
     if (issueResponse.code == 200) {
 
@@ -327,26 +405,9 @@ const batchIssueCertificate = async (req, res) => {
             var dateEntry = 0;
           }
 
-          try {
-            // Issue Batch Certifications on Blockchain
-            const tx = await newContract.issueBatchOfCertificates(
-              tree.root,
-              dateEntry
-            );
-
-            var txHash = tx.hash;
-
-            var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
-          } catch (error) {
-            if (error.reason) {
-              // Extract and handle the error reason
-              console.log("Error reason:", error.reason);
-              return res.status(400).json({ status: "FAILED", message: error.reason });
-            } else {
-              // If there's no specific reason provided, handle the error generally
-              console.error(messageCode.msgFailedOpsAtBlockchain, error);
-              return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain });
-            }
+          var { txHash, polygonLink } = await issueBatchCertificateWithRetry(tree.root, dateEntry);
+          if (!polygonLink || !txHash) {
+            return ({ code: 400, status: false, message: messageCode.msgFaileToIssueAfterRetry, details: certificateNumber });
           }
 
           try {
@@ -450,9 +511,48 @@ const batchIssueCertificate = async (req, res) => {
   }
 };
 
+const issueBatchCertificateWithRetry = async (root, expirationEpoch, retryCount = 3) => {
+
+  try {
+    // Issue Single Certifications on Blockchain
+    const tx = await newContract.issueBatchOfCertificates(
+      root,
+      expirationEpoch
+    );
+
+    var txHash = tx.hash;
+
+    var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
+
+    return { txHash, polygonLink };
+
+  } catch (error) {
+    if (retryCount > 0 && error.code === 'ETIMEDOUT') {
+      console.log(`Connection timed out. Retrying... Attempts left: ${retryCount}`);
+      // Retry after a delay (e.g., 2 seconds)
+      await holdExecution(2000);
+      return issueCertificateWithRetry(root, expirationEpoch, retryCount - 1);
+    } else if (error.code === 'NONCE_EXPIRED') {
+      // Extract and handle the error reason
+      // console.log("Error reason:", error.reason);
+      return null;
+    } else if (error.reason) {
+      // Extract and handle the error reason
+      // console.log("Error reason:", error.reason);
+      return null;
+    } else {
+      // If there's no specific reason provided, handle the error generally
+      // console.error(messageCode.msgFailedOpsAtBlockchain, error);
+      return null;
+    }
+  }
+};
+
 module.exports = {
   // Function to issue a PDF certificate
   issuePdf,
+
+  issuePdfQr,
 
   // Function to issue a certification
   issue,
