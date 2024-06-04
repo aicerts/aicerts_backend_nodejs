@@ -54,7 +54,7 @@ const newContract = new ethers.Contract(contractAddress, abi, signer);
 var messageCode = require("../common/codes");
 const e = require('express');
 
-const urlLimit = process.env.MAX_URL_SIZE || 40;
+const urlLimit = process.env.MAX_URL_SIZE || 50;
 
 /**
  * Verify Certification page with PDF QR - Blockchain URL.
@@ -450,7 +450,7 @@ const decodeQRScan = async (req, res) => {
         // Extract the query parameter
         const certificationNumber = parsedUrl.searchParams.get('');
         try {
-            var dbStatus = isDBConnected();
+            var dbStatus = await isDBConnected();
 
             // var isCertExist = await isCertificationIdExisted(certificationNumber);
 
@@ -461,7 +461,7 @@ const decodeQRScan = async (req, res) => {
             if (isUrlExist) {
                 console.log("The original url", isUrlExist.url);
                 responseUrl = isUrlExist.url;
-                if (responseUrl && responseUrl.startsWith("https://verify")) {
+                if (responseUrl && responseUrl.startsWith(process.env.START_URL)) {
                     var decodeResponse = await extractCertificateInfo(responseUrl);
                 } else {
                     return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidUrl });
@@ -473,9 +473,9 @@ const decodeQRScan = async (req, res) => {
         } catch (error) {
             return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, error: error });
         }
-        return res.status(200).json({ status: "WORKING", message: messageCode.msgWorkInProgress, data: verificationResponse });
+        return res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, Details: verificationResponse });
       }
-      
+
       var extractQRData = await extractCertificateInfo(reponseUrl);
       if (extractQRData) {
         try {

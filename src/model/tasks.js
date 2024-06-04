@@ -20,6 +20,7 @@ const { decryptData } = require("../common/cryptoFunction"); // Custom functions
 
 const retryDelay = parseInt(process.env.TIME_DELAY);
 const maxRetries = 3; // Maximum number of retries
+const urlLimit = process.env.MAX_URL_SIZE || 50;
 
 // Regular expression to match MM/DD/YY format
 const regex = /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{4}$/;
@@ -286,7 +287,7 @@ const isCertificationIdExisted = async (certId) => {
 
 // Function to insert url data into DB
 const insertUrlData = async (data) => {
-  if(!data){
+  if (!data) {
     console.log("invaid data sent to store in DB");
     return false;
   }
@@ -490,10 +491,26 @@ const verificationLogEntry = async (verificationData) => {
 // Function to extract certificate information from a QR code text
 const extractCertificateInfo = async (qrCodeText) => {
   // console.log("QR Code Text", qrCodeText);
+  var _qrCodeText = qrCodeText;
   // Check if the data starts with 'http://' or 'https://'
   if (qrCodeText.startsWith('http://') || qrCodeText.startsWith('https://')) {
+    var responseLength = qrCodeText.length;
+    if (responseLength < urlLimit && qrCodeText.startsWith(process.env.START_URL)) {
+      // Parse the URL
+      const parsedUrl = new URL(qrCodeText);
+      // Extract the query parameter
+      var certificationNumber = parsedUrl.searchParams.get('');
+      var dbStatus = await isDBConnected();
+      if(dbStatus){
+        var isUrlExist = await ShortUrl.findOne({ certificateNumber: certificationNumber });
+        if(isUrlExist){
+          // console.log("The original", isUrlExist.url);
+          _qrCodeText = isUrlExist.url;
+        }
+      }
+    }
     // If it's an encrypted URL, extract the query string parameters q and iv
-    const url = decodeURIComponent(qrCodeText);
+    const url = decodeURIComponent(_qrCodeText);
     const qIndex = url.indexOf("q=");
     const ivIndex = url.indexOf("iv=");
     const q = url.substring(qIndex + 2, ivIndex - 1);
