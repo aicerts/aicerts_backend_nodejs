@@ -28,7 +28,8 @@ const {
   calculateHash, // Function to calculate the hash of a file
   cleanUploadFolder, // Function to clean up the upload folder
   isDBConnected, // Function to check if the database connection is established
-  insertUrlData
+  insertUrlData,
+  isCertificationIdExisted
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
 // Retrieve contract address from environment variable
@@ -158,7 +159,8 @@ const handleIssueCertification = async (email, certificateNumber, name, courseNa
           const val = await newContract.verifyCertificateById(certificateNumber);
           if (
             val[0] === true ||
-            isPaused === true
+            isPaused === true ||
+            issuerAuthorized === false
           ) {
             // Certificate already issued / contract paused
             var messageContent = messageCode.msgCertIssued;
@@ -202,7 +204,6 @@ const handleIssueCertification = async (email, certificateNumber, name, courseNa
               width: 450, // Adjust the width as needed
               height: 450, // Adjust the height as needed
             });
-
 
             try {
               // Check mongoose connection
@@ -303,6 +304,8 @@ const handleIssuePdfQrCertification = async (email, certificateNumber, name, cou
     // Check if certificate number already exists in the Batch
     const isNumberExistInBatch = await BatchIssues.findOne({ certificateNumber: certificateNumber });
 
+    const isCertificationExist = await isCertificationIdExisted(certificateNumber);
+
     var _result = '';
     const templateData = await verifyPDFDimensions(pdfPath)
       .then(result => {
@@ -377,7 +380,7 @@ const handleIssuePdfQrCertification = async (email, certificateNumber, name, cou
         }
         const issuerAuthorized = await newContract.hasRole(process.env.ISSUER_ROLE, idExist.issuerId);
         const val = await newContract.verifyCertificateById(certificateNumber);
-
+        console.log("The sataus reading", val, isPaused, issuerAuthorized);
         if (
           val[0] === true ||
           isPaused === true ||
@@ -645,7 +648,6 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
         }
         const issuerAuthorized = await newContract.hasRole(process.env.ISSUER_ROLE, idExist.issuerId);
         const val = await newContract.verifyCertificateById(certificateNumber);
-
         if (
           val[0] === true ||
           isPaused === true ||
@@ -660,117 +662,115 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
           }
           return ({ code: 400, status: "FAILED", message: messageContent });
         }
-        else {
+      } catch (error) {
+        // Handle mongoose connection error (log it, response an error, etc.)
+        console.error("Internal server error", error);
+        return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
+      }
 
-          var { txHash, polygonLink } = await issueCertificateWithRetry(certificateNumber, combinedHash, epochExpiration);
-          if (!polygonLink || !txHash) {
-            return ({ code: 400, status: false, message: messageCode.msgFaileToIssueAfterRetry, details: certificateNumber });
-          }
+      var { txHash, polygonLink } = await issueCertificateWithRetry(certificateNumber, combinedHash, epochExpiration);
+      if (!polygonLink || !txHash) {
+        return ({ code: 400, status: false, message: messageCode.msgFaileToIssueAfterRetry, details: certificateNumber });
+      }
 
-          // Generate encrypted URL with certificate data
-          const dataWithLink = {
-            ...fields, polygonLink: polygonLink
-          }
-          const urlLink = generateEncryptedUrl(dataWithLink);
-          const legacyQR = false;
+      // Generate encrypted URL with certificate data
+      const dataWithLink = {
+        ...fields, polygonLink: polygonLink
+      }
+      const urlLink = await generateEncryptedUrl(dataWithLink);
+      const legacyQR = false;
 
-          let qrCodeData = '';
-          if (legacyQR) {
-            // Include additional data in QR code
-            qrCodeData = `Verify On Blockchain: ${polygonLink},
+      let qrCodeData = '';
+      if (legacyQR) {
+        // Include additional data in QR code
+        qrCodeData = `Verify On Blockchain: ${polygonLink},
             Certification Number: ${dataWithLink.Certificate_Number},
             Name: ${dataWithLink.name},
             Certification Name: ${dataWithLink.courseName},
             Grant Date: ${dataWithLink.Grant_Date},
             Expiration Date: ${dataWithLink.Expiration_Date}`;
-          } else {
-            // Directly include the URL in QR code
-            qrCodeData = urlLink;
-          }
+      } else {
+        // Directly include the URL in QR code
+        qrCodeData = urlLink;
+      }
 
-          const qrCodeImage = await QRCode.toDataURL(qrCodeData, {
-            errorCorrectionLevel: "H", width: 450, height: 450
-          });
+      const qrCodeImage = await QRCode.toDataURL(qrCodeData, {
+        errorCorrectionLevel: "H", width: 450, height: 450
+      });
 
-          file = pdfPath;
-          const outputPdf = `${fields.Certificate_Number}${name}.pdf`;
+      file = pdfPath;
+      const outputPdf = `${fields.Certificate_Number}${name}.pdf`;
 
-          // Add link and QR code to the PDF file
-          const opdf = await addLinkToPdf(
-            path.join("./", '.', file),
-            outputPdf,
-            polygonLink,
-            qrCodeImage,
-            combinedHash
-          );
+      // Add link and QR code to the PDF file
+      const opdf = await addLinkToPdf(
+        path.join("./", '.', file),
+        outputPdf,
+        polygonLink,
+        qrCodeImage,
+        combinedHash
+      );
 
-          // Read the generated PDF file
-          const fileBuffer = fs.readFileSync(outputPdf);
+      // Read the generated PDF file
+      const fileBuffer = fs.readFileSync(outputPdf);
 
-          var imageDestinationPath = `${fields.Certificate_Number}`;
-          var imageCreatedResponse = await createPdfCertificateImage(outputPdf, imageDestinationPath);
+      var imageDestinationPath = `${fields.Certificate_Number}`;
+      var imageCreatedResponse = await createPdfCertificateImage(outputPdf, imageDestinationPath);
 
-          var generatedImage = `${fields.Certificate_Number}-1.png`;
-          // Define the directory where you want to save the file
-          const uploadDir = path.join(__dirname, '..', '..', 'uploads'); // Go up two directories from __dirname
+      var generatedImage = `${fields.Certificate_Number}-1.png`;
+      // Define the directory where you want to save the file
+      const uploadDir = path.join(__dirname, '..', '..', 'uploads'); // Go up two directories from __dirname
 
-          const convertedPath = path.join(uploadDir, generatedImage);
-          const imageBuffer = fs.readFileSync(convertedPath);
+      const convertedPath = path.join(uploadDir, generatedImage);
+      const imageBuffer = fs.readFileSync(convertedPath);
 
-          try {
-            // Check mongoose connection
-            const dbStatus = await isDBConnected();
-            const dbStatusMessage = (dbStatus == true) ? messageCode.msgDbReady : messageCode.msgDbNotReady;
-            console.log(dbStatusMessage);
+      try {
+        // Check mongoose connection
+        const dbStatus = await isDBConnected();
+        const dbStatusMessage = (dbStatus == true) ? messageCode.msgDbReady : messageCode.msgDbNotReady;
+        console.log(dbStatusMessage);
 
-            // Insert certificate data into database
-            const issuerId = idExist.issuerId;
-            var certificateData = {
-              issuerId,
-              transactionHash: txHash,
-              certificateHash: combinedHash,
-              certificateNumber: fields.Certificate_Number,
-              name: fields.name,
-              course: fields.courseName,
-              grantDate: fields.Grant_Date,
-              expirationDate: fields.Expiration_Date,
-              email: email,
-              certStatus: 1
-            };
-            await insertCertificateData(certificateData);
+        // Insert certificate data into database
+        const issuerId = idExist.issuerId;
+        var certificateData = {
+          issuerId,
+          transactionHash: txHash,
+          certificateHash: combinedHash,
+          certificateNumber: fields.Certificate_Number,
+          name: fields.name,
+          course: fields.courseName,
+          grantDate: fields.Grant_Date,
+          expirationDate: fields.Expiration_Date,
+          email: email,
+          certStatus: 1
+        };
+        await insertCertificateData(certificateData);
 
-            // Delete files
-            if (fs.existsSync(generatedImage)) {
-              // Delete the specified file
-              fs.unlinkSync(generatedImage);
-            }
-
-            // Delete files
-            if (fs.existsSync(outputPdf)) {
-              // Delete the specified file
-              fs.unlinkSync(outputPdf);
-            }
-
-            // Always delete the temporary file (if it exists)
-            if (fs.existsSync(file)) {
-              fs.unlinkSync(file);
-            }
-
-            await cleanUploadFolder();
-
-            // Set response headers for PDF download
-            return ({ code: 200, file: fileBuffer, image: imageBuffer });
-
-          } catch (error) {
-            // Handle mongoose connection error (log it, response an error, etc.)
-            console.error("Internal server error", error);
-            return ({ code: 500, status: "FAILED", message: messageCode.msgInternalError, details: error });
-          }
+        // Delete files
+        if (fs.existsSync(generatedImage)) {
+          // Delete the specified file
+          fs.unlinkSync(generatedImage);
         }
+
+        // Delete files
+        if (fs.existsSync(outputPdf)) {
+          // Delete the specified file
+          fs.unlinkSync(outputPdf);
+        }
+
+        // Always delete the temporary file (if it exists)
+        if (fs.existsSync(file)) {
+          fs.unlinkSync(file);
+        }
+
+        await cleanUploadFolder();
+
+        // Set response headers for PDF download
+        return ({ code: 200, file: fileBuffer, image: imageBuffer });
+
       } catch (error) {
         // Handle mongoose connection error (log it, response an error, etc.)
         console.error("Internal server error", error);
-        return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
+        return ({ code: 500, status: "FAILED", message: messageCode.msgInternalError, details: error });
       }
     }
   } catch (error) {
@@ -779,7 +779,6 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
     return ({ code: 400, status: "FAILED", message: messageCode.msgInternalError, details: error });
   }
 };
-
 
 const issueCertificateWithRetry = async (certificateNumber, certificateHash, expirationEpoch, retryCount = 3) => {
 

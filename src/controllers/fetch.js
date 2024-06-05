@@ -374,7 +374,7 @@ const fetchIssuesLogDetails = async (req, res) => {
     };
     const todayDate = await getTodayDate();
 
-    console.log("date", todayDate);
+    // console.log("date", todayDate);
 
     // Check mongoose connection
     const dbStatus = await isDBConnected();
@@ -451,6 +451,7 @@ const fetchIssuesLogDetails = async (req, res) => {
           queryResponse.sort((b, a) => new Date(b.expirationDate) - new Date(a.expirationDate));
           break;
         case 6:
+          var filteredResponse6 = [];
           var query1Promise = Issues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: { $in: [1, 2, 4] }
@@ -468,8 +469,22 @@ const fetchIssuesLogDetails = async (req, res) => {
           var _queryResponse = [...queryResponse1, ...queryResponse2];
           // Sort the data based on the 'issueDate' date in descending order
           _queryResponse.sort((a, b) => new Date(b.issueDate) - new Date(a.issueDate));
+          
+          for(var item6 of _queryResponse){
+            var certificateNumber = item6.certificateNumber;
+            const issueStatus6 = await IssueStatus.findOne({ certificateNumber });
+            if(issueStatus6){
+              // Push the matching issue status into filteredResponse
+              filteredResponse6.push(item6);
+            }
+            // If filteredResponse reaches 30 matches, break out of the loop
+            if (filteredResponse6.length >= 30) {
+              break;
+            }
+          }
           // Take only the first 30 records
-          var queryResponse = _queryResponse.slice(0, Math.min(_queryResponse.length, 30));
+          // var queryResponse = _queryResponse.slice(0, Math.min(_queryResponse.length, 30));
+          var queryResponse = filteredResponse6;
           break;
         case 7://To fetch Revoked certifications and count
           var query1Promise = Issues.find({
@@ -491,9 +506,10 @@ const fetchIssuesLogDetails = async (req, res) => {
           _queryResponse.sort((a, b) => new Date(b.issueDate) - new Date(a.issueDate));
 
           // Take only the first 30 records
-          var queryResponse = _queryResponse.slice(0, Math.min(_queryResponse.length, 30));
+          var _queryResponse = _queryResponse.slice(0, Math.min(_queryResponse.length, 30));
           break;
         case 8:
+          var filteredResponse8 = [];
           var query1Promise = Issues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: { $in: [1, 2, 4] },
@@ -517,8 +533,22 @@ const fetchIssuesLogDetails = async (req, res) => {
 
           // Sort the data based on the 'expirationDate' date in descending order
           queryResponse.sort((a, b) => new Date(a.expirationDate) - new Date(b.expirationDate));
+
+          for(var item8 of queryResponse){
+            var certificateNumber = item8.certificateNumber;
+            const issueStatus8 = await IssueStatus.findOne({ certificateNumber });
+            if(issueStatus8){
+              // Push the matching issue status into filteredResponse
+              filteredResponse8.push(item8);
+            }
+            // If filteredResponse reaches 30 matches, break out of the loop
+            if (filteredResponse8.length >= 30) {
+              break;
+            }
+          }
           // Take only the first 30 records
-          var queryResponse = queryResponse.slice(0, Math.min(queryResponse.length, 30));
+          // var queryResponse = queryResponse.slice(0, Math.min(queryResponse.length, 30));
+          var queryResponse = filteredResponse8;
           break;
         case 9:
           var queryResponse = await Issues.find({
