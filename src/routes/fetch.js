@@ -103,6 +103,20 @@ router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers
  *                 message:
  *                   type: string
  *                   example: Issuer log details not found (or) Bad request!
+ *       '422':
+ *         description: User given invalid input (Unprocessable Entity)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Error message for invalid input.
  *       '500':
  *         description: Internal server error
  *         content:
@@ -122,39 +136,36 @@ router.post('/get-issuers-log', validationRoute.queryCode, adminController.fetch
 
 /**
  * @swagger
- * /api/get-issue/{input}/{type}/{email}:
- *   get:
+ * /api/get-issue:
+ *   post:
  *     summary: Fetch Issue data based on the name or Certification ID, Type (1, 2 or 3) & user email as input to search
  *     description: Retrieve Issue data based on the provided the name or Certification ID as input & email.
  *     tags: [Fetch/Upload]
  *     security:
  *       - BearerAuth: []
- *     parameters:
- *       - in: path
- *         name: input
- *         description: The input (name or Certification ID) used to fetch Issue details.
- *         required: true
- *         schema:
- *           type: string
- *       - in: path
- *         name: type
- *         description: The type (1 get certs to be renew / 2 to get certs to reactivate / 3 to get certs to revoke) used to fetch Issue details.
- *         required: true
- *         schema:
- *           type: integer
- *       - in: path
- *         name: email
- *         description: The valid user email.
- *         required: true
- *         schema:
- *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: Issuer's email address
+ *               input:
+ *                 type: string
+ *                 description: The input (name or Certification ID) used to fetch Issue details.
+ *               type:
+ *                 type: number
+ *                 description: The type (1 get certs to be renew / 2 to get certs to reactivate / 3 to get certs to revoke) used to fetch Issue details.
  *     responses:
  *       '200':
  *         description: Successfully fetched issue data.
  *         content:
  *           application/json:
  *             schema:
- *               type: integer
+ *               type: number
  *               properties:
  *                 status:
  *                   type: string
@@ -197,7 +208,7 @@ router.post('/get-issuers-log', validationRoute.queryCode, adminController.fetch
  *               message: Internal Server Error.
  */
 
-router.get('/get-issue/:input/:type/:email', adminController.getIssueDetails);
+router.post('/get-issue', validationRoute.searchCertification, adminController.getIssueDetails);
 
 /**
  * @swagger
@@ -214,7 +225,7 @@ router.get('/get-issue/:input/:type/:email', adminController.getIssueDetails);
  *         description: The value used to fetch graph data. Must be a year-YYYY (number).
  *         required: true
  *         schema:
- *           type: integer
+ *           type: number
  *       - in: path
  *         name: email
  *         description: The valid user email.
@@ -227,7 +238,7 @@ router.get('/get-issue/:input/:type/:email', adminController.getIssueDetails);
  *         content:
  *           application/json:
  *             schema:
- *               type: integer
+ *               type: number
  *               properties:
  *                 status:
  *                   type: string
@@ -236,7 +247,7 @@ router.get('/get-issue/:input/:type/:email', adminController.getIssueDetails);
  *                   type: string
  *                   description: A message indicating the result of the operation.
  *                 data:
- *                   type: integer
+ *                   type: number
  *                   description: The fetched graph data.
  *             example:
  *               status: "SUCCESS"
@@ -287,7 +298,7 @@ router.get('/get-graph-data/:year/:email', adminController.fetchGraphDetails);
  *         description: The value used to fetch graph data (month-MM or year-YYYY). Must be a number.
  *         required: true
  *         schema:
- *           type: integer
+ *           type: number
  *       - in: path
  *         name: email
  *         description: The valid user email.
@@ -300,7 +311,7 @@ router.get('/get-graph-data/:year/:email', adminController.fetchGraphDetails);
  *         content:
  *           application/json:
  *             schema:
- *               type: integer
+ *               type: number
  *               properties:
  *                 status:
  *                   type: string
@@ -309,7 +320,7 @@ router.get('/get-graph-data/:year/:email', adminController.fetchGraphDetails);
  *                   type: string
  *                   description: A message indicating the result of the operation.
  *                 data:
- *                   type: integer
+ *                   type: number
  *                   description: The fetched graph data.
  *             example:
  *               status: "SUCCESS"

@@ -103,10 +103,14 @@ const getIssuerByEmail = async (req, res) => {
  * @param {Object} res - Express response object.
  */
 const getIssueDetails = async (req, res) => {
+  var validResult = validationResult(req);
+  if (!validResult.isEmpty()) {
+    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+  }
 
-  const input = req.params.input;
-  const _type = req.params.type;
-  const email = req.params.email;
+  const input = req.body.input;
+  const _type = req.body.type;
+  const email = req.body.email;
   var responseData;
 
   if (!input || !email) {
@@ -180,6 +184,7 @@ const getIssueDetails = async (req, res) => {
 
       if (isIssueSingle || isIssueBatch) {
         responseData = isIssueSingle != null ? isIssueSingle : isIssueBatch;
+        responseData = [responseData];
         return res.status(200).json({ status: "SUCCESS", message: messageCode.msgIssueFound, data: responseData });
       }
 
@@ -1036,8 +1041,6 @@ const getBatchCertificateDates = async (req, res) => {
   }
 };
 
-
-
 const getBatchCertificates = async (req, res) => {
   try {
     const { batchId, issuerId } = req.body;
@@ -1067,7 +1070,6 @@ const getBatchCertificates = async (req, res) => {
     });
   }
 };
-
 
 module.exports = {
   // Function to get all issuers (users)

@@ -20,6 +20,7 @@ const { decryptData } = require("../common/cryptoFunction"); // Custom functions
 
 const retryDelay = parseInt(process.env.TIME_DELAY);
 const maxRetries = 3; // Maximum number of retries
+const urlLimit = process.env.MAX_URL_SIZE || 50;
 
 // Regular expression to match MM/DD/YY format
 const regex = /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{4}$/;
@@ -85,7 +86,7 @@ const signer = new ethers.Wallet(process.env.PRIVATE_KEY, fallbackProvider);
 const sim_contract = new ethers.Contract(contractAddress, abi, signer);
 
 // Import the Issues models from the schema defined in "../config/schema"
-const { User, Issues, BatchIssues, IssueStatus, VerificationLog } = require("../config/schema");
+const { User, Issues, BatchIssues, IssueStatus, VerificationLog, ShortUrl } = require("../config/schema");
 
 //Connect to polygon
 const connectToPolygon = async () => {
@@ -269,7 +270,7 @@ const isCertificationIdExisted = async (certId) => {
   try {
     if (singleIssueExist) {
 
-      return singleIssueExist ;
+      return singleIssueExist;
     } else if (batchIssueExist) {
 
       return batchIssueExist;
@@ -281,6 +282,34 @@ const isCertificationIdExisted = async (certId) => {
   } catch (error) {
     console.error("Error during validation:", error);
     return null;
+  }
+};
+
+// Function to insert url data into DB
+const insertUrlData = async (data) => {
+  if (!data) {
+    console.log("invaid data sent to store in DB");
+    return false;
+  }
+  try {
+    isDBConnected();
+    // Store new url details fro provided data
+    const newUrlData = new ShortUrl({
+      email: data.email,
+      certificateNumber: data.certificateNumber,
+      url: data.url
+    });
+    // Save the new shortUrl document to the database
+    const result = await newUrlData.save();
+
+    // Logging confirmation message
+    console.log("URL data inserted");
+    return true;
+
+  } catch (error) {
+    // Handle errors related to database connection or insertion
+    console.error("Error connecting in update URL data", error);
+    return false;
   }
 };
 
@@ -371,7 +400,7 @@ const insertIssueStatus = async (issueData) => {
     const email = issueData.email || null;
     const issuerId = issueData.issuerId || null;
     const transactionHash = issueData.transactionHash || null;
-    
+
     // Insert data into status MongoDB
     const newIssueStatus = new IssueStatus({
       email: email,
@@ -462,10 +491,26 @@ const verificationLogEntry = async (verificationData) => {
 // Function to extract certificate information from a QR code text
 const extractCertificateInfo = async (qrCodeText) => {
   // console.log("QR Code Text", qrCodeText);
+  var _qrCodeText = qrCodeText;
   // Check if the data starts with 'http://' or 'https://'
   if (qrCodeText.startsWith('http://') || qrCodeText.startsWith('https://')) {
+    var responseLength = qrCodeText.length;
+    if (responseLength < urlLimit && qrCodeText.startsWith(process.env.START_URL)) {
+      // Parse the URL
+      const parsedUrl = new URL(qrCodeText);
+      // Extract the query parameter
+      var certificationNumber = parsedUrl.searchParams.get('');
+      var dbStatus = await isDBConnected();
+      if(dbStatus){
+        var isUrlExist = await ShortUrl.findOne({ certificateNumber: certificationNumber });
+        if(isUrlExist){
+          // console.log("The original", isUrlExist.url);
+          _qrCodeText = isUrlExist.url;
+        }
+      }
+    }
     // If it's an encrypted URL, extract the query string parameters q and iv
-    const url = decodeURIComponent(qrCodeText);
+    const url = decodeURIComponent(_qrCodeText);
     const qIndex = url.indexOf("q=");
     const ivIndex = url.indexOf("iv=");
     const q = url.substring(qIndex + 2, ivIndex - 1);
@@ -906,6 +951,8 @@ module.exports = {
 
   // Function to extract certificate information from a QR code text
   extractCertificateInfo,
+
+  insertUrlData,
 
   // Function to convert the Date format MM/DD/YYYY
   convertDateFormat,

@@ -189,7 +189,7 @@ router.post('/renew-cert', validationRoute.renewIssue, ensureAuthenticated, admi
  *               message: Internal server error.
  */
 
-router.post('/update-cert-status', validationRoute.updateStatus, ensureAuthenticated, adminController.updateCertStatus);
+router.post('/update-cert-status', validationRoute.updateStatus, adminController.updateCertStatus);
 
 /**
  * @swagger
@@ -374,5 +374,6 @@ router.post('/renew-batch', validationRoute.renewBatch, ensureAuthenticated, adm
  */
 
 router.post('/update-batch-status', validationRoute.updateBatch, ensureAuthenticated, adminController.updateBatchStatus);
+
 
 module.exports=router;

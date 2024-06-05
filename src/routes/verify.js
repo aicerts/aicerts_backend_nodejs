@@ -275,7 +275,6 @@ router.post('/verify-certification-id', validationRoute.checkId, adminController
 
 router.post('/decode-qr-scan', adminController.decodeQRScan);
 
-
 /**
  * @swagger
  * /api/verify-decrypt:
