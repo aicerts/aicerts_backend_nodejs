@@ -130,7 +130,7 @@ const verify = async (req, res) => {
         res.status(200).json({
           status: "SUCCESS",
           message: "Certification is valid",
-          details: certificateData
+          Details: certificateData
         });
         if (fs.existsSync(file)) {
           fs.unlinkSync(file);
@@ -184,7 +184,7 @@ const verify = async (req, res) => {
         const verificationResponse = {
           status: "SUCCESS",
           message: "Certification is valid",
-          details: foundCertification
+          Details: foundCertification
         };
         res.status(200).json(verificationResponse);
         if (fs.existsSync(file)) {
@@ -225,7 +225,7 @@ const verify = async (req, res) => {
         res.status(200).json({
           status: "SUCCESS",
           message: "Certification is valid",
-          details: certificateData
+          Details: certificateData
         });
         if (fs.existsSync(file)) {
           fs.unlinkSync(file);
@@ -295,7 +295,7 @@ const verify = async (req, res) => {
             const _verificationResponse = {
               status: "SUCCESS",
               message: "Certification is valid",
-              details: completeResponse
+              Details: completeResponse
             };
 
             res.status(200).json(_verificationResponse);
@@ -331,7 +331,7 @@ const verify = async (req, res) => {
         res.status(200).json({
           status: "SUCCESS",
           message: "Certification is valid",
-          details: certificateData
+          Details: certificateData
         });
         if (fs.existsSync(file)) {
           fs.unlinkSync(file);
@@ -362,7 +362,7 @@ const verify = async (req, res) => {
         }
         certificateData.url = originalUrl;
         // Respond with success status and certificate details
-        res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, details: certificateData });
+        res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, Details: certificateData });
         // await cleanUploadFolder();
         if (fs.existsSync(file)) {
           fs.unlinkSync(file);
@@ -488,7 +488,7 @@ const decodeQRScan = async (req, res) => {
           return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, error: error });
         }
         verificationResponse.url = originalUrl;
-        return res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, details: verificationResponse });
+        return res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, Details: verificationResponse });
       }
 
       var [extractQRData, encodedUrl] = await extractCertificateInfo(reponseUrl);
@@ -509,7 +509,7 @@ const decodeQRScan = async (req, res) => {
         }
         extractQRData.url = encodedUrl;
         // console.log("The received data", receivedCode, extractQRData); // log the response
-        res.status(200).json({ status: "PASSED", message: messageCode.msgCertValid, details: extractQRData });
+        res.status(200).json({ status: "PASSED", message: messageCode.msgCertValid, Details: extractQRData });
         return;
       }
       return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
@@ -521,7 +521,7 @@ const decodeQRScan = async (req, res) => {
 
         // console.log("The received data", receivedCode, extractQRData); // log the response
         extractQRData.url = decodedUrl;
-        res.status(200).json({ status: "PASSED", message: messageCode.msgCertValid, details: extractQRData });
+        res.status(200).json({ status: "PASSED", message: messageCode.msgCertValid, Details: extractQRData });
         return;
       }
       return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
@@ -564,6 +564,8 @@ const decodeCertificate = async (req, res) => {
         "Name": originalData.name || "",
         "Polygon URL": originalData.polygonLink || ""
       };
+
+      var getCertificationInfo = await isCertificationIdExisted(parsedData['Certificate Number']);
 
       var verifyLog = {
         issuerId: "default",
