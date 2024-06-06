@@ -130,7 +130,7 @@ const verify = async (req, res) => {
         res.status(200).json({
           status: "SUCCESS",
           message: "Certification is valid",
-          Details: certificateData
+          details: certificateData
         });
         if (fs.existsSync(file)) {
           fs.unlinkSync(file);
@@ -160,7 +160,7 @@ const verify = async (req, res) => {
           return;
         }
       } catch (error) {
-        res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, Details: error });
+        res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
         if (fs.existsSync(file)) {
           fs.unlinkSync(file);
         }
@@ -184,7 +184,7 @@ const verify = async (req, res) => {
         const verificationResponse = {
           status: "SUCCESS",
           message: "Certification is valid",
-          Details: foundCertification
+          details: foundCertification
         };
         res.status(200).json(verificationResponse);
         if (fs.existsSync(file)) {
@@ -225,7 +225,7 @@ const verify = async (req, res) => {
         res.status(200).json({
           status: "SUCCESS",
           message: "Certification is valid",
-          Details: certificateData
+          details: certificateData
         });
         if (fs.existsSync(file)) {
           fs.unlinkSync(file);
@@ -268,7 +268,7 @@ const verify = async (req, res) => {
           return;
         }
       } catch (error) {
-        res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, Details: error });
+        res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
         if (fs.existsSync(file)) {
           fs.unlinkSync(file);
         }
@@ -295,7 +295,7 @@ const verify = async (req, res) => {
             const _verificationResponse = {
               status: "SUCCESS",
               message: "Certification is valid",
-              Details: completeResponse
+              details: completeResponse
             };
 
             res.status(200).json(_verificationResponse);
@@ -305,7 +305,7 @@ const verify = async (req, res) => {
             return;
 
           } catch (error) {
-            res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, Details: error });
+            res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
             if (fs.existsSync(file)) {
               fs.unlinkSync(file);
             }
@@ -331,7 +331,7 @@ const verify = async (req, res) => {
         res.status(200).json({
           status: "SUCCESS",
           message: "Certification is valid",
-          Details: certificateData
+          details: certificateData
         });
         if (fs.existsSync(file)) {
           fs.unlinkSync(file);
@@ -362,7 +362,7 @@ const verify = async (req, res) => {
         }
         certificateData.url = originalUrl;
         // Respond with success status and certificate details
-        res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, Details: certificateData });
+        res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, details: certificateData });
         // await cleanUploadFolder();
         if (fs.existsSync(file)) {
           fs.unlinkSync(file);
@@ -427,6 +427,7 @@ const decodeQRScan = async (req, res) => {
   var responseUrl = null;
   var decodeResponse = false;
   try {
+
     // if (receivedCode.startsWith(process.env.TINY_URL)) {
     //   var reponseUrl = await expandTinyUrl(receivedCode);
     //   if (reponseUrl) {
@@ -445,7 +446,7 @@ const decodeQRScan = async (req, res) => {
     //         }
     //       }
     //     } catch (error) {
-    //       return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, Details: error });
+    //       return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
     //     }
     //     console.log("The received data", receivedCode, extractQRData); // log the response
     //     res.status(200).json({ status: "PASSED", message: "Verified", data: extractQRData });
@@ -487,7 +488,7 @@ const decodeQRScan = async (req, res) => {
           return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, error: error });
         }
         verificationResponse.url = originalUrl;
-        return res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, Details: verificationResponse });
+        return res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, details: verificationResponse });
       }
 
       var [extractQRData, encodedUrl] = await extractCertificateInfo(reponseUrl);
@@ -504,11 +505,11 @@ const decodeQRScan = async (req, res) => {
             }
           }
         } catch (error) {
-          return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, Details: error });
+          return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
         }
         extractQRData.url = encodedUrl;
         // console.log("The received data", receivedCode, extractQRData); // log the response
-        res.status(200).json({ status: "PASSED", message: messageCode.msgCertValid, Details: extractQRData });
+        res.status(200).json({ status: "PASSED", message: messageCode.msgCertValid, details: extractQRData });
         return;
       }
       return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
@@ -520,7 +521,7 @@ const decodeQRScan = async (req, res) => {
 
         // console.log("The received data", receivedCode, extractQRData); // log the response
         extractQRData.url = decodedUrl;
-        res.status(200).json({ status: "PASSED", message: messageCode.msgCertValid, Details: extractQRData });
+        res.status(200).json({ status: "PASSED", message: messageCode.msgCertValid, details: extractQRData });
         return;
       }
       return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
@@ -611,7 +612,7 @@ const decodeCertificate = async (req, res) => {
 const verifyCertificationId = async (req, res) => {
   var validResult = validationResult(req);
   if (!validResult.isEmpty()) {
-    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, Details: validResult.array() });
+    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
   const inputId = req.body.id;
   // Get today's date
@@ -677,7 +678,7 @@ const verifyCertificationId = async (req, res) => {
           res.status(200).json({
             status: "SUCCESS",
             message: "Certification is valid",
-            Details: completeResponse
+            details: completeResponse
           });
           return;
         }
