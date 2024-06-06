@@ -475,22 +475,37 @@ const createAndValidateIssuerIdUponLogin = async (req, res) => {
       if (userExist.issuerId == undefined) {
         // Loop through each property in the data object
         for (const value of Object.values(lastElement)) {
-          if(ethers.isAddress(value)){
+          if (ethers.isAddress(value)) {
             getIssuerId = value;
-          } 
+          }
         }
 
-        if(getIssuerId != 0){
+        if (getIssuerId != 0) {
           // Save verification details
           userExist.issuerId = getIssuerId;
-          userExist.approved = true;
+          userExist['approved'] = false;
           userExist.status = 1;
           userExist.rejectedDate = null;
-          userExist.certificatesRenewed = 0;
+          if (userExist['certificatesRenewed'] == undefined) {
+            userExist.certificatesRenewed = 0;
+          }
           await userExist.save();
 
+          try {
+            // Blockchain processing.
+            var response = await newContract.hasRole(process.env.ISSUER_ROLE, getIssuerId);
+            if(!response){
+              var { txHash, polygonLink } = await grantOrRevokeRoleWithRetry("grant", process.env.ISSUER_ROLE, getIssuerId);
+              if (!polygonLink || !txHash) {
+                return res.status(400).json({ status: "FAILED", message: messageCode.msgFaileToGrantRoleRetry });
+              }
+            }
+          } catch (error) {
+            return res.status(500).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
+          }
+
           return res.status(200).json({ status: "SUCCESS", message: messageCode.msgIssuerIdExist });
-        }     
+        }
 
         try {
 
@@ -513,7 +528,9 @@ const createAndValidateIssuerIdUponLogin = async (req, res) => {
           userExist.approved = true;
           userExist.status = 1;
           userExist.rejectedDate = null;
-          userExist.certificatesRenewed = 0;
+          if (userExist['certificatesRenewed'] == undefined) {
+            userExist.certificatesRenewed = 0;
+          }
           await userExist.save();
 
           return res.status(200).json({ status: "SUCCESS", message: messageCode.msgIssuerApproveSuccess, details: polygonLink });
@@ -522,6 +539,27 @@ const createAndValidateIssuerIdUponLogin = async (req, res) => {
           return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
         }
       } else {
+
+        if (userExist['certificatesRenewed'] == undefined) {
+          userExist.certificatesRenewed = 0;
+        }
+        userExist.approved = true;
+        userExist.status = 1;
+        userExist.rejectedDate = null;
+        await userExist.save();
+        
+        try {
+          // Blockchain processing.
+          var response = await newContract.hasRole(process.env.ISSUER_ROLE, userExist.issuerId);
+          if(!response){
+            var { txHash, polygonLink } = await grantOrRevokeRoleWithRetry("grant", process.env.ISSUER_ROLE, userExist.issuerId);
+            if (!polygonLink || !txHash) {
+              return res.status(400).json({ status: "FAILED", message: messageCode.msgFaileToGrantRoleRetry });
+            }
+          }
+        } catch (error) {
+          return res.status(500).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
+        }
         return res.status(200).json({ status: "FAILED", message: messageCode.msgIssuerIdExist });
       }
     } else {

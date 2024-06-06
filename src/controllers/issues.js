@@ -382,7 +382,7 @@ const batchIssueCertificate = async (req, res) => {
           }
           const issuerAuthorized = await newContract.hasRole(process.env.ISSUER_ROLE, idExist.issuerId);
 
-          if (isPaused === true) {
+          if (isPaused === true || issuerAuthorized === false) {
             // Certificate contract paused
             var messageContent = messageCode.msgOpsRestricted;
 
