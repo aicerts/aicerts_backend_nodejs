@@ -88,7 +88,7 @@ const verify = async (req, res) => {
 
   try {
     // Extract QR code data from the PDF file
-    const certificateData = await extractQRCodeDataFromPDF(file);
+    const [certificateData, originalUrl] = await extractQRCodeDataFromPDF(file);
 
     if (certificateData === false) {
       if (fs.existsSync(file)) {
@@ -125,6 +125,8 @@ const verify = async (req, res) => {
           await verificationLogEntry(verifyLog);
         }
 
+        certificateData.url = originalUrl;
+
         res.status(200).json({
           status: "SUCCESS",
           message: "Certification is valid",
@@ -137,8 +139,8 @@ const verify = async (req, res) => {
       }
       try {
         // Blockchain processing.
-        const verifyCert = await newContract.verifyCertificateById(certificationNumber);
-        const _certStatus = await newContract.getCertificateStatus(certificationNumber);
+        var verifyCert = await newContract.verifyCertificateById(certificationNumber);
+        var _certStatus = await newContract.getCertificateStatus(certificationNumber);
 
         var verifyCertStatus = parseInt(verifyCert[3]);
         var certStatus = parseInt(_certStatus);
@@ -157,38 +159,6 @@ const verify = async (req, res) => {
           }
           return;
         }
-
-        if (verifyCert[0] == true) {
-
-          const foundCertification = certificateData;
-
-          verifyLog.issuerId = singleIssueExist.issuerId;
-
-          var dbStatus = await isDBConnected();
-          if (dbStatus != false) {
-            await verificationLogEntry(verifyLog);
-          }
-
-          foundCertification['Expiration Date'] = singleIssueExist.expirationDate;
-
-          const verificationResponse = {
-            status: "SUCCESS",
-            message: "Certification is valid",
-            details: foundCertification
-          };
-          res.status(200).json(verificationResponse);
-          if (fs.existsSync(file)) {
-            fs.unlinkSync(file);
-          }
-          return;
-        } else if (verifyCert[0] == false) {
-          res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
-          if (fs.existsSync(file)) {
-            fs.unlinkSync(file);
-          }
-          return;
-        }
-
       } catch (error) {
         res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
         if (fs.existsSync(file)) {
@@ -196,6 +166,40 @@ const verify = async (req, res) => {
         }
         return;
       }
+
+      if (verifyCert[0] === true) {
+
+        const foundCertification = certificateData;
+
+        verifyLog.issuerId = singleIssueExist.issuerId;
+
+        var dbStatus = await isDBConnected();
+        if (dbStatus != false) {
+          await verificationLogEntry(verifyLog);
+        }
+
+        foundCertification['Expiration Date'] = singleIssueExist.expirationDate;
+        foundCertification.url = originalUrl;
+
+        const verificationResponse = {
+          status: "SUCCESS",
+          message: "Certification is valid",
+          details: foundCertification
+        };
+        res.status(200).json(verificationResponse);
+        if (fs.existsSync(file)) {
+          fs.unlinkSync(file);
+        }
+        return;
+      } else if (verifyCert[0] === false) {
+        res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
+        if (fs.existsSync(file)) {
+          fs.unlinkSync(file);
+        }
+        return;
+      }
+
+
     } else if (batchIssueExist) {
 
       if (batchIssueExist.certificateStatus == 3) {
@@ -215,6 +219,8 @@ const verify = async (req, res) => {
         if (dbStatus != false) {
           await verificationLogEntry(verifyLog);
         }
+
+        certificateData.url = originalUrl;
 
         res.status(200).json({
           status: "SUCCESS",
@@ -261,6 +267,13 @@ const verify = async (req, res) => {
           }
           return;
         }
+      } catch (error) {
+        res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
+        if (fs.existsSync(file)) {
+          fs.unlinkSync(file);
+        }
+        return;
+      }
 
         if (batchVerifyResponse === true) {
 
@@ -277,6 +290,7 @@ const verify = async (req, res) => {
             }
 
             completeResponse['Expiration Date'] = batchIssueExist.expirationDate;
+            completeResponse.url = originalUrl;
 
             const _verificationResponse = {
               status: "SUCCESS",
@@ -304,13 +318,7 @@ const verify = async (req, res) => {
           }
           return;
         }
-      } catch (error) {
-        res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
-        if (fs.existsSync(file)) {
-          fs.unlinkSync(file);
-        }
-        return;
-      }
+      
 
     } else if (!batchIssueExist && !singleIssueExist) {
       if (certificateData['Expiration Date'] == '1') {
@@ -318,6 +326,8 @@ const verify = async (req, res) => {
         if (dbStatus != false) {
           await verificationLogEntry(verifyLog);
         }
+        certificateData.url = originalUrl;
+
         res.status(200).json({
           status: "SUCCESS",
           message: "Certification is valid",
@@ -350,6 +360,7 @@ const verify = async (req, res) => {
         if (dbStatus != false) {
           await verificationLogEntry(verifyLog);
         }
+        certificateData.url = originalUrl;
         // Respond with success status and certificate details
         res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, Details: certificateData });
         // await cleanUploadFolder();
@@ -412,7 +423,7 @@ const decodeQRScan = async (req, res) => {
     return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidInput });
   }
   // console.log("Input QR data", receivedCode);
-  
+
   var responseUrl = null;
   var decodeResponse = false;
   try {
@@ -443,42 +454,43 @@ const decodeQRScan = async (req, res) => {
     //   return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
 
     // } else 
-    
+
     if (receivedCode.startsWith(process.env.START_URL)) {
       var urlSize = receivedCode.length;
-      if(urlSize < urlLimit){
+      if (urlSize < urlLimit) {
         // Parse the URL
         const parsedUrl = new URL(receivedCode);
         // Extract the query parameter
         const certificationNumber = parsedUrl.searchParams.get('');
         try {
-            var dbStatus = await isDBConnected();
+          var dbStatus = await isDBConnected();
 
-            // var isCertExist = await isCertificationIdExisted(certificationNumber);
+          // var isCertExist = await isCertificationIdExisted(certificationNumber);
 
-            var isUrlExist = await ShortUrl.findOne({ certificateNumber: certificationNumber })
+          var isUrlExist = await ShortUrl.findOne({ certificateNumber: certificationNumber })
 
-            // console.log(certificationNumber, isUrlExist);
+          // console.log(certificationNumber, isUrlExist);
 
-            if (isUrlExist) {
-                // console.log("The original url", isUrlExist.url);
-                responseUrl = isUrlExist.url;
-                if (responseUrl && responseUrl.startsWith(process.env.START_URL)) {
-                    var decodeResponse = await extractCertificateInfo(responseUrl);
-                } else {
-                    return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidUrl });
-                }
+          if (isUrlExist) {
+            // console.log("The original url", isUrlExist.url);
+            responseUrl = isUrlExist.url;
+            if (responseUrl && responseUrl.startsWith(process.env.START_URL)) {
+              var [decodeResponse, originalUrl] = await extractCertificateInfo(responseUrl);
+            } else {
+              return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidUrl });
             }
+          }
 
-            var verificationResponse = decodeResponse != false ? decodeResponse : "";
+          var verificationResponse = decodeResponse != false ? decodeResponse : "";
 
         } catch (error) {
-            return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, error: error });
+          return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, error: error });
         }
+        verificationResponse.url = originalUrl;
         return res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, Details: verificationResponse });
       }
 
-      var extractQRData = await extractCertificateInfo(reponseUrl);
+      var [extractQRData, encodedUrl] = await extractCertificateInfo(reponseUrl);
       if (extractQRData) {
         try {
           var dbStatus = await isDBConnected();
@@ -494,6 +506,7 @@ const decodeQRScan = async (req, res) => {
         } catch (error) {
           return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
         }
+        extractQRData.url = encodedUrl;
         // console.log("The received data", receivedCode, extractQRData); // log the response
         res.status(200).json({ status: "PASSED", message: messageCode.msgCertValid, Details: extractQRData });
         return;
@@ -502,11 +515,11 @@ const decodeQRScan = async (req, res) => {
 
     } else if (receivedCode.startsWith(process.env.START_LMS)) {
 
-      var extractQRData = await extractCertificateInfo(receivedCode);
+      var [extractQRData, decodedUrl] = await extractCertificateInfo(receivedCode);
       if (extractQRData) {
 
         // console.log("The received data", receivedCode, extractQRData); // log the response
-
+        extractQRData.url = decodedUrl;
         res.status(200).json({ status: "PASSED", message: messageCode.msgCertValid, Details: extractQRData });
         return;
       }
@@ -577,6 +590,7 @@ const decodeCertificate = async (req, res) => {
       if (dbStatus) {
         await verificationLogEntry(verifyLog);
       }
+      parsedData.url = encryptedData;
       res.status(200).json({ status: "PASSED", message: "Verified", data: parsedData });
     } else {
       res.status(200).json({ status: "FAILED", message: messageContent });
@@ -615,6 +629,7 @@ const verifyCertificationId = async (req, res) => {
 
     const singleIssueExist = await Issues.findOne({ certificateNumber: inputId });
     const batchIssueExist = await BatchIssues.findOne({ certificateNumber: inputId });
+    const urlIssueExist = await ShortUrl.findOne({ certificateNumber: inputId });
 
     // Validation checks for request data
     if (!batchIssueExist && !singleIssueExist) {
@@ -634,8 +649,8 @@ const verifyCertificationId = async (req, res) => {
       }
       try {
         // Blockchain processing.
-        const verifyCert = await newContract.verifyCertificateById(inputId);
-        const _certStatus = await newContract.getCertificateStatus(inputId);
+        // const verifyCert = await newContract.verifyCertificateById(inputId);
+        // const _certStatus = await newContract.getCertificateStatus(inputId);
 
         if (singleIssueExist.expirationDate == '1') {
           var _polygonLink = `https://${process.env.NETWORK}/tx/${singleIssueExist.transactionHash}`;
@@ -651,6 +666,12 @@ const verifyCertificationId = async (req, res) => {
 
           if (dbStatus) {
             await verificationLogEntry(verifyLog);
+          }
+
+          if (urlIssueExist) {
+            completeResponse.url = urlIssueExist.url;
+          } else {
+            completeResponse.url = null;
           }
 
           res.status(200).json({
@@ -692,6 +713,12 @@ const verifyCertificationId = async (req, res) => {
 
             if (dbStatus) {
               await verificationLogEntry(verifyLog);
+            }
+
+            if (urlIssueExist) {
+              foundCertification.url = urlIssueExist.url;
+            } else {
+              foundCertification.url = null;
             }
 
             const verificationResponse = {
@@ -737,6 +764,13 @@ const verifyCertificationId = async (req, res) => {
         if (dbStatus) {
           await verificationLogEntry(verifyLog);
         }
+
+        if (urlIssueExist) {
+          completeResponse.url = urlIssueExist.url;
+        } else {
+          completeResponse.url = null;
+        }
+
         res.status(200).json({
           status: "SUCCESS",
           message: "Certification is valid",
@@ -787,6 +821,12 @@ const verifyCertificationId = async (req, res) => {
 
             if (dbStatus) {
               await verificationLogEntry(verifyLog);
+            }
+
+            if (urlIssueExist) {
+              completeResponse.url = urlIssueExist.url;
+            } else {
+              completeResponse.url = null;
             }
 
             const _verificationResponse = {

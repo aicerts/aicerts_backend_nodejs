@@ -20,7 +20,7 @@ const { decryptData } = require("../common/cryptoFunction"); // Custom functions
 
 const retryDelay = parseInt(process.env.TIME_DELAY);
 const maxRetries = 3; // Maximum number of retries
-const urlLimit = process.env.MAX_URL_SIZE || 50;
+const urlLimit = parseInt(process.env.MAX_URL_SIZE) || parseInt(50);
 
 // Regular expression to match MM/DD/YY format
 const regex = /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{4}$/;
@@ -492,6 +492,7 @@ const verificationLogEntry = async (verificationData) => {
 const extractCertificateInfo = async (qrCodeText) => {
   // console.log("QR Code Text", qrCodeText);
   var _qrCodeText = qrCodeText;
+  var urlData = null;
   // Check if the data starts with 'http://' or 'https://'
   if (qrCodeText.startsWith('http://') || qrCodeText.startsWith('https://')) {
     var responseLength = qrCodeText.length;
@@ -500,6 +501,7 @@ const extractCertificateInfo = async (qrCodeText) => {
       const parsedUrl = new URL(qrCodeText);
       // Extract the query parameter
       var certificationNumber = parsedUrl.searchParams.get('');
+      // console.log("data in url", parsedUrl, certificationNumber);
       var dbStatus = await isDBConnected();
       if(dbStatus){
         var isUrlExist = await ShortUrl.findOne({ certificateNumber: certificationNumber });
@@ -522,7 +524,7 @@ const extractCertificateInfo = async (qrCodeText) => {
     // Parse the JSON string into a JavaScript object
     const parsedData = JSON.parse(fetchDetails);
     // Create a new object with desired key-value mappings for certificate information
-    const convertedData = {
+    var convertedData = {
       "Certificate Number": parsedData.Certificate_Number,
       "Name": parsedData.name,
       "Course Name": parsedData.courseName,
@@ -531,7 +533,7 @@ const extractCertificateInfo = async (qrCodeText) => {
       "Polygon URL": parsedData.polygonLink
     };
     // console.log("Data of Redirect", convertedData);
-    return convertedData;
+    return [convertedData, _qrCodeText];
   } else {
     // If it's not an encrypted URL, assume it's plain text and split by new lines
     const lines = qrCodeText.split("\n");
@@ -579,7 +581,7 @@ const extractCertificateInfo = async (qrCodeText) => {
       "Expiration Date": certificateInfo['Expiration Date'],
       "Polygon URL": certificateInfo["Polygon URL"]
     };
-    return convertedCertData;
+    return [convertedCertData, urlData];
   }
 };
 
