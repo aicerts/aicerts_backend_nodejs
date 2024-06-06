@@ -506,7 +506,7 @@ const fetchIssuesLogDetails = async (req, res) => {
           _queryResponse.sort((a, b) => new Date(b.issueDate) - new Date(a.issueDate));
 
           // Take only the first 30 records
-          var _queryResponse = _queryResponse.slice(0, Math.min(_queryResponse.length, 30));
+          var queryResponse = _queryResponse.slice(0, Math.min(_queryResponse.length, 30));
           break;
         case 8:
           var filteredResponse8 = [];

@@ -11,7 +11,7 @@ const moment = require('moment');
 const { ethers } = require("ethers"); // Ethereum JavaScript library
 const { validationResult } = require("express-validator");
 // Import custom cryptoFunction module for encryption and decryption
-const { decryptData } = require("../common/cryptoFunction");
+const { decryptData, generateEncryptedUrl } = require("../common/cryptoFunction");
 
 const pdf = require("pdf-lib"); // Library for creating and modifying PDF documents
 const { PDFDocument } = pdf;
@@ -552,6 +552,9 @@ const decodeCertificate = async (req, res) => {
     const decryptedData = decryptData(encryptedData, iv);
 
     const originalData = JSON.parse(decryptedData);
+
+    var originalUrl = generateEncryptedUrl(originalData);
+
     let isValid = false;
     let messageContent = "Not Verified"
     let parsedData;
@@ -593,7 +596,7 @@ const decodeCertificate = async (req, res) => {
       if (dbStatus) {
         await verificationLogEntry(verifyLog);
       }
-      parsedData.url = encryptedData;
+      parsedData.url = originalUrl;
       res.status(200).json({ status: "PASSED", message: "Verified", data: parsedData });
     } else {
       res.status(200).json({ status: "FAILED", message: messageContent });
