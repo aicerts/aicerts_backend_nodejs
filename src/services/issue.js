@@ -171,7 +171,7 @@ const handleIssueCertification = async (email, certificateNumber, name, courseNa
 
             var { txHash, polygonLink } = await issueCertificateWithRetry(certificateNumber, combinedHash, epochExpiration);
             if (!polygonLink) {
-              return ({ code: 400, status: false, message: messageCode.msgFaileToIssueAfterRetry, details: certificateNumber });
+              return ({ code: 400, status: false, message: messageCode.msgFailedToIssueAfterRetry, details: certificateNumber });
             }
 
             // Generate encrypted URL with certificate data
@@ -392,7 +392,7 @@ const handleIssuePdfQrCertification = async (email, certificateNumber, name, cou
 
       var { txHash, polygonLink } = await issueCertificateWithRetry(certificateNumber, combinedHash, epochExpiration);
       if (!polygonLink || !txHash) {
-        return ({ code: 400, status: false, message: messageCode.msgFaileToIssueAfterRetry, details: certificateNumber });
+        return ({ code: 400, status: false, message: messageCode.msgFailedToIssueAfterRetry, details: certificateNumber });
       }
 
       // Generate encrypted URL with certificate data
@@ -660,7 +660,7 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
 
       var { txHash, polygonLink } = await issueCertificateWithRetry(certificateNumber, combinedHash, epochExpiration);
       if (!polygonLink || !txHash) {
-        return ({ code: 400, status: false, message: messageCode.msgFaileToIssueAfterRetry, details: certificateNumber });
+        return ({ code: 400, status: false, message: messageCode.msgFailedToIssueAfterRetry, details: certificateNumber });
       }
 
       try {

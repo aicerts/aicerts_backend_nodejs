@@ -596,7 +596,7 @@ const decodeCertificate = async (req, res) => {
       if (dbStatus) {
         await verificationLogEntry(verifyLog);
       }
-      parsedData.url = originalUrl;
+      parsedData.url = originalUrl || null;
       res.status(200).json({ status: "PASSED", message: "Verified", data: parsedData });
     } else {
       res.status(200).json({ status: "FAILED", message: messageContent });
