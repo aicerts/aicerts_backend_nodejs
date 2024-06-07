@@ -92,7 +92,7 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                 errorMessage = messageCode.msgUnauthIssuer;
             }
             else if (epochExpiration != 1 && epochExpiration < validExpiration) {
-                errorMessage = `${expirationDate} - ${messageCode.msgInvalidExpiration}`;
+                errorMessage = `${expirationDate} - ${messageCode.msgInvalidNewExpiration}`;
             }
             // Respond with error message
             return ({ code: 400, status: "FAILED", message: errorMessage });
@@ -1006,9 +1006,10 @@ const expirationDateVariaton = async (_oldExpirationDate, _newExpirationDate) =>
     }
 };
 
-
+// Function to Perform Extend expiration of Single Certificate with retry mechanism 
 const renewSingleCertificateExpirationWithRetry = async (certificateNumber, combinedHash, epochExpiration, retryCount = 3) => {
 
+    // Perform Extend expiration of Single Certificate with retry mechanism
     try {
         // Issue Single Certifications on Blockchain
         const tx = await newContract.renewCertificate(
@@ -1045,8 +1046,10 @@ const renewSingleCertificateExpirationWithRetry = async (certificateNumber, comb
     }
 };
 
+// Function to Perform Extend expiration of Certificate in the batch with retry mechanism 
 const renewCertificateExpirationInBatchWithRetry = async (fetchIndex, hashedProof, epochExpiration, retryCount = 3) => {
 
+    // Perform Extend expiration of Certificate in the batch with retry mechanism 
     try {
         // Issue Single Certifications on Blockchain
         const tx = await newContract.renewCertificateInBatch(
@@ -1083,10 +1086,11 @@ const renewCertificateExpirationInBatchWithRetry = async (fetchIndex, hashedProo
     }
 };
 
+// Function to Perform Update Single Certificate status with retry mechanism 
 const updateSingleCertificateStatusWithRetry = async (certificateNumber, certStatus, retryCount = 3) => {
 
     try {
-        // Issue Single Certifications on Blockchain
+        // Perform Update Single Certificate status with retry mechanism 
         const tx = await newContract.updateSingleCertificateStatus(
             certificateNumber,
             certStatus
@@ -1120,10 +1124,11 @@ const updateSingleCertificateStatusWithRetry = async (certificateNumber, certSta
     }
 };
 
+// Function to Perform Update Certificate status in Batch with retry mechanism 
 const updateCertificateStatusInBatchWithRetry = async (hashedProof, certStatus, retryCount = 3) => {
 
     try {
-        // Issue Single Certifications on Blockchain
+        // Perform Update Certificate status in Batch with retry mechanism
         const tx = await newContract.updateCertificateInBatchStatus(
             hashedProof,
             certStatus
@@ -1157,10 +1162,11 @@ const updateCertificateStatusInBatchWithRetry = async (hashedProof, certStatus, 
     }
 };
 
+// Function to Perform Extend Batch expiration with retry mechanism 
 const updateBatchCertificateExpirationWithRetry = async (rootIndex, expirationEpoch, retryCount = 3) => {
 
     try {
-        // Issue Single Certifications on Blockchain
+        // Perform Extend Batch expiration with retry mechanism 
         const tx = await newContract.renewBatchOfCertificates(
             rootIndex,
             expirationEpoch
@@ -1194,10 +1200,11 @@ const updateBatchCertificateExpirationWithRetry = async (rootIndex, expirationEp
     }
 };
 
+// Function to Perform Update Batch Status with retry mechanism 
 const updateBatchCertificateStatusWithRetry = async (rootIndex, certStatus, retryCount = 3) => {
 
     try {
-        // Issue Single Certifications on Blockchain
+        // Perform Update Batch Status with retry mechanism 
         const tx = await newContract.updateBatchCertificateStatus(
             rootIndex,
             certStatus

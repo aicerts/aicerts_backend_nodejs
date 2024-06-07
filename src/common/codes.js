@@ -116,6 +116,7 @@ module.exports = {
     msgInvalidDateFormat : "Please provide valid Date format",
     msgOlderGrantDate : "Expiration date must not older than Grant date, Please check and try again ...",
     msgInvalidExpiration : "Please provide valid expiration date or provide more than 30 days from today and try again...",
+    msgInvalidNewExpiration : "Please provide valid newer expiration date or provide more than 30 days from today and try again...",
     msgUpdateExpirationNotPossible : "Extension of Expiration not possible on infinite Expiration certification",
     msgUpdateBatchExpirationNotPossible : "Extension of Batch Expiration not possible on infinite Expiration",
     
