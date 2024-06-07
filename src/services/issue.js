@@ -284,7 +284,7 @@ const handleIssuePdfQrCertification = async (email, certificateNumber, name, cou
     } else if (epochExpiration != 1 && epochGrant > epochExpiration) {
       errorMessage = messageCode.msgOlderGrantDate;
     } else if (epochExpiration != 1 && epochExpiration < validExpiration) {
-      errorMessage = messageCode.msgInvalidExpiration;
+      errorMessage = `${expirationDate} - ${messageCode.msgInvalidExpiration}`;
     }
     return ({ code: 400, status: "FAILED", message: errorMessage });
   }
@@ -552,7 +552,7 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
     } else if (epochExpiration != 1 && epochGrant > epochExpiration) {
       errorMessage = messageCode.msgOlderGrantDate;
     } else if (epochExpiration != 1 && epochExpiration < validExpiration) {
-      errorMessage = messageCode.msgInvalidExpiration;
+      errorMessage = `${expirationDate} - ${messageCode.msgInvalidExpiration}`;
     }
     return ({ code: 400, status: "FAILED", message: errorMessage });
   }
@@ -690,7 +690,7 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
         });
 
         file = pdfPath;
-        const outputPdf = `${fields.Certificate_Number}${name}.pdf`;
+        var outputPdf = `${fields.Certificate_Number}${name}.pdf`;
 
         // Add link and QR code to the PDF file
         const opdf = await addLinkToPdf(
@@ -702,7 +702,7 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
         );
 
         // Read the generated PDF file
-        const fileBuffer = fs.readFileSync(outputPdf);
+        var fileBuffer = fs.readFileSync(outputPdf);
 
       } catch (error) {
         return ({ code: 400, status: "FAILED", message: messageCode.msgInternalError, details: error });
