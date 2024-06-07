@@ -17,7 +17,7 @@ const pdf = require("pdf-lib"); // Library for creating and modifying PDF docume
 const { PDFDocument } = pdf;
 
 // Import MongoDB models
-const { Issues, BatchIssues, ShortUrl } = require("../config/schema");
+const { Issues, BatchIssues, ShortUrl, User } = require("../config/schema");
 
 // Import ABI (Application Binary Interface) from the JSON file located at "../config/abi.json"
 const abi = require("../config/abi.json");
@@ -275,50 +275,50 @@ const verify = async (req, res) => {
         return;
       }
 
-        if (batchVerifyResponse === true) {
+      if (batchVerifyResponse === true) {
 
-          try {
+        try {
 
-            var completeResponse = certificateData;
+          var completeResponse = certificateData;
 
-            // Add the issuerId parameter
-            verifyLog.issuerId = batchIssueExist.issuerId;
+          // Add the issuerId parameter
+          verifyLog.issuerId = batchIssueExist.issuerId;
 
-            var dbStatus = await isDBConnected();
-            if (dbStatus != false) {
-              await verificationLogEntry(verifyLog);
-            }
-
-            completeResponse['Expiration Date'] = batchIssueExist.expirationDate;
-            completeResponse.url = originalUrl;
-
-            const _verificationResponse = {
-              status: "SUCCESS",
-              message: "Certification is valid",
-              Details: completeResponse
-            };
-
-            res.status(200).json(_verificationResponse);
-            if (fs.existsSync(file)) {
-              fs.unlinkSync(file);
-            }
-            return;
-
-          } catch (error) {
-            res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
-            if (fs.existsSync(file)) {
-              fs.unlinkSync(file);
-            }
-            return;
+          var dbStatus = await isDBConnected();
+          if (dbStatus != false) {
+            await verificationLogEntry(verifyLog);
           }
-        } else {
-          res.status(400).json({ status: "FAILED", message: messageCode.msgCertNotExist });
+
+          completeResponse['Expiration Date'] = batchIssueExist.expirationDate;
+          completeResponse.url = originalUrl;
+
+          const _verificationResponse = {
+            status: "SUCCESS",
+            message: "Certification is valid",
+            Details: completeResponse
+          };
+
+          res.status(200).json(_verificationResponse);
+          if (fs.existsSync(file)) {
+            fs.unlinkSync(file);
+          }
+          return;
+
+        } catch (error) {
+          res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
           if (fs.existsSync(file)) {
             fs.unlinkSync(file);
           }
           return;
         }
-      
+      } else {
+        res.status(400).json({ status: "FAILED", message: messageCode.msgCertNotExist });
+        if (fs.existsSync(file)) {
+          fs.unlinkSync(file);
+        }
+        return;
+      }
+
 
     } else if (!batchIssueExist && !singleIssueExist) {
       if (certificateData['Expiration Date'] == '1') {
@@ -482,12 +482,20 @@ const decodeQRScan = async (req, res) => {
             }
           }
 
+          var isUserExist = await User.findOne({email: isUrlExist.email});
+          var getIssuerId = isUserExist != null ? isUserExist.issuerId : 'default';
+
           var verificationResponse = decodeResponse != false ? decodeResponse : "";
 
         } catch (error) {
           return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, error: error });
         }
         verificationResponse.url = originalUrl;
+        var verifyLog = {
+          issuerId: getIssuerId,
+          course: verificationResponse["Course Name"],
+        };
+        await verificationLogEntry(verifyLog);
         return res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, Details: verificationResponse });
       }
 
@@ -518,6 +526,11 @@ const decodeQRScan = async (req, res) => {
 
       var [extractQRData, decodedUrl] = await extractCertificateInfo(receivedCode);
       if (extractQRData) {
+        var verifyLog = {
+          issuerId: 'default',
+          course: extractQRData["Course Name"],
+        };
+        await verificationLogEntry(verifyLog);
 
         // console.log("The received data", receivedCode, extractQRData); // log the response
         extractQRData.url = decodedUrl;
@@ -636,9 +649,20 @@ const verifyCertificationId = async (req, res) => {
     const singleIssueExist = await Issues.findOne({ certificateNumber: inputId });
     const batchIssueExist = await BatchIssues.findOne({ certificateNumber: inputId });
     const urlIssueExist = await ShortUrl.findOne({ certificateNumber: inputId });
+    // Blockchain processing.
+    const verifyCertification = await newContract.verifyCertificateById(inputId);
 
     // Validation checks for request data
     if (!batchIssueExist && !singleIssueExist) {
+      if (verifyCertification && verifyCertification[0] === true) {
+        res.status(200).json({
+          status: "SUCCESS",
+          message: `${inputId} : ${messageCode.msgVlidCertNoDb}`
+        });
+        // Clean up the upload folder
+        await cleanUploadFolder();
+        return;
+      }
       // Respond with error message
       return res.status(400).json({ status: "FAILED", message: messageCode.msgCertNotValid });
     }
@@ -685,6 +709,8 @@ const verifyCertificationId = async (req, res) => {
             message: "Certification is valid",
             details: completeResponse
           });
+          // Clean up the upload folder
+          await cleanUploadFolder();
           return;
         }
         try {
@@ -732,7 +758,10 @@ const verifyCertificationId = async (req, res) => {
               message: "Certification is valid",
               details: foundCertification
             };
-            return res.status(200).json(verificationResponse);
+            res.status(200).json(verificationResponse);
+            // Clean up the upload folder
+            await cleanUploadFolder();
+            return;
           } else if (verifyCert[0] == false) {
             return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
           }
@@ -782,6 +811,8 @@ const verifyCertificationId = async (req, res) => {
           message: "Certification is valid",
           details: completeResponse
         });
+        // Clean up the upload folder
+        await cleanUploadFolder();
         return;
       }
       if ((batchIssueExist.expirationDate).length == 10) {
@@ -840,8 +871,10 @@ const verifyCertificationId = async (req, res) => {
               message: "Certification is valid",
               details: completeResponse
             };
-
             res.status(200).json(_verificationResponse);
+            // Clean up the upload folder
+            await cleanUploadFolder();
+            return;
 
           } catch (error) {
             return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });

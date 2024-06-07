@@ -416,6 +416,7 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                                 // }
 
                                 // Generate encrypted URL with certificate data
+                                
                                 const dataWithLink = { ...fields, polygonLink: polygonLink }
                                 const urlLink = generateEncryptedUrl(dataWithLink);
 
@@ -490,8 +491,8 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
 
                             } catch (error) {
                                 // Handle mongoose connection error (log it, response an error, etc.)
-                                console.error(messageCode.msgInternalError, error);
-                                return ({ code: 500, status: "FAILED", message: messageCode.msgInternalError, details: error });
+                                console.error(messageCode.msgIssueWithDB, error);
+                                return ({ code: 500, status: "FAILED", message: messageCode.msgIssueWithDB, details: error });
                             }
 
                             // Respond with success message and certificate details
@@ -984,6 +985,7 @@ const handleUpdateBatchCertificationStatus = async (email, batchId, certStatus) 
 
 };
 
+// Function to compare Existed Expiration date with Input date for Epiration extension
 const expirationDateVariaton = async (_oldExpirationDate, _newExpirationDate) => {
     // Split the date strings into parts
     const [month1, day1, year1] = _oldExpirationDate.split('/');

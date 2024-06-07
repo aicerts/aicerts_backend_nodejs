@@ -3,6 +3,7 @@ module.exports = {
     // Tasks Messages
     msgDbReady: "Database connection is Ready",
     msgDbNotReady : "Database connection is Not Ready",
+    msgIssueWithDB : "Unable to connect with Database, Please try again...",
     
     // Response code messages
     msgInternalError : "Internal server error",
@@ -40,6 +41,7 @@ module.exports = {
     msgCertLength : "Certification ID must between 12 to 20 characters",
     msgMaxLength : "Entered Input must between 8 to 30 characters",
     msgMaxLengthCourse : "Entered Input must not exceed 150 characters",
+    msgVlidCertNoDb: "Certification is valid perhaps Details unavailable",
 
     // API response codes in Issues (Controller)
     msgAuthMissing : "Authorization token is missing",
