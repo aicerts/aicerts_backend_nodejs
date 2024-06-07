@@ -106,7 +106,7 @@ const issuePdf = async (req, res) => {
       return;
     }
 
-    const issueResponse = await handleIssuePdfCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate, req.file.path);
+    const issueResponse = await handleIssuePdfCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate, req.file.path, outputFileFormat);
     var responseDetails = issueResponse.details ? issueResponse.details : '';
     if (issueResponse.code == 200) {
 
@@ -184,7 +184,7 @@ const issuePdfQr = async (req, res) => {
       return;
     }
 
-    const issueResponse = await handleIssuePdfQrCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate, req.file.path);
+    const issueResponse = await handleIssuePdfQrCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate, req.file.path, outputFileFormat);
     var responseDetails = issueResponse.details ? issueResponse.details : '';
     if (issueResponse.code == 200) {
 

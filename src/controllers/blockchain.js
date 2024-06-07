@@ -142,7 +142,7 @@ const validateIssuer = async (req, res) => {
 
           var { txHash, polygonLink } = await grantOrRevokeRoleWithRetry("grant", process.env.ISSUER_ROLE, userExist.issuerId);
           if (!polygonLink || !txHash) {
-            return res.status(400).json({ status: "FAILED", message: messageCode.msgFaileToGrantRoleRetry });
+            return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedToGrantRoleRetry });
           }
           grantedStatus = "SUCCESS";
 
@@ -193,7 +193,7 @@ const validateIssuer = async (req, res) => {
 
           var { txHash, polygonLink } = await grantOrRevokeRoleWithRetry("revoke", process.env.ISSUER_ROLE, userExist.issuerId);
           if (!polygonLink || !txHash) {
-            return res.status(400).json({ status: "FAILED", message: messageCode.msgFaileToRevokeRoleRetry });
+            return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedToRevokeRoleRetry });
           }
           revokedStatus = "SUCCESS";
 
@@ -294,7 +294,7 @@ const addTrustedOwner = async (req, res) => {
 
         var { txHash, polygonLink } = await grantOrRevokeRoleWithRetry("grant", assigningRole, userExist.issuerId);
         if (!polygonLink || !txHash) {
-          return res.status(400).json({ status: "FAILED", message: messageCode.msgFaileToGrantRoleRetry });
+          return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedToGrantRoleRetry });
         }
 
         const messageInfo = (assignRole == 0) ? messageCode.msgAdminGrant : messageCode.msgIssuerRoleGrant;
@@ -375,7 +375,7 @@ const removeTrustedOwner = async (req, res) => {
 
         var { txHash, polygonLink } = await grantOrRevokeRoleWithRetry("revoke", assigningRole, userExist.issuerId);
         if (!polygonLink || !txHash) {
-          return res.status(400).json({ status: "FAILED", message: messageCode.msgFaileToRevokeRoleRetry });
+          return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedToRevokeRoleRetry });
         }
 
         const messageInfo = (assignRole == 0) ? messageCode.msgAdminRevoke : messageCode.msgIssuerRoleRevoke;
@@ -497,7 +497,7 @@ const createAndValidateIssuerIdUponLogin = async (req, res) => {
             if(!response){
               var { txHash, polygonLink } = await grantOrRevokeRoleWithRetry("grant", process.env.ISSUER_ROLE, getIssuerId);
               if (!polygonLink || !txHash) {
-                return res.status(400).json({ status: "FAILED", message: messageCode.msgFaileToGrantRoleRetry });
+                return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedToGrantRoleRetry });
               }
             }
           } catch (error) {
@@ -520,7 +520,7 @@ const createAndValidateIssuerIdUponLogin = async (req, res) => {
 
           var { txHash, polygonLink } = await grantOrRevokeRoleWithRetry("grant", process.env.ISSUER_ROLE, getNewId);
           if (!polygonLink || !txHash) {
-            return res.status(400).json({ status: "FAILED", message: messageCode.msgFaileToGrantRoleRetry });
+            return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedToGrantRoleRetry });
           }
 
           // Save verification details
@@ -554,7 +554,7 @@ const createAndValidateIssuerIdUponLogin = async (req, res) => {
           if(!response){
             var { txHash, polygonLink } = await grantOrRevokeRoleWithRetry("grant", process.env.ISSUER_ROLE, userExist.issuerId);
             if (!polygonLink || !txHash) {
-              return res.status(400).json({ status: "FAILED", message: messageCode.msgFaileToGrantRoleRetry });
+              return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedToGrantRoleRetry });
             }
           }
         } catch (error) {

@@ -5,6 +5,12 @@ const path = require("path");
 
 const moment = require('moment');
 
+// Importing functions from a custom module
+const {
+    isCertificationIdExisted
+  } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
+  
+
 const thresholdYear = parseInt(process.env.THRESHOLD_YEAR);
 // Parse environment variables for password length constraints
 const min_length = (parseInt(process.env.MIN_LENGTH) || 12);
@@ -123,8 +129,6 @@ const handleExcelFile = async (_path) => {
                 // const validateExpirationDates = await compareEpochDates(invalidExpirationDateFormat.validDates);
                 // if ((validateGrantDates).length > 0 || (validateExpirationDates).length > 0) {
                 //     return { status: "FAILED", response: false, message: messageCode.msgInvalidDates, Details: `Grant Dates ${validateGrantDates}, Expiration Dates ${validateExpirationDates}` };
-
-
                 // }
 
                 const validateCertificateDates = await compareGrantExpiredSetDates(invalidGrantDateFormat.validDates, invalidExpirationDateFormat.validDates);
@@ -135,9 +139,8 @@ const handleExcelFile = async (_path) => {
 
                 // Assuming BatchIssues is your MongoDB model
                 for (const id of certificationIDs) {
-                    const issueExist = await Issues.findOne({ certificateNumber: id });
-                    const _issueExist = await BatchIssues.findOne({ certificateNumber: id });
-                    if (issueExist || _issueExist) {
+                    const issueExist = await isCertificationIdExisted(id);
+                    if (issueExist) {
                         matchingIDs.push(id);
                     }
                 }

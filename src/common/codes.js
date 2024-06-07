@@ -3,6 +3,7 @@ module.exports = {
     // Tasks Messages
     msgDbReady: "Database connection is Ready",
     msgDbNotReady : "Database connection is Not Ready",
+    msgIssueWithDB : "Unable to connect with Database, Please try again...",
     
     // Response code messages
     msgInternalError : "Internal server error",
@@ -22,9 +23,11 @@ module.exports = {
     msgInvalidHeaders : "Invalid headers in the Excel file.",
     msgExcelSheetname : "The Excel file Sheet name should be - Batch.",
     msgMissingDetailsInExcel : "The Excel file has missing fields, Please fill all required fields and try again",
-    msgFaileToIssueAfterRetry : "Failed to issue certification after retries. Please try again...",
-    msgFaileToGrantRoleRetry : "Failed to Grant Role after retries. Please try again...",
-    msgFaileToRevokeRoleRetry : "Failed to Revoke Role after retries. Please try again...",
+    msgFailedToIssueAfterRetry : "Failed to issue certification after retries. Please try again...",
+    msgFailedToGrantRoleRetry : "Failed to Grant Role after retries. Please try again...",
+    msgFailedToRevokeRoleRetry : "Failed to Revoke Role after retries. Please try again...",
+    msgFailedToUpdateStatusRetry : "Failed to Update status after retries. Please try again...",
+    msgFailedToRenewRetry : "Failed to Extend expiration after retries. Please try again...",
 
 
     // Validation Error codes Issues (Route)
@@ -38,6 +41,7 @@ module.exports = {
     msgCertLength : "Certification ID must between 12 to 20 characters",
     msgMaxLength : "Entered Input must between 8 to 30 characters",
     msgMaxLengthCourse : "Entered Input must not exceed 150 characters",
+    msgVlidCertNoDb: "Certification is valid perhaps Details unavailable",
 
     // API response codes in Issues (Controller)
     msgAuthMissing : "Authorization token is missing",
@@ -112,8 +116,9 @@ module.exports = {
     // Dates Messages
     msgInvalidDate : "Invalid Date, Please check and try again ...",
     msgInvalidDateFormat : "Please provide valid Date format",
-    msgOlderGrantDate : "Older grant date mentioned",
-    msgInvalidExpiration : "Please provide valid expiration date or as more than 30 days and try again...",
+    msgOlderGrantDate : "Expiration date must not older than Grant date, Please check and try again ...",
+    msgInvalidExpiration : "Please provide valid expiration date or provide more than 30 days from today and try again...",
+    msgInvalidNewExpiration : "Please provide valid newer expiration date or provide more than 30 days from today and try again...",
     msgUpdateExpirationNotPossible : "Extension of Expiration not possible on infinite Expiration certification",
     msgUpdateBatchExpirationNotPossible : "Extension of Batch Expiration not possible on infinite Expiration",
     
@@ -122,7 +127,7 @@ module.exports = {
     msgEpirationMustGreater : "Please provide greater exipration date than existed expiration date",
     msgCertRenewedSuccess : "Certification expiration extended successfully",
     msgCommonBatchExpiration : "Batch of certification has common Expiration date",
-    msgStatusAlreadyExist : "The certification status existed",
+    msgStatusAlreadyExist : "The certification status previously existed",
     msgBatchStatusRenened : "Batch expirataion renewed",
     msgBatchStatusUpdated : "Batch status updated",
     msgInvalidBatch : "Invalid batch details provided",
