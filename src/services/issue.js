@@ -468,6 +468,14 @@ const handleIssuePdfQrCertification = async (email, certificateNumber, name, cou
           // Convert Base64 to buffer
           const _buffer = Buffer.from(base64Data, 'base64');
           // console.log("The image buffer", _buffer);
+          // fs.writeFile('./output.png', _buffer, (err) => {
+          //   if (err) {
+          //     console.error("Error writing PNG file:", err);
+          //     return;
+          //   }
+          //   console.log("PNG file saved successfully!");
+          // });
+
           var imageBuffer = _buffer;
         }
 
@@ -822,8 +830,8 @@ async function convertPdfBufferToPng(pdfBuffer) {
   const options = {
     format: 'png', // Specify output format (optional, defaults to 'png')
     responseType: 'buffer', // Ensure binary output (PNG buffer)
-    width: 2067, // Optional width for the image
-    height: 1477, // Optional height for the image
+    width: 1550, // Optional width for the image
+    height: 1107, // Optional height for the image
     density: 100, // Optional DPI (dots per inch)
     // Other options (refer to pdf2pic documentation for details)
   };

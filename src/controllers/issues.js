@@ -118,7 +118,7 @@ const issuePdf = async (req, res) => {
           'Content-Type': "application/png",
           'Content-Disposition': `attachment; filename="${certificateName}"`, // Change filename as needed
         });
-
+        // console.log("the response size", (issueResponse.image).length);
         // Send Image file
         res.send(issueResponse.image);
         return;
@@ -196,7 +196,7 @@ const issuePdfQr = async (req, res) => {
           'Content-Type': "application/png",
           'Content-Disposition': `attachment; filename="${certificateName}"`, // Change filename as needed
         });
-
+        // console.log("the response size", (issueResponse.image).length);
         // Send Image file
         res.send(issueResponse.image);
         return;
