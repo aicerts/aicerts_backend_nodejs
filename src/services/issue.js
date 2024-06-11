@@ -7,6 +7,7 @@ const QRCode = require("qrcode");
 const fs = require("fs");
 const { fromBuffer, fromBase64 } = require("pdf2pic");
 const { ethers } = require("ethers"); // Ethereum JavaScript library
+const AWS = require('../config/aws-config');
 
 // Import custom cryptoFunction module for encryption and decryption
 const { generateEncryptedUrl } = require("../common/cryptoFunction");
@@ -453,34 +454,22 @@ const handleIssuePdfQrCertification = async (email, certificateNumber, name, cou
         combinedHash
       );
 
+      // Define the directory where you want to save the file
+      const uploadDir = path.join(__dirname, '..', '..', 'uploads'); // Go up two directories from __dirname
+
       // Read the generated PDF file
       const fileBuffer = fs.readFileSync(outputPdf);
 
-      if (_imageFormat == '1' || _imageFormat == 1) {
-
-        var _imageBuffer = await convertPdfBufferToPng(fileBuffer);
-        if (_imageBuffer) {
-          // console.log("Image Buffer", imageBuffer.base64);
-          var base64String = _imageBuffer.base64;
-          // Remove the data URL prefix if present
-          const base64Data = base64String.replace(/^data:image\/png;base64,/, '');
-
-          // Convert Base64 to buffer
-          const _buffer = Buffer.from(base64Data, 'base64');
-          // console.log("The image buffer", _buffer);
-          // fs.writeFile('./output.png', _buffer, (err) => {
-          //   if (err) {
-          //     console.error("Error writing PNG file:", err);
-          //     return;
-          //   }
-          //   console.log("PNG file saved successfully!");
-          // });
-
-          var imageBuffer = _buffer;
+      var generatedImage = `${fields.Certificate_Number}.png`;
+      var convertedPath = path.join(uploadDir, generatedImage);
+      var imageBuffer = await convertPdfBufferToPng(convertedPath, fileBuffer);
+      if (imageBuffer) {
+        var imageUrl = await uploadImageToS3(fields.Certificate_Number, convertedPath);
+        if(imageUrl == false){
+          return ({ code: 400, status: "FAILED", message: messageCode.msgUploadError });
         }
-
       } else {
-        var imageBuffer = null;
+        return ({ code: 400, status: "FAILED", message: messageCode.msgImageError });
       }
 
       try {
@@ -501,9 +490,17 @@ const handleIssuePdfQrCertification = async (email, certificateNumber, name, cou
           grantDate: fields.Grant_Date,
           expirationDate: fields.Expiration_Date,
           email: email,
-          certStatus: 1
+          certStatus: 1,
+          url: imageUrl,
+          type: 'withpdf',
         };
         await insertCertificateData(certificateData);
+
+        // Delete files
+        if (fs.existsSync(convertedPath)) {
+          // Delete the specified file
+          fs.unlinkSync(convertedPath);
+        }
 
         // Delete files
         if (fs.existsSync(outputPdf)) {
@@ -519,7 +516,7 @@ const handleIssuePdfQrCertification = async (email, certificateNumber, name, cou
         await cleanUploadFolder();
 
         // Set response headers for PDF download
-        return ({ code: 200, file: fileBuffer, image: imageBuffer });
+        return ({ code: 200, file: fileBuffer });
 
       } catch (error) {
         // Handle mongoose connection error (log it, response an error, etc.)
@@ -726,7 +723,7 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
 
         var convertedPath = path.join(uploadDir, generatedImage);
         var imageBuffer = fs.readFileSync(convertedPath);
-        
+
       } else {
         var imageBuffer = null;
       }
@@ -802,6 +799,10 @@ const issueCertificateWithRetry = async (certificateNumber, certificateHash, exp
 
     var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
 
+    if(!txHash){
+      return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain });
+    }
+
     return { txHash, polygonLink };
 
   } catch (error) {
@@ -826,7 +827,10 @@ const issueCertificateWithRetry = async (certificateNumber, certificateHash, exp
   }
 };
 
-async function convertPdfBufferToPng(pdfBuffer) {
+const convertPdfBufferToPng = async (imagePath, pdfBuffer) => {
+  if (!imagePath || !pdfBuffer) {
+    return false;
+  }
   // console.log("Pdf path is", pdfPath);
   const options = {
     format: 'png', // Specify output format (optional, defaults to 'png')
@@ -840,12 +844,49 @@ async function convertPdfBufferToPng(pdfBuffer) {
   try {
     const convert = fromBuffer(pdfBuffer, options);
     const pageOutput = await convert(1, { responseType: 'buffer' }); // Convert page 1 (adjust as needed)
-    return pageOutput;
+    var base64String = await pageOutput.base64;
+    // Remove the data URL prefix if present
+    const base64Data = await base64String.replace(/^data:image\/png;base64,/, '');
+
+    // Convert Base64 to buffer
+    const _buffer = Buffer.from(base64Data, 'base64');
+    // console.log("The image buffer", _buffer);
+    fs.writeFile(imagePath, _buffer, (err) => {
+      if (err) {
+        console.error("Error writing PNG file:", err);
+        return;
+      }
+    });
+    // Save the PNG buffer to a file
+    return true;
   } catch (error) {
     console.error('Error converting PDF to PNG buffer:', error);
-    return null;
+    return false;
   }
-}
+};
+
+const uploadImageToS3 = async (certNumber, imagePath) => {
+
+  const bucketName = process.env.BUCKET_NAME;
+  const timestamp = Date.now(); // Get the current timestamp in milliseconds
+  const keyName = `${certNumber}_${timestamp}`;
+  const s3 = new AWS.S3();
+  const fileStream = fs.createReadStream(imagePath);
+
+  const uploadParams = {
+    Bucket: bucketName,
+    Key: keyName,
+    Body: fileStream
+  };
+
+  try{
+    const urlData = await s3.upload(uploadParams).promise();
+    return urlData.Location;
+  } catch(error){
+    console.error("Internal server error", error);
+    return false;
+  }
+};
 
 module.exports = {
   // Function to issue a PDF certificate

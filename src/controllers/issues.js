@@ -188,21 +188,6 @@ const issuePdfQr = async (req, res) => {
     var responseDetails = issueResponse.details ? issueResponse.details : '';
     if (issueResponse.code == 200) {
 
-      if (outputFileFormat == '1' || outputFileFormat == 1) {
-        // Set response headers for PNG to download
-        var certificateName = `${certificateNumber}.png`;
-
-        res.set({
-          'Content-Type': "application/png",
-          'Content-Disposition': `attachment; filename="${certificateName}"`, // Change filename as needed
-        });
-        // console.log("the response size", (issueResponse.image).length);
-        // Send Image file
-        res.send(issueResponse.image);
-        return;
-
-      }
-
       // Set response headers for PDF to download
       var certificateName = `${certificateNumber}_certificate.pdf`;
 

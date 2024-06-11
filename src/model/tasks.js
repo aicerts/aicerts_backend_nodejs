@@ -327,6 +327,8 @@ const insertCertificateData = async (data) => {
       grantDate: data.grantDate,
       expirationDate: data.expirationDate,
       certificateStatus: data.certStatus,
+      url: data.url || '',
+      type: data.type || '',
       issueDate: Date.now() // Set the issue date to the current timestamp
     });
 
