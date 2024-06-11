@@ -4,6 +4,8 @@ module.exports = {
     msgDbReady: "Database connection is Ready",
     msgDbNotReady : "Database connection is Not Ready",
     msgIssueWithDB : "Unable to connect with Database, Please try again...",
+    msgImageError: "Unable to generate Image, Please try again...",
+    msgUploadError: "Unable to upload Image, Please try again...",
     
     // Response code messages
     msgInternalError : "Internal server error",
