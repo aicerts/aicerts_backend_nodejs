@@ -726,6 +726,7 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
 
         var convertedPath = path.join(uploadDir, generatedImage);
         var imageBuffer = fs.readFileSync(convertedPath);
+        
       } else {
         var imageBuffer = null;
       }
@@ -830,8 +831,8 @@ async function convertPdfBufferToPng(pdfBuffer) {
   const options = {
     format: 'png', // Specify output format (optional, defaults to 'png')
     responseType: 'buffer', // Ensure binary output (PNG buffer)
-    width: 1550, // Optional width for the image
-    height: 1107, // Optional height for the image
+    width: 2067, // Optional width for the image
+    height: 1477, // Optional height for the image
     density: 100, // Optional DPI (dots per inch)
     // Other options (refer to pdf2pic documentation for details)
   };
