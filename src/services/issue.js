@@ -5,6 +5,7 @@ require('dotenv').config();
 const path = require("path");
 const QRCode = require("qrcode");
 const fs = require("fs");
+const { fromBuffer, fromBase64 } = require("pdf2pic");
 const { ethers } = require("ethers"); // Ethereum JavaScript library
 
 // Import custom cryptoFunction module for encryption and decryption
@@ -455,17 +456,29 @@ const handleIssuePdfQrCertification = async (email, certificateNumber, name, cou
       // Read the generated PDF file
       const fileBuffer = fs.readFileSync(outputPdf);
 
-      // Define the directory where you want to save the file
-      const uploadDir = path.join(__dirname, '..', '..', 'uploads'); // Go up two directories from __dirname
-
       if (_imageFormat == '1' || _imageFormat == 1) {
-        var imageDestinationPath = `${fields.Certificate_Number}`;
-        var imageCreatedResponse = await createPdfCertificateImage(outputPdf, imageDestinationPath);
 
-        var generatedImage = `${fields.Certificate_Number}-1.png`;
+        var _imageBuffer = await convertPdfBufferToPng(fileBuffer);
+        if (_imageBuffer) {
+          // console.log("Image Buffer", imageBuffer.base64);
+          var base64String = _imageBuffer.base64;
+          // Remove the data URL prefix if present
+          const base64Data = base64String.replace(/^data:image\/png;base64,/, '');
 
-        var convertedPath = path.join(uploadDir, generatedImage);
-        var imageBuffer = fs.readFileSync(convertedPath);
+          // Convert Base64 to buffer
+          const _buffer = Buffer.from(base64Data, 'base64');
+          // console.log("The image buffer", _buffer);
+          // fs.writeFile('./output.png', _buffer, (err) => {
+          //   if (err) {
+          //     console.error("Error writing PNG file:", err);
+          //     return;
+          //   }
+          //   console.log("PNG file saved successfully!");
+          // });
+
+          var imageBuffer = _buffer;
+        }
+
       } else {
         var imageBuffer = null;
       }
@@ -491,12 +504,6 @@ const handleIssuePdfQrCertification = async (email, certificateNumber, name, cou
           certStatus: 1
         };
         await insertCertificateData(certificateData);
-
-        // Delete files
-        if (fs.existsSync(generatedImage)) {
-          // Delete the specified file
-          fs.unlinkSync(generatedImage);
-        }
 
         // Delete files
         if (fs.existsSync(outputPdf)) {
@@ -719,6 +726,7 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
 
         var convertedPath = path.join(uploadDir, generatedImage);
         var imageBuffer = fs.readFileSync(convertedPath);
+        
       } else {
         var imageBuffer = null;
       }
@@ -817,6 +825,27 @@ const issueCertificateWithRetry = async (certificateNumber, certificateHash, exp
     }
   }
 };
+
+async function convertPdfBufferToPng(pdfBuffer) {
+  // console.log("Pdf path is", pdfPath);
+  const options = {
+    format: 'png', // Specify output format (optional, defaults to 'png')
+    responseType: 'buffer', // Ensure binary output (PNG buffer)
+    width: 2067, // Optional width for the image
+    height: 1477, // Optional height for the image
+    density: 100, // Optional DPI (dots per inch)
+    // Other options (refer to pdf2pic documentation for details)
+  };
+
+  try {
+    const convert = fromBuffer(pdfBuffer, options);
+    const pageOutput = await convert(1, { responseType: 'buffer' }); // Convert page 1 (adjust as needed)
+    return pageOutput;
+  } catch (error) {
+    console.error('Error converting PDF to PNG buffer:', error);
+    return null;
+  }
+}
 
 module.exports = {
   // Function to issue a PDF certificate
