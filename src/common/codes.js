@@ -5,7 +5,9 @@ module.exports = {
     msgDbNotReady : "Database connection is Not Ready",
     msgIssueWithDB : "Unable to connect with Database, Please try again...",
     msgImageError: "Unable to generate Image, Please try again...",
+    msgPdfError: "Unable to generate PDF Certification, Please try again...",
     msgUploadError: "Unable to upload Image, Please try again...",
+    msgDatesMustNotSame: "Grant date and Expiration date must not be same",
     
     // Response code messages
     msgInternalError : "Internal server error",

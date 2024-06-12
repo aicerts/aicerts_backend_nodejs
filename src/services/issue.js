@@ -22,6 +22,7 @@ const abi = require("../config/abi.json");
 const {
   convertDateFormat,
   convertDateToEpoch,
+  convertEpochToDate,
   holdExecution,
   insertCertificateData, // Function to insert certificate data into the database
   addLinkToPdf, // Function to add a link to a PDF file
@@ -31,6 +32,7 @@ const {
   cleanUploadFolder, // Function to clean up the upload folder
   isDBConnected, // Function to check if the database connection is established
   insertUrlData,
+  getCertificationStatus,
   isCertificationIdExisted
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
@@ -109,10 +111,12 @@ const handleIssueCertification = async (email, certificateNumber, name, courseNa
     ) {
       // Prepare error message
       let errorMessage = messageCode.msgPlsEnterValid;
-
+      var moreDetails = '';
       // Check for specific error conditions and update the error message accordingly
       if (isIssueExist) {
         errorMessage = messageCode.msgCertIssued;
+        var _certStatus = await getCertificationStatus(isIssueExist.certificateStatus);
+        moreDetails = { certificateNumber: isIssueExist.certificateNumber, expirationDate: isIssueExist.expirationDate, certificateStatus: _certStatus };
       } else if ((!grantDate || grantDate == 'Invalid date') || (!expirationDate || expirationDate == 'Invalid date')) {
         errorMessage = messageCode.msgProvideValidDates;
       } else if (!certificateNumber) {
@@ -128,8 +132,14 @@ const handleIssueCertification = async (email, certificateNumber, name, courseNa
       }
 
       // Respond with error message
-      return ({ code: 400, status: "FAILED", message: errorMessage });
+      return ({ code: 400, status: "FAILED", message: errorMessage, details: moreDetails });
     } else {
+      if (expirationDate != 1) {
+        if (expirationDate == grantDate) {
+          // Respond with error message
+          return ({ code: 400, status: "FAILED", message: `${messageCode.msgDatesMustNotSame} : ${grantDate}, ${expirationDate}` });
+        }
+      }
       try {
         // Prepare fields for the certificate
         const fields = {
@@ -162,12 +172,15 @@ const handleIssueCertification = async (email, certificateNumber, name, courseNa
           ) {
             // Certificate already issued / contract paused
             var messageContent = messageCode.msgCertIssued;
+            var modifiedDate = val[1] == 1 ? 'infinite expiration' : await convertEpochToDate(val[1]);
+            var _certificateStatus = await getCertificationStatus(val[3]);
+            var moreDetails = val[0] === true ? { certificateNumber: certificateNumber, expirationDate: modifiedDate, certificateStatus: _certificateStatus } : "";  
             if (isPaused === true) {
               messageContent = messageCode.msgOpsRestricted;
             } else if (issuerAuthorized === false) {
               messageContent = messageCode.msgIssuerUnauthrized;
             }
-            return ({ code: 400, status: "FAILED", message: messageContent });
+            return ({ code: 400, status: "FAILED", message: messageContent, details: moreDetails });
 
           } else {
 
@@ -197,7 +210,27 @@ const handleIssueCertification = async (email, certificateNumber, name, courseNa
               qrCodeData = urlLink;
             }
 
-            const qrCodeImage = await QRCode.toDataURL(qrCodeData, {
+            if (urlLink) {
+              var dbStatus = await isDBConnected();
+              if (dbStatus) {
+                var urlData = {
+                  email: email,
+                  certificateNumber: certificateNumber,
+                  url: urlLink
+                }
+                await insertUrlData(urlData);
+                shortUrlStatus = true;
+              }
+            }
+
+            if (shortUrlStatus == true) {
+              var modifiedUrl = process.env.SHORT_URL + certificateNumber;
+            }
+
+            var _qrCodeData = modifiedUrl != false ? modifiedUrl : qrCodeData;
+            // console.log("Short URL", _qrCodeData);
+
+            const qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
               errorCorrectionLevel: "H",
               width: 450, // Adjust the width as needed
               height: 450, // Adjust the height as needed
@@ -261,7 +294,7 @@ const handleIssueCertification = async (email, certificateNumber, name, courseNa
 
 };
 
-const handleIssuePdfQrCertification = async (email, certificateNumber, name, courseName, _grantDate, _expirationDate, _pdfPath, _imageFormat) => {
+const handleIssuePdfQrCertification = async (email, certificateNumber, name, courseName, _grantDate, _expirationDate, _pdfPath) => {
   const pdfPath = _pdfPath;
   const grantDate = await convertDateFormat(_grantDate);
   const expirationDate = await convertDateFormat(_expirationDate);
@@ -324,10 +357,12 @@ const handleIssuePdfQrCertification = async (email, certificateNumber, name, cou
     ) {
       // res.status(400).json({ message: "Please provide valid details" });
       let errorMessage = messageCode.msgPlsEnterValid;
-
+      var moreDetails = '';
       // Check for specific error conditions and update the error message accordingly
       if (isIssueExist) {
         errorMessage = messageCode.msgCertIssued;
+        var _certStatus = await getCertificationStatus(isIssueExist.certificateStatus);
+        moreDetails = { certificateNumber: isIssueExist.certificateNumber, expirationDate: isIssueExist.expirationDate, certificateStatus: _certStatus };
       } else if (!grantDate || !expirationDate) {
         errorMessage = messageCode.msgProvideValidDates;
       } else if (!certificateNumber) {
@@ -346,8 +381,14 @@ const handleIssuePdfQrCertification = async (email, certificateNumber, name, cou
       }
 
       // Respond with error message
-      return ({ code: 400, status: "FAILED", message: errorMessage });
+      return ({ code: 400, status: "FAILED", message: errorMessage, details: moreDetails });
     } else {
+      if (expirationDate != 1) {
+        if (expirationDate == grantDate) {
+          // Respond with error message
+          return ({ code: 400, status: "FAILED", message: `${messageCode.msgDatesMustNotSame} : ${grantDate}, ${expirationDate}` });
+        }
+      }
       // If validation passes, proceed with certificate issuance
       const fields = {
         Certificate_Number: certificateNumber,
@@ -379,12 +420,15 @@ const handleIssuePdfQrCertification = async (email, certificateNumber, name, cou
         ) {
           // Certificate already issued / contract paused
           var messageContent = messageCode.msgCertIssued;
+          var modifiedDate = val[1] == 1 ? 'infinite expiration' : await convertEpochToDate(val[1]);
+          var _certificateStatus = await getCertificationStatus(val[3]);
+          var moreDetails = val[0] === true ? { certificateNumber: certificateNumber, expirationDate: modifiedDate, certificateStatus: _certificateStatus } : "";
           if (isPaused === true) {
             messageContent = messageCode.msgOpsRestricted;
           } else if (issuerAuthorized === false) {
             messageContent = messageCode.msgIssuerUnauthrized;
           }
-          return ({ code: 400, status: "FAILED", message: messageContent });
+          return ({ code: 400, status: "FAILED", message: messageContent, details: moreDetails });
         }
       } catch (error) {
         // Handle mongoose connection error (log it, response an error, etc.)
@@ -397,62 +441,66 @@ const handleIssuePdfQrCertification = async (email, certificateNumber, name, cou
         return ({ code: 400, status: false, message: messageCode.msgFailedToIssueAfterRetry, details: certificateNumber });
       }
 
-      // Generate encrypted URL with certificate data
-      const dataWithLink = {
-        ...fields, polygonLink: polygonLink
-      }
-      const urlLink = await generateEncryptedUrl(dataWithLink);
-      const legacyQR = false;
+      try {
+        // Generate encrypted URL with certificate data
+        const dataWithLink = {
+          ...fields, polygonLink: polygonLink
+        }
+        const urlLink = await generateEncryptedUrl(dataWithLink);
+        const legacyQR = false;
 
-      let qrCodeData = '';
-      if (legacyQR) {
-        // Include additional data in QR code
-        qrCodeData = `Verify On Blockchain: ${polygonLink},
+        let qrCodeData = '';
+        if (legacyQR) {
+          // Include additional data in QR code
+          qrCodeData = `Verify On Blockchain: ${polygonLink},
             Certification Number: ${dataWithLink.Certificate_Number},
             Name: ${dataWithLink.name},
             Certification Name: ${dataWithLink.courseName},
             Grant Date: ${dataWithLink.Grant_Date},
             Expiration Date: ${dataWithLink.Expiration_Date}`;
-      } else {
-        // Directly include the URL in QR code
-        qrCodeData = urlLink;
-      }
-
-      if (urlLink) {
-        var dbStatus = await isDBConnected();
-        if (dbStatus) {
-          var urlData = {
-            email: email,
-            certificateNumber: certificateNumber,
-            url: urlLink
-          }
-          await insertUrlData(urlData);
-          shortUrlStatus = true;
+        } else {
+          // Directly include the URL in QR code
+          qrCodeData = urlLink;
         }
+
+        if (urlLink) {
+          var dbStatus = await isDBConnected();
+          if (dbStatus) {
+            var urlData = {
+              email: email,
+              certificateNumber: certificateNumber,
+              url: urlLink
+            }
+            await insertUrlData(urlData);
+            shortUrlStatus = true;
+          }
+        }
+
+        if (shortUrlStatus == true) {
+          modifiedUrl = process.env.SHORT_URL + certificateNumber;
+        }
+
+        var _qrCodeData = modifiedUrl != false ? modifiedUrl : qrCodeData;
+        // console.log("Short URL", _qrCodeData);
+
+        const qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
+          errorCorrectionLevel: "H", width: 450, height: 450
+        });
+
+        file = pdfPath;
+        var outputPdf = `${fields.Certificate_Number}${name}.pdf`;
+
+        // Add link and QR code to the PDF file
+        const opdf = await addLinkToPdf(
+          path.join("./", '.', file),
+          outputPdf,
+          polygonLink,
+          qrCodeImage,
+          combinedHash
+        );
+      } catch (error) {
+        return ({ code: 400, status: "FAILED", message: messageCode.msgPdfError, details: error });
       }
-
-      if (shortUrlStatus == true) {
-        modifiedUrl = process.env.SHORT_URL + certificateNumber;
-      }
-
-      var _qrCodeData = modifiedUrl != false ? modifiedUrl : qrCodeData;
-      // console.log("Short URL", _qrCodeData);
-
-      const qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
-        errorCorrectionLevel: "H", width: 450, height: 450
-      });
-
-      file = pdfPath;
-      const outputPdf = `${fields.Certificate_Number}${name}.pdf`;
-
-      // Add link and QR code to the PDF file
-      const opdf = await addLinkToPdf(
-        path.join("./", '.', file),
-        outputPdf,
-        polygonLink,
-        qrCodeImage,
-        combinedHash
-      );
 
       // Define the directory where you want to save the file
       const uploadDir = path.join(__dirname, '..', '..', 'uploads'); // Go up two directories from __dirname
@@ -465,7 +513,7 @@ const handleIssuePdfQrCertification = async (email, certificateNumber, name, cou
       var imageBuffer = await convertPdfBufferToPng(convertedPath, fileBuffer);
       if (imageBuffer) {
         var imageUrl = await uploadImageToS3(fields.Certificate_Number, convertedPath);
-        if(imageUrl == false){
+        if (imageUrl == false) {
           return ({ code: 400, status: "FAILED", message: messageCode.msgUploadError });
         }
       } else {
@@ -531,7 +579,7 @@ const handleIssuePdfQrCertification = async (email, certificateNumber, name, cou
   }
 };
 
-const handleIssuePdfCertification = async (email, certificateNumber, name, courseName, _grantDate, _expirationDate, _pdfPath, _imageFormat) => {
+const handleIssuePdfCertification = async (email, certificateNumber, name, courseName, _grantDate, _expirationDate, _pdfPath) => {
   const pdfPath = _pdfPath;
   const grantDate = await convertDateFormat(_grantDate);
   const expirationDate = await convertDateFormat(_expirationDate);
@@ -594,10 +642,12 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
     ) {
       // res.status(400).json({ message: "Please provide valid details" });
       let errorMessage = messageCode.msgPlsEnterValid;
-
+      var moreDetails = '';
       // Check for specific error conditions and update the error message accordingly
       if (isIssueExist) {
-        errorMessage = messageCode.msgCertIssued;
+        errorMessage = messageCode.msgCertIssued; 
+        var _certStatus = await getCertificationStatus(isIssueExist.certificateStatus);
+        moreDetails = { certificateNumber: isIssueExist.certificateNumber, expirationDate: isIssueExist.expirationDate, certificateStatus: _certStatus };
       } else if (!grantDate || !expirationDate) {
         errorMessage = messageCode.msgProvideValidDates;
       } else if (!certificateNumber) {
@@ -616,8 +666,14 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
       }
 
       // Respond with error message
-      return ({ code: 400, status: "FAILED", message: errorMessage });
+      return ({ code: 400, status: "FAILED", message: errorMessage, details: moreDetails });
     } else {
+      if (expirationDate != 1) {
+        if (expirationDate == grantDate) {
+          // Respond with error message
+          return ({ code: 400, status: "FAILED", message: `${messageCode.msgDatesMustNotSame} : ${grantDate}, ${expirationDate}` });
+        }
+      }
       // If validation passes, proceed with certificate issuance
       const fields = {
         Certificate_Number: certificateNumber,
@@ -649,12 +705,16 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
         ) {
           // Certificate already issued / contract paused
           var messageContent = messageCode.msgCertIssued;
+          var modifiedDate = val[1] == 1 ? 'infinite expiration' : await convertEpochToDate(val[1]);
+          var _certificateStatus = await getCertificationStatus(val[3]);
+          var moreDetails = val[0] === true ? { certificateNumber: certificateNumber, expirationDate: modifiedDate, certificateStatus: _certificateStatus } : "";
+          
           if (isPaused === true) {
             messageContent = messageCode.msgOpsRestricted;
           } else if (issuerAuthorized === false) {
             messageContent = messageCode.msgIssuerUnauthrized;
           }
-          return ({ code: 400, status: "FAILED", message: messageContent });
+          return ({ code: 400, status: "FAILED", message: messageContent, details: moreDetails });
         }
       } catch (error) {
         // Handle mongoose connection error (log it, response an error, etc.)
@@ -689,7 +749,27 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
           qrCodeData = urlLink;
         }
 
-        const qrCodeImage = await QRCode.toDataURL(qrCodeData, {
+        if (urlLink) {
+          var dbStatus = await isDBConnected();
+          if (dbStatus) {
+            var urlData = {
+              email: email,
+              certificateNumber: certificateNumber,
+              url: urlLink
+            }
+            await insertUrlData(urlData);
+            shortUrlStatus = true;
+          }
+        }
+
+        if (shortUrlStatus == true) {
+          modifiedUrl = process.env.SHORT_URL + certificateNumber;
+        }
+
+        var _qrCodeData = modifiedUrl != false ? modifiedUrl : qrCodeData;
+        // console.log("Short URL", _qrCodeData);
+
+        const qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
           errorCorrectionLevel: "H", width: 450, height: 450
         });
 
@@ -709,23 +789,23 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
         var fileBuffer = fs.readFileSync(outputPdf);
 
       } catch (error) {
-        return ({ code: 400, status: "FAILED", message: messageCode.msgInternalError, details: error });
+        return ({ code: 400, status: "FAILED", message: messageCode.msgPdfError, details: error });
       }
+      
 
       // Define the directory where you want to save the file
       const uploadDir = path.join(__dirname, '..', '..', 'uploads'); // Go up two directories from __dirname
 
-      if (_imageFormat == '1' || _imageFormat == 1) {
-        var imageDestinationPath = `${fields.Certificate_Number}`;
-        var imageCreatedResponse = await createPdfCertificateImage(outputPdf, imageDestinationPath);
-
-        var generatedImage = `${fields.Certificate_Number}-1.png`;
-
-        var convertedPath = path.join(uploadDir, generatedImage);
-        var imageBuffer = fs.readFileSync(convertedPath);
-
+      var generatedImage = `${fields.Certificate_Number}.png`;
+      var convertedPath = path.join(uploadDir, generatedImage);
+      var imageBuffer = await convertPdfBufferToPng(convertedPath, fileBuffer);
+      if (imageBuffer) {
+        var imageUrl = await uploadImageToS3(fields.Certificate_Number, convertedPath);
+        if (imageUrl == false) {
+          return ({ code: 400, status: "FAILED", message: messageCode.msgUploadError });
+        }
       } else {
-        var imageBuffer = null;
+        return ({ code: 400, status: "FAILED", message: messageCode.msgImageError });
       }
 
       try {
@@ -746,14 +826,16 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
           grantDate: fields.Grant_Date,
           expirationDate: fields.Expiration_Date,
           email: email,
-          certStatus: 1
+          certStatus: 1,
+          url: imageUrl,
+          type: 'withpdf',
         };
         await insertCertificateData(certificateData);
 
         // Delete files
-        if (fs.existsSync(generatedImage)) {
+        if (fs.existsSync(convertedPath)) {
           // Delete the specified file
-          fs.unlinkSync(generatedImage);
+          fs.unlinkSync(convertedPath);
         }
 
         // Delete files
@@ -770,7 +852,7 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
         await cleanUploadFolder();
 
         // Set response headers for PDF download
-        return ({ code: 200, file: fileBuffer, image: imageBuffer });
+        return ({ code: 200, file: fileBuffer });
 
       } catch (error) {
         // Handle mongoose connection error (log it, response an error, etc.)
@@ -799,7 +881,7 @@ const issueCertificateWithRetry = async (certificateNumber, certificateHash, exp
 
     var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
 
-    if(!txHash){
+    if (!txHash) {
       return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain });
     }
 
@@ -879,10 +961,10 @@ const uploadImageToS3 = async (certNumber, imagePath) => {
     Body: fileStream
   };
 
-  try{
+  try {
     const urlData = await s3.upload(uploadParams).promise();
     return urlData.Location;
-  } catch(error){
+  } catch (error) {
     console.error("Internal server error", error);
     return false;
   }

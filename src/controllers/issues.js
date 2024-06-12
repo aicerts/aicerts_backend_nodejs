@@ -31,6 +31,7 @@ const {
   calculateHash, // Function to calculate the hash of a file
   cleanUploadFolder, // Function to clean up the upload folder
   isDBConnected, // Function to check if the database connection is established
+  insertUrlData,
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
 const { handleExcelFile } = require('../services/handleExcel');
@@ -88,7 +89,6 @@ const issuePdf = async (req, res) => {
     const certificateNumber = req.body.certificateNumber;
     const name = req.body.name;
     const courseName = req.body.course;
-    const outputFileFormat = req.body.type || null;
     var _grantDate = await convertDateFormat(req.body.grantDate);
 
     if (_grantDate == "1" || _grantDate == null || _grantDate == "string") {
@@ -106,24 +106,9 @@ const issuePdf = async (req, res) => {
       return;
     }
 
-    const issueResponse = await handleIssuePdfCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate, req.file.path, outputFileFormat);
+    const issueResponse = await handleIssuePdfCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate, req.file.path);
     var responseDetails = issueResponse.details ? issueResponse.details : '';
     if (issueResponse.code == 200) {
-
-      if (outputFileFormat == '1' || outputFileFormat == 1) {
-        // Set response headers for PNG to download
-        var certificateName = `${certificateNumber}.png`;
-
-        res.set({
-          'Content-Type': "application/png",
-          'Content-Disposition': `attachment; filename="${certificateName}"`, // Change filename as needed
-        });
-        // console.log("the response size", (issueResponse.image).length);
-        // Send Image file
-        res.send(issueResponse.image);
-        return;
-
-      }
 
       // Set response headers for PDF to download
       var certificateName = `${certificateNumber}_certificate.pdf`;
@@ -166,7 +151,6 @@ const issuePdfQr = async (req, res) => {
     const certificateNumber = req.body.certificateNumber;
     const name = req.body.name;
     const courseName = req.body.course;
-    const outputFileFormat = req.body.type || null;
     var _grantDate = await convertDateFormat(req.body.grantDate);
 
     if (_grantDate == "1" || _grantDate == null || _grantDate == "string") {
@@ -184,7 +168,7 @@ const issuePdfQr = async (req, res) => {
       return;
     }
 
-    const issueResponse = await handleIssuePdfQrCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate, req.file.path, outputFileFormat);
+    const issueResponse = await handleIssuePdfQrCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate, req.file.path);
     var responseDetails = issueResponse.details ? issueResponse.details : '';
     if (issueResponse.code == 200) {
 
@@ -437,7 +421,27 @@ const batchIssueCertificate = async (req, res) => {
 
               let encryptLink = await generateEncryptedUrl(_fields);
 
-              let qrCodeImage = await QRCode.toDataURL(encryptLink, {
+              if (encryptLink) {
+                var _dbStatus = await isDBConnected();
+                if (_dbStatus) {
+                  var urlData = {
+                    email: email,
+                    certificateNumber: rawBatchData[i].certificationID,
+                    url: encryptLink
+                  }
+                  await insertUrlData(urlData);
+                  shortUrlStatus = true;
+                }
+              }
+      
+              if (shortUrlStatus == true) {
+                modifiedUrl = process.env.SHORT_URL + rawBatchData[i].certificationID;
+              }
+      
+              var _qrCodeData = modifiedUrl != false ? modifiedUrl : encryptLink;
+              // console.log("Short URL", _qrCodeData);
+
+              let qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
                 errorCorrectionLevel: "H",
                 width: 450, // Adjust the width as needed
                 height: 450, // Adjust the height as needed
