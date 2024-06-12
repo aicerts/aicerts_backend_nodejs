@@ -338,11 +338,11 @@ const insertCertificateData = async (data) => {
     const updateIssuerLog = await insertIssueStatus(data);
 
     const idExist = await User.findOne({ issuerId: data.issuerId });
-
     // If user with given id exists, update certificatesIssued count
     const previousCount = idExist.certificatesIssued || 0; // Initialize to 0 if certificatesIssued field doesn't exist
     idExist.certificatesIssued = previousCount + 1;
     await idExist.save(); // Save the changes to the existing user
+    
 
     // Logging confirmation message
     console.log("Certificate data inserted");
