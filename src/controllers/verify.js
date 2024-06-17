@@ -473,9 +473,9 @@ const decodeQRScan = async (req, res) => {
           // console.log(certificationNumber, isUrlExist);
 
           if (isUrlExist) {
-            // console.log("The original url", isUrlExist.url);
+            console.log("The original url", isUrlExist.url);
             responseUrl = isUrlExist.url;
-            if (responseUrl && responseUrl.startsWith(process.env.START_URL)) {
+            if (responseUrl && responseUrl.startsWith(process.env.START_VERIFY_URL)) {
               var [decodeResponse, originalUrl] = await extractCertificateInfo(responseUrl);
             } else {
               return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidUrl });

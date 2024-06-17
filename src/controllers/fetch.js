@@ -469,11 +469,11 @@ const fetchIssuesLogDetails = async (req, res) => {
           var _queryResponse = [...queryResponse1, ...queryResponse2];
           // Sort the data based on the 'issueDate' date in descending order
           _queryResponse.sort((a, b) => new Date(b.issueDate) - new Date(a.issueDate));
-          
-          for(var item6 of _queryResponse){
+
+          for (var item6 of _queryResponse) {
             var certificateNumber = item6.certificateNumber;
             const issueStatus6 = await IssueStatus.findOne({ certificateNumber });
-            if(issueStatus6){
+            if (issueStatus6) {
               // Push the matching issue status into filteredResponse
               filteredResponse6.push(item6);
             }
@@ -534,10 +534,10 @@ const fetchIssuesLogDetails = async (req, res) => {
           // Sort the data based on the 'expirationDate' date in descending order
           queryResponse.sort((a, b) => new Date(a.expirationDate) - new Date(b.expirationDate));
 
-          for(var item8 of queryResponse){
+          for (var item8 of queryResponse) {
             var certificateNumber = item8.certificateNumber;
             const issueStatus8 = await IssueStatus.findOne({ certificateNumber });
-            if(issueStatus8){
+            if (issueStatus8) {
               // Push the matching issue status into filteredResponse
               filteredResponse8.push(item8);
             }

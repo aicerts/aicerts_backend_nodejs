@@ -48,7 +48,7 @@ const __upload = multer({dest: "../../uploads/"});
  *                   example: An error occurred while fetching user details
  */
 
-router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers);
+router.get('/get-all-issuers', ensureAuthenticated, adminController.getAllIssuers);
 
 /**
  * @swagger

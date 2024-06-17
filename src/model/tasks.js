@@ -492,7 +492,7 @@ const verificationLogEntry = async (verificationData) => {
 
 // Function to extract certificate information from a QR code text
 const extractCertificateInfo = async (qrCodeText) => {
-  // console.log("QR Code Text", qrCodeText);
+  console.log("QR Code Text", qrCodeText);
   var _qrCodeText = qrCodeText;
   var urlData = null;
   // Check if the data starts with 'http://' or 'https://'
@@ -503,12 +503,12 @@ const extractCertificateInfo = async (qrCodeText) => {
       const parsedUrl = new URL(qrCodeText);
       // Extract the query parameter
       var certificationNumber = parsedUrl.searchParams.get('');
-      // console.log("data in url", parsedUrl, certificationNumber);
+      console.log("data in url", parsedUrl, certificationNumber);
       var dbStatus = await isDBConnected();
       if(dbStatus){
         var isUrlExist = await ShortUrl.findOne({ certificateNumber: certificationNumber });
         if(isUrlExist){
-          // console.log("The original", isUrlExist.url);
+          console.log("The original", isUrlExist.url);
           _qrCodeText = isUrlExist.url;
         }
       }
