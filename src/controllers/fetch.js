@@ -797,6 +797,24 @@ const fetchGraphStatusDetails = async (req, res) => {
     return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
   }
 };
+/**
+ * Api to fetch Organtization details
+ * 
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
+const getOrganizationDetails = async (req, res) => {
+  try {
+    const organizations = await User.find({}, 'organization'); // Only select the 'organization' field
+    res.json({
+      status: "SUCCESS",
+      message: messageCode.msgOrganizationFetched,
+      data: organizations.map(user => user.organization),
+    });
+  } catch (err) {
+    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+  }
+}
 
 const getMonthAggregatedCertsDetails = async (data, month, year) => {
 
@@ -1128,6 +1146,8 @@ module.exports = {
   uploadCertificateToS3,
   getSingleCertificates,
   getBatchCertificates,
-  getBatchCertificateDates
+  getBatchCertificateDates,
+
+  getOrganizationDetails
 
 };

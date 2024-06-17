@@ -837,5 +837,6 @@ router.post('/get-batch-certificates', adminController.getBatchCertificates);
 
 router.post('/get-batch-certificate-dates', adminController.getBatchCertificateDates);
 
+router.get('/get-organization-details', adminController.getOrganizationDetails)
 
 module.exports=router;
