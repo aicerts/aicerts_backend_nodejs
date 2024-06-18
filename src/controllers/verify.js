@@ -117,6 +117,23 @@ const verify = async (req, res) => {
         return;
       }
 
+      if (singleIssueExist.certificateStatus == 6) {
+
+        var dbStatus = await isDBConnected();
+
+        certificateData.url = originalUrl;
+
+        res.status(200).json({
+          status: "SUCCESS",
+          message: "Certification is valid",
+          Details: certificateData
+        });
+        if (fs.existsSync(file)) {
+          fs.unlinkSync(file);
+        }
+        return;
+      }
+
       if (certificateData['Expiration Date'] == '1') {
 
         verifyLog.issuerId = singleIssueExist.issuerId;
@@ -673,14 +690,36 @@ const verifyCertificationId = async (req, res) => {
         issuerId: singleIssueExist.issuerId,
         course: singleIssueExist.course
       };
-
       if (singleIssueExist.certificateStatus == 3) {
         return res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
       }
+
+      if (singleIssueExist.certificateStatus == 6) {
+        var _polygonLink = `https://${process.env.NETWORK}/tx/${singleIssueExist.transactionHash}`;
+
+          var completeResponse = {
+            'Certificate Number': singleIssueExist.certificateNumber,
+            'Name': singleIssueExist.name,
+            'Course Name': singleIssueExist.course,
+            'Grant Date': singleIssueExist.grantDate,
+            'Expiration Date': singleIssueExist.expirationDate,
+            'Polygon URL': _polygonLink
+          };
+
+          if (urlIssueExist) {
+            completeResponse.url = urlIssueExist.url;
+          } else {
+            completeResponse.url = null;
+          }
+
+          res.status(200).json({
+            status: "SUCCESS",
+            message: "Certification is valid",
+            details: completeResponse
+          });
+          return;
+      }
       try {
-        // Blockchain processing.
-        // const verifyCert = await newContract.verifyCertificateById(inputId);
-        // const _certStatus = await newContract.getCertificateStatus(inputId);
 
         if (singleIssueExist.expirationDate == '1') {
           var _polygonLink = `https://${process.env.NETWORK}/tx/${singleIssueExist.transactionHash}`;
@@ -709,8 +748,6 @@ const verifyCertificationId = async (req, res) => {
             message: "Certification is valid",
             details: completeResponse
           });
-          // Clean up the upload folder
-          await cleanUploadFolder();
           return;
         }
         try {
@@ -779,7 +816,6 @@ const verifyCertificationId = async (req, res) => {
         issuerId: batchIssueExist.issuerId,
         course: batchIssueExist.course
       };
-
       if (batchIssueExist.certificateStatus == 3) {
         return res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
       }
