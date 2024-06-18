@@ -673,7 +673,6 @@ const verifyCertificationId = async (req, res) => {
         issuerId: singleIssueExist.issuerId,
         course: singleIssueExist.course
       };
-
       if (singleIssueExist.certificateStatus == 3) {
         return res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
       }
@@ -779,7 +778,6 @@ const verifyCertificationId = async (req, res) => {
         issuerId: batchIssueExist.issuerId,
         course: batchIssueExist.course
       };
-
       if (batchIssueExist.certificateStatus == 3) {
         return res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
       }
