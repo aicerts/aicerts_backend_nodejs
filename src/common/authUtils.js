@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 
 function generateJwtToken(response) {
-    const expiresInMinutes = 60;
+    const expiresInMinutes = 2;
     const claims = {
       userType:"Admin",
     };
