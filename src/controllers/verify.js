@@ -516,7 +516,7 @@ const decodeQRScan = async (req, res) => {
         return res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, Details: verificationResponse });
       }
 
-      var [extractQRData, encodedUrl] = await extractCertificateInfo(reponseUrl);
+      var [extractQRData, encodedUrl] = await extractCertificateInfo(receivedCode);
       if (extractQRData) {
         try {
           var dbStatus = await isDBConnected();
