@@ -473,7 +473,7 @@ const decodeQRScan = async (req, res) => {
 
     // } else 
 
-    if (receivedCode.startsWith(process.env.START_URL)) {
+    if (receivedCode.startsWith(process.env.START_URL) ) {
       var urlSize = receivedCode.length;
       if (urlSize < urlLimit) {
         // Parse the URL
@@ -498,11 +498,12 @@ const decodeQRScan = async (req, res) => {
               return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidUrl });
             }
           }
-
+          console.log("test1")
           var isUserExist = await User.findOne({email: isUrlExist.email});
           var getIssuerId = isUserExist != null ? isUserExist.issuerId : 'default';
 
           var verificationResponse = decodeResponse != false ? decodeResponse : "";
+          console.log("test2")
 
         } catch (error) {
           return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, error: error });
@@ -517,11 +518,14 @@ const decodeQRScan = async (req, res) => {
       }
 
       var [extractQRData, encodedUrl] = await extractCertificateInfo(receivedCode);
+      console.log(extractQRData, encodedUrl,"qr")
       if (extractQRData) {
         try {
           var dbStatus = await isDBConnected();
           if (dbStatus) {
             var getCertificationInfo = await isCertificationIdExisted(extractQRData['Certificate Number']);
+      console.log(getCertificationInfo,"db Info")
+
             if (getCertificationInfo) {
               var formatCertificationStatus = parseInt(getCertificationInfo.certificateStatus);
               if (formatCertificationStatus && formatCertificationStatus == 3) {
@@ -539,7 +543,81 @@ const decodeQRScan = async (req, res) => {
       }
       return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
 
-    } else if (receivedCode.startsWith(process.env.START_LMS)) {
+    } else if (receivedCode.startsWith(process.env.START_VERIFY_URL)) {
+      var urlSize = receivedCode.length;
+      if (urlSize < urlLimit) {
+        // Parse the URL
+        const parsedUrl = new URL(receivedCode);
+        // Extract the query parameter
+        const certificationNumber = parsedUrl.searchParams.get('');
+        try {
+          var dbStatus = await isDBConnected();
+
+          // var isCertExist = await isCertificationIdExisted(certificationNumber);
+
+          var isUrlExist = await ShortUrl.findOne({ certificateNumber: certificationNumber })
+
+          // console.log(certificationNumber, isUrlExist);
+
+          if (isUrlExist) {
+            console.log("The original url", isUrlExist.url);
+            responseUrl = isUrlExist.url;
+            if (responseUrl && responseUrl.startsWith(process.env.START_VERIFY_URL)) {
+              var [decodeResponse, originalUrl] = await extractCertificateInfo(responseUrl);
+            } else {
+              return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidUrl });
+            }
+          }
+          console.log("test1")
+          var isUserExist = await User.findOne({email: isUrlExist.email});
+          var getIssuerId = isUserExist != null ? isUserExist.issuerId : 'default';
+
+          var verificationResponse = decodeResponse != false ? decodeResponse : "";
+          console.log("test2")
+
+        } catch (error) {
+          return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, error: error });
+        }
+        verificationResponse.url = originalUrl;
+        var verifyLog = {
+          issuerId: getIssuerId,
+          course: verificationResponse["Course Name"],
+        };
+        await verificationLogEntry(verifyLog);
+        // return res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, Details: verificationResponse });
+      }
+      console.log("test4")
+
+      // var [extractQRData, encodedUrl] = await extractCertificateInfo(receivedCode);
+      // console.log(extractQRData, encodedUrl,"qr")
+      if (true) {
+        try {
+          var dbStatus = await isDBConnected();
+          if (dbStatus) {
+            var getCertificationInfo = await isCertificationIdExisted(verificationResponse['Certificate Number']);
+      console.log(getCertificationInfo,"db Info")
+
+            if (getCertificationInfo) {
+              var formatCertificationStatus = parseInt(getCertificationInfo.certificateStatus);
+              console.log(formatCertificationStatus)
+              if (formatCertificationStatus && formatCertificationStatus == 3) {
+                return res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
+              }
+            }
+          }
+        } catch (error) {
+          return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+        }
+        extractQRData.url = encodedUrl;
+        // console.log("The received data", receivedCode, extractQRData); // log the response
+        res.status(200).json({ status: "PASSED", message: messageCode.msgCertValid, Details: extractQRData });
+        return;
+      }
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
+
+    }
+    
+    else if (receivedCode.startsWith(process.env.START_LMS)) {
 
       var [extractQRData, decodedUrl] = await extractCertificateInfo(receivedCode);
       if (extractQRData) {
@@ -557,6 +635,7 @@ const decodeQRScan = async (req, res) => {
       return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
 
     } else {
+      console.log("inn here")
       return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
     }
   } catch (error) {
