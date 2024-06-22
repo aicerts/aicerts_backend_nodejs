@@ -329,7 +329,13 @@ const insertCertificateData = async (data) => {
       certificateStatus: data.certStatus,
       url: data.url || '',
       type: data.type || '',
-      issueDate: Date.now() // Set the issue date to the current timestamp
+      issueDate: Date.now(), // Set the issue date to the current timestamp
+      templateUrl: data.templateUrl,
+      signatureUrl: data.signatureUrl,
+      badgeUrl: data.badgeUrl,
+      issuerName: data.issuerName,
+      issuerDesignation:data.issuerDesignation,
+      logoUrl:data.logoUrl
     });
 
     // Save the new Issues document to the database
@@ -369,7 +375,13 @@ const insertBatchCertificateData = async (data) => {
       grantDate: data.grantDate,
       expirationDate: data.expirationDate,
       certificateStatus: data.certStatus,
-      issueDate: Date.now()
+      issueDate: Date.now(),
+      templateUrl: data.templateUrl,
+      signatureUrl: data.signatureUrl,
+      badgeUrl: data.badgeUrl,
+      issuerName: data.issuerName,
+      issuerDesignation:data.issuerDesignation,
+      logoUrl:data.logoUrl
     });
 
     const result = await newBatchIssue.save();

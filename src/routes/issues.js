@@ -56,6 +56,27 @@ const storage = multer.diskStorage({
  *               expirationDate:
  *                 type: string
  *                 description: The expiration date of the certificate.
+ *                templateUrl:
+ *                 type: string
+ *                 description: The templateUrl of the certificate.
+ *                logoUrl:
+ *                 type: string
+ *                 description: The logoUrl of the certificate.
+ *                logoUrl:
+ *                 type: string
+ *                 description: The logoUrl of the certificate.
+ *               signatureUrl:
+ *                 type: string
+ *                 description: The signatureUrl of the certificate.
+ *               badgeUrl:
+ *                 type: string
+ *                 description: The badgeUrl of the certificate.
+ *               issuerName:
+ *                 type: string
+ *                 description: The issuerName of the certificate.
+ *               issuerDesignation:
+ *                 type: string
+ *                 description: The issuerDesignation of the certificate.
  *             required:
  *               - email
  *               - certificateNumber
@@ -162,6 +183,21 @@ router.post('/issue', validationRoute.issue, ensureAuthenticated, adminControlle
  *               expirationDate:
  *                 type: string
  *                 description: The expiration date of the certificate.
+ *               logoUrl:
+ *                 type: string
+ *                 description: The logoUrl of the certificate.
+ *               signatureUrl:
+ *                 type: string
+ *                 description: The signatureUrl of the certificate.
+ *               badgeUrl:
+ *                 type: string
+ *                 description: The badgeUrl of the certificate.
+ *               issuerName:
+ *                 type: string
+ *                 description: The issuerName of the certificate.
+ *               issuerDesignation:
+ *                 type: string
+ *                 description: The issuerDesignation of the certificate.
  *               file:
  *                 type: string
  *                 format: binary
@@ -233,7 +269,7 @@ router.post('/issue', validationRoute.issue, ensureAuthenticated, adminControlle
  *               message: Internal Server Error.
  */
 
-router.post('/issue-pdf', _upload.single("file"), ensureAuthenticated, adminController.issuePdf);
+router.post('/issue-pdf', _upload.single("file"), adminController.issuePdf);
 
 /**
  * @swagger
@@ -268,6 +304,24 @@ router.post('/issue-pdf', _upload.single("file"), ensureAuthenticated, adminCont
  *               expirationDate:
  *                 type: string
  *                 description: The expiration date of the certificate.
+ *               templateUrl:
+ *                 type: string
+ *                 description: The templateUrl of the certificate.
+ *               logoUrl:
+ *                 type: string
+ *                 description: The logoUrl of the certificate.
+ *               signatureUrl:
+ *                 type: string
+ *                 description: The signatureUrl of the certificate.
+ *               badgeUrl:
+ *                 type: string
+ *                 description: The badgeUrl of the certificate.
+ *               issuerName:
+ *                 type: string
+ *                 description: The issuerName of the certificate.
+ *               issuerDesignation:
+ *                 type: string
+ *                 description: The issuerDesignation of the certificate.
  *               file:
  *                 type: string
  *                 format: binary
@@ -359,6 +413,24 @@ router.post('/issue-pdf-qr', _upload.single("file"), adminController.issuePdfQr)
  *                 type: string
  *                 format: binary
  *                 description: Excel file to be uploaded. Must not be blank.
+ *                 templateUrl:
+ *                 type: string
+ *                 description: The templateUrl of the certificate.
+ *                 logoUrl:
+ *                 type: string
+ *                 description: The logoUrl of the certificate.
+ *               signatureUrl:
+ *                 type: string
+ *                 description: The signatureUrl of the certificate.
+ *               badgeUrl:
+ *                 type: string
+ *                 description: The badgeUrl of the certificate.
+ *               issuerName:
+ *                 type: string
+ *                 description: The issuerName of the certificate.
+ *               issuerDesignation:
+ *                 type: string
+ *                 description: The issuerDesignation of the certificate.
  *             required:
  *               - email
  *               - excelFile

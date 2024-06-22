@@ -31,7 +31,9 @@ const UserSchema = new Schema({
   username: { type: String, unique: true },
   rejectedDate: { type: Date, default: null },
   certificatesIssued: { type: Number },
-  certificatesRenewed: { type: Number }
+  certificatesRenewed: { type: Number },
+ 
+
 });
 
 // Batch Issues Schema
@@ -49,7 +51,14 @@ const BatchIssuesSchema = new Schema({
     expirationDate: { type: String, required: true },
     certificateStatus: { type: Number, default: 1 },
     issueDate: { type: Date, default: Date.now },
-    url:{ type: String}
+    url:{ type: String},
+    templateUrl: { type:String },
+    logoUrl: { type:String },
+    signatureUrl: { type:String },
+    badgeUrl: { type:String },
+    issuerName: { type:String },
+    issuerDesignation: { type:String }
+    
 });
 
 // Define the schema for the Issues model
@@ -65,7 +74,13 @@ const IssuesSchema = new mongoose.Schema({
   certificateStatus: { type: Number, required: true, default: 1 },
   issueDate: { type: Date, default: Date.now } ,// issueDate field is of type Date and defaults to the current date/time
   url:{ type: String},
-  type:{type: String}
+  type:{type: String},
+  templateUrl: { type:String },
+  logoUrl: { type:String }, 
+  signatureUrl: { type:String },
+  badgeUrl: { type:String },
+  issuerName: { type:String },
+  issuerDesignation: { type:String },
 });
 
 // Define the schema for the IssueStatus model

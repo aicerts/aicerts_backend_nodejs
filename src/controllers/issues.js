@@ -89,6 +89,13 @@ const issuePdf = async (req, res) => {
     const certificateNumber = req.body.certificateNumber;
     const name = req.body.name;
     const courseName = req.body.course;
+    const templateUrl= req.body.templateUrl;
+    const logoUrl= req.body.logo;
+    const signatureUrl= req.body.signatureUrl;
+    const badgeUrl= req.body.badgeUrl;
+    const issuerName= req.body.issuerName;
+    const issuerDesignation=req.body.issuerDesignation;
+
     var _grantDate = await convertDateFormat(req.body.grantDate);
 
     if (_grantDate == "1" || _grantDate == null || _grantDate == "string") {
@@ -106,7 +113,7 @@ const issuePdf = async (req, res) => {
       return;
     }
 
-    const issueResponse = await handleIssuePdfCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate, req.file.path);
+    const issueResponse = await handleIssuePdfCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate, req.file.path,templateUrl,signatureUrl,badgeUrl,issuerName,issuerDesignation,logoUrl);
     var responseDetails = issueResponse.details ? issueResponse.details : '';
     if (issueResponse.code == 200) {
 
@@ -133,7 +140,7 @@ const issuePdf = async (req, res) => {
 };
 
 const issuePdfQr = async (req, res) => {
-  if (!req.file.path) {
+  if (!req?.file?.path) {
     return res.status(400).json({ status: "FAILED", message: messageCode.msgMustPdf });
   }
 
@@ -150,7 +157,12 @@ const issuePdfQr = async (req, res) => {
     const email = req.body.email;
     const certificateNumber = req.body.certificateNumber;
     const name = req.body.name;
-    const courseName = req.body.course;
+    const templateUrl = req.body.templateUrl;
+    const logoUrl = req.body.logoUrl;
+    const signatureUrl = req.body.signatureUrl;
+    const badgeUrl = req.body.badgeUrl;
+    const issuerName = req.body.issuerName;
+    const issuerDesignation = req.body.issuerDesignation;
     var _grantDate = await convertDateFormat(req.body.grantDate);
 
     if (_grantDate == "1" || _grantDate == null || _grantDate == "string") {
@@ -168,7 +180,7 @@ const issuePdfQr = async (req, res) => {
       return;
     }
 
-    const issueResponse = await handleIssuePdfQrCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate, req.file.path);
+    const issueResponse = await handleIssuePdfQrCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate, req.file.path,templateUrl,signatureUrl,badgeUrl,issuerName,issuerDesignation,logoUrl);
     var responseDetails = issueResponse.details ? issueResponse.details : '';
     if (issueResponse.code == 200) {
 
@@ -212,6 +224,12 @@ const issue = async (req, res) => {
     const name = req.body.name;
     const courseName = req.body.course;
     var _grantDate = await convertDateFormat(req.body.grantDate);
+    const templateUrl= req.body.templateUrl;
+    const logoUrl= req.body.logoUrl;
+    const signatureUrl= req.body.signatureUrl;
+    const badgeUrl= req.body.badgeUrl;
+    const issuerName= req.body.issuerName;
+    const issuerDesignation=req.body.issuerDesignation;
 
     if (_grantDate == "1" || _grantDate == null || _grantDate == "string") {
       res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidGrantDate, details: req.body.grantDate });
@@ -228,7 +246,7 @@ const issue = async (req, res) => {
       return;
     }
 
-    const issueResponse = await handleIssueCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate);
+    const issueResponse = await handleIssueCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate,templateUrl,signatureUrl,badgeUrl,issuerName,issuerDesignation,logoUrl);
     var responseDetails = issueResponse.details ? issueResponse.details : '';
     if (issueResponse.code == 200) {
       return res.status(issueResponse.code).json({ status: issueResponse.status, message: issueResponse.message, qrCodeImage: issueResponse.qrCodeImage, polygonLink: issueResponse.polygonLink, details: responseDetails });
@@ -249,6 +267,13 @@ const issue = async (req, res) => {
  */
 const batchIssueCertificate = async (req, res) => {
   const email = req.body.email;
+  const templateUrl= req.body.templateUrl;
+  const logoUrl= req.body.logoUrl;
+    const signatureUrl= req.body.signatureUrl;
+    const badgeUrl= req.body.badgeUrl;
+    const issuerName= req.body.issuerName;
+    const issuerDesignation=req.body.issuerDesignation;
+
   // Check if the file path matches the pattern
   if (req.file.mimetype != fileType) {
     // File path does not match the pattern
@@ -407,7 +432,13 @@ const batchIssueCertificate = async (req, res) => {
                 grantDate: _grantDate,
                 expirationDate: _expirationDate,
                 email: email,
-                certStatus: 1
+                certStatus: 1,
+                templateUrl: templateUrl,
+          signatureUrl: signatureUrl,
+          badgeUrl: badgeUrl,
+          issuerName: issuerName,
+          issuerDesignation:issuerDesignation,
+          logoUrl:logoUrl
               }
 
               let _fields = {
@@ -457,7 +488,13 @@ const batchIssueCertificate = async (req, res) => {
                 course: rawBatchData[i].certificationName,
                 grantDate: _grantDate,
                 expirationDate: _expirationDate,
-                qrImage: qrCodeImage
+                qrImage: qrCodeImage,
+                templateUrl: templateUrl,
+          signatureUrl: signatureUrl,
+          badgeUrl: badgeUrl,
+          issuerName: issuerName,
+          issuerDesignation:issuerDesignation,
+          logoUrl:logoUrl
               }
 
               // console.log("Batch Certificate Details", batchDetailsWithQR[i]);

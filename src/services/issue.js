@@ -61,7 +61,7 @@ const max_length = parseInt(process.env.MAX_LENGTH);
 
 var messageCode = require("../common/codes");
 
-const handleIssueCertification = async (email, certificateNumber, name, courseName, _grantDate, _expirationDate) => {
+const handleIssueCertification = async (email, certificateNumber, name, courseName, _grantDate, _expirationDate,templateUrl,signatureUrl,badgeUrl,issuerName,issuerDesignation,logoUrl) => {
   const grantDate = await convertDateFormat(_grantDate);
   const expirationDate = await convertDateFormat(_expirationDate);
   // Get today's date
@@ -253,7 +253,13 @@ const handleIssueCertification = async (email, certificateNumber, name, courseNa
                 grantDate: fields.Grant_Date,
                 expirationDate: fields.Expiration_Date,
                 email: email,
-                certStatus: 1
+                certStatus: 1,
+                templateUrl: templateUrl,
+                signatureUrl: signatureUrl,
+                badgeUrl: badgeUrl,
+                issuerName: issuerName,
+                issuerDesignation:issuerDesignation,
+                logoUrl:logoUrl
               };
               // Insert certificate data into database
               await insertCertificateData(certificateData);
@@ -294,7 +300,7 @@ const handleIssueCertification = async (email, certificateNumber, name, courseNa
 
 };
 
-const handleIssuePdfQrCertification = async (email, certificateNumber, name, courseName, _grantDate, _expirationDate, _pdfPath) => {
+const handleIssuePdfQrCertification = async (email, certificateNumber, name, courseName, _grantDate, _expirationDate, _pdfPath,templateUrl,signatureUrl,badgeUrl,issuerName,issuerDesignation,logoUrl) => {
   const pdfPath = _pdfPath;
   const grantDate = await convertDateFormat(_grantDate);
   const expirationDate = await convertDateFormat(_expirationDate);
@@ -541,6 +547,12 @@ const handleIssuePdfQrCertification = async (email, certificateNumber, name, cou
           certStatus: 1,
           url: imageUrl,
           type: 'withpdf',
+          templateUrl: templateUrl,
+          signatureUrl: signatureUrl,
+          badgeUrl: badgeUrl,
+          issuerName: issuerName,
+          issuerDesignation:issuerDesignation,
+          logoUrl:logoUrl
         };
         await insertCertificateData(certificateData);
 
@@ -579,7 +591,7 @@ const handleIssuePdfQrCertification = async (email, certificateNumber, name, cou
   }
 };
 
-const handleIssuePdfCertification = async (email, certificateNumber, name, courseName, _grantDate, _expirationDate, _pdfPath) => {
+const handleIssuePdfCertification = async (email, certificateNumber, name, courseName, _grantDate, _expirationDate, _pdfPath,templateUrl,signatureUrl,badgeUrl,issuerName,issuerDesignation,logoUrl) => {
   const pdfPath = _pdfPath;
   const grantDate = await convertDateFormat(_grantDate);
   const expirationDate = await convertDateFormat(_expirationDate);
@@ -829,6 +841,13 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
           certStatus: 1,
           url: imageUrl,
           type: 'withpdf',
+          templateUrl: templateUrl,
+          signatureUrl: signatureUrl,
+          badgeUrl: badgeUrl,
+          issuerName: issuerName,
+          issuerDesignation:issuerDesignation,
+          logoUrl:logoUrl
+
         };
         await insertCertificateData(certificateData);
 
