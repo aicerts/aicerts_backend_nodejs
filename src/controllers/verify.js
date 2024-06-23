@@ -560,7 +560,7 @@ const decodeQRScan = async (req, res) => {
           // console.log(certificationNumber, isUrlExist);
 
           if (isUrlExist) {
-            console.log("The original url", isUrlExist.url);
+            console.log("The original url", isUrlExist);
             responseUrl = isUrlExist.url;
             if (responseUrl && responseUrl.startsWith(process.env.START_VERIFY_URL)) {
               var [decodeResponse, originalUrl] = await extractCertificateInfo(responseUrl);
@@ -584,16 +584,18 @@ const decodeQRScan = async (req, res) => {
           course: verificationResponse["Course Name"],
         };
         await verificationLogEntry(verifyLog);
+      console.log(verificationResponse,"test4")
+
         // return res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, Details: verificationResponse });
       }
-      console.log("test4")
 
       // var [extractQRData, encodedUrl] = await extractCertificateInfo(receivedCode);
       // console.log(extractQRData, encodedUrl,"qr")
-      if (true) {
+      if (verificationResponse) {
         try {
           var dbStatus = await isDBConnected();
           if (dbStatus) {
+            console.log(verificationResponse['Certificate Number'],"cert Number")
             var getCertificationInfo = await isCertificationIdExisted(verificationResponse['Certificate Number']);
       console.log(getCertificationInfo,"db Info")
 
@@ -608,9 +610,9 @@ const decodeQRScan = async (req, res) => {
         } catch (error) {
           return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
         }
-        extractQRData.url = encodedUrl;
+        // extractQRData.url = encodedUrl;
         // console.log("The received data", receivedCode, extractQRData); // log the response
-        res.status(200).json({ status: "PASSED", message: messageCode.msgCertValid, Details: extractQRData });
+        res.status(200).json({ status: "PASSED", message: messageCode.msgCertValid, Details: getCertificationInfo });
         return;
       }
       return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
