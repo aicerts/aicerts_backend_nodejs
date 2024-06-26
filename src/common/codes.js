@@ -97,6 +97,7 @@ module.exports = {
     msgProvideValidCertStatus : "Please provide valid status",
     msgTypeRestricted: "Please provide valid type input (1, 2 or 3)",
     msgProvideValidType : "Please provide valid type as 1, 2 or 3",
+    msgOrganizationFetched:"Organization details fetched successfully",
 
     // Blockchain route Messages
     msgInvalidInput : "Invalid Input provided",

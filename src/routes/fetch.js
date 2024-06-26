@@ -52,6 +52,48 @@ router.get('/get-all-issuers', ensureAuthenticated, adminController.getAllIssuer
 
 /**
  * @swagger
+ * /api/get-organization-details:
+ *   get:
+ *     summary: Get Organtization details of all issuers
+ *     description: API to fetch Organtization details of all issuers
+ *     tags: [Fetch/Upload]
+ *     responses:
+ *       200:
+ *         description: All Organizations details fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: SUCCESS
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     [Issuers Details]
+ *                 message:
+ *                   type: string
+ *                   example: All organization details fetched successfully
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred while fetching organization details
+ */
+
+router.get('/get-organization-details', adminController.getOrganizationDetails);
+
+/**
+ * @swagger
  * /api/get-issuers-log:
  *   post:
  *     summary: Get details of all issuers log with query code

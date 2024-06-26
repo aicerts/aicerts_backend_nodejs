@@ -13,7 +13,6 @@ const storage = multer.diskStorage({
     },
     filename: (req, file, cb) => {
       // Set the filename based on the Certificate_Number from the request body
-      const Certificate_Number = req.body.Certificate_Number;
       cb(null, file.originalname);
     },
   });
@@ -168,9 +167,6 @@ router.post('/issue', validationRoute.issue, ensureAuthenticated, adminControlle
  *                 description: PDF file to be uploaded.
  *                 x-parser:
  *                   expression: file.originalname.endsWith('.pdf') // Allow only PDF files
- *               type:
- *                 type: integer
- *                 description: The file format of the response certification.
  *             required:
  *               - email
  *               - certificateNumber
@@ -234,109 +230,6 @@ router.post('/issue', validationRoute.issue, ensureAuthenticated, adminControlle
  */
 
 router.post('/issue-pdf', _upload.single("file"), ensureAuthenticated, adminController.issuePdf);
-
-/**
- * @swagger
- * /api/issue-pdf-qr:
- *   post:
- *     summary: API call for issuing certificates with a PDF template with Short URL
- *     description: API call for issuing certificates with Request Data Extraction, Validation Checks, Blockchain Processing, Certificate Issuance, PDF Generation, Database Interaction, Response Handling, PDF Template, QR Code Integration, File Handling, Asynchronous Operation, Cleanup and Response Format.
- *     tags:
- *       - Issue Certification (*Upload pdf)
- *     requestBody:
- *       required: true
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             properties:
- *               email:
- *                 type: string
- *                 description: The issuer email.
- *               certificateNumber:
- *                 type: string
- *                 description: The certificate number.
- *               name:
- *                 type: string
- *                 description: The name associated with the certificate.
- *               course:
- *                 type: string
- *                 description: The course name associated with the certificate.
- *               grantDate:
- *                 type: string
- *                 description: The grant date of the certificate.
- *               expirationDate:
- *                 type: string
- *                 description: The expiration date of the certificate.
- *               file:
- *                 type: string
- *                 format: binary
- *                 description: PDF file to be uploaded.
- *                 x-parser:
- *                   expression: file.originalname.endsWith('.pdf') // Allow only PDF files
- *             required:
- *               - email
- *               - certificateNumber
- *               - name
- *               - course
- *               - grantDate
- *               - file
- *     responses:
- *       '200':
- *         description: Successful certificate issuance in PDF format
- *         content:
- *           application/pdf:
- *             schema:
- *               type: string
- *               format: binary
- *             example:
- *               status: "SUCCESS"
- *               message: PDF file containing the issued certificate.
- *       '400':
- *         description: Certificate already issued or invalid input
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                 message:
- *                   type: string
- *             example:
- *               status: "FAILED"
- *               message: Error message for certificate already issued or invalid input.
- *       '422':
- *         description: User given invalid input (Unprocessable Entity)
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                 message:
- *                   type: string
- *             example:
- *               status: "FAILED"
- *               message: Error message for invalid input.
- *       '500':
- *         description: Internal Server Error
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                 message:
- *                   type: string
- *             example:
- *               status: "FAILED"
- *               message: Internal Server Error.
- */
-
-router.post('/issue-pdf-qr', _upload.single("file"), adminController.issuePdfQr);
 
 /**
  * @swagger
