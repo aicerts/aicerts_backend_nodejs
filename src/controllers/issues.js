@@ -2,6 +2,7 @@
 require('dotenv').config();
 
 // Import required modules
+const crypto = require('crypto'); // Module for cryptographic functions
 const QRCode = require("qrcode");
 const fs = require("fs");
 const _fs = require("fs-extra");
@@ -35,7 +36,7 @@ const {
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
 const { handleExcelFile } = require('../services/handleExcel');
-const { handleIssueCertification, handleIssuePdfCertification, handleIssuePdfQrCertification } = require('../services/issue');
+const { handleIssueCertification, handleIssuePdfCertification } = require('../services/issue');
 
 // Retrieve contract address from environment variable
 const contractAddress = process.env.CONTRACT_ADDRESS;
@@ -56,7 +57,7 @@ const signer = new ethers.Wallet(process.env.PRIVATE_KEY, fallbackProvider);
 // Create a new ethers contract instance with a signing capability (using the contract Address, ABI and signer)
 const newContract = new ethers.Contract(contractAddress, abi, signer);
 
-var messageCode = require("../common/codes");
+const messageCode = require("../common/codes");
 
 // const currentDir = __dirname;
 // const parentDir = path.dirname(path.dirname(currentDir));
@@ -75,8 +76,9 @@ const issuePdf = async (req, res) => {
     return res.status(400).json({ status: "FAILED", message: messageCode.msgMustPdf });
   }
 
-  var fileBuffer = fs.readFileSync(req.file.path);
-  var pdfDoc = await PDFDocument.load(fileBuffer);
+  const fileBuffer = fs.readFileSync(req.file.path);
+  const pdfDoc = await PDFDocument.load(fileBuffer);
+  let _expirationDate;
 
   if (pdfDoc.getPageCount() > 1) {
     // Respond with success status and certificate details
@@ -89,16 +91,16 @@ const issuePdf = async (req, res) => {
     const certificateNumber = req.body.certificateNumber;
     const name = req.body.name;
     const courseName = req.body.course;
-    var _grantDate = await convertDateFormat(req.body.grantDate);
+    const _grantDate = await convertDateFormat(req.body.grantDate);
 
     if (_grantDate == "1" || _grantDate == null || _grantDate == "string") {
       res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidGrantDate, details: req.body.grantDate });
       return;
     }
     if (req.body.expirationDate == 1 || req.body.expirationDate == null || req.body.expirationDate == "string") {
-      var _expirationDate = 1;
+      _expirationDate = 1;
     } else {
-      var _expirationDate = await convertDateFormat(req.body.expirationDate);
+      _expirationDate = await convertDateFormat(req.body.expirationDate);
     }
 
     if (_expirationDate == null) {
@@ -107,73 +109,11 @@ const issuePdf = async (req, res) => {
     }
 
     const issueResponse = await handleIssuePdfCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate, req.file.path);
-    var responseDetails = issueResponse.details ? issueResponse.details : '';
+    const responseDetails = issueResponse.details ? issueResponse.details : '';
     if (issueResponse.code == 200) {
 
       // Set response headers for PDF to download
-      var certificateName = `${certificateNumber}_certificate.pdf`;
-
-      res.set({
-        'Content-Type': "application/pdf",
-        'Content-Disposition': `attachment; filename="${certificateName}"`, // Change filename as needed
-      });
-
-      // Send Pdf file
-      res.send(issueResponse.file);
-      return;
-
-    } else {
-      return res.status(issueResponse.code).json({ status: issueResponse.status, message: issueResponse.message, details: responseDetails });
-    }
-
-  } catch (error) {
-    // Handle any errors that occur during token verification or validation
-    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
-  }
-};
-
-const issuePdfQr = async (req, res) => {
-  if (!req.file.path) {
-    return res.status(400).json({ status: "FAILED", message: messageCode.msgMustPdf });
-  }
-
-  var fileBuffer = fs.readFileSync(req.file.path);
-  var pdfDoc = await PDFDocument.load(fileBuffer);
-
-  if (pdfDoc.getPageCount() > 1) {
-    // Respond with success status and certificate details
-    await cleanUploadFolder();
-    return res.status(400).json({ status: "FAILED", message: messageCode.msgMultiPagePdf });
-  }
-  try {
-    // Extracting required data from the request body
-    const email = req.body.email;
-    const certificateNumber = req.body.certificateNumber;
-    const name = req.body.name;
-    const courseName = req.body.course;
-    var _grantDate = await convertDateFormat(req.body.grantDate);
-
-    if (_grantDate == "1" || _grantDate == null || _grantDate == "string") {
-      res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidGrantDate, details: req.body.grantDate });
-      return;
-    }
-    if (req.body.expirationDate == 1 || req.body.expirationDate == null || req.body.expirationDate == "string") {
-      var _expirationDate = 1;
-    } else {
-      var _expirationDate = await convertDateFormat(req.body.expirationDate);
-    }
-
-    if (_expirationDate == null) {
-      res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidExpirationDate, details: req.body.expirationDate });
-      return;
-    }
-
-    const issueResponse = await handleIssuePdfQrCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate, req.file.path);
-    var responseDetails = issueResponse.details ? issueResponse.details : '';
-    if (issueResponse.code == 200) {
-
-      // Set response headers for PDF to download
-      var certificateName = `${certificateNumber}_certificate.pdf`;
+      const certificateName = `${certificateNumber}_certificate.pdf`;
 
       res.set({
         'Content-Type': "application/pdf",
@@ -201,7 +141,7 @@ const issuePdfQr = async (req, res) => {
  * @param {Object} res - Express response object.
  */
 const issue = async (req, res) => {
-  var validResult = validationResult(req);
+  let validResult = validationResult(req);
   if (!validResult.isEmpty()) {
     return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
@@ -211,16 +151,17 @@ const issue = async (req, res) => {
     const certificateNumber = req.body.certificateNumber;
     const name = req.body.name;
     const courseName = req.body.course;
-    var _grantDate = await convertDateFormat(req.body.grantDate);
+    const _grantDate = await convertDateFormat(req.body.grantDate);
+    let _expirationDate;
 
     if (_grantDate == "1" || _grantDate == null || _grantDate == "string") {
       res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidGrantDate, details: req.body.grantDate });
       return;
     }
     if (req.body.expirationDate == 1 || req.body.expirationDate == null || req.body.expirationDate == "string") {
-      var _expirationDate = 1;
+      _expirationDate = 1;
     } else {
-      var _expirationDate = await convertDateFormat(req.body.expirationDate);
+      _expirationDate = await convertDateFormat(req.body.expirationDate);
     }
 
     if (_expirationDate == null) {
@@ -229,7 +170,7 @@ const issue = async (req, res) => {
     }
 
     const issueResponse = await handleIssueCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate);
-    var responseDetails = issueResponse.details ? issueResponse.details : '';
+    const responseDetails = issueResponse.details ? issueResponse.details : '';
     if (issueResponse.code == 200) {
       return res.status(issueResponse.code).json({ status: issueResponse.status, message: issueResponse.message, qrCodeImage: issueResponse.qrCodeImage, polygonLink: issueResponse.polygonLink, details: responseDetails });
     }
@@ -265,7 +206,7 @@ const batchIssueCertificate = async (req, res) => {
       res.status(400).json({ status: "FAILED", message: messageCode.msgUserNotFound });
       return;
     }
-    var filePath = req.file.path;
+    let filePath = req.file.path;
 
     // Fetch the records from the Excel file
     const excelData = await handleExcelFile(filePath);
@@ -276,18 +217,17 @@ const batchIssueCertificate = async (req, res) => {
       if (
         (!idExist || idExist.status !== 1) || // User does not exist
         // !idExist || 
-        !req.file ||
         !req.file.filename ||
         req.file.filename === 'undefined' ||
         excelData.response === false) {
 
         let errorMessage = messageCode.msgPlsEnterValid;
-        var _details = excelData.Details;
+        let _details = excelData.Details;
         if (!idExist) {
           errorMessage = messageCode.msgInvalidIssuer;
-          var _details = idExist.email;
+          _details = idExist.email;
         }
-        else if (excelData.response == false) {
+        else if (!excelData.response) {
           errorMessage = excelData.message;
         } else if (idExist.status !== 1) {
           errorMessage = messageCode.msgUnauthIssuer;
@@ -297,7 +237,6 @@ const batchIssueCertificate = async (req, res) => {
         return;
 
       } else {
-
 
         // Batch Certification Formated Details
         const rawBatchData = excelData.message[0];
@@ -353,7 +292,7 @@ const batchIssueCertificate = async (req, res) => {
 
           if (isPaused === true || issuerAuthorized === false) {
             // Certificate contract paused
-            var messageContent = messageCode.msgOpsRestricted;
+            let messageContent = messageCode.msgOpsRestricted;
 
             if (issuerAuthorized === flase) {
               messageContent = messageCode.msgIssuerUnauthrized;
@@ -364,17 +303,18 @@ const batchIssueCertificate = async (req, res) => {
 
           // Generate the Merkle tree
           const tree = StandardMerkleTree.of(values, ['string']);
+          let dateEntry;
 
           const batchNumber = await newContract.getRootLength();
           const allocateBatchId = parseInt(batchNumber) + 1;
           // const allocateBatchId = 1;
-          if (allDatesCommon == true) {
-            var dateEntry = firstItemEpoch;
+          if (allDatesCommon) {
+            dateEntry = firstItemEpoch;
           } else {
-            var dateEntry = 0;
+            dateEntry = 0;
           }
 
-          var { txHash, polygonLink } = await issueBatchCertificateWithRetry(tree.root, dateEntry);
+          let { txHash, polygonLink } = await issueBatchCertificateWithRetry(tree.root, dateEntry);
           if (!polygonLink || !txHash) {
             return ({ code: 400, status: false, message: messageCode.msgFaileToIssueAfterRetry, details: certificateNumber });
           }
@@ -382,16 +322,22 @@ const batchIssueCertificate = async (req, res) => {
           try {
             // Check mongoose connection
             const dbStatus = await isDBConnected();
-            const dbStatusMessage = (dbStatus == true) ? messageCode.msgDbReady : messageCode.msgDbNotReady;
+            const dbStatusMessage = (dbStatus) ? messageCode.msgDbReady : messageCode.msgDbNotReady;
             console.log(dbStatusMessage);
 
-            var batchDetails = [];
+            let batchDetails = [];
             var batchDetailsWithQR = [];
-            var insertPromises = []; // Array to hold all insert promises
+            let insertPromises = []; // Array to hold all insert promises
 
-            for (var i = 0; i < certificatesCount; i++) {
-              var _proof = tree.getProof(i);
-              let _proofHash = await keccak256(Buffer.from(_proof)).toString('hex');
+            for (let i = 0; i < certificatesCount; i++) {
+              let _proof = tree.getProof(i);
+              console.log("The hash", _proof);
+              // Convert each hexadecimal string to a Buffer
+              let buffers = _proof.map(hex => Buffer.from(hex.slice(2), 'hex'));
+              // Concatenate all Buffers into one
+              let concatenatedBuffer = Buffer.concat(buffers);
+              // Calculate SHA-256 hash of the concatenated buffer
+              let _proofHash = crypto.createHash('sha256').update(concatenatedBuffer).digest('hex');
               let _grantDate = await convertDateFormat(rawBatchData[i].grantDate);
               let _expirationDate = (rawBatchData[i].expirationDate == "1" || rawBatchData[i].expirationDate == null) ? "1" : rawBatchData[i].expirationDate;
               batchDetails[i] = {
@@ -420,11 +366,13 @@ const batchIssueCertificate = async (req, res) => {
               }
 
               let encryptLink = await generateEncryptedUrl(_fields);
+              let shortUrlStatus = false;
+              let modifiedUrl = false;
 
               if (encryptLink) {
-                var _dbStatus = await isDBConnected();
+                let _dbStatus = await isDBConnected();
                 if (_dbStatus) {
-                  var urlData = {
+                  let urlData = {
                     email: email,
                     certificateNumber: rawBatchData[i].certificationID,
                     url: encryptLink
@@ -433,13 +381,12 @@ const batchIssueCertificate = async (req, res) => {
                   shortUrlStatus = true;
                 }
               }
-      
-              if (shortUrlStatus == true) {
+
+              if (shortUrlStatus) {
                 modifiedUrl = process.env.SHORT_URL + rawBatchData[i].certificationID;
               }
-      
-              var _qrCodeData = modifiedUrl != false ? modifiedUrl : encryptLink;
-              // console.log("Short URL", _qrCodeData);
+
+              let _qrCodeData = modifiedUrl !== false ? modifiedUrl : encryptLink;
 
               let qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
                 errorCorrectionLevel: "H",
@@ -460,13 +407,12 @@ const batchIssueCertificate = async (req, res) => {
                 qrImage: qrCodeImage
               }
 
-              // console.log("Batch Certificate Details", batchDetailsWithQR[i]);
               insertPromises.push(insertBatchCertificateData(batchDetails[i]));
             }
             // Wait for all insert promises to resolve
             await Promise.all(insertPromises);
-            var newCount = certificatesCount;
-            var oldCount = idExist.certificatesIssued;
+            let newCount = certificatesCount;
+            let oldCount = idExist.certificatesIssued;
             idExist.certificatesIssued = newCount + oldCount;
             await idExist.save();
 
@@ -509,9 +455,9 @@ const issueBatchCertificateWithRetry = async (root, expirationEpoch, retryCount 
       expirationEpoch
     );
 
-    var txHash = tx.hash;
+    let txHash = tx.hash;
 
-    var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
+    let polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
 
     return { txHash, polygonLink };
 
@@ -540,8 +486,6 @@ const issueBatchCertificateWithRetry = async (root, expirationEpoch, retryCount 
 module.exports = {
   // Function to issue a PDF certificate
   issuePdf,
-
-  issuePdfQr,
 
   // Function to issue a certification
   issue,
