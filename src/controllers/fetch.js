@@ -1109,16 +1109,20 @@ const getBatchCertificates = async (req, res) => {
  */
 const getOrganizationDetails = async (req, res) => {
   try {
-    const organizations = await User.find({}, 'organization'); // Only select the 'organization' field
+    let organizations = await User.find({}, 'organization'); // Only select the 'organization' field
+    let _organizations = organizations.map(user => user.organization);
+    // Use Set to filter unique values
+    let uniqueResponses = [...new Set(_organizations.map(item => item.toUpperCase()))];
     res.json({
       status: "SUCCESS",
       message: messageCode.msgOrganizationFetched,
-      data: organizations.map(user => user.organization),
+      data: uniqueResponses
     });
   } catch (err) {
     return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
   }
-}
+};
+
 
 module.exports = {
   // Function to get all issuers (users)

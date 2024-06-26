@@ -172,32 +172,6 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                             return ({ code: 400, status: false, message: messageCode.msgFailedToRenewRetry, details: epochExpiration });
                         }
 
-                        // try {
-                        //     // Perform Expiration extension
-                        //     const tx = await newContract.renewCertificate(
-                        //         certificateNumber,
-                        //         combinedHash,
-                        //         epochExpiration
-                        //     );
-
-                        //     // await tx.wait();
-                        //     var txHash = tx.hash;
-
-                        //     // Generate link URL for the certificate on blockchain
-                        //     var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
-
-                        // } catch (error) {
-                        //     if (error.reason) {
-                        //         // Extract and handle the error reason
-                        //         console.log("Error reason:", error.reason);
-                        //         return ({ code: 400, status: "FAILED", message: error.reason });
-                        //     } else {
-                        //         // If there's no specific reason provided, handle the error generally
-                        //         console.error(messageCode.msgFailedOpsAtBlockchain, error);
-                        //         return ({ code: 400, status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain, details: error });
-                        //     }
-                        // }
-
                         // Generate encrypted URL with certificate data
                         const dataWithLink = { ...fields, polygonLink: polygonLink }
                         const urlLink = generateEncryptedUrl(dataWithLink);
@@ -265,6 +239,7 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                             course: isNumberExist.course,
                             name: isNumberExist.name,
                             expirationDate: expirationDate,
+                            type: isNumberExist.type,
                             email: email,
                             certStatus: 2
                         };
@@ -284,6 +259,7 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                         message: messageCode.msgCertRenewedSuccess,
                         qrCodeImage: qrCodeImage,
                         polygonLink: polygonLink,
+                        type: certificateData.type,
                         details: certificateData,
                     });
 
@@ -478,6 +454,7 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                                 message: messageCode.msgCertRenewedSuccess,
                                 qrCodeImage: qrCodeImage,
                                 polygonLink: polygonLink,
+                                type: 'batch',
                                 details: isNumberExistInBatch,
                             });
 
@@ -774,31 +751,6 @@ const handleRenewBatchOfCertifications = async (email, batchId, batchExpirationD
                 if (!txHash || !polygonLink) {
                     return ({ code: 400, status: false, message: messageCode.msgFailedToRenewRetry, details: epochExpiration });
                 }
-
-                // try {
-                //     // Perform Expiration extension
-                //     const tx = await newContract.renewBatchOfCertificates(
-                //         _rootIndex,
-                //         epochExpiration
-                //     );
-
-                //     // await tx.wait();
-                //     var txHash = tx.hash;
-
-                //     // Generate link URL for the certificate on blockchain
-                //     var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
-
-                // } catch (error) {
-                //     if (error.reason) {
-                //         // Extract and handle the error reason
-                //         console.log("Error reason:", error.reason);
-                //         return ({ code: 400, status: "FAILED", message: error.reason });
-                //     } else {
-                //         // If there's no specific reason provided, handle the error generally
-                //         console.error(messageCode.msgFailedOpsAtBlockchain, error);
-                //         return ({ code: 400, status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain, details: error });
-                //     }
-                // }
 
                 var statusDetails = { batchId: batchId, updatedExpirationDate: expirationDate, polygonLink: polygonLink };
                 return ({ code: 200, status: "SUCCESS", message: messageCode.msgBatchRenewed, details: statusDetails });

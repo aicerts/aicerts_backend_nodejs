@@ -254,7 +254,8 @@ const handleIssueCertification = async (email, certificateNumber, name, courseNa
                 grantDate: fields.Grant_Date,
                 expirationDate: fields.Expiration_Date,
                 email: email,
-                certStatus: 1
+                certStatus: 1,
+                type: 'withoutpdf',
               };
               // Insert certificate data into database
               await insertCertificateData(certificateData);
