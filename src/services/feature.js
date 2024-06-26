@@ -166,8 +166,8 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                     }
 
                     if (verifyOnChain[0] === true) {
-                        
-                        let { txHash, polygonLink } = await renewSingleCertificateExpirationWithRetry(certificateNumber, combinedHash, epochExpiration);
+
+                        var { txHash, polygonLink } = await renewSingleCertificateExpirationWithRetry(certificateNumber, combinedHash, epochExpiration);
                         if (!txHash || !polygonLink) {
                             return ({ code: 400, status: false, message: messageCode.msgFailedToRenewRetry, details: epochExpiration });
                         }
@@ -257,7 +257,7 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
 
                         const issuerId = idExist.issuerId;
 
-                        let certificateData = {
+                        var certificateData = {
                             issuerId,
                             transactionHash: txHash,
                             certificateHash: combinedHash,
@@ -310,7 +310,6 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                 let _fetchRootLength = await newContract.getRootLength();
                 let fetchRootLength = parseInt(_fetchRootLength);
                 let hashedProof = isNumberExistInBatch.encodedProof;
-                var certStatus = await newContract.verifyCertificateInBatch(hashedProof);
                 let certificateStatus = await newContract.getBatchCertificateStatus(hashedProof);
                 if (verifyBatchId[0] === false || fetchRootLength < fetchIndex) {
                     // Respond with error message
@@ -387,39 +386,13 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
 
                             if (verifyOnChain[0] === false) {
 
-                                let { txHash, polygonLink } = await renewCertificateExpirationInBatchWithRetry(fetchIndex, hashedProof, epochExpiration);
+                                var { txHash, polygonLink } = await renewCertificateExpirationInBatchWithRetry(fetchIndex, hashedProof, epochExpiration);
                                 if (!txHash || !polygonLink) {
                                     return ({ code: 400, status: false, message: messageCode.msgFailedToRenewRetry, details: epochExpiration });
                                 }
 
-                                // try {
-                                //     // Perform Expiration extension
-                                //     const tx = await newContract.renewCertificateInBatch(
-                                //         fetchIndex,
-                                //         hashedProof,
-                                //         epochExpiration
-                                //     );
-
-                                //     // await tx.wait();
-                                //     var txHash = tx.hash;
-
-                                //     // Generate link URL for the certificate on blockchain
-                                //     var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
-
-                                // } catch (error) {
-                                //     if (error.reason) {
-                                //         // Extract and handle the error reason
-                                //         console.log("Error reason:", error.reason);
-                                //         return ({ code: 400, status: "FAILED", message: error.reason });
-                                //     } else {
-                                //         // If there's no specific reason provided, handle the error generally
-                                //         console.error(messageCode.msgFailedOpsAtBlockchain, error);
-                                //         return ({ code: 400, status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain, details: error });
-                                //     }
-                                // }
-
                                 // Generate encrypted URL with certificate data
-                                
+
                                 const dataWithLink = { ...fields, polygonLink: polygonLink }
                                 const urlLink = generateEncryptedUrl(dataWithLink);
 
@@ -477,7 +450,7 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
 
                                 const issuerId = idExist.issuerId;
 
-                                let certificateData = {
+                                var certificateData = {
                                     issuerId,
                                     batchId: isNumberExistInBatch.batchId,
                                     transactionHash: txHash,
@@ -578,7 +551,7 @@ const handleUpdateCertificationStatus = async (email, certificateNumber, certSta
                 isPaused === true
             ) {
                 // Issuer not authorized / contract paused
-                let messageContent ="";
+                let messageContent = "";
                 if (isPaused === true) {
                     messageContent = messageCode.msgOpsRestricted;
                 } else if (issuerAuthorized === false) {
@@ -626,7 +599,7 @@ const handleUpdateCertificationStatus = async (email, certificateNumber, certSta
                         // Save certification data into database
                         await isNumberExist.save();
 
-                        let certificateData = {
+                        var certificateData = {
                             issuerId: isIssuerExist.issuerId,
                             transactionHash: txHash,
                             certificateNumber: certificateNumber,
@@ -669,7 +642,6 @@ const handleUpdateCertificationStatus = async (email, certificateNumber, certSta
                     let hashedProof = isNumberExistInBatch.encodedProof;
                     // Blockchain calls
                     let batchStatusResponse = await newContract.verifyBatchRoot(fetchIndex);
-                    console.log("inputs to contract", batchStatusResponse);
 
                     if (batchStatusResponse[0] === true) {
                         if (isNumberExistInBatch.certificateStatus == parseInt(certStatus)) {
@@ -1083,7 +1055,6 @@ const updateSingleCertificateStatusWithRetry = async (certificateNumber, certSta
 
 // Function to Perform Update Certificate status in Batch with retry mechanism 
 const updateCertificateStatusInBatchWithRetry = async (hashedProof, certStatus, retryCount = 3) => {
-console.log("inputs", hashedProof, certStatus);
     try {
         // Perform Update Certificate status in Batch with retry mechanism
         const tx = await newContract.updateCertificateInBatchStatus(

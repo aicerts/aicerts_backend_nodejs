@@ -2,6 +2,7 @@
 require('dotenv').config();
 
 // Import required modules
+const crypto = require('crypto'); // Module for cryptographic functions
 const QRCode = require("qrcode");
 const fs = require("fs");
 const _fs = require("fs-extra");
@@ -325,12 +326,18 @@ const batchIssueCertificate = async (req, res) => {
             console.log(dbStatusMessage);
 
             let batchDetails = [];
-            let batchDetailsWithQR = [];
+            var batchDetailsWithQR = [];
             let insertPromises = []; // Array to hold all insert promises
 
             for (let i = 0; i < certificatesCount; i++) {
               let _proof = tree.getProof(i);
-              let _proofHash = await keccak256(Buffer.from(_proof)).toString('hex');
+              console.log("The hash", _proof);
+              // Convert each hexadecimal string to a Buffer
+              let buffers = _proof.map(hex => Buffer.from(hex.slice(2), 'hex'));
+              // Concatenate all Buffers into one
+              let concatenatedBuffer = Buffer.concat(buffers);
+              // Calculate SHA-256 hash of the concatenated buffer
+              let _proofHash = crypto.createHash('sha256').update(concatenatedBuffer).digest('hex');
               let _grantDate = await convertDateFormat(rawBatchData[i].grantDate);
               let _expirationDate = (rawBatchData[i].expirationDate == "1" || rawBatchData[i].expirationDate == null) ? "1" : rawBatchData[i].expirationDate;
               batchDetails[i] = {
@@ -374,11 +381,11 @@ const batchIssueCertificate = async (req, res) => {
                   shortUrlStatus = true;
                 }
               }
-      
+
               if (shortUrlStatus) {
                 modifiedUrl = process.env.SHORT_URL + rawBatchData[i].certificationID;
               }
-      
+
               let _qrCodeData = modifiedUrl !== false ? modifiedUrl : encryptLink;
 
               let qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
