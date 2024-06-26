@@ -11,7 +11,7 @@ const { ethers } = require("ethers"); // Ethereum JavaScript library
 const { generateEncryptedUrl } = require("../common/cryptoFunction");
 
 // Import MongoDB models
-const { User, Issues, BatchIssues } = require("../config/schema");
+const { User, Issues, BatchIssues, ShortUrl } = require("../config/schema");
 
 // Import ABI (Application Binary Interface) from the JSON file located at "../config/abi.json"
 const abi = require("../config/abi.json");
@@ -175,6 +175,8 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                         // Generate encrypted URL with certificate data
                         const dataWithLink = { ...fields, polygonLink: polygonLink }
                         const urlLink = generateEncryptedUrl(dataWithLink);
+                        let shortUrlStatus;
+                        let modifiedUrl;
 
                         // Generate QR code based on the URL
                         const legacyQR = false;
@@ -192,7 +194,25 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                             qrCodeData = urlLink;
                         }
 
-                        var qrCodeImage = await QRCode.toDataURL(qrCodeData, {
+                        if (urlLink) {
+                            let dbStatus = await isDBConnected();
+                            if (dbStatus) {
+                                var urlExist = await ShortUrl.findOne({ certificateNumber: certificateNumber });
+                                if (urlExist) {
+                                    urlExist.url = urlLink;
+                                    await urlExist.save();
+                                    shortUrlStatus = true;
+                                }
+                            }
+                        }
+                        
+                        if (shortUrlStatus) {
+                            modifiedUrl = process.env.SHORT_URL + certificateNumber;
+                        }
+
+                        const _qrCodeData = modifiedUrl != false ? modifiedUrl : qrCodeData;
+
+                        var qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
                             errorCorrectionLevel: "H",
                             width: 450, // Adjust the width as needed
                             height: 450, // Adjust the height as needed
@@ -371,6 +391,8 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
 
                                 const dataWithLink = { ...fields, polygonLink: polygonLink }
                                 const urlLink = generateEncryptedUrl(dataWithLink);
+                                let shortUrlStatus;
+                                let modifiedUrl;
 
                                 // Generate QR code based on the URL
                                 const legacyQR = false;
@@ -388,7 +410,25 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                                     qrCodeData = urlLink;
                                 }
 
-                                var qrCodeImage = await QRCode.toDataURL(qrCodeData, {
+                                if (urlLink) {
+                                    let dbStatus = await isDBConnected();
+                                    if (dbStatus) {
+                                        let urlExist = await ShortUrl.findOne({ certificateNumber: certificateNumber });
+                                        if (urlExist) {
+                                            urlExist.url = urlLink;
+                                            await urlExist.save();
+                                            shortUrlStatus = true;
+                                        }
+                                    }
+                                }
+
+                                if (shortUrlStatus) {
+                                    modifiedUrl = process.env.SHORT_URL + certificateNumber;
+                                }
+
+                                const _qrCodeData = modifiedUrl != false ? modifiedUrl : qrCodeData;
+
+                                var qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
                                     errorCorrectionLevel: "H",
                                     width: 450, // Adjust the width as needed
                                     height: 450, // Adjust the height as needed
