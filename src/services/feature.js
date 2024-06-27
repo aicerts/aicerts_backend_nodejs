@@ -71,6 +71,7 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
         const isNumberExist = await Issues.findOne({ certificateNumber: certificateNumber });
         // Check if certificate number already exists in the Batch
         const isNumberExistInBatch = await BatchIssues.findOne({ certificateNumber: certificateNumber });
+        isNumberExistInBatch.type = 'batch';
 
         // Validation checks for request data
         if (
@@ -491,10 +492,10 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                             return ({
                                 code: 200,
                                 status: "SUCCESS",
+                                certType: "batch",
                                 message: messageCode.msgCertRenewedSuccess,
                                 qrCodeImage: qrCodeImage,
                                 polygonLink: polygonLink,
-                                type: 'batch',
                                 details: isNumberExistInBatch,
                             });
 
