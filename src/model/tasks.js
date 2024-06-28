@@ -5,7 +5,6 @@ require('dotenv').config();
 const crypto = require('crypto'); // Module for cryptographic functions
 const pdf = require("pdf-lib"); // Library for creating and modifying PDF documents
 const { PDFDocument } = pdf;
-const { Poppler } = require("node-poppler");
 const fs = require("fs"); // File system module
 const path = require("path"); // Module for working with file paths
 const { fromPath } = require("pdf2pic"); // Converter from PDF to images
@@ -721,19 +720,6 @@ const addLinkToPdf = async (
   return pdfBytes;
 };
 
-// Function to create an Image File for Issue with pdf
-const createPdfCertificateImage = async (pdfPath, imagePath) => {
-  var imageRoot = path.join(__dirname, '..', '..', 'uploads', imagePath);
-  const file = pdfPath;
-  const poppler = new Poppler();
-  const options = {
-    pngFile: true,
-  };
-  const outputFile = imageRoot;
-
-  const res = await poppler.pdfToCairo(file, outputFile, options);
-};
-
 const verifyPDFDimensions = async (pdfPath) => {
   // Extract QR code data from the PDF file
   const certificateData = await extractQRCodeDataFromPDF(pdfPath);
@@ -972,8 +958,6 @@ module.exports = {
   getCertificationStatus,
 
   verificationLogEntry,
-
-  createPdfCertificateImage,
 
   // Function to extract QR code data from a PDF file
   extractQRCodeDataFromPDF,
