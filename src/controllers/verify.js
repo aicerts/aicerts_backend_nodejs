@@ -496,7 +496,7 @@ const decodeQRScan = async (req, res) => {
   var decodeResponse = false;
   try {
 
-    if (receivedCode.startsWith(process.env.START_URL)) {
+    if (receivedCode.startsWith(process.env.START_URL) || receivedCode.startsWith(process.env.START_VERIFY_URL)) {
       var urlSize = receivedCode.length;
       if (urlSize < urlLimit) {
         // Parse the URL
