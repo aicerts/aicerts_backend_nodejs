@@ -3,22 +3,16 @@ require('dotenv').config();
 const readXlsxFile = require('read-excel-file/node');
 const path = require("path");
 
-const moment = require('moment');
-
 // Importing functions from a custom module
 const {
     isCertificationIdExisted
   } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
   
 
-const thresholdYear = parseInt(process.env.THRESHOLD_YEAR);
 // Parse environment variables for password length constraints
 const min_length = (parseInt(process.env.MIN_LENGTH) || 12);
 const max_length = (parseInt(process.env.MAX_LENGTH) || 20);
 const cert_limit = (parseInt(process.env.BATCH_LIMIT) || 250);
-
-// Import MongoDB models
-const { Issues, BatchIssues } = require("../config/schema");
 
 // Regular expression to match MM/DD/YY format
 const regex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/\d{4}$/;
@@ -124,12 +118,6 @@ const handleExcelFile = async (_path) => {
                     return { status: "FAILED", response: false, message: messageCode.msgInvalidDateFormat, Details: `Grant Dates ${invalidGrantDateFormat.invalidDates}, Expiration Dates ${invalidExpirationDateFormat.invalidDates}` };
 
                 }
-
-                // const validateGrantDates = await compareEpochDates(invalidGrantDateFormat.validDates);
-                // const validateExpirationDates = await compareEpochDates(invalidExpirationDateFormat.validDates);
-                // if ((validateGrantDates).length > 0 || (validateExpirationDates).length > 0) {
-                //     return { status: "FAILED", response: false, message: messageCode.msgInvalidDates, Details: `Grant Dates ${validateGrantDates}, Expiration Dates ${validateExpirationDates}` };
-                // }
 
                 const validateCertificateDates = await compareGrantExpiredSetDates(invalidGrantDateFormat.validDates, invalidExpirationDateFormat.validDates);
                 if (validateCertificateDates.length > 0) {

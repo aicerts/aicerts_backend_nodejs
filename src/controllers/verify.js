@@ -292,8 +292,8 @@ const verify = async (req, res) => {
       const hashProof = batchIssueExist.encodedProof;
       try {
         // Blockchain processing.
-        const batchVerifyResponse = await newContract.verifyBatchCertification(batchNumber, dataHash, proof);
-        const _responseStatus = await newContract.verifyCertificateInBatch(hashProof);
+        var batchVerifyResponse = await newContract.verifyBatchCertification(batchNumber, dataHash, proof);
+        var _responseStatus = await newContract.verifyCertificateInBatch(hashProof);
         var responseStatus = parseInt(_responseStatus);
         if (responseStatus == 3) {
           res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
@@ -496,7 +496,7 @@ const decodeQRScan = async (req, res) => {
   var decodeResponse = false;
   try {
 
-    if (receivedCode.startsWith(process.env.START_URL)) {
+    if (receivedCode.startsWith(process.env.START_URL) || receivedCode.startsWith(process.env.START_VERIFY_URL)) {
       var urlSize = receivedCode.length;
       if (urlSize < urlLimit) {
         // Parse the URL
@@ -511,7 +511,7 @@ const decodeQRScan = async (req, res) => {
           if (isUrlExist) {
             // console.log("The original url", isUrlExist.url);
             responseUrl = isUrlExist.url;
-            if (responseUrl && responseUrl.startsWith(process.env.START_VERIFY_URL)) {
+            if (responseUrl && (responseUrl.startsWith(process.env.START_VERIFY_URL) || responseUrl.startsWith(process.env.START_URL))) {
               var [decodeResponse, originalUrl] = await extractCertificateInfo(responseUrl);
             } else {
               return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidUrl });
@@ -955,20 +955,6 @@ const verifyCertificationId = async (req, res) => {
 
 };
 
-
-// const expandTinyUrl = async (tinyUrl) => {
-//   try {
-//     const response = await axios.head(tinyUrl, {
-//       maxRedirects: 0,
-//       validateStatus: status => status >= 200 && status < 400
-//     });
-//     return response.headers.location;
-//   } catch (error) {
-//     console.error('Error expanding TinyURL:', error.message);
-//     return null;
-//   }
-// };
-
 const detectDateFormat = async (dateString) => {
   const formats = ['DD MMMM YYYY', 'MMMM DD YYYY', 'MM/DD/YY', 'MM/DD/YYYY'];
 
@@ -1011,5 +997,6 @@ module.exports = {
   // Function to decode a certificate
   decodeCertificate,
 
+  // Function to verify a certificate with a Scanned Short url/Original url based QR code
   decodeQRScan
 };

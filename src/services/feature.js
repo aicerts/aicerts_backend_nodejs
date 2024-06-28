@@ -2,16 +2,14 @@
 require('dotenv').config();
 
 // Import required modules
-const path = require("path");
 const QRCode = require("qrcode");
-const fs = require("fs");
 const { ethers } = require("ethers"); // Ethereum JavaScript library
 
 // Import custom cryptoFunction module for encryption and decryption
 const { generateEncryptedUrl } = require("../common/cryptoFunction");
 
 // Import MongoDB models
-const { User, Issues, BatchIssues } = require("../config/schema");
+const { User, Issues, BatchIssues, ShortUrl } = require("../config/schema");
 
 // Import ABI (Application Binary Interface) from the JSON file located at "../config/abi.json"
 const abi = require("../config/abi.json");
@@ -71,6 +69,7 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
         const isNumberExist = await Issues.findOne({ certificateNumber: certificateNumber });
         // Check if certificate number already exists in the Batch
         const isNumberExistInBatch = await BatchIssues.findOne({ certificateNumber: certificateNumber });
+        isNumberExistInBatch.type = 'batch';
 
         // Validation checks for request data
         if (
@@ -172,35 +171,11 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                             return ({ code: 400, status: false, message: messageCode.msgFailedToRenewRetry, details: epochExpiration });
                         }
 
-                        // try {
-                        //     // Perform Expiration extension
-                        //     const tx = await newContract.renewCertificate(
-                        //         certificateNumber,
-                        //         combinedHash,
-                        //         epochExpiration
-                        //     );
-
-                        //     // await tx.wait();
-                        //     var txHash = tx.hash;
-
-                        //     // Generate link URL for the certificate on blockchain
-                        //     var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
-
-                        // } catch (error) {
-                        //     if (error.reason) {
-                        //         // Extract and handle the error reason
-                        //         console.log("Error reason:", error.reason);
-                        //         return ({ code: 400, status: "FAILED", message: error.reason });
-                        //     } else {
-                        //         // If there's no specific reason provided, handle the error generally
-                        //         console.error(messageCode.msgFailedOpsAtBlockchain, error);
-                        //         return ({ code: 400, status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain, details: error });
-                        //     }
-                        // }
-
                         // Generate encrypted URL with certificate data
                         const dataWithLink = { ...fields, polygonLink: polygonLink }
                         const urlLink = generateEncryptedUrl(dataWithLink);
+                        let shortUrlStatus;
+                        let modifiedUrl;
 
                         // Generate QR code based on the URL
                         const legacyQR = false;
@@ -218,7 +193,25 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                             qrCodeData = urlLink;
                         }
 
-                        var qrCodeImage = await QRCode.toDataURL(qrCodeData, {
+                        if (urlLink) {
+                            let dbStatus = await isDBConnected();
+                            if (dbStatus) {
+                                var urlExist = await ShortUrl.findOne({ certificateNumber: certificateNumber });
+                                if (urlExist) {
+                                    urlExist.url = urlLink;
+                                    await urlExist.save();
+                                    shortUrlStatus = true;
+                                }
+                            }
+                        }
+                        
+                        if (shortUrlStatus) {
+                            modifiedUrl = process.env.SHORT_URL + certificateNumber;
+                        }
+
+                        const _qrCodeData = modifiedUrl != false ? modifiedUrl : qrCodeData;
+
+                        var qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
                             errorCorrectionLevel: "H",
                             width: 450, // Adjust the width as needed
                             height: 450, // Adjust the height as needed
@@ -265,6 +258,7 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                             course: isNumberExist.course,
                             name: isNumberExist.name,
                             expirationDate: expirationDate,
+                            type: isNumberExist.type,
                             email: email,
                             certStatus: 2
                         };
@@ -284,6 +278,7 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                         message: messageCode.msgCertRenewedSuccess,
                         qrCodeImage: qrCodeImage,
                         polygonLink: polygonLink,
+                        type: certificateData.type,
                         details: certificateData,
                     });
 
@@ -395,6 +390,8 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
 
                                 const dataWithLink = { ...fields, polygonLink: polygonLink }
                                 const urlLink = generateEncryptedUrl(dataWithLink);
+                                let shortUrlStatus;
+                                let modifiedUrl;
 
                                 // Generate QR code based on the URL
                                 const legacyQR = false;
@@ -412,7 +409,25 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                                     qrCodeData = urlLink;
                                 }
 
-                                var qrCodeImage = await QRCode.toDataURL(qrCodeData, {
+                                if (urlLink) {
+                                    let dbStatus = await isDBConnected();
+                                    if (dbStatus) {
+                                        let urlExist = await ShortUrl.findOne({ certificateNumber: certificateNumber });
+                                        if (urlExist) {
+                                            urlExist.url = urlLink;
+                                            await urlExist.save();
+                                            shortUrlStatus = true;
+                                        }
+                                    }
+                                }
+
+                                if (shortUrlStatus) {
+                                    modifiedUrl = process.env.SHORT_URL + certificateNumber;
+                                }
+
+                                const _qrCodeData = modifiedUrl != false ? modifiedUrl : qrCodeData;
+
+                                var qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
                                     errorCorrectionLevel: "H",
                                     width: 450, // Adjust the width as needed
                                     height: 450, // Adjust the height as needed
@@ -475,6 +490,7 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                             return ({
                                 code: 200,
                                 status: "SUCCESS",
+                                certType: "batch",
                                 message: messageCode.msgCertRenewedSuccess,
                                 qrCodeImage: qrCodeImage,
                                 polygonLink: polygonLink,
@@ -774,31 +790,6 @@ const handleRenewBatchOfCertifications = async (email, batchId, batchExpirationD
                 if (!txHash || !polygonLink) {
                     return ({ code: 400, status: false, message: messageCode.msgFailedToRenewRetry, details: epochExpiration });
                 }
-
-                // try {
-                //     // Perform Expiration extension
-                //     const tx = await newContract.renewBatchOfCertificates(
-                //         _rootIndex,
-                //         epochExpiration
-                //     );
-
-                //     // await tx.wait();
-                //     var txHash = tx.hash;
-
-                //     // Generate link URL for the certificate on blockchain
-                //     var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
-
-                // } catch (error) {
-                //     if (error.reason) {
-                //         // Extract and handle the error reason
-                //         console.log("Error reason:", error.reason);
-                //         return ({ code: 400, status: "FAILED", message: error.reason });
-                //     } else {
-                //         // If there's no specific reason provided, handle the error generally
-                //         console.error(messageCode.msgFailedOpsAtBlockchain, error);
-                //         return ({ code: 400, status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain, details: error });
-                //     }
-                // }
 
                 var statusDetails = { batchId: batchId, updatedExpirationDate: expirationDate, polygonLink: polygonLink };
                 return ({ code: 200, status: "SUCCESS", message: messageCode.msgBatchRenewed, details: statusDetails });

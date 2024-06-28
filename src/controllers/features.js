@@ -16,9 +16,6 @@ const {
 // Importing functions from a custom module
 const {
     convertDateFormat,
-    isCertificationIdExisted,
-    isDBConnected,
-    extractCertificateInfo
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
 let messageCode = require("../common/codes");

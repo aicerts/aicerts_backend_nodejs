@@ -254,7 +254,8 @@ const handleIssueCertification = async (email, certificateNumber, name, courseNa
                 grantDate: fields.Grant_Date,
                 expirationDate: fields.Expiration_Date,
                 email: email,
-                certStatus: 1
+                certStatus: 1,
+                type: 'withoutpdf',
               };
               // Insert certificate data into database
               await insertCertificateData(certificateData);
@@ -514,8 +515,8 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
       const uploadDir = path.join(__dirname, '..', '..', 'uploads'); // Go up two directories from __dirname
 
       let generatedImage = `${fields.Certificate_Number}.png`;
-      let convertedPath = path.join(uploadDir, generatedImage);
-      let imageBuffer = await convertPdfBufferToPng(convertedPath, fileBuffer);
+      var convertedPath = path.join(uploadDir, generatedImage);
+      var imageBuffer = await convertPdfBufferToPng(convertedPath, fileBuffer);
       if (imageBuffer) {
         var imageUrl = await uploadImageToS3(fields.Certificate_Number, convertedPath);
         if (!imageUrl) {
