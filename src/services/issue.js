@@ -173,7 +173,7 @@ const handleIssueCertification = async (email, certificateNumber, name, courseNa
             let messageContent = messageCode.msgCertIssued;
             let modifiedDate = val[1] == 1 ? 'infinite expiration' : await convertEpochToDate(val[1]);
             let _certificateStatus = await getCertificationStatus(val[3]);
-            let moreDetails = val[0] === true ? { certificateNumber: certificateNumber, expirationDate: modifiedDate, certificateStatus: _certificateStatus } : "";  
+            let moreDetails = val[0] === true ? { certificateNumber: certificateNumber, expirationDate: modifiedDate, certificateStatus: _certificateStatus } : "";
             if (isPaused === true) {
               messageContent = messageCode.msgOpsRestricted;
             } else if (issuerAuthorized === false) {
@@ -361,7 +361,7 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
       let moreDetails = '';
       // Check for specific error conditions and update the error message accordingly
       if (isIssueExist) {
-        errorMessage = messageCode.msgCertIssued; 
+        errorMessage = messageCode.msgCertIssued;
         const _certStatus = await getCertificationStatus(isIssueExist.certificateStatus);
         moreDetails = { certificateNumber: isIssueExist.certificateNumber, expirationDate: isIssueExist.expirationDate, certificateStatus: _certStatus };
       } else if (!grantDate || !expirationDate) {
@@ -424,7 +424,7 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
           let modifiedDate = val[1] == 1 ? 'infinite expiration' : await convertEpochToDate(val[1]);
           let _certificateStatus = await getCertificationStatus(val[3]);
           let moreDetails = val[0] === true ? { certificateNumber: certificateNumber, expirationDate: modifiedDate, certificateStatus: _certificateStatus } : "";
-          
+
           if (isPaused === true) {
             messageContent = messageCode.msgOpsRestricted;
           } else if (issuerAuthorized === false) {
@@ -509,16 +509,16 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
       } catch (error) {
         return ({ code: 400, status: "FAILED", message: messageCode.msgPdfError, details: error });
       }
-      
+
 
       // Define the directory where you want to save the file
       const uploadDir = path.join(__dirname, '..', '..', 'uploads'); // Go up two directories from __dirname
-
       let generatedImage = `${fields.Certificate_Number}.png`;
-      var convertedPath = path.join(uploadDir, generatedImage);
-      var imageBuffer = await convertPdfBufferToPng(convertedPath, fileBuffer);
+      // var convertedPath = path.join(uploadDir, generatedImage);
+      // console.log("Paths track", outputPdf, __dirname, uploadDir, convertedPath);
+      var imageBuffer = await convertPdfBufferToPng(generatedImage, fileBuffer);
       if (imageBuffer) {
-        var imageUrl = await uploadImageToS3(fields.Certificate_Number, convertedPath);
+        var imageUrl = await uploadImageToS3(fields.Certificate_Number, generatedImage);
         if (!imageUrl) {
           return ({ code: 400, status: "FAILED", message: messageCode.msgUploadError });
         }
@@ -551,9 +551,9 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
         await insertCertificateData(certificateData);
 
         // Delete files
-        if (fs.existsSync(convertedPath)) {
+        if (fs.existsSync(generatedImage)) {
           // Delete the specified file
-          fs.unlinkSync(convertedPath);
+          fs.unlinkSync(generatedImage);
         }
 
         // Delete files
@@ -628,6 +628,7 @@ const issueCertificateWithRetry = async (certificateNumber, certificateHash, exp
 };
 
 const convertPdfBufferToPng = async (imagePath, pdfBuffer) => {
+  console.log("path and file", imagePath);
   if (!imagePath || !pdfBuffer) {
     return false;
   }
