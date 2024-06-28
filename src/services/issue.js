@@ -510,7 +510,6 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
         return ({ code: 400, status: "FAILED", message: messageCode.msgPdfError, details: error });
       }
       
-
       // Define the directory where you want to save the file
       const uploadDir = path.join(__dirname, '..', '..', 'uploads'); // Go up two directories from __dirname
 
