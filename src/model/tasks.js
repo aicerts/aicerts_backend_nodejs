@@ -498,7 +498,7 @@ const extractCertificateInfo = async (qrCodeText) => {
   // Check if the data starts with 'http://' or 'https://'
   if (qrCodeText.startsWith('http://') || qrCodeText.startsWith('https://')) {
     var responseLength = qrCodeText.length;
-    if (responseLength < urlLimit && qrCodeText.startsWith(process.env.START_URL)) {
+    if (responseLength < urlLimit && ((qrCodeText.startsWith(process.env.START_URL) || (qrCodeText.startsWith(process.env.START_VERIFY_URL))))) {
       // Parse the URL
       const parsedUrl = new URL(qrCodeText);
       // Extract the query parameter

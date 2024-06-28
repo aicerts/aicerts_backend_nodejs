@@ -292,8 +292,8 @@ const verify = async (req, res) => {
       const hashProof = batchIssueExist.encodedProof;
       try {
         // Blockchain processing.
-        const batchVerifyResponse = await newContract.verifyBatchCertification(batchNumber, dataHash, proof);
-        const _responseStatus = await newContract.verifyCertificateInBatch(hashProof);
+        var batchVerifyResponse = await newContract.verifyBatchCertification(batchNumber, dataHash, proof);
+        var _responseStatus = await newContract.verifyCertificateInBatch(hashProof);
         var responseStatus = parseInt(_responseStatus);
         if (responseStatus == 3) {
           res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
@@ -955,20 +955,6 @@ const verifyCertificationId = async (req, res) => {
 
 };
 
-
-// const expandTinyUrl = async (tinyUrl) => {
-//   try {
-//     const response = await axios.head(tinyUrl, {
-//       maxRedirects: 0,
-//       validateStatus: status => status >= 200 && status < 400
-//     });
-//     return response.headers.location;
-//   } catch (error) {
-//     console.error('Error expanding TinyURL:', error.message);
-//     return null;
-//   }
-// };
-
 const detectDateFormat = async (dateString) => {
   const formats = ['DD MMMM YYYY', 'MMMM DD YYYY', 'MM/DD/YY', 'MM/DD/YYYY'];
 
@@ -1011,5 +997,6 @@ module.exports = {
   // Function to decode a certificate
   decodeCertificate,
 
+  // Function to verify a certificate with a Scanned Short url/Original url based QR code
   decodeQRScan
 };
