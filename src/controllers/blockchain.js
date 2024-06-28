@@ -241,22 +241,6 @@ const addTrustedOwner = async (req, res) => {
           return res.status(400).json({ status: "FAILED", message: messageCode.msgAddressExistBlockchain });
         }
 
-        // try {
-        //   const tx = await newContract.grantRole(assigningRole, newAddress);
-        //   var txHash = tx.hash;
-        // } catch (error) {
-        //   // Handle the error During the transaction
-        //   if (error.reason) {
-        //     // Extract and handle the error reason
-        //     console.log("Error reason:", error.reason);
-        //     return res.status(400).json({ status: "FAILED", message: error.reason });
-        //   } else {
-        //     // If there's no specific reason provided, handle the error generally
-        //     console.error(messageCode.msgFailedOpsAtBlockchain, error);
-        //     return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain });
-        //   }
-        // }
-
         var { txHash, polygonLink } = await grantOrRevokeRoleWithRetry("grant", assigningRole, userExist.issuerId);
         if (!polygonLink || !txHash) {
           return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedToGrantRoleRetry });
@@ -319,24 +303,6 @@ const removeTrustedOwner = async (req, res) => {
         if (response === false) {
           return res.status(400).json({ status: "FAILED", message: messageCode.msgAddressNotExistBlockchain });
         }
-
-        // try {
-        //   const tx = await newContract.revokeRole(assigningRole, newAddress);
-
-        //   var txHash = tx.hash;
-
-        // } catch (error) {
-        //   // Handle the error During the transaction
-        //   if (error.reason) {
-        //     // Extract and handle the error reason
-        //     console.log("Error reason:", error.reason);
-        //     return res.status(400).json({ status: "FAILED", message: error.reason });
-        //   } else {
-        //     // If there's no specific reason provided, handle the error generally
-        //     console.error(messageCode.msgFailedOpsAtBlockchain, error);
-        //     return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain });
-        //   }
-        // }
 
         var { txHash, polygonLink } = await grantOrRevokeRoleWithRetry("revoke", assigningRole, userExist.issuerId);
         if (!polygonLink || !txHash) {

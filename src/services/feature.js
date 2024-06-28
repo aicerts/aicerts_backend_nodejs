@@ -2,9 +2,7 @@
 require('dotenv').config();
 
 // Import required modules
-const path = require("path");
 const QRCode = require("qrcode");
-const fs = require("fs");
 const { ethers } = require("ethers"); // Ethereum JavaScript library
 
 // Import custom cryptoFunction module for encryption and decryption
