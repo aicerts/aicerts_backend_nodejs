@@ -515,7 +515,6 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
       const uploadDir = path.join(__dirname, '..', '..', 'uploads'); // Go up two directories from __dirname
       let generatedImage = `${fields.Certificate_Number}.png`;
       // var convertedPath = path.join(uploadDir, generatedImage);
-      // console.log("Paths track", outputPdf, __dirname, uploadDir, convertedPath);
       var imageBuffer = await convertPdfBufferToPng(generatedImage, fileBuffer);
       if (imageBuffer) {
         var imageUrl = await uploadImageToS3(fields.Certificate_Number, generatedImage);
@@ -628,7 +627,6 @@ const issueCertificateWithRetry = async (certificateNumber, certificateHash, exp
 };
 
 const convertPdfBufferToPng = async (imagePath, pdfBuffer) => {
-  console.log("path and file", imagePath);
   if (!imagePath || !pdfBuffer) {
     return false;
   }
