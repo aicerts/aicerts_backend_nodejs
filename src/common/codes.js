@@ -84,6 +84,7 @@ module.exports = {
     msgLogoutSuccess : "Admin Logged out successfully",
     msgErrorInLogout : "An error occurred during the logout!",
     msgPwdSuccess : "Password reset successful",
+    msgPwdNotSame : "Password cannot be the same as the previous one!",
     msgErrorOnUser : "An error occurred while saving user account!",
     msgErrorOnHashing : "An error occurred while hashing password!",
     msgErrorOnPwdReset : "An error occurred during password reset process!",

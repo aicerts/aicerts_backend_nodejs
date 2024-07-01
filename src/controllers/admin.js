@@ -242,6 +242,16 @@ const resetPassword = async (req, res) => {
         message: messageCode.msgAdminNotFound,
       });
     }
+
+    // Check if the new password is the same as the previous one
+    const isSamePassword = await bcrypt.compare(password, admin.password);
+    if (isSamePassword) {
+      return res.json({
+        status: 'FAILED',
+        message: messageCode.msgPwdNotSame
+      });
+    }
+
     // Hash the new password
     const saltRounds = 10;
     bcrypt
