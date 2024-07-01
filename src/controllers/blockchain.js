@@ -222,7 +222,6 @@ const addTrustedOwner = async (req, res) => {
     // Extract new wallet address from request body
     const assignRole = 1;
     const newAddress = req.body.address;
-
     // Validate Ethereum address format
     if (!ethers.isAddress(newAddress)) {
       return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidEthereum });
@@ -241,7 +240,8 @@ const addTrustedOwner = async (req, res) => {
           return res.status(400).json({ status: "FAILED", message: messageCode.msgAddressExistBlockchain });
         }
 
-        var { txHash, polygonLink } = await grantOrRevokeRoleWithRetry("grant", assigningRole, userExist.issuerId);
+        var { txHash, polygonLink } = await grantOrRevokeRoleWithRetry("grant", assigningRole, newAddress);
+
         if (!polygonLink || !txHash) {
           return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedToGrantRoleRetry });
         }
@@ -304,7 +304,7 @@ const removeTrustedOwner = async (req, res) => {
           return res.status(400).json({ status: "FAILED", message: messageCode.msgAddressNotExistBlockchain });
         }
 
-        var { txHash, polygonLink } = await grantOrRevokeRoleWithRetry("revoke", assigningRole, userExist.issuerId);
+        var { txHash, polygonLink } = await grantOrRevokeRoleWithRetry("revoke", assigningRole, newAddress);
         if (!polygonLink || !txHash) {
           return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedToRevokeRoleRetry });
         }
