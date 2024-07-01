@@ -294,7 +294,6 @@ const resetPassword = async (req, res) => {
   }
 };
 
-
 module.exports = {
   // Function to handle admin signup
   signup,
