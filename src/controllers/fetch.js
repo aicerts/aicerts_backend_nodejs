@@ -1174,13 +1174,15 @@ const getIssuesInOrganizationWithName = async (req, res) => {
       // Query 1
       var query1Promise = Issues.find({
         issuerId: currentIssuerId,
-        name: { $in: [targetName] }
+        name: { $in: [targetName] },
+        url: { $exists: true, $ne: null } // Filter to include documents where `url` exists
       });
 
       // Query 2
       var query2Promise = BatchIssues.find({
         issuerId: currentIssuerId,
-        name: { $in: [targetName] }
+        name: { $in: [targetName] },
+        url: { $exists: true, $ne: null } // Filter to include documents where `url` exists
       });
 
       // Await both promises

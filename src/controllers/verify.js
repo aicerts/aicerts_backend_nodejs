@@ -560,7 +560,6 @@ const decodeQRScan = async (req, res) => {
           return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
         }
         extractQRData.url = encodedUrl;
-        // console.log("The received data", receivedCode, extractQRData); // log the response
         res.status(200).json({ status: "PASSED", message: messageCode.msgCertValid, Details: extractQRData });
         return;
       }
@@ -576,7 +575,6 @@ const decodeQRScan = async (req, res) => {
         };
         await verificationLogEntry(verifyLog);
 
-        // console.log("The received data", receivedCode, extractQRData); // log the response
         extractQRData.url = decodedUrl;
         res.status(200).json({ status: "PASSED", message: messageCode.msgCertValid, Details: extractQRData });
         return;
