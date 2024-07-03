@@ -71,7 +71,7 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
         const isNumberExist = await Issues.findOne({ certificateNumber: certificateNumber });
         // Check if certificate number already exists in the Batch
         const isNumberExistInBatch = await BatchIssues.findOne({ certificateNumber: certificateNumber });
-
+console.log(isNumberExistInBatch,"isbatch inn")
         // Validation checks for request data
         if (
             (!idExist || idExist.status !== 1) || // User does not exist
@@ -265,7 +265,13 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                             name: isNumberExist.name,
                             expirationDate: expirationDate,
                             email: email,
-                            certStatus: 2
+                            certStatus: 2,
+                            templateUrl:isNumberExist.templateUrl,
+                            logoUrl:isNumberExist. logoUrl,
+                            badgeUrl:isNumberExist.badgeUrl,
+                            signatureUrl:isNumberExist.signatureUrl,
+                            issuerName:isNumberExist.issuerName,
+                            issuerDesignation:isNumberExist.issuerDesignation,
                         };
                         // Insert certification status data into database
                         await insertIssueStatus(certificateData);

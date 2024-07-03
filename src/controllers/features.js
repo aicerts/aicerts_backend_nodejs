@@ -55,6 +55,7 @@ const renewCert = async (req, res) => {
         }
 
         const renewResponse = await handleRenewCertification(email, certificateNumber, _expirationDate);
+        console.log(renewResponse,"returned")
         var responseDetails = renewResponse.details ? renewResponse.details : '';
         if (renewResponse.code == 200) {
             return res.status(renewResponse.code).json({ status: renewResponse.status, message: renewResponse.message, qrCodeImage: renewResponse.qrCodeImage, polygonLink: renewResponse.polygonLink, details: responseDetails });
