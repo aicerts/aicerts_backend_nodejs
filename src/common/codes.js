@@ -46,6 +46,7 @@ module.exports = {
     msgMaxLength : "Entered Input must between 8 to 30 characters",
     msgMaxLengthCourse : "Entered Input must not exceed 150 characters",
     msgVlidCertNoDb: "Certification is valid perhaps Details unavailable",
+    msgInvalidOrganization: "Entered invalid organization / not exist.",
 
     // API response codes in Issues (Controller)
     msgAuthMissing : "Authorization token is missing",
@@ -83,6 +84,7 @@ module.exports = {
     msgLogoutSuccess : "Admin Logged out successfully",
     msgErrorInLogout : "An error occurred during the logout!",
     msgPwdSuccess : "Password reset successful",
+    msgPwdNotSame : "Password cannot be the same as the previous one!",
     msgErrorOnUser : "An error occurred while saving user account!",
     msgErrorOnHashing : "An error occurred while hashing password!",
     msgErrorOnPwdReset : "An error occurred during password reset process!",
@@ -97,6 +99,7 @@ module.exports = {
     msgProvideValidCertStatus : "Please provide valid status",
     msgTypeRestricted: "Please provide valid type input (1, 2 or 3)",
     msgProvideValidType : "Please provide valid type as 1, 2 or 3",
+    msgOrganizationFetched:"Organization details fetched successfully",
 
     // Blockchain route Messages
     msgInvalidInput : "Invalid Input provided",

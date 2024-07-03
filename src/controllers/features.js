@@ -16,12 +16,9 @@ const {
 // Importing functions from a custom module
 const {
     convertDateFormat,
-    isCertificationIdExisted,
-    isDBConnected,
-    extractCertificateInfo
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
-var messageCode = require("../common/codes");
+let messageCode = require("../common/codes");
 
 // Import the Issues models from the schema defined in "../config/schema"
 const { ShortUrl } = require("../config/schema");
@@ -34,7 +31,7 @@ const { ShortUrl } = require("../config/schema");
  * @param {Object} res - Express response object.
  */
 const renewCert = async (req, res) => {
-    var validResult = validationResult(req);
+    let validResult = validationResult(req);
     if (!validResult.isEmpty()) {
         return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
     }
@@ -42,12 +39,12 @@ const renewCert = async (req, res) => {
         // Extracting required data from the request body
         const email = req.body.email;
         const certificateNumber = req.body.certificateNumber;
-        var _expirationDate = req.body.expirationDate;
+        let _expirationDate = req.body.expirationDate;
 
         if (req.body.expirationDate == "1" || req.body.expirationDate == 1 || req.body.expirationDate == null || req.body.expirationDate == "string") {
-            var _expirationDate = 1;
+            _expirationDate = 1;
         } else {
-            var _expirationDate = await convertDateFormat(req.body.expirationDate);
+            _expirationDate = await convertDateFormat(req.body.expirationDate);
         }
         if (_expirationDate == null) {
             res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidExpirationDate, details: req.body.expirationDate });
@@ -55,8 +52,7 @@ const renewCert = async (req, res) => {
         }
 
         const renewResponse = await handleRenewCertification(email, certificateNumber, _expirationDate);
-        console.log(renewResponse,"returned")
-        var responseDetails = renewResponse.details ? renewResponse.details : '';
+        const responseDetails = renewResponse.details ? renewResponse.details : '';
         if (renewResponse.code == 200) {
             return res.status(renewResponse.code).json({ status: renewResponse.status, message: renewResponse.message, qrCodeImage: renewResponse.qrCodeImage, polygonLink: renewResponse.polygonLink, details: responseDetails });
         }
@@ -74,19 +70,19 @@ const renewCert = async (req, res) => {
  * @param {Object} res - Express response object.
  */
 const updateCertStatus = async (req, res) => {
-    var validResult = validationResult(req);
+    let validResult = validationResult(req);
     if (!validResult.isEmpty()) {
         return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
     }
 
     try {
         // Extracting required data from the request body
-        email = req.body.email;
-        certificateNumber = req.body.certificateNumber;
-        certStatus = req.body.certStatus;
+        const email = req.body.email;
+        const certificateNumber = req.body.certificateNumber;
+        const certStatus = req.body.certStatus;
 
         const updateResponse = await handleUpdateCertificationStatus(email, certificateNumber, certStatus);
-        var responseDetails = updateResponse.details ? updateResponse.details : '';
+        const responseDetails = updateResponse.details ? updateResponse.details : '';
         return res.status(updateResponse.code).json({ status: updateResponse.status, message: updateResponse.message, details: responseDetails });
 
     } catch (error) {
@@ -102,7 +98,7 @@ const updateCertStatus = async (req, res) => {
  * @param {Object} res - Express response object.
  */
 const renewBatchCertificate = async (req, res) => {
-    var validResult = validationResult(req);
+    let validResult = validationResult(req);
     if (!validResult.isEmpty()) {
         return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
     }
@@ -111,17 +107,17 @@ const renewBatchCertificate = async (req, res) => {
         // Extracting required data from the request body
         const email = req.body.email;
         const _batchId = req.body.batch;
-        var expirationDate = req.body.expirationDate;
+        let expirationDate = req.body.expirationDate;
         if (req.body.expirationDate == "1" || req.body.expirationDate == "string" || req.body.expirationDate == null) {
-            var expirationDate = 1;
+            expirationDate = 1;
         }
-        var batchId = parseInt(_batchId);
+        let batchId = parseInt(_batchId);
 
         const batchResponse = await handleRenewBatchOfCertifications(email, batchId, expirationDate);
         if (!batchResponse) {
             return res.status(400).json({ status: "FAILED", message: messageCode.msgInternalError });
         }
-        var responseDetails = batchResponse.details ? batchResponse.details : '';
+        let responseDetails = batchResponse.details ? batchResponse.details : '';
         return res.status(batchResponse.code).json({ status: batchResponse.status, message: batchResponse.message, details: responseDetails });
 
     } catch (error) {
@@ -137,7 +133,7 @@ const renewBatchCertificate = async (req, res) => {
  * @param {Object} res - Express response object.
  */
 const updateBatchStatus = async (req, res) => {
-    var validResult = validationResult(req);
+    let validResult = validationResult(req);
     if (!validResult.isEmpty()) {
         return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
     }
@@ -147,14 +143,14 @@ const updateBatchStatus = async (req, res) => {
         const email = req.body.email;
         const _batchId = req.body.batch;
         const _batchStatus = req.body.status;
-        var batchId = parseInt(_batchId);
-        var batchStatus = parseInt(_batchStatus);
+        const batchId = parseInt(_batchId);
+        const batchStatus = parseInt(_batchStatus);
 
         const batchStatusResponse = await handleUpdateBatchCertificationStatus(email, batchId, batchStatus);
         if (!batchStatusResponse) {
             return res.status(400).json({ status: "FAILED", message: messageCode.msgInternalError });
         }
-        var responseDetails = batchStatusResponse.details ? batchStatusResponse.details : '';
+        const responseDetails = batchStatusResponse.details ? batchStatusResponse.details : '';
         return res.status(batchStatusResponse.code).json({ status: batchStatusResponse.status, message: batchStatusResponse.message, details: responseDetails });
 
     } catch (error) {

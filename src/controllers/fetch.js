@@ -19,6 +19,7 @@ const {
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
 var messageCode = require("../common/codes");
+const { issue } = require('../common/validationRoutes');
 app.use("../../uploads", express.static(path.join(__dirname, "uploads")));
 
 const minimum_year_range = parseInt(process.env.BASE_YEAR);
@@ -469,11 +470,11 @@ const fetchIssuesLogDetails = async (req, res) => {
           var _queryResponse = [...queryResponse1, ...queryResponse2];
           // Sort the data based on the 'issueDate' date in descending order
           _queryResponse.sort((a, b) => new Date(b.issueDate) - new Date(a.issueDate));
-          
-          for(var item6 of _queryResponse){
+
+          for (var item6 of _queryResponse) {
             var certificateNumber = item6.certificateNumber;
             const issueStatus6 = await IssueStatus.findOne({ certificateNumber });
-            if(issueStatus6){
+            if (issueStatus6) {
               // Push the matching issue status into filteredResponse
               filteredResponse6.push(item6);
             }
@@ -534,10 +535,10 @@ const fetchIssuesLogDetails = async (req, res) => {
           // Sort the data based on the 'expirationDate' date in descending order
           queryResponse.sort((a, b) => new Date(a.expirationDate) - new Date(b.expirationDate));
 
-          for(var item8 of queryResponse){
+          for (var item8 of queryResponse) {
             var certificateNumber = item8.certificateNumber;
             const issueStatus8 = await IssueStatus.findOne({ certificateNumber });
-            if(issueStatus8){
+            if (issueStatus8) {
               // Push the matching issue status into filteredResponse
               filteredResponse8.push(item8);
             }
@@ -1101,6 +1102,114 @@ const getBatchCertificates = async (req, res) => {
   }
 };
 
+/**
+ * Api to fetch Organtization details (Mobile Application)
+ * 
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
+const getOrganizationDetails = async (req, res) => {
+  try {
+    let organizations = await User.find({}, 'organization'); // Only select the 'organization' field
+    let _organizations = organizations.map(user => user.organization);
+    // Use Set to filter unique values
+    let uniqueResponses = [...new Set(_organizations.map(item => item.toUpperCase()))];
+    res.json({
+      status: "SUCCESS",
+      message: messageCode.msgOrganizationFetched,
+      data: uniqueResponses
+    });
+  } catch (err) {
+    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+  }
+};
+
+/**
+ * Api to fetch Issues details as per Issuers in the oganization (Mobile Application)
+ * 
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
+const getIssuesInOrganizationWithName = async (req, res) => {
+  var validResult = validationResult(req);
+  if (!validResult.isEmpty()) {
+    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+  }
+
+  const organization = req.body.organization;
+  const targetName = req.body.name;
+  var fetchedIssues = [];
+
+  try {
+    var dbStatus = await isDBConnected();
+
+    if (dbStatus == false) {
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgDbNotReady });
+    }
+
+    let organizationUppercase = organization.toUpperCase();
+    let organizationLowercase = organization.toLowerCase();
+
+    let organizationCapitalize = organizationLowercase.charAt(0).toUpperCase() + organizationLowercase.slice(1);
+
+    let nameUppercase = targetName.toUpperCase();
+    let nameLowercase = targetName.toLowerCase();
+
+    let nameCapitalize = nameLowercase.charAt(0).toUpperCase() + nameLowercase.slice(1);
+
+    const getIssuers = await User.find({
+      organization: { $in: [organization, organizationUppercase, organizationLowercase, organizationCapitalize] }
+    });
+
+    if (getIssuers && getIssuers.length > 1) {
+      // Extract issuerIds
+      var getIssuerIds = getIssuers.map(item => item.issuerId);
+    } else {
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgNoMatchFound });
+    }
+
+    for (let i = 0; i < getIssuerIds.length; i++) {
+      const currentIssuerId = getIssuerIds[i];
+
+      // Query 1
+      var query1Promise = Issues.find({
+        issuerId: currentIssuerId,
+        name: { $in: [targetName] },
+        url: { $exists: true, $ne: null } // Filter to include documents where `url` exists
+      });
+
+      // Query 2
+      var query2Promise = BatchIssues.find({
+        issuerId: currentIssuerId,
+        name: { $in: [targetName] },
+        url: { $exists: true, $ne: null } // Filter to include documents where `url` exists
+      });
+
+      // Await both promises
+      var [query1Result, query2Result] = await Promise.all([query1Promise, query2Promise]);
+      // Check if results are non-empty and push to finalResults
+      if (query1Result.length > 0) {
+        // fetchedIssues.push(query1Result);
+        fetchedIssues = fetchedIssues.concat(query1Result);
+      }
+      if (query2Result.length > 0) {
+        // fetchedIssues.push(query2Result);
+        fetchedIssues = fetchedIssues.concat(query2Result);
+      }
+    }
+
+    if(fetchedIssues.length == 0){
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgNoMatchFound });
+    }
+
+    return res.status(200).json({ status: "SUCCESS", message: messageCode.msgAllQueryFetched, response: fetchedIssues });
+
+  } catch (error) {
+    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, error: error });
+  }
+
+};
+
 module.exports = {
   // Function to get all issuers (users)
   getAllIssuers,
@@ -1128,6 +1237,8 @@ module.exports = {
   uploadCertificateToS3,
   getSingleCertificates,
   getBatchCertificates,
-  getBatchCertificateDates
+  getBatchCertificateDates,
+  getOrganizationDetails,
+  getIssuesInOrganizationWithName
 
 };

@@ -26,7 +26,6 @@ const {
   holdExecution,
   insertCertificateData, // Function to insert certificate data into the database
   addLinkToPdf, // Function to add a link to a PDF file
-  createPdfCertificateImage,
   verifyPDFDimensions, //Verify the uploading pdf template dimensions
   calculateHash, // Function to calculate the hash of a file
   cleanUploadFolder, // Function to clean up the upload folder
@@ -59,19 +58,19 @@ const newContract = new ethers.Contract(contractAddress, abi, signer);
 const min_length = parseInt(process.env.MIN_LENGTH);
 const max_length = parseInt(process.env.MAX_LENGTH);
 
-var messageCode = require("../common/codes");
+let messageCode = require("../common/codes");
 
 const handleIssueCertification = async (email, certificateNumber, name, courseName, _grantDate, _expirationDate,templateUrl,signatureUrl,badgeUrl,issuerName,issuerDesignation,logoUrl) => {
   const grantDate = await convertDateFormat(_grantDate);
   const expirationDate = await convertDateFormat(_expirationDate);
   // Get today's date
-  var today = new Date(); // Adjust timeZone as per the US Standard Time zone
+  let today = new Date(); // Adjust timeZone as per the US Standard Time zone
   // Convert today's date to epoch time (in milliseconds)
-  var todayEpoch = today.getTime() / 1000; // Convert milliseconds to seconds
+  let todayEpoch = today.getTime() / 1000; // Convert milliseconds to seconds
 
-  var epochGrant = await convertDateToEpoch(grantDate);
-  var epochExpiration = expirationDate != 1 ? await convertDateToEpoch(expirationDate) : 1;
-  var validExpiration = todayEpoch + (32 * 24 * 60 * 60); // Add 32 days (30 * 24 hours * 60 minutes * 60 seconds);
+  const epochGrant = await convertDateToEpoch(grantDate);
+  const epochExpiration = expirationDate != 1 ? await convertDateToEpoch(expirationDate) : 1;
+  const validExpiration = todayEpoch + (32 * 24 * 60 * 60); // Add 32 days (30 * 24 hours * 60 minutes * 60 seconds);
 
   if (
     !grantDate ||
@@ -79,7 +78,7 @@ const handleIssueCertification = async (email, certificateNumber, name, courseNa
     (epochExpiration != 1 && epochGrant > epochExpiration) ||
     (epochExpiration != 1 && epochExpiration < validExpiration)
   ) {
-    var errorMessage = messageCode.msgInvalidDate;
+    let errorMessage = messageCode.msgInvalidDate;
     if (!grantDate || !expirationDate) {
       errorMessage = messageCode.msgInvalidDateFormat;
     } else if (epochExpiration != 1 && epochGrant > epochExpiration) {
@@ -111,11 +110,11 @@ const handleIssueCertification = async (email, certificateNumber, name, courseNa
     ) {
       // Prepare error message
       let errorMessage = messageCode.msgPlsEnterValid;
-      var moreDetails = '';
+      let moreDetails = '';
       // Check for specific error conditions and update the error message accordingly
       if (isIssueExist) {
         errorMessage = messageCode.msgCertIssued;
-        var _certStatus = await getCertificationStatus(isIssueExist.certificateStatus);
+        let _certStatus = await getCertificationStatus(isIssueExist.certificateStatus);
         moreDetails = { certificateNumber: isIssueExist.certificateNumber, expirationDate: isIssueExist.expirationDate, certificateStatus: _certStatus };
       } else if ((!grantDate || grantDate == 'Invalid date') || (!expirationDate || expirationDate == 'Invalid date')) {
         errorMessage = messageCode.msgProvideValidDates;
@@ -171,10 +170,10 @@ const handleIssueCertification = async (email, certificateNumber, name, courseNa
             issuerAuthorized === false
           ) {
             // Certificate already issued / contract paused
-            var messageContent = messageCode.msgCertIssued;
-            var modifiedDate = val[1] == 1 ? 'infinite expiration' : await convertEpochToDate(val[1]);
-            var _certificateStatus = await getCertificationStatus(val[3]);
-            var moreDetails = val[0] === true ? { certificateNumber: certificateNumber, expirationDate: modifiedDate, certificateStatus: _certificateStatus } : "";  
+            let messageContent = messageCode.msgCertIssued;
+            let modifiedDate = val[1] == 1 ? 'infinite expiration' : await convertEpochToDate(val[1]);
+            let _certificateStatus = await getCertificationStatus(val[3]);
+            let moreDetails = val[0] === true ? { certificateNumber: certificateNumber, expirationDate: modifiedDate, certificateStatus: _certificateStatus } : "";
             if (isPaused === true) {
               messageContent = messageCode.msgOpsRestricted;
             } else if (issuerAuthorized === false) {
@@ -184,14 +183,16 @@ const handleIssueCertification = async (email, certificateNumber, name, courseNa
 
           } else {
 
-            var { txHash, polygonLink } = await issueCertificateWithRetry(certificateNumber, combinedHash, epochExpiration);
-            if (!polygonLink) {
+            let { txHash, polygonLink } = await issueCertificateWithRetry(certificateNumber, combinedHash, epochExpiration);
+            if (!polygonLink || !txHash) {
               return ({ code: 400, status: false, message: messageCode.msgFailedToIssueAfterRetry, details: certificateNumber });
             }
 
             // Generate encrypted URL with certificate data
             const dataWithLink = { ...fields, polygonLink: polygonLink }
             const urlLink = generateEncryptedUrl(dataWithLink);
+            let shortUrlStatus = false;
+            let modifiedUrl = false;
 
             // Generate QR code based on the URL
             const legacyQR = false;
@@ -211,9 +212,9 @@ const handleIssueCertification = async (email, certificateNumber, name, courseNa
             }
 
             if (urlLink) {
-              var dbStatus = await isDBConnected();
+              let dbStatus = await isDBConnected();
               if (dbStatus) {
-                var urlData = {
+                let urlData = {
                   email: email,
                   certificateNumber: certificateNumber,
                   url: urlLink
@@ -223,11 +224,11 @@ const handleIssueCertification = async (email, certificateNumber, name, courseNa
               }
             }
 
-            if (shortUrlStatus == true) {
-              var modifiedUrl = process.env.SHORT_URL + certificateNumber;
+            if (shortUrlStatus) {
+              modifiedUrl = process.env.SHORT_URL + certificateNumber;
             }
 
-            var _qrCodeData = modifiedUrl != false ? modifiedUrl : qrCodeData;
+            const _qrCodeData = modifiedUrl != false ? modifiedUrl : qrCodeData;
             // console.log("Short URL", _qrCodeData);
 
             const qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
@@ -239,7 +240,7 @@ const handleIssueCertification = async (email, certificateNumber, name, courseNa
             try {
               // Check mongoose connection
               const dbStatus = await isDBConnected();
-              const dbStatusMessage = (dbStatus == true) ? messageCode.msgDbReady : messageCode.msgDbNotReady;
+              const dbStatusMessage = (dbStatus === true) ? messageCode.msgDbReady : messageCode.msgDbNotReady;
               console.log(dbStatusMessage);
 
               const issuerId = idExist.issuerId;
@@ -596,13 +597,13 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
   const grantDate = await convertDateFormat(_grantDate);
   const expirationDate = await convertDateFormat(_expirationDate);
   // Get today's date
-  var today = new Date().toLocaleString("en-US", { timeZone: "America/New_York" }); // Adjust timeZone as per the US Standard Time zone
+  const today = new Date().toLocaleString("en-US", { timeZone: "America/New_York" }); // Adjust timeZone as per the US Standard Time zone
   // Convert today's date to epoch time (in milliseconds)
-  var todayEpoch = new Date(today).getTime() / 1000; // Convert milliseconds to seconds
+  const todayEpoch = new Date(today).getTime() / 1000; // Convert milliseconds to seconds
 
-  var epochGrant = await convertDateToEpoch(grantDate);
-  var epochExpiration = expirationDate != 1 ? await convertDateToEpoch(expirationDate) : 1;
-  var validExpiration = todayEpoch + (32 * 24 * 60 * 60); // Add 32 days (30 * 24 hours * 60 minutes * 60 seconds);
+  const epochGrant = await convertDateToEpoch(grantDate);
+  const epochExpiration = expirationDate != 1 ? await convertDateToEpoch(expirationDate) : 1;
+  const validExpiration = todayEpoch + (32 * 24 * 60 * 60); // Add 32 days (30 * 24 hours * 60 minutes * 60 seconds);
 
   if (
     !grantDate ||
@@ -610,7 +611,7 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
     (epochExpiration != 1 && epochGrant > epochExpiration) ||
     (epochExpiration != 1 && epochExpiration < validExpiration)
   ) {
-    var errorMessage = messageCode.msgInvalidDate;
+    let errorMessage = messageCode.msgInvalidDate;
     if (!grantDate || !expirationDate) {
       errorMessage = messageCode.msgInvalidDateFormat;
     } else if (epochExpiration != 1 && epochGrant > epochExpiration) {
@@ -628,10 +629,9 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
     // Check if certificate number already exists
     const isIssueExist = await isCertificationIdExisted(certificateNumber);
 
-    var _result = '';
-    const templateData = await verifyPDFDimensions(pdfPath)
+    let _result = '';
+    let templateData = await verifyPDFDimensions(pdfPath)
       .then(result => {
-        // console.log("Verification result:", result);
         _result = result;
       })
       .catch(error => {
@@ -654,11 +654,11 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
     ) {
       // res.status(400).json({ message: "Please provide valid details" });
       let errorMessage = messageCode.msgPlsEnterValid;
-      var moreDetails = '';
+      let moreDetails = '';
       // Check for specific error conditions and update the error message accordingly
       if (isIssueExist) {
-        errorMessage = messageCode.msgCertIssued; 
-        var _certStatus = await getCertificationStatus(isIssueExist.certificateStatus);
+        errorMessage = messageCode.msgCertIssued;
+        const _certStatus = await getCertificationStatus(isIssueExist.certificateStatus);
         moreDetails = { certificateNumber: isIssueExist.certificateNumber, expirationDate: isIssueExist.expirationDate, certificateStatus: _certStatus };
       } else if (!grantDate || !expirationDate) {
         errorMessage = messageCode.msgProvideValidDates;
@@ -702,13 +702,13 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
 
       try {
         // Verify certificate on blockchain
-        var isPaused = await newContract.paused();
+        let isPaused = await newContract.paused();
         // Check if the Issuer wallet address is a valid Ethereum address
         if (!ethers.isAddress(idExist.issuerId)) {
           return ({ code: 400, status: "FAILED", message: messageCode.msgInvalidEthereum });
         }
-        var issuerAuthorized = await newContract.hasRole(process.env.ISSUER_ROLE, idExist.issuerId);
-        var val = await newContract.verifyCertificateById(certificateNumber);
+        const issuerAuthorized = await newContract.hasRole(process.env.ISSUER_ROLE, idExist.issuerId);
+        const val = await newContract.verifyCertificateById(certificateNumber);
         console.log("Issuer Authorized: ", issuerAuthorized);
         if (
           val[0] === true ||
@@ -716,11 +716,11 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
           issuerAuthorized === false
         ) {
           // Certificate already issued / contract paused
-          var messageContent = messageCode.msgCertIssued;
-          var modifiedDate = val[1] == 1 ? 'infinite expiration' : await convertEpochToDate(val[1]);
-          var _certificateStatus = await getCertificationStatus(val[3]);
-          var moreDetails = val[0] === true ? { certificateNumber: certificateNumber, expirationDate: modifiedDate, certificateStatus: _certificateStatus } : "";
-          
+          let messageContent = messageCode.msgCertIssued;
+          let modifiedDate = val[1] == 1 ? 'infinite expiration' : await convertEpochToDate(val[1]);
+          let _certificateStatus = await getCertificationStatus(val[3]);
+          let moreDetails = val[0] === true ? { certificateNumber: certificateNumber, expirationDate: modifiedDate, certificateStatus: _certificateStatus } : "";
+
           if (isPaused === true) {
             messageContent = messageCode.msgOpsRestricted;
           } else if (issuerAuthorized === false) {
@@ -734,7 +734,7 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
         return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
       }
 
-      var { txHash, polygonLink } = await issueCertificateWithRetry(certificateNumber, combinedHash, epochExpiration);
+      let { txHash, polygonLink } = await issueCertificateWithRetry(certificateNumber, combinedHash, epochExpiration);
       if (!polygonLink || !txHash) {
         return ({ code: 400, status: false, message: messageCode.msgFailedToIssueAfterRetry, details: certificateNumber });
       }
@@ -746,6 +746,8 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
         }
         const urlLink = await generateEncryptedUrl(dataWithLink);
         const legacyQR = false;
+        let shortUrlStatus = false;
+        let modifiedUrl;
 
         let qrCodeData = '';
         if (legacyQR) {
@@ -762,9 +764,9 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
         }
 
         if (urlLink) {
-          var dbStatus = await isDBConnected();
+          let dbStatus = await isDBConnected();
           if (dbStatus) {
-            var urlData = {
+            const urlData = {
               email: email,
               certificateNumber: certificateNumber,
               url: urlLink
@@ -774,18 +776,18 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
           }
         }
 
-        if (shortUrlStatus == true) {
+        if (shortUrlStatus) {
           modifiedUrl = process.env.SHORT_URL + certificateNumber;
         }
 
-        var _qrCodeData = modifiedUrl != false ? modifiedUrl : qrCodeData;
+        let _qrCodeData = modifiedUrl != false ? modifiedUrl : qrCodeData;
         // console.log("Short URL", _qrCodeData);
 
         const qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
           errorCorrectionLevel: "H", width: 450, height: 450
         });
 
-        file = pdfPath;
+        var file = pdfPath;
         var outputPdf = `${fields.Certificate_Number}${name}.pdf`;
 
         // Add link and QR code to the PDF file
@@ -803,17 +805,16 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
       } catch (error) {
         return ({ code: 400, status: "FAILED", message: messageCode.msgPdfError, details: error });
       }
-      
+
 
       // Define the directory where you want to save the file
       const uploadDir = path.join(__dirname, '..', '..', 'uploads'); // Go up two directories from __dirname
-
-      var generatedImage = `${fields.Certificate_Number}.png`;
-      var convertedPath = path.join(uploadDir, generatedImage);
-      var imageBuffer = await convertPdfBufferToPng(convertedPath, fileBuffer);
+      let generatedImage = `${fields.Certificate_Number}.png`;
+      // var convertedPath = path.join(uploadDir, generatedImage);
+      var imageBuffer = await convertPdfBufferToPng(generatedImage, fileBuffer);
       if (imageBuffer) {
-        var imageUrl = await uploadImageToS3(fields.Certificate_Number, convertedPath);
-        if (imageUrl == false) {
+        var imageUrl = await uploadImageToS3(fields.Certificate_Number, generatedImage);
+        if (!imageUrl) {
           return ({ code: 400, status: "FAILED", message: messageCode.msgUploadError });
         }
       } else {
@@ -823,12 +824,12 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
       try {
         // Check mongoose connection
         const dbStatus = await isDBConnected();
-        const dbStatusMessage = (dbStatus == true) ? messageCode.msgDbReady : messageCode.msgDbNotReady;
+        const dbStatusMessage = (dbStatus === true) ? messageCode.msgDbReady : messageCode.msgDbNotReady;
         console.log(dbStatusMessage);
 
         // Insert certificate data into database
         const issuerId = idExist.issuerId;
-        var certificateData = {
+        let certificateData = {
           issuerId,
           transactionHash: txHash,
           certificateHash: combinedHash,
@@ -852,9 +853,9 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
         await insertCertificateData(certificateData);
 
         // Delete files
-        if (fs.existsSync(convertedPath)) {
+        if (fs.existsSync(generatedImage)) {
           // Delete the specified file
-          fs.unlinkSync(convertedPath);
+          fs.unlinkSync(generatedImage);
         }
 
         // Delete files
@@ -896,9 +897,9 @@ const issueCertificateWithRetry = async (certificateNumber, certificateHash, exp
       expirationEpoch
     );
 
-    var txHash = tx.hash;
+    let txHash = tx.hash;
 
-    var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
+    let polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
 
     if (!txHash) {
       return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain });
@@ -932,7 +933,6 @@ const convertPdfBufferToPng = async (imagePath, pdfBuffer) => {
   if (!imagePath || !pdfBuffer) {
     return false;
   }
-  // console.log("Pdf path is", pdfPath);
   const options = {
     format: 'png', // Specify output format (optional, defaults to 'png')
     responseType: 'buffer', // Ensure binary output (PNG buffer)
@@ -945,17 +945,16 @@ const convertPdfBufferToPng = async (imagePath, pdfBuffer) => {
   try {
     const convert = fromBuffer(pdfBuffer, options);
     const pageOutput = await convert(1, { responseType: 'buffer' }); // Convert page 1 (adjust as needed)
-    var base64String = await pageOutput.base64;
+    let base64String = await pageOutput.base64;
     // Remove the data URL prefix if present
     const base64Data = await base64String.replace(/^data:image\/png;base64,/, '');
 
     // Convert Base64 to buffer
     const _buffer = Buffer.from(base64Data, 'base64');
-    // console.log("The image buffer", _buffer);
     fs.writeFile(imagePath, _buffer, (err) => {
       if (err) {
         console.error("Error writing PNG file:", err);
-        return;
+        return false;
       }
     });
     // Save the PNG buffer to a file
@@ -992,8 +991,6 @@ const uploadImageToS3 = async (certNumber, imagePath) => {
 module.exports = {
   // Function to issue a PDF certificate
   handleIssuePdfCertification,
-
-  handleIssuePdfQrCertification,
 
   // Function to issue a certification
   handleIssueCertification

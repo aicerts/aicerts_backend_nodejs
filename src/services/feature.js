@@ -2,16 +2,14 @@
 require('dotenv').config();
 
 // Import required modules
-const path = require("path");
 const QRCode = require("qrcode");
-const fs = require("fs");
 const { ethers } = require("ethers"); // Ethereum JavaScript library
 
 // Import custom cryptoFunction module for encryption and decryption
 const { generateEncryptedUrl } = require("../common/cryptoFunction");
 
 // Import MongoDB models
-const { User, Issues, BatchIssues } = require("../config/schema");
+const { User, Issues, BatchIssues, ShortUrl } = require("../config/schema");
 
 // Import ABI (Application Binary Interface) from the JSON file located at "../config/abi.json"
 const abi = require("../config/abi.json");
@@ -51,17 +49,17 @@ const newContract = new ethers.Contract(contractAddress, abi, signer);
 const min_length = parseInt(process.env.MIN_LENGTH);
 const max_length = parseInt(process.env.MAX_LENGTH);
 
-var messageCode = require("../common/codes");
+const messageCode = require("../common/codes");
 
 const handleRenewCertification = async (email, certificateNumber, _expirationDate) => {
     const expirationDate = _expirationDate != 1 ? await convertDateFormat(_expirationDate) : 1;
     // Get today's date
-    var today = new Date().toLocaleString("en-US", { timeZone: "America/New_York" }); // Adjust timeZone as per the US Standard Time zone
+    let today = new Date().toLocaleString("en-US", { timeZone: "America/New_York" }); // Adjust timeZone as per the US Standard Time zone
     // Convert today's date to epoch time (in milliseconds)
-    var todayEpoch = new Date(today).getTime() / 1000; // Convert milliseconds to seconds
+    let todayEpoch = new Date(today).getTime() / 1000; // Convert milliseconds to seconds
 
-    var epochExpiration = _expirationDate != 1 ? await convertDateToEpoch(expirationDate) : 1;
-    var validExpiration = todayEpoch + (32 * 24 * 60 * 60); // Add 32 days (30 * 24 hours * 60 minutes * 60 seconds);
+    let epochExpiration = _expirationDate != 1 ? await convertDateToEpoch(expirationDate) : 1;
+    let validExpiration = todayEpoch + (32 * 24 * 60 * 60); // Add 32 days (30 * 24 hours * 60 minutes * 60 seconds);
 
     try {
         await isDBConnected();
@@ -103,7 +101,7 @@ console.log(isNumberExistInBatch,"isbatch inn")
                 return ({ code: 400, status: "FAILED", message: messageCode.msgUpdateExpirationNotPossible });
             }
 
-            var epochExpiration = expirationDate != 1 ? await convertDateToEpoch(expirationDate) : 1;
+            epochExpiration = expirationDate != 1 ? await convertDateToEpoch(expirationDate) : 1;
             if (expirationDate != 1 && epochExpiration < todayEpoch) {
                 return ({ code: 400, status: "FAILED", message: messageCode.msgCertExpired });
             }
@@ -112,14 +110,14 @@ console.log(isNumberExistInBatch,"isbatch inn")
 
                 // Blockchain calls
                 const getCertificateStatus = await newContract.getCertificateStatus(certificateNumber);
-                var certStatus = parseInt(getCertificateStatus);
+                let certStatus = parseInt(getCertificateStatus);
                 if (certStatus == 3) {
                     // Respond with error message
                     return ({ code: 400, status: "FAILED", message: messageCode.msgNotPossibleOnRevoked });
                 }
 
                 if (expirationDate != 1) {
-                    var certDateValidation = await expirationDateVariaton(isNumberExist.expirationDate, expirationDate);
+                    let certDateValidation = await expirationDateVariaton(isNumberExist.expirationDate, expirationDate);
 
                     if (certDateValidation == 0 || certDateValidation == 2) {
                         // Respond with error message
@@ -147,7 +145,7 @@ console.log(isNumberExistInBatch,"isbatch inn")
                     const isPaused = await newContract.paused();
                     const issuerAuthorized = await newContract.hasRole(process.env.ISSUER_ROLE, idExist.issuerId);
                     const verifyOnChain = await newContract.verifyCertificateById(certificateNumber);
-                    var certExpiration = parseInt(verifyOnChain[1]);
+                    const certExpiration = parseInt(verifyOnChain[1]);
                     if (certExpiration == 1) {
                         return ({ code: 400, status: "FAILED", message: messageCode.msgUpdateExpirationNotPossible });
                     }
@@ -155,51 +153,28 @@ console.log(isNumberExistInBatch,"isbatch inn")
                         issuerAuthorized === false ||
                         isPaused === true
                     ) {
+                        let messageContent = "";
                         // Issuer not authorized / contract paused
                         if (isPaused === true) {
-                            var messageContent = messageCode.msgOpsRestricted;
+                            messageContent = messageCode.msgOpsRestricted;
                         } else if (issuerAuthorized === false) {
-                            var messageContent = messageCode.msgIssuerUnauthrized;
+                            messageContent = messageCode.msgIssuerUnauthrized;
                         }
                         return ({ code: 400, status: "FAILED", message: messageContent });
                     }
 
-                    if (verifyOnChain[0] == true) {
-                        
+                    if (verifyOnChain[0] === true) {
+
                         var { txHash, polygonLink } = await renewSingleCertificateExpirationWithRetry(certificateNumber, combinedHash, epochExpiration);
                         if (!txHash || !polygonLink) {
                             return ({ code: 400, status: false, message: messageCode.msgFailedToRenewRetry, details: epochExpiration });
                         }
 
-                        // try {
-                        //     // Perform Expiration extension
-                        //     const tx = await newContract.renewCertificate(
-                        //         certificateNumber,
-                        //         combinedHash,
-                        //         epochExpiration
-                        //     );
-
-                        //     // await tx.wait();
-                        //     var txHash = tx.hash;
-
-                        //     // Generate link URL for the certificate on blockchain
-                        //     var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
-
-                        // } catch (error) {
-                        //     if (error.reason) {
-                        //         // Extract and handle the error reason
-                        //         console.log("Error reason:", error.reason);
-                        //         return ({ code: 400, status: "FAILED", message: error.reason });
-                        //     } else {
-                        //         // If there's no specific reason provided, handle the error generally
-                        //         console.error(messageCode.msgFailedOpsAtBlockchain, error);
-                        //         return ({ code: 400, status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain, details: error });
-                        //     }
-                        // }
-
                         // Generate encrypted URL with certificate data
                         const dataWithLink = { ...fields, polygonLink: polygonLink }
                         const urlLink = generateEncryptedUrl(dataWithLink);
+                        let shortUrlStatus;
+                        let modifiedUrl;
 
                         // Generate QR code based on the URL
                         const legacyQR = false;
@@ -217,7 +192,25 @@ console.log(isNumberExistInBatch,"isbatch inn")
                             qrCodeData = urlLink;
                         }
 
-                        var qrCodeImage = await QRCode.toDataURL(qrCodeData, {
+                        if (urlLink) {
+                            let dbStatus = await isDBConnected();
+                            if (dbStatus) {
+                                var urlExist = await ShortUrl.findOne({ certificateNumber: certificateNumber });
+                                if (urlExist) {
+                                    urlExist.url = urlLink;
+                                    await urlExist.save();
+                                    shortUrlStatus = true;
+                                }
+                            }
+                        }
+                        
+                        if (shortUrlStatus) {
+                            modifiedUrl = process.env.SHORT_URL + certificateNumber;
+                        }
+
+                        const _qrCodeData = modifiedUrl != false ? modifiedUrl : qrCodeData;
+
+                        var qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
                             errorCorrectionLevel: "H",
                             width: 450, // Adjust the width as needed
                             height: 450, // Adjust the height as needed
@@ -245,12 +238,12 @@ console.log(isNumberExistInBatch,"isbatch inn")
                         await isNumberExist.save();
 
                         // Update certificate Count
-                        var previousCount = idExist.certificatesIssued;
+                        let previousCount = idExist.certificatesIssued;
                         idExist.certificatesIssued = previousCount + 1;
                         await idExist.save(); // Save the changes to the existing user
 
                         // If user with given id exists, update certificatesRenewed count
-                        var previousRenewCount = idExist.certificatesRenewed || 0; // Initialize to 0 if certificatesIssued field doesn't exist
+                        let previousRenewCount = idExist.certificatesRenewed || 0; // Initialize to 0 if certificatesIssued field doesn't exist
                         idExist.certificatesRenewed = previousRenewCount + 1;
                         await idExist.save(); // Save the changes to the existing user
 
@@ -264,6 +257,7 @@ console.log(isNumberExistInBatch,"isbatch inn")
                             course: isNumberExist.course,
                             name: isNumberExist.name,
                             expirationDate: expirationDate,
+                            type: isNumberExist.type,
                             email: email,
                             certStatus: 2,
                             templateUrl:isNumberExist.templateUrl,
@@ -289,6 +283,7 @@ console.log(isNumberExistInBatch,"isbatch inn")
                         message: messageCode.msgCertRenewedSuccess,
                         qrCodeImage: qrCodeImage,
                         polygonLink: polygonLink,
+                        type: certificateData.type,
                         details: certificateData,
                     });
 
@@ -310,18 +305,17 @@ console.log(isNumberExistInBatch,"isbatch inn")
 
             try {
                 //blockchain calls
-                var fetchIndex = isNumberExistInBatch.batchId - 1;
-                var verifyBatchId = await newContract.verifyBatchRoot(fetchIndex);
-                var _fetchRootLength = await newContract.getRootLength();
-                var fetchRootLength = parseInt(_fetchRootLength);
-                var hashedProof = isNumberExistInBatch.encodedProof;
-                var certStatus = await newContract.verifyCertificateInBatch(hashedProof);
-                var certificateStatus = await newContract.getBatchCertificateStatus(hashedProof);
+                let fetchIndex = isNumberExistInBatch.batchId - 1;
+                let verifyBatchId = await newContract.verifyBatchRoot(fetchIndex);
+                let _fetchRootLength = await newContract.getRootLength();
+                let fetchRootLength = parseInt(_fetchRootLength);
+                let hashedProof = isNumberExistInBatch.encodedProof;
+                let certificateStatus = await newContract.getBatchCertificateStatus(hashedProof);
                 if (verifyBatchId[0] === false || fetchRootLength < fetchIndex) {
                     // Respond with error message
                     return ({ code: 400, status: "FAILED", message: messageCode.msgInvalidRootPassed });
                 } else {
-                    var batchStatus = isNumberExistInBatch.certificateStatus;
+                    const batchStatus = isNumberExistInBatch.certificateStatus;
                     if (batchStatus == 3 || (parseInt(certificateStatus) == 3)) {
                         // Respond with error message
                         return ({ code: 400, status: "FAILED", message: messageCode.msgNotPossibleOnRevoked });
@@ -340,6 +334,7 @@ console.log(isNumberExistInBatch,"isbatch inn")
                         // Verify certificate on blockchain
                         const isPaused = await newContract.paused();
                         const issuerAuthorized = await newContract.hasRole(process.env.ISSUER_ROLE, idExist.issuerId);
+                        let messageContent = "";
 
                         if (
                             issuerAuthorized === false ||
@@ -347,9 +342,9 @@ console.log(isNumberExistInBatch,"isbatch inn")
                         ) {
                             // Issuer not authorized / contract paused
                             if (isPaused === true) {
-                                var messageContent = messageCode.msgOpsRestricted;
+                                messageContent = messageCode.msgOpsRestricted;
                             } else if (issuerAuthorized === false) {
-                                var messageContent = messageCode.msgIssuerUnauthrized;
+                                messageContent = messageCode.msgIssuerUnauthrized;
                             }
                             return ({ code: 400, status: "FAILED", message: messageContent });
                         }
@@ -374,6 +369,7 @@ console.log(isNumberExistInBatch,"isbatch inn")
                             const isPaused = await newContract.paused();
                             const issuerAuthorized = await newContract.hasRole(process.env.ISSUER_ROLE, idExist.issuerId);
                             const verifyOnChain = await newContract.verifyCertificateById(certificateNumber);
+                            let messageContent = "";
 
                             if (
                                 issuerAuthorized === false ||
@@ -381,9 +377,9 @@ console.log(isNumberExistInBatch,"isbatch inn")
                             ) {
                                 // Issuer not authorized / contract paused
                                 if (isPaused === true) {
-                                    var messageContent = messageCode.msgOpsRestricted;
+                                    messageContent = messageCode.msgOpsRestricted;
                                 } else if (issuerAuthorized === false) {
-                                    var messageContent = messageCode.msgIssuerUnauthrized;
+                                    messageContent = messageCode.msgIssuerUnauthrized;
                                 }
                                 return ({ code: 400, status: "FAILED", message: messageContent });
                             }
@@ -395,36 +391,12 @@ console.log(isNumberExistInBatch,"isbatch inn")
                                     return ({ code: 400, status: false, message: messageCode.msgFailedToRenewRetry, details: epochExpiration });
                                 }
 
-                                // try {
-                                //     // Perform Expiration extension
-                                //     const tx = await newContract.renewCertificateInBatch(
-                                //         fetchIndex,
-                                //         hashedProof,
-                                //         epochExpiration
-                                //     );
-
-                                //     // await tx.wait();
-                                //     var txHash = tx.hash;
-
-                                //     // Generate link URL for the certificate on blockchain
-                                //     var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
-
-                                // } catch (error) {
-                                //     if (error.reason) {
-                                //         // Extract and handle the error reason
-                                //         console.log("Error reason:", error.reason);
-                                //         return ({ code: 400, status: "FAILED", message: error.reason });
-                                //     } else {
-                                //         // If there's no specific reason provided, handle the error generally
-                                //         console.error(messageCode.msgFailedOpsAtBlockchain, error);
-                                //         return ({ code: 400, status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain, details: error });
-                                //     }
-                                // }
-
                                 // Generate encrypted URL with certificate data
-                                
+
                                 const dataWithLink = { ...fields, polygonLink: polygonLink }
                                 const urlLink = generateEncryptedUrl(dataWithLink);
+                                let shortUrlStatus;
+                                let modifiedUrl;
 
                                 // Generate QR code based on the URL
                                 const legacyQR = false;
@@ -442,7 +414,25 @@ console.log(isNumberExistInBatch,"isbatch inn")
                                     qrCodeData = urlLink;
                                 }
 
-                                var qrCodeImage = await QRCode.toDataURL(qrCodeData, {
+                                if (urlLink) {
+                                    let dbStatus = await isDBConnected();
+                                    if (dbStatus) {
+                                        let urlExist = await ShortUrl.findOne({ certificateNumber: certificateNumber });
+                                        if (urlExist) {
+                                            urlExist.url = urlLink;
+                                            await urlExist.save();
+                                            shortUrlStatus = true;
+                                        }
+                                    }
+                                }
+
+                                if (shortUrlStatus) {
+                                    modifiedUrl = process.env.SHORT_URL + certificateNumber;
+                                }
+
+                                const _qrCodeData = modifiedUrl != false ? modifiedUrl : qrCodeData;
+
+                                var qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
                                     errorCorrectionLevel: "H",
                                     width: 450, // Adjust the width as needed
                                     height: 450, // Adjust the height as needed
@@ -469,12 +459,12 @@ console.log(isNumberExistInBatch,"isbatch inn")
                                 await isNumberExistInBatch.save();
 
                                 // Update certificate Count
-                                var previousCount = idExist.certificatesIssued;
+                                let previousCount = idExist.certificatesIssued;
                                 idExist.certificatesIssued = previousCount + 1;
                                 await idExist.save(); // Save the changes to the existing user
 
                                 // If user with given id exists, update certificatesRenewed count
-                                var previousRenewCount = idExist.certificatesRenewed || 0; // Initialize to 0 if certificatesIssued field doesn't exist
+                                let previousRenewCount = idExist.certificatesRenewed || 0; // Initialize to 0 if certificatesIssued field doesn't exist
                                 idExist.certificatesRenewed = previousRenewCount + 1;
                                 await idExist.save(); // Save the changes to the existing user
 
@@ -505,6 +495,7 @@ console.log(isNumberExistInBatch,"isbatch inn")
                             return ({
                                 code: 200,
                                 status: "SUCCESS",
+                                certType: "batch",
                                 message: messageCode.msgCertRenewedSuccess,
                                 qrCodeImage: qrCodeImage,
                                 polygonLink: polygonLink,
@@ -543,14 +534,14 @@ console.log(isNumberExistInBatch,"isbatch inn")
 
 const handleUpdateCertificationStatus = async (email, certificateNumber, certStatus) => {
     // Get today's date
-    var today = new Date().toLocaleString("en-US", { timeZone: "America/New_York" }); // Adjust timeZone as per the US Standard Time zone
+    const today = new Date().toLocaleString("en-US", { timeZone: "America/New_York" }); // Adjust timeZone as per the US Standard Time zone
     // Convert today's date to epoch time (in milliseconds)
-    var todayEpoch = new Date(today).getTime() / 1000; // Convert milliseconds to seconds
+    const todayEpoch = new Date(today).getTime() / 1000; // Convert milliseconds to seconds
 
     try {
         // Check mongoose connection
         const dbStatus = await isDBConnected();
-        const dbStatusMessage = (dbStatus == true) ? messageCode.msgDbReady : messageCode.msgDbNotReady;
+        const dbStatusMessage = (dbStatus === true) ? messageCode.msgDbReady : messageCode.msgDbNotReady;
         console.log(dbStatusMessage);
 
         const isIssuerExist = await User.findOne({ email }).select('-password');
@@ -560,16 +551,16 @@ const handleUpdateCertificationStatus = async (email, certificateNumber, certSta
         const isNumberExistInBatch = await BatchIssues.findOne({ certificateNumber: certificateNumber });
 
         if (!isIssuerExist || (!isNumberExist && !isNumberExistInBatch)) {
-            var errorMessage = messageCode.msgPlsEnterValid
+            let errorMessage = messageCode.msgPlsEnterValid
             // Invalid Issuer
             if (!isIssuerExist) {
-                var errorMessage = messageCode.msgInvalidIssuer;
+                errorMessage = messageCode.msgInvalidIssuer;
             } else if (!isNumberExist && !isNumberExistInBatch) {
-                var errorMessage = messageCode.msgCertNotExist;
+                errorMessage = messageCode.msgCertNotExist;
             }
             return ({ code: 400, status: "FAILED", message: errorMessage });
         }
-        var _certStatus = await getCertificationStatus(certStatus);
+        let _certStatus = await getCertificationStatus(certStatus);
 
         try {
             // Verify certificate on blockchain
@@ -581,10 +572,11 @@ const handleUpdateCertificationStatus = async (email, certificateNumber, certSta
                 isPaused === true
             ) {
                 // Issuer not authorized / contract paused
+                let messageContent = "";
                 if (isPaused === true) {
-                    var messageContent = messageCode.msgOpsRestricted;
+                    messageContent = messageCode.msgOpsRestricted;
                 } else if (issuerAuthorized === false) {
-                    var messageContent = messageCode.msgIssuerUnauthrized;
+                    messageContent = messageCode.msgIssuerUnauthrized;
                 }
                 return ({ code: 400, status: "FAILED", message: messageContent });
             }
@@ -599,52 +591,27 @@ const handleUpdateCertificationStatus = async (email, certificateNumber, certSta
                 }
 
                 try {
-                    var _getCertificateStatus = await newContract.getCertificateStatus(certificateNumber);
-                    var getVerifyResponse = await newContract.verifyCertificateById(certificateNumber);
-                    var statusResponse = parseInt(getVerifyResponse[2]);
+                    let _getCertificateStatus = await newContract.getCertificateStatus(certificateNumber);
+                    let getVerifyResponse = await newContract.verifyCertificateById(certificateNumber);
+                    let statusResponse = parseInt(getVerifyResponse[2]);
 
                     if (isNumberExist.expirationDate != "1") {
-                        var epochExpiration = await convertDateToEpoch(isNumberExist.expirationDate);
+                        const epochExpiration = await convertDateToEpoch(isNumberExist.expirationDate);
                         if ((epochExpiration < todayEpoch) || (getVerifyResponse[0] == true && statusResponse == 5)) {
                             return ({ code: 400, status: "FAILED", message: messageCode.msgCertExpired });
                         }
                     }
 
-                    var getCertificateStatus = parseInt(_getCertificateStatus);
+                    const getCertificateStatus = parseInt(_getCertificateStatus);
                     if (getCertificateStatus == 0) {
                         return ({ code: 400, status: "FAILED", message: messageCode.msgCertNotExist });
                     }
                     if (getCertificateStatus != certStatus) {
 
-                        var { txHash, polygonLink } = await updateSingleCertificateStatusWithRetry(certificateNumber, certStatus);
+                        let { txHash, polygonLink } = await updateSingleCertificateStatusWithRetry(certificateNumber, certStatus);
                         if (!txHash || !polygonLink) {
                             return ({ code: 400, status: false, message: messageCode.msgFailedToUpdateStatusRetry, details: certificateNumber });
                         }
-
-                        // try {
-                        //     // Perform Expiration extension
-                        //     const tx = await newContract.updateSingleCertificateStatus(
-                        //         certificateNumber,
-                        //         certStatus
-                        //     );
-
-                        //     // await tx.wait();
-                        //     var txHash = tx.hash;
-
-                        //     // Generate link URL for the certificate on blockchain
-                        //     var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
-
-                        // } catch (error) {
-                        //     if (error.reason) {
-                        //         // Extract and handle the error reason
-                        //         console.log("Error reason:", error.reason);
-                        //         return ({ code: 400, status: "FAILED", message: error.reason });
-                        //     } else {
-                        //         // If there's no specific reason provided, handle the error generally
-                        //         console.error(messageCode.msgFailedOpsAtBlockchain, error);
-                        //         return ({ code: 400, status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain, details: error });
-                        //     }
-                        // }
 
                         // Save Issue details (modified)
                         isNumberExist.certificateStatus = certStatus;
@@ -681,7 +648,7 @@ const handleUpdateCertificationStatus = async (email, certificateNumber, certSta
             } else if (isNumberExistInBatch) {
 
                 if (isNumberExistInBatch.expirationDate != "1") {
-                    var epochExpiration = await convertDateToEpoch(isNumberExistInBatch.expirationDate);
+                    let epochExpiration = await convertDateToEpoch(isNumberExistInBatch.expirationDate);
                     if (epochExpiration < todayEpoch) {
                         return ({ code: 400, status: "FAILED", message: messageCode.msgCertExpired });
                     }
@@ -692,45 +659,20 @@ const handleUpdateCertificationStatus = async (email, certificateNumber, certSta
                 }
 
                 try {
-                    var fetchIndex = isNumberExistInBatch.batchId - 1;
-                    var hashedProof = isNumberExistInBatch.encodedProof;
+                    let fetchIndex = isNumberExistInBatch.batchId - 1;
+                    let hashedProof = isNumberExistInBatch.encodedProof;
                     // Blockchain calls
-                    var batchStatusResponse = await newContract.verifyBatchRoot(fetchIndex);
+                    let batchStatusResponse = await newContract.verifyBatchRoot(fetchIndex);
 
                     if (batchStatusResponse[0] === true) {
                         if (isNumberExistInBatch.certificateStatus == parseInt(certStatus)) {
                             return ({ code: 400, status: "FAILED", message: messageCode.msgStatusAlreadyExist });
                         }
 
-                        var { txHash, polygonLink } = await updateCertificateStatusInBatchWithRetry(hashedProof, certStatus);
+                        let { txHash, polygonLink } = await updateCertificateStatusInBatchWithRetry(hashedProof, certStatus);
                         if (!txHash || !polygonLink) {
                             return ({ code: 400, status: false, message: messageCode.msgFailedToUpdateStatusRetry, details: certStatus });
                         }
-
-                        // try {
-                        //     // Perform Expiration extension
-                        //     const tx = await newContract.updateCertificateInBatchStatus(
-                        //         hashedProof,
-                        //         certStatus
-                        //     );
-
-                        //     // await tx.wait();
-                        //     var txHash = tx.hash;
-
-                        //     // Generate link URL for the certificate on blockchain
-                        //     var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
-
-                        // } catch (error) {
-                        //     if (error.reason) {
-                        //         // Extract and handle the error reason
-                        //         console.log("Error reason:", error.reason);
-                        //         return ({ code: 400, status: "FAILED", message: error.reason });
-                        //     } else {
-                        //         // If there's no specific reason provided, handle the error generally
-                        //         console.error(messageCode.msgFailedOpsAtBlockchain, error);
-                        //         return ({ code: 400, status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain, details: error });
-                        //     }
-                        // }
 
                         // Save updated details (modified)
                         isNumberExistInBatch.certificateStatus = certStatus;
@@ -853,31 +795,6 @@ const handleRenewBatchOfCertifications = async (email, batchId, batchExpirationD
                 if (!txHash || !polygonLink) {
                     return ({ code: 400, status: false, message: messageCode.msgFailedToRenewRetry, details: epochExpiration });
                 }
-
-                // try {
-                //     // Perform Expiration extension
-                //     const tx = await newContract.renewBatchOfCertificates(
-                //         _rootIndex,
-                //         epochExpiration
-                //     );
-
-                //     // await tx.wait();
-                //     var txHash = tx.hash;
-
-                //     // Generate link URL for the certificate on blockchain
-                //     var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
-
-                // } catch (error) {
-                //     if (error.reason) {
-                //         // Extract and handle the error reason
-                //         console.log("Error reason:", error.reason);
-                //         return ({ code: 400, status: "FAILED", message: error.reason });
-                //     } else {
-                //         // If there's no specific reason provided, handle the error generally
-                //         console.error(messageCode.msgFailedOpsAtBlockchain, error);
-                //         return ({ code: 400, status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain, details: error });
-                //     }
-                // }
 
                 var statusDetails = { batchId: batchId, updatedExpirationDate: expirationDate, polygonLink: polygonLink };
                 return ({ code: 200, status: "SUCCESS", message: messageCode.msgBatchRenewed, details: statusDetails });
@@ -1066,9 +983,9 @@ const renewCertificateExpirationInBatchWithRetry = async (fetchIndex, hashedProo
             epochExpiration
         );
 
-        var txHash = tx.hash;
+        let txHash = tx.hash;
 
-        var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
+        let polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
 
         return { txHash, polygonLink };
 
@@ -1104,9 +1021,9 @@ const updateSingleCertificateStatusWithRetry = async (certificateNumber, certSta
             certStatus
         );
 
-        var txHash = tx.hash;
+        let txHash = tx.hash;
 
-        var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
+        let polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
 
         return { txHash, polygonLink };
 
@@ -1134,7 +1051,6 @@ const updateSingleCertificateStatusWithRetry = async (certificateNumber, certSta
 
 // Function to Perform Update Certificate status in Batch with retry mechanism 
 const updateCertificateStatusInBatchWithRetry = async (hashedProof, certStatus, retryCount = 3) => {
-
     try {
         // Perform Update Certificate status in Batch with retry mechanism
         const tx = await newContract.updateCertificateInBatchStatus(
@@ -1142,9 +1058,9 @@ const updateCertificateStatusInBatchWithRetry = async (hashedProof, certStatus, 
             certStatus
         );
 
-        var txHash = tx.hash;
+        let txHash = tx.hash;
 
-        var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
+        let polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
 
         return { txHash, polygonLink };
 
@@ -1180,9 +1096,9 @@ const updateBatchCertificateExpirationWithRetry = async (rootIndex, expirationEp
             expirationEpoch
         );
 
-        var txHash = tx.hash;
+        let txHash = tx.hash;
 
-        var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
+        let polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
 
         return { txHash, polygonLink };
 
@@ -1218,9 +1134,9 @@ const updateBatchCertificateStatusWithRetry = async (rootIndex, certStatus, retr
             certStatus
         );
 
-        var txHash = tx.hash;
+        let txHash = tx.hash;
 
-        var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
+        let polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
 
         return { txHash, polygonLink };
 

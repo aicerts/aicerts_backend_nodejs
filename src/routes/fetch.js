@@ -5,7 +5,6 @@ const adminController = require('../controllers/fetch');
 const { ensureAuthenticated } = require("../config/auth"); // Import authentication middleware
 const validationRoute = require("../common/validationRoutes");
 
-// const __upload = multer({ storage : _storage });
 const __upload = multer({dest: "../../uploads/"});
 
 /**
@@ -48,7 +47,133 @@ const __upload = multer({dest: "../../uploads/"});
  *                   example: An error occurred while fetching user details
  */
 
-router.get('/get-all-issuers',ensureAuthenticated, adminController.getAllIssuers);
+router.get('/get-all-issuers', ensureAuthenticated, adminController.getAllIssuers);
+
+/**
+ * @swagger
+ * /api/get-organization-details:
+ *   get:
+ *     summary: Get Organtization details of all issuers
+ *     description: API to fetch Organtization details of all issuers
+ *     tags: [Fetch/Upload]
+ *     responses:
+ *       200:
+ *         description: All Organizations details fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: SUCCESS
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     [Issuers Details]
+ *                 message:
+ *                   type: string
+ *                   example: All organization details fetched successfully
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred while fetching organization details
+ */
+
+router.get('/get-organization-details', adminController.getOrganizationDetails);
+
+/**
+ * @swagger
+ * /api/get-organization-issues:
+ *   post:
+ *     summary: Get details of all certifications issued by Issuers in an organization under particular name
+ *     description: API to fetch details of all certifications issued by Issuers in an organization under particular name.
+ *     tags: [Fetch/Upload]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               organization:
+ *                 type: string
+ *                 description: Provide organization name
+ *               name:
+ *                 type: string
+ *                 description: Provide Student/Candidate target name
+ *     responses:
+ *       '200':
+ *         description: All issues details fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: SUCCESS
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     [Issuers Log Details]
+ *                 message:
+ *                   type: string
+ *                   example: All issues details fetched successfully
+ *       '400':
+ *         description: Bad request or Invalid code
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: Issues details not found (or) Bad request!
+ *       '422':
+ *         description: User given invalid input (Unprocessable Entity)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Error message for invalid input.
+ *       '500':
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred while fetching issues details
+ */
+
+router.post('/get-organization-issues', validationRoute.organizationIssues, adminController. getIssuesInOrganizationWithName);
 
 /**
  * @swagger
