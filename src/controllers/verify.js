@@ -68,6 +68,7 @@ const verify = async (req, res) => {
 
   var fileBuffer = fs.readFileSync(file);
   var pdfDoc = await PDFDocument.load(fileBuffer);
+  var certificateS3Url;
   // Get today's date
   const getTodayDate = async () => {
     const today = new Date();
@@ -126,8 +127,9 @@ const verify = async (req, res) => {
       if (singleIssueExist.certificateStatus == 6) {
 
         var dbStatus = await isDBConnected();
-
+        // certificateS3Url = singleIssueExist.url != null ? singleIssueExist.url : null;
         certificateData.url = originalUrl;
+        // certificateData.certificateUrl = certificateS3Url;
 
         res.status(200).json({
           status: "SUCCESS",
@@ -150,7 +152,9 @@ const verify = async (req, res) => {
           await verificationLogEntry(verifyLog);
         }
 
+        certificateS3Url = singleIssueExist.url != null ? singleIssueExist.url : null;
         certificateData.url = originalUrl;
+        certificateData.certificateUrl = certificateS3Url;
 
         res.status(200).json({
           status: "SUCCESS",
@@ -211,8 +215,10 @@ const verify = async (req, res) => {
           await verificationLogEntry(verifyLog);
         }
 
+        certificateS3Url = singleIssueExist.url != null ? singleIssueExist.url : null;
         foundCertification['Expiration Date'] = singleIssueExist.expirationDate;
         foundCertification.url = originalUrl;
+        foundCertification.certificateUrl = certificateS3Url;
 
         const verificationResponse = {
           status: "SUCCESS",
@@ -259,7 +265,9 @@ const verify = async (req, res) => {
           await verificationLogEntry(verifyLog);
         }
 
+        certificateS3Url = batchIssueExist.url != null ? batchIssueExist.url : null;
         certificateData.url = originalUrl;
+        certificateData.certificateUrl = certificateS3Url;
 
         res.status(200).json({
           status: "SUCCESS",
@@ -338,8 +346,10 @@ const verify = async (req, res) => {
             await verificationLogEntry(verifyLog);
           }
 
+          certificateS3Url = batchIssueExist.url != null ? batchIssueExist.url : null;
           completeResponse['Expiration Date'] = batchIssueExist.expirationDate;
           completeResponse.url = originalUrl;
+          completeResponse.certificateUrl = certificateS3Url;
 
           const _verificationResponse = {
             status: "SUCCESS",
@@ -382,6 +392,7 @@ const verify = async (req, res) => {
           await verificationLogEntry(verifyLog);
         }
         certificateData.url = originalUrl;
+        certificateData.certificateUrl = "";
 
         res.status(200).json({
           status: "SUCCESS",
@@ -420,6 +431,7 @@ const verify = async (req, res) => {
           await verificationLogEntry(verifyLog);
         }
         certificateData.url = originalUrl;
+        certificateData.certificateUrl = "";
         // Respond with success status and certificate details
         res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, Details: certificateData });
         // await cleanUploadFolder();
@@ -494,6 +506,7 @@ const decodeQRScan = async (req, res) => {
 
   var responseUrl = null;
   var decodeResponse = false;
+  var certificateS3Url;
   try {
 
     if (receivedCode.startsWith(process.env.START_URL) || receivedCode.startsWith(process.env.START_VERIFY_URL)) {
@@ -508,6 +521,7 @@ const decodeQRScan = async (req, res) => {
 
           var isUrlExist = await ShortUrl.findOne({ certificateNumber: certificationNumber });
 
+
           if (isUrlExist) {
             // console.log("The original url", isUrlExist.url);
             responseUrl = isUrlExist.url;
@@ -520,6 +534,7 @@ const decodeQRScan = async (req, res) => {
 
           if (decodeResponse) {
             let isCertExist = await isCertificationIdExisted(decodeResponse['Certificate Number']);
+            certificateS3Url = isCertExist.url != null ? isCertExist.url : null;
             if (isCertExist && (isCertExist.certificateStatus == 3)) {
               return res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
             }
@@ -534,6 +549,7 @@ const decodeQRScan = async (req, res) => {
           return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, error: error });
         }
         verificationResponse.url = originalUrl;
+        verificationResponse.certificateUrl = certificateS3Url;
         var verifyLog = {
           issuerId: getIssuerId,
           course: verificationResponse["Course Name"],
@@ -550,6 +566,7 @@ const decodeQRScan = async (req, res) => {
           if (dbStatus) {
             var getCertificationInfo = await isCertificationIdExisted(extractQRData['Certificate Number']);
             if (getCertificationInfo) {
+              certificateS3Url = getCertificationInfo.url != null ? getCertificationInfo.url : null;
               var formatCertificationStatus = parseInt(getCertificationInfo.certificateStatus);
               if (formatCertificationStatus && formatCertificationStatus == 3) {
                 return res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
@@ -576,6 +593,7 @@ const decodeQRScan = async (req, res) => {
         await verificationLogEntry(verifyLog);
 
         extractQRData.url = decodedUrl;
+        extractQRData.certificateUrl = certificateS3Url;
         res.status(200).json({ status: "PASSED", message: messageCode.msgCertValid, Details: extractQRData });
         return;
       }
@@ -613,6 +631,7 @@ const decodeCertificate = async (req, res) => {
     let isValid = false;
     let messageContent = "Not Verified"
     let parsedData;
+    var certificateS3Url;
     if (originalData !== null) {
       parsedData = {
         "Certificate Number": originalData.Certificate_Number || "",
@@ -634,8 +653,10 @@ const decodeCertificate = async (req, res) => {
       if (dbStatus != false) {
         var getValidCertificatioInfo = await isCertificationIdExisted(originalData.Certificate_Number);
         if (getValidCertificatioInfo) {
+          certificateS3Url = getValidCertificatioInfo.url != null ? getValidCertificatioInfo.url : null;
           verifyLog.issuerId = getValidCertificatioInfo.issuerId;
           parsedData['Expiration Date'] = getValidCertificatioInfo.expirationDate;
+          parsedData.certificateUrl = certificateS3Url;
           var formatCertificationStatus = parseInt(getCertificationInfo.certificateStatus);
           var certificationStatus = formatCertificationStatus || 0;
           if ((certificationStatus != 0) && (certificationStatus == 3)) {
@@ -675,6 +696,7 @@ const verifyCertificationId = async (req, res) => {
     return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
   const inputId = req.body.id;
+  var certificateS3Url;
   // Get today's date
   const getTodayDate = async () => {
     const today = new Date();
@@ -684,7 +706,7 @@ const verifyCertificationId = async (req, res) => {
     return `${month}/${day}/${year}`;
   };
   try {
-    var dbStatus = await isDBConnected();
+    let dbStatus = await isDBConnected();
     const dbStatusMessage = (dbStatus == true) ? messageCode.msgDbReady : messageCode.msgDbNotReady;
     console.log(dbStatusMessage);
 
@@ -737,6 +759,9 @@ const verifyCertificationId = async (req, res) => {
           completeResponse.url = null;
         }
 
+        certificateS3Url = singleIssueExist.url != null ? singleIssueExist.url : null;
+        completeResponse.certificateUrl = certificateS3Url;
+
         res.status(200).json({
           status: "SUCCESS",
           message: "Certification is valid",
@@ -767,6 +792,9 @@ const verifyCertificationId = async (req, res) => {
           } else {
             completeResponse.url = null;
           }
+
+          certificateS3Url = singleIssueExist.url != null ? singleIssueExist.url : null;
+          completeResponse.certificateUrl = certificateS3Url;
 
           res.status(200).json({
             status: "SUCCESS",
@@ -815,6 +843,8 @@ const verifyCertificationId = async (req, res) => {
               foundCertification.url = null;
             }
 
+            certificateS3Url = singleIssueExist.url != null ? singleIssueExist.url : null;
+            foundCertification.certificateUrl = certificateS3Url;
             const verificationResponse = {
               status: "SUCCESS",
               message: "Certification is valid",
@@ -867,6 +897,8 @@ const verifyCertificationId = async (req, res) => {
           completeResponse.url = null;
         }
 
+        certificateS3Url = batchIssueExist.url != null ? batchIssueExist.url : null;
+        completeResponse.certificateUrl = certificateS3Url;
         res.status(200).json({
           status: "SUCCESS",
           message: "Certification is valid",
@@ -927,6 +959,8 @@ const verifyCertificationId = async (req, res) => {
               completeResponse.url = null;
             }
 
+            certificateS3Url = batchIssueExist.url != null ? batchIssueExist.url : null;
+            completeResponse.certificateUrl = certificateS3Url;
             const _verificationResponse = {
               status: "SUCCESS",
               message: "Certification is valid",
