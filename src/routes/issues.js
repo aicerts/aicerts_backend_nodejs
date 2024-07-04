@@ -199,20 +199,6 @@ router.post('/issue', validationRoute.issue, ensureAuthenticated, adminControlle
  *             example:
  *               status: "FAILED"
  *               message: Error message for certificate already issued or invalid input.
- *       '422':
- *         description: User given invalid input (Unprocessable Entity)
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                 message:
- *                   type: string
- *             example:
- *               status: "FAILED"
- *               message: Error message for invalid input.
  *       '500':
  *         description: Internal Server Error
  *         content:
