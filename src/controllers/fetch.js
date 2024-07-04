@@ -529,11 +529,8 @@ const fetchIssuesLogDetails = async (req, res) => {
           // Merge the results into a single array
           var queryResponse = [...queryResponse1, ...queryResponse2];
 
-          // Filter the data to show only expiration dates on or after today
-          queryResponse = queryResponse.filter(item => new Date(item.expirationDate) >= new Date(todayDate));
-
-          // Sort the data based on the 'expirationDate' date in descending order
-          queryResponse.sort((a, b) => new Date(a.expirationDate) - new Date(b.expirationDate));
+          // Sort the data based on the 'issueDate' date in descending order
+          queryResponse.sort((a, b) => new Date(b.issueDate) - new Date(a.issueDate));
 
           for (var item8 of queryResponse) {
             var certificateNumber = item8.certificateNumber;
