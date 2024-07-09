@@ -19,11 +19,7 @@ const {
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
 var messageCode = require("../common/codes");
-const { issue } = require('../common/validationRoutes');
 app.use("../../uploads", express.static(path.join(__dirname, "uploads")));
-
-const minimum_year_range = parseInt(process.env.BASE_YEAR);
-const maximum_year_range = parseInt(process.env.BENCH_YEAR);
 
 /**
  * API to fetch all issuer details who are unapproved.
@@ -1182,6 +1178,7 @@ const getIssuesInOrganizationWithName = async (req, res) => {
         url: { $exists: true, $ne: null } // Filter to include documents where `url` exists
       });
 
+
       // Await both promises
       var [query1Result, query2Result] = await Promise.all([query1Promise, query2Promise]);
       // Check if results are non-empty and push to finalResults
@@ -1195,9 +1192,45 @@ const getIssuesInOrganizationWithName = async (req, res) => {
       }
     }
 
-    if(fetchedIssues.length == 0){
+    if (fetchedIssues.length == 0) {
       return res.status(400).json({ status: "FAILED", message: messageCode.msgNoMatchFound });
     }
+
+    if (fetchedIssues.length > 0) {
+
+      const s3 = new AWS.S3();
+      const bucketName = process.env.BUCKET_NAME || 'certs365';
+      var getUrl = [];
+
+      // Extracting urls from each item in the data array
+      const _urls = fetchedIssues.map(item => item.url);
+      let bucketUrl = `https://${bucketName}.s3.amazonaws.com/`;
+      // Extract codes from each URL
+      const urls = _urls.map(url => url.replace(bucketUrl, ''));
+
+      for (let count = 0; count < urls.length; count++) {
+        let fileKey = urls[count];
+        let downloadParams = {
+          Bucket: bucketName,
+          Key: fileKey,
+          Expires: 600000,
+        };
+
+        try {
+          const url = await s3.getSignedUrlPromise('getObject', downloadParams);
+          getUrl.push(url);
+        } catch (error) {
+          console.error(messageCode.msgErrorInUrl, error);
+          res.status(400).send({ status: "FAILED", message: messageCode.msgErrorInUrl, details: error });
+        }
+
+      }
+    }
+
+    // Iterate through data and update the url property
+    fetchedIssues.forEach((item, index) => {
+      item.url = getUrl[index];
+    });
 
     return res.status(200).json({ status: "SUCCESS", message: messageCode.msgAllQueryFetched, response: fetchedIssues });
 

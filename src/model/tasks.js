@@ -104,8 +104,11 @@ const connectToPolygon = async () => {
 
 // Function to convert the Date format
 const convertDateFormat = async (dateString) => {
-  if (dateString == 1) {
+  if (dateString == 1 || dateString == '1') {
     return "1";
+  }
+  if (dateString.length < 8) {
+    return null;
   }
   if (dateString.length < 11) {
     // Parse the date string to extract month, day, and year
