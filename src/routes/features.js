@@ -129,7 +129,7 @@ router.post('/renew-cert', validationRoute.renewIssue, ensureAuthenticated, admi
  *               - certStatus
  *     responses:
  *       '200':
- *         description: Successful certificate issuance
+ *         description: Successful certificate status updated
  *         content:
  *           application/json:
  *             schema:
@@ -143,7 +143,7 @@ router.post('/renew-cert', validationRoute.renewIssue, ensureAuthenticated, admi
  *                   type: object
  *             example:
  *               status: "SUCCESS"
- *               message: Certificate issued successfully.
+ *               message: Certificate status updated successfully.
  *               details: Certificate details.
  *       '400':
  *         description: Certificate already issued or invalid input
