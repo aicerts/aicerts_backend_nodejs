@@ -23,6 +23,7 @@ const urlLimit = parseInt(process.env.MAX_URL_SIZE) || parseInt(50);
 
 // Regular expression to match MM/DD/YY format
 const regex = /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{4}$/;
+const excludeUrlContent = "/verify-documents";
 
 // Create a nodemailer transporter using the provided configuration
 const transporter = nodemailer.createTransport({
@@ -344,7 +345,7 @@ const insertCertificateData = async (data) => {
     const previousCount = idExist.certificatesIssued || 0; // Initialize to 0 if certificatesIssued field doesn't exist
     idExist.certificatesIssued = previousCount + 1;
     await idExist.save(); // Save the changes to the existing user
-    
+
 
     // Logging confirmation message
     console.log("Certificate data inserted");
@@ -507,14 +508,26 @@ const extractCertificateInfo = async (qrCodeText) => {
       var certificationNumber = parsedUrl.searchParams.get('');
       // console.log("data in url", parsedUrl, certificationNumber);
       var dbStatus = await isDBConnected();
-      if(dbStatus){
+      if (dbStatus) {
         var isUrlExist = await ShortUrl.findOne({ certificateNumber: certificationNumber });
-        if(isUrlExist){
+        if (isUrlExist) {
           // console.log("The original", isUrlExist.url);
           _qrCodeText = isUrlExist.url;
         }
       }
     }
+    // console.log("The original QR", _qrCodeText);
+
+    // Parse the URL
+    let parsedUrl = new URL(_qrCodeText);
+    // Check if the pathname contains 'verify-documents'
+    if (parsedUrl.pathname.includes(excludeUrlContent)) {
+      // Remove 'verify-documents' from the pathname
+      parsedUrl.pathname = parsedUrl.pathname.replace(excludeUrlContent, '/');
+      // Reconstruct the modified URL
+      _qrCodeText = parsedUrl.toString();
+    }
+    // console.log("The modified QR", _qrCodeText);
     // If it's an encrypted URL, extract the query string parameters q and iv
     const url = decodeURIComponent(_qrCodeText);
     const qIndex = url.indexOf("q=");
