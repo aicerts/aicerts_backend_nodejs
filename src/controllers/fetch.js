@@ -451,12 +451,14 @@ const fetchIssuesLogDetails = async (req, res) => {
           var filteredResponse6 = [];
           var query1Promise = Issues.find({
             issuerId: issuerExist.issuerId,
-            certificateStatus: { $in: [1, 2, 4] }
+            certificateStatus: { $in: [1, 2, 4] },
+            url: { $exists: true, $ne: null } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           var query2Promise = BatchIssues.find({
             issuerId: issuerExist.issuerId,
-            certificateStatus: { $in: [1, 2, 4] }
+            certificateStatus: { $in: [1, 2, 4] },
+            url: { $exists: true, $ne: null } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           // Wait for both queries to resolve
@@ -486,12 +488,14 @@ const fetchIssuesLogDetails = async (req, res) => {
         case 7://To fetch Revoked certifications and count
           var query1Promise = Issues.find({
             issuerId: issuerExist.issuerId,
-            certificateStatus: 3
+            certificateStatus: 3,
+            url: { $exists: true, $ne: null } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           var query2Promise = BatchIssues.find({
             issuerId: issuerExist.issuerId,
-            certificateStatus: 3
+            certificateStatus: 3,
+            url: { $exists: true, $ne: null } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           // Wait for both queries to resolve
@@ -510,13 +514,15 @@ const fetchIssuesLogDetails = async (req, res) => {
           var query1Promise = Issues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: { $in: [1, 2, 4] },
-            expirationDate: { $ne: "1" }
+            expirationDate: { $ne: "1" },
+            url: { $exists: true, $ne: null } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           var query2Promise = BatchIssues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: { $in: [1, 2, 4] },
-            expirationDate: { $ne: "1" }
+            expirationDate: { $ne: "1" },
+            url: { $exists: true, $ne: null } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           // Wait for both queries to resolve
