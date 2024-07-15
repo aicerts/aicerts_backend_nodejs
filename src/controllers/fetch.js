@@ -19,11 +19,7 @@ const {
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
 var messageCode = require("../common/codes");
-const { issue } = require('../common/validationRoutes');
 app.use("../../uploads", express.static(path.join(__dirname, "uploads")));
-
-const minimum_year_range = parseInt(process.env.BASE_YEAR);
-const maximum_year_range = parseInt(process.env.BENCH_YEAR);
 
 /**
  * API to fetch all issuer details who are unapproved.
@@ -455,12 +451,14 @@ const fetchIssuesLogDetails = async (req, res) => {
           var filteredResponse6 = [];
           var query1Promise = Issues.find({
             issuerId: issuerExist.issuerId,
-            certificateStatus: { $in: [1, 2, 4] }
+            certificateStatus: { $in: [1, 2, 4] },
+            url: { $exists: true, $ne: null } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           var query2Promise = BatchIssues.find({
             issuerId: issuerExist.issuerId,
-            certificateStatus: { $in: [1, 2, 4] }
+            certificateStatus: { $in: [1, 2, 4] },
+            url: { $exists: true, $ne: null } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           // Wait for both queries to resolve
@@ -490,12 +488,14 @@ const fetchIssuesLogDetails = async (req, res) => {
         case 7://To fetch Revoked certifications and count
           var query1Promise = Issues.find({
             issuerId: issuerExist.issuerId,
-            certificateStatus: 3
+            certificateStatus: 3,
+            url: { $exists: true, $ne: null } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           var query2Promise = BatchIssues.find({
             issuerId: issuerExist.issuerId,
-            certificateStatus: 3
+            certificateStatus: 3,
+            url: { $exists: true, $ne: null } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           // Wait for both queries to resolve
@@ -514,13 +514,15 @@ const fetchIssuesLogDetails = async (req, res) => {
           var query1Promise = Issues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: { $in: [1, 2, 4] },
-            expirationDate: { $ne: "1" }
+            expirationDate: { $ne: "1" },
+            url: { $exists: true, $ne: null } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           var query2Promise = BatchIssues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: { $in: [1, 2, 4] },
-            expirationDate: { $ne: "1" }
+            expirationDate: { $ne: "1" },
+            url: { $exists: true, $ne: null } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           // Wait for both queries to resolve
@@ -529,8 +531,14 @@ const fetchIssuesLogDetails = async (req, res) => {
           // Merge the results into a single array
           var queryResponse = [...queryResponse1, ...queryResponse2];
 
+          // Filter the data to show only expiration dates on or after today
+          queryResponse = queryResponse.filter(item => new Date(item.expirationDate) >= new Date(todayDate));
+
+          // Sort the data based on the 'expirationDate' date in descending order
+          queryResponse.sort((a, b) => new Date(a.expirationDate) - new Date(b.expirationDate));
+
           // Sort the data based on the 'issueDate' date in descending order
-          queryResponse.sort((a, b) => new Date(b.issueDate) - new Date(a.issueDate));
+          // queryResponse.sort((a, b) => new Date(b.issueDate) - new Date(a.issueDate));
 
           for (var item8 of queryResponse) {
             var certificateNumber = item8.certificateNumber;
@@ -1110,14 +1118,14 @@ const getOrganizationDetails = async (req, res) => {
     let organizations = await User.find({}, 'organization'); // Only select the 'organization' field
     let _organizations = organizations.map(user => user.organization);
     // Use Set to filter unique values
-    let uniqueResponses = [...new Set(_organizations.map(item => item.toUpperCase()))];
+    let uniqueResponses = [...new Set(_organizations.map(item => item))];
     res.json({
       status: "SUCCESS",
       message: messageCode.msgOrganizationFetched,
       data: uniqueResponses
     });
   } catch (err) {
-    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: err });
   }
 };
 
@@ -1158,13 +1166,14 @@ const getIssuesInOrganizationWithName = async (req, res) => {
       organization: { $in: [organization, organizationUppercase, organizationLowercase, organizationCapitalize] }
     });
 
-    if (getIssuers && getIssuers.length > 1) {
+    if (getIssuers && getIssuers.length > 0) {
       // Extract issuerIds
       var getIssuerIds = getIssuers.map(item => item.issuerId);
     } else {
       return res.status(400).json({ status: "FAILED", message: messageCode.msgNoMatchFound });
     }
 
+    console.log("The total list", getIssuerIds);
     for (let i = 0; i < getIssuerIds.length; i++) {
       const currentIssuerId = getIssuerIds[i];
 
@@ -1182,6 +1191,7 @@ const getIssuesInOrganizationWithName = async (req, res) => {
         url: { $exists: true, $ne: null } // Filter to include documents where `url` exists
       });
 
+
       // Await both promises
       var [query1Result, query2Result] = await Promise.all([query1Promise, query2Promise]);
       // Check if results are non-empty and push to finalResults
@@ -1195,9 +1205,46 @@ const getIssuesInOrganizationWithName = async (req, res) => {
       }
     }
 
-    if(fetchedIssues.length == 0){
+    if (fetchedIssues.length == 0) {
       return res.status(400).json({ status: "FAILED", message: messageCode.msgNoMatchFound });
     }
+
+
+    if (fetchedIssues.length > 0) {
+
+      const s3 = new AWS.S3();
+      const bucketName = process.env.BUCKET_NAME || 'certs365';
+      var getUrl = [];
+
+      // Extracting urls from each item in the data array
+      const _urls = fetchedIssues.map(item => item.url);
+      let bucketUrl = `https://${bucketName}.s3.amazonaws.com/`;
+      // Extract codes from each URL
+      const urls = _urls.map(url => url.replace(bucketUrl, ''));
+
+      for (let count = 0; count < urls.length; count++) {
+        let fileKey = urls[count];
+        let downloadParams = {
+          Bucket: bucketName,
+          Key: fileKey,
+          Expires: 600000,
+        };
+
+        try {
+          const url = await s3.getSignedUrlPromise('getObject', downloadParams);
+          getUrl.push(url);
+        } catch (error) {
+          console.error(messageCode.msgErrorInUrl, error);
+          res.status(400).send({ status: "FAILED", message: messageCode.msgErrorInUrl, details: error });
+        }
+
+      }
+    }
+
+    // Iterate through data and update the url property
+    fetchedIssues.forEach((item, index) => {
+      item.url = getUrl[index];
+    });
 
     return res.status(200).json({ status: "SUCCESS", message: messageCode.msgAllQueryFetched, response: fetchedIssues });
 

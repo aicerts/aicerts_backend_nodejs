@@ -167,6 +167,7 @@ module.exports = {
 
     // URL shortening API
     msgInvalidUrl: "Please provide vaid URL",
+    msgErrorInUrl: "Error in generating pre-signed URL",
     
 
 };

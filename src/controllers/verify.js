@@ -127,9 +127,7 @@ const verify = async (req, res) => {
       if (singleIssueExist.certificateStatus == 6) {
 
         var dbStatus = await isDBConnected();
-        // certificateS3Url = singleIssueExist.url != null ? singleIssueExist.url : null;
         certificateData.url = originalUrl;
-        // certificateData.certificateUrl = certificateS3Url;
 
         res.status(200).json({
           status: "SUCCESS",
