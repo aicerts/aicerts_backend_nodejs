@@ -452,13 +452,13 @@ const fetchIssuesLogDetails = async (req, res) => {
           var query1Promise = Issues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: { $in: [1, 2, 4] },
-            url: { $exists: true, $ne: null } // Filter to include documents where `url` exists
+            url: { $exists: true, $ne: null, $ne: "" } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           var query2Promise = BatchIssues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: { $in: [1, 2, 4] },
-            url: { $exists: true, $ne: null } // Filter to include documents where `url` exists
+            url: { $exists: true, $ne: null, $ne: "" } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           // Wait for both queries to resolve
@@ -489,13 +489,13 @@ const fetchIssuesLogDetails = async (req, res) => {
           var query1Promise = Issues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: 3,
-            url: { $exists: true, $ne: null } // Filter to include documents where `url` exists
+            url: { $exists: true, $ne: null, $ne: "" } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           var query2Promise = BatchIssues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: 3,
-            url: { $exists: true, $ne: null } // Filter to include documents where `url` exists
+            url: { $exists: true, $ne: null, $ne: "" } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           // Wait for both queries to resolve
@@ -515,14 +515,14 @@ const fetchIssuesLogDetails = async (req, res) => {
             issuerId: issuerExist.issuerId,
             certificateStatus: { $in: [1, 2, 4] },
             expirationDate: { $ne: "1" },
-            url: { $exists: true, $ne: null } // Filter to include documents where `url` exists
+            url: { $exists: true, $ne: null, $ne: "" } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           var query2Promise = BatchIssues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: { $in: [1, 2, 4] },
             expirationDate: { $ne: "1" },
-            url: { $exists: true, $ne: null } // Filter to include documents where `url` exists
+            url: { $exists: true, $ne: null, $ne: "" } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           // Wait for both queries to resolve
@@ -1180,17 +1180,16 @@ const getIssuesInOrganizationWithName = async (req, res) => {
       // Query 1
       var query1Promise = Issues.find({
         issuerId: currentIssuerId,
-        name: { $in: [targetName] },
-        url: { $exists: true, $ne: null } // Filter to include documents where `url` exists
+        name: { $in: [targetName, nameUppercase, nameLowercase, nameCapitalize] },
+        url: { $exists: true, $ne: null, $ne: "" } // Filter to include documents where `url` exists
       });
 
       // Query 2
       var query2Promise = BatchIssues.find({
         issuerId: currentIssuerId,
-        name: { $in: [targetName] },
-        url: { $exists: true, $ne: null } // Filter to include documents where `url` exists
+        name: { $in: [targetName, nameUppercase, nameLowercase, nameCapitalize] },
+        url: { $exists: true, $ne: null, $ne: "" } // Filter to include documents where `url` exists
       });
-
 
       // Await both promises
       var [query1Result, query2Result] = await Promise.all([query1Promise, query2Promise]);
