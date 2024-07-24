@@ -9,6 +9,7 @@ const fs = require("fs");
 const AWS = require('../config/aws-config');
 const { validationResult } = require("express-validator");
 const moment = require('moment');
+const axios = require('axios');
 
 // Import MongoDB models
 const { User, Issues, BatchIssues, IssueStatus, VerificationLog } = require("../config/schema");
@@ -1293,15 +1294,14 @@ const fetchCustomIssuedCertificates = async (req, res) => {
 
     // Define date ranges
     const dateRanges = [
-      { name: "Day", startDate: getPastDate(today, 1), endDate: today },
-      { name: "Week", startDate: getPastDate(today, 7), endDate: today },
-      { name: "Month", startDate: getPastDate(today, 30), endDate: today },
+      { name: "Day", startDate: await getPastDate(today, 1), endDate: today },
+      { name: "Week", startDate: await getPastDate(today, 7), endDate: today },
+      { name: "Month", startDate: await getPastDate(today, 30), endDate: today },
       { name: "Total", startDate: 0, endDate: today }
     ];
 
     for (const addressIndex of contractAddresses) {
       for (const range of dateRanges) {
-        console.log("Reached", range.startDate);
         await holdExecution(500);
         let _startDate = range.startDate != 0 ? range.startDate.toISOString().split('T')[0] : 0;
         let _endDate = range.endDate.toISOString().split('T')[0];
