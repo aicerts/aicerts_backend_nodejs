@@ -1162,18 +1162,13 @@ const getIssuesInOrganizationWithName = async (req, res) => {
       return res.status(400).json({ status: "FAILED", message: messageCode.msgDbNotReady });
     }
 
-    let organizationUppercase = organization.toUpperCase();
-    let organizationLowercase = organization.toLowerCase();
-
-    let organizationCapitalize = organizationLowercase.charAt(0).toUpperCase() + organizationLowercase.slice(1);
-
-    let nameUppercase = targetName.toUpperCase();
-    let nameLowercase = targetName.toLowerCase();
-
-    let nameCapitalize = nameLowercase.charAt(0).toUpperCase() + nameLowercase.slice(1);
-
     const getIssuers = await User.find({
-      organization: { $in: [organization, organizationUppercase, organizationLowercase, organizationCapitalize] }
+
+      $expr: {
+        $and: [
+          { $eq: [{ $toLower: "$organization" }, organization.toLowerCase()] }
+        ]
+      },
     });
 
     if (getIssuers && getIssuers.length > 0) {
@@ -1183,21 +1178,28 @@ const getIssuesInOrganizationWithName = async (req, res) => {
       return res.status(400).json({ status: "FAILED", message: messageCode.msgNoMatchFound });
     }
 
-    console.log("The total list", getIssuerIds);
     for (let i = 0; i < getIssuerIds.length; i++) {
       const currentIssuerId = getIssuerIds[i];
 
       // Query 1
       var query1Promise = Issues.find({
         issuerId: currentIssuerId,
-        name: { $in: [targetName, nameUppercase, nameLowercase, nameCapitalize] },
+        $expr: {
+          $and: [
+            { $eq: [{ $toLower: "$name" }, targetName.toLowerCase()] }
+          ]
+        },
         url: { $exists: true, $ne: null, $ne: "" } // Filter to include documents where `url` exists
       });
 
       // Query 2
       var query2Promise = BatchIssues.find({
         issuerId: currentIssuerId,
-        name: { $in: [targetName, nameUppercase, nameLowercase, nameCapitalize] },
+        $expr: {
+          $and: [
+            { $eq: [{ $toLower: "$name" }, targetName.toLowerCase()] }
+          ]
+        },
         url: { $exists: true, $ne: null, $ne: "" } // Filter to include documents where `url` exists
       });
 
@@ -1217,7 +1219,6 @@ const getIssuesInOrganizationWithName = async (req, res) => {
     if (fetchedIssues.length == 0) {
       return res.status(400).json({ status: "FAILED", message: messageCode.msgNoMatchFound });
     }
-
 
     if (fetchedIssues.length > 0) {
 
