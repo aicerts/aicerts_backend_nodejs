@@ -360,6 +360,7 @@ const fetchIssuesLogDetails = async (req, res) => {
     var today = new Date();
     // Formatting the parsed date into ISO 8601 format with timezone
     var formattedDate = today.toISOString();
+    var queryResponse;
 
     // Get today's date
     const getTodayDate = async () => {
@@ -399,7 +400,7 @@ const fetchIssuesLogDetails = async (req, res) => {
             email: req.body.email,
             certStatus: 4
           });
-          var queryResponse = { issued: issueCount, renewed: renewCount, revoked: revokedCount.length, reactivated: reactivatedCount.length };
+          queryResponse = { issued: issueCount, renewed: renewCount, revoked: revokedCount.length, reactivated: reactivatedCount.length };
           break;
         case 2:
           var __queryResponse = await IssueStatus.find({
@@ -414,7 +415,7 @@ const fetchIssuesLogDetails = async (req, res) => {
               { certStatus: { $eq: 2 } },
               { expirationDate: { $gt: formattedDate } }]
           });
-          var queryResponse = { __queryResponse, _queryResponse };
+          queryResponse = { __queryResponse, _queryResponse };
           // Sort the data based on the 'lastUpdate' date in descending order
           // queryResponse.sort((b, a) => new Date(b.expirationDate) - new Date(a.expirationDate));
           break;
@@ -427,12 +428,12 @@ const fetchIssuesLogDetails = async (req, res) => {
             email: req.body.email,
             $and: [{ certStatus: { $eq: 2 }, expirationDate: { $ne: "1" } }]
           });
-          var queryResponse = { _queryResponse, __queryResponse };
+          queryResponse = { _queryResponse, __queryResponse };
           // Sort the data based on the 'lastUpdate' date in descending order
           // queryResponse.sort((b, a) => new Date(b.expirationDate) - new Date(a.expirationDate));
           break;
         case 4:
-          var queryResponse = await IssueStatus.find({
+          queryResponse = await IssueStatus.find({
             email: req.body.email,
             $and: [{ certStatus: { $eq: 3 }, expirationDate: { $gt: formattedDate } }]
           });
@@ -440,7 +441,7 @@ const fetchIssuesLogDetails = async (req, res) => {
           queryResponse.sort((b, a) => new Date(b.expirationDate) - new Date(a.expirationDate));
           break;
         case 5:
-          var queryResponse = await IssueStatus.find({
+          queryResponse = await IssueStatus.find({
             email: req.body.email,
             $and: [{ expirationDate: { $lt: formattedDate } }]
           });
@@ -483,7 +484,7 @@ const fetchIssuesLogDetails = async (req, res) => {
           }
           // Take only the first 30 records
           // var queryResponse = _queryResponse.slice(0, Math.min(_queryResponse.length, 30));
-          var queryResponse = filteredResponse6;
+          queryResponse = filteredResponse6;
           break;
         case 7://To fetch Revoked certifications and count
           var query1Promise = Issues.find({
@@ -507,7 +508,7 @@ const fetchIssuesLogDetails = async (req, res) => {
           _queryResponse.sort((a, b) => new Date(b.issueDate) - new Date(a.issueDate));
 
           // Take only the first 30 records
-          var queryResponse = _queryResponse.slice(0, Math.min(_queryResponse.length, 30));
+          queryResponse = _queryResponse.slice(0, Math.min(_queryResponse.length, 30));
           break;
         case 8:
           var filteredResponse8 = [];
@@ -529,7 +530,7 @@ const fetchIssuesLogDetails = async (req, res) => {
           var [queryResponse1, queryResponse2] = await Promise.all([query1Promise, query2Promise]);
 
           // Merge the results into a single array
-          var queryResponse = [...queryResponse1, ...queryResponse2];
+          queryResponse = [...queryResponse1, ...queryResponse2];
 
           // Filter the data to show only expiration dates on or after today
           queryResponse = queryResponse.filter(item => new Date(item.expirationDate) >= new Date(todayDate));
@@ -554,21 +555,21 @@ const fetchIssuesLogDetails = async (req, res) => {
           }
           // Take only the first 30 records
           // var queryResponse = queryResponse.slice(0, Math.min(queryResponse.length, 30));
-          var queryResponse = filteredResponse8;
+          queryResponse = filteredResponse8;
           break;
         case 9:
-          var queryResponse = await Issues.find({
+          queryResponse = await Issues.find({
             issuerId: issuerExist.issuerId,
             $and: [{ certificateStatus: { $eq: 4 } }]
           });
           break;
         default:
-          var queryResponse = 0;
+          queryResponse = 0;
           var totalResponses = 0;
           var responseMessage = messageCode.msgNoMatchFound;
       };
     } else {
-      var queryResponse = 0;
+      queryResponse = 0;
       var totalResponses = 0;
       var responseMessage = messageCode.msgNoMatchFound;
     }
