@@ -41,7 +41,6 @@ module.exports = {
     msgNonEmpty : "Input field cannot be empty",
     msgInputProvide : "Input should be provided",
     msgInvalidFormat : "Entered input format is invalid ",
-    msgInvalidDate : "Entered date format is invalid",
     msgCertLength : "Certification ID must between 12 to 20 characters",
     msgMaxLength : "Entered Input must between 8 to 30 characters",
     msgMaxLengthCourse : "Entered Input must not exceed 150 characters",
@@ -122,7 +121,6 @@ module.exports = {
 
     // Dates Messages
     msgInvalidDate : "Invalid Date, Please check and try again ...",
-    msgInvalidDateFormat : "Please provide valid Date format",
     msgOlderGrantDate : "Expiration date must not older than Grant date, Please check and try again ...",
     msgInvalidExpiration : "Please provide valid expiration date or provide more than 30 days from today and try again...",
     msgInvalidNewExpiration : "Please provide valid newer expiration date or provide more than 30 days from today and try again...",
@@ -147,7 +145,6 @@ module.exports = {
     msgInvalidRootPassed : "Invalid Batch certification value passed",
     msgBatchRenewed : "Batch Expiration date updated / Renewed",
     msgBatchExpired : "Provided Batch details were expired",
-    msgCertExpired : "Provided Certification details were expired",
     msgRevokeNotPossible : "Operation not possible on provided Certification",
 
     // Verify certID/pdf Messages

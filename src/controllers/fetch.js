@@ -15,8 +15,17 @@ const { User, Issues, BatchIssues, IssueStatus, VerificationLog } = require("../
 
 // Importing functions from a custom module
 const {
+  holdExecution,
   isDBConnected // Function to check if the database connection is established
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
+
+// Define the API endpoint and parameters
+const apiUrl = process.env.POLYGON_API_URL || null;
+const polygonApiKey = process.env.POLYGON_API_KEY || null;
+const netcomAddress = process.env.NETCOM_CONTRACT || null;
+const lmsAddress = process.env.LMS_CONTRACT || null;
+const MAX_RETRY_ATTEMPTS = 3;
+const RETRY_DELAY_MS = 1000; // 1 second delay between retries (adjust as needed)
 
 var messageCode = require("../common/codes");
 app.use("../../uploads", express.static(path.join(__dirname, "uploads")));
@@ -360,6 +369,7 @@ const fetchIssuesLogDetails = async (req, res) => {
     var today = new Date();
     // Formatting the parsed date into ISO 8601 format with timezone
     var formattedDate = today.toISOString();
+    var queryResponse;
 
     // Get today's date
     const getTodayDate = async () => {
@@ -399,7 +409,7 @@ const fetchIssuesLogDetails = async (req, res) => {
             email: req.body.email,
             certStatus: 4
           });
-          var queryResponse = { issued: issueCount, renewed: renewCount, revoked: revokedCount.length, reactivated: reactivatedCount.length };
+          queryResponse = { issued: issueCount, renewed: renewCount, revoked: revokedCount.length, reactivated: reactivatedCount.length };
           break;
         case 2:
           var __queryResponse = await IssueStatus.find({
@@ -414,7 +424,7 @@ const fetchIssuesLogDetails = async (req, res) => {
               { certStatus: { $eq: 2 } },
               { expirationDate: { $gt: formattedDate } }]
           });
-          var queryResponse = { __queryResponse, _queryResponse };
+          queryResponse = { __queryResponse, _queryResponse };
           // Sort the data based on the 'lastUpdate' date in descending order
           // queryResponse.sort((b, a) => new Date(b.expirationDate) - new Date(a.expirationDate));
           break;
@@ -427,12 +437,12 @@ const fetchIssuesLogDetails = async (req, res) => {
             email: req.body.email,
             $and: [{ certStatus: { $eq: 2 }, expirationDate: { $ne: "1" } }]
           });
-          var queryResponse = { _queryResponse, __queryResponse };
+          queryResponse = { _queryResponse, __queryResponse };
           // Sort the data based on the 'lastUpdate' date in descending order
           // queryResponse.sort((b, a) => new Date(b.expirationDate) - new Date(a.expirationDate));
           break;
         case 4:
-          var queryResponse = await IssueStatus.find({
+          queryResponse = await IssueStatus.find({
             email: req.body.email,
             $and: [{ certStatus: { $eq: 3 }, expirationDate: { $gt: formattedDate } }]
           });
@@ -440,7 +450,7 @@ const fetchIssuesLogDetails = async (req, res) => {
           queryResponse.sort((b, a) => new Date(b.expirationDate) - new Date(a.expirationDate));
           break;
         case 5:
-          var queryResponse = await IssueStatus.find({
+          queryResponse = await IssueStatus.find({
             email: req.body.email,
             $and: [{ expirationDate: { $lt: formattedDate } }]
           });
@@ -483,7 +493,7 @@ const fetchIssuesLogDetails = async (req, res) => {
           }
           // Take only the first 30 records
           // var queryResponse = _queryResponse.slice(0, Math.min(_queryResponse.length, 30));
-          var queryResponse = filteredResponse6;
+          queryResponse = filteredResponse6;
           break;
         case 7://To fetch Revoked certifications and count
           var query1Promise = Issues.find({
@@ -507,7 +517,7 @@ const fetchIssuesLogDetails = async (req, res) => {
           _queryResponse.sort((a, b) => new Date(b.issueDate) - new Date(a.issueDate));
 
           // Take only the first 30 records
-          var queryResponse = _queryResponse.slice(0, Math.min(_queryResponse.length, 30));
+          queryResponse = _queryResponse.slice(0, Math.min(_queryResponse.length, 30));
           break;
         case 8:
           var filteredResponse8 = [];
@@ -540,8 +550,8 @@ const fetchIssuesLogDetails = async (req, res) => {
           // Sort the data based on the 'issueDate' date in descending order
           // queryResponse.sort((a, b) => new Date(b.issueDate) - new Date(a.issueDate));
 
-          for (var item8 of queryResponse) {
-            var certificateNumber = item8.certificateNumber;
+          for (let item8 of queryResponse) {
+            let certificateNumber = item8.certificateNumber;
             const issueStatus8 = await IssueStatus.findOne({ certificateNumber });
             if (issueStatus8) {
               // Push the matching issue status into filteredResponse
@@ -554,7 +564,7 @@ const fetchIssuesLogDetails = async (req, res) => {
           }
           // Take only the first 30 records
           // var queryResponse = queryResponse.slice(0, Math.min(queryResponse.length, 30));
-          var queryResponse = filteredResponse8;
+          queryResponse = filteredResponse8;
           break;
         case 9:
           var queryResponse = await Issues.find({
@@ -563,12 +573,12 @@ const fetchIssuesLogDetails = async (req, res) => {
           });
           break;
         default:
-          var queryResponse = 0;
+          queryResponse = 0;
           var totalResponses = 0;
           var responseMessage = messageCode.msgNoMatchFound;
       };
     } else {
-      var queryResponse = 0;
+      queryResponse = 0;
       var totalResponses = 0;
       var responseMessage = messageCode.msgNoMatchFound;
     }
@@ -1253,6 +1263,131 @@ const getIssuesInOrganizationWithName = async (req, res) => {
 
 };
 
+/**
+ * Api to fetch Daily and Monthly issues (by LMS and Netcom).
+ * 
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
+const fetchCustomIssuedCertificates = async (req, res) => {
+  let validResult = validationResult(req);
+  if (!validResult.isEmpty()) {
+    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+  }
+  const email = req.body.email; // Get the email
+
+  const today = new Date();
+  const contractAddresses = [netcomAddress, lmsAddress];
+  try {
+
+    if (!apiUrl || !polygonApiKey) {
+      return res.status(400).send({ status: "FAILED", message: msgInvalidPolygonCredentials });
+    }
+    const issuesCount = {
+      Day: [],
+      Week: [],
+      Month: [],
+      Total: []
+    };
+
+    // Define date ranges
+    const dateRanges = [
+      { name: "Day", startDate: getPastDate(today, 1), endDate: today },
+      { name: "Week", startDate: getPastDate(today, 7), endDate: today },
+      { name: "Month", startDate: getPastDate(today, 30), endDate: today },
+      { name: "Total", startDate: 0, endDate: today }
+    ];
+
+    for (const addressIndex of contractAddresses) {
+      for (const range of dateRanges) {
+        console.log("Reached", range.startDate);
+        await holdExecution(500);
+        let _startDate = range.startDate != 0 ? range.startDate.toISOString().split('T')[0] : 0;
+        let _endDate = range.endDate.toISOString().split('T')[0];
+        let fetchDetails = await fetchTransactionCountWithRetry(addressIndex, _startDate, _endDate);
+        if (fetchDetails !== 0) {
+          issuesCount[range.name].push(fetchDetails);
+        }
+      }
+    }
+
+    return res.status(200).json({ status: "SUCCESS", message: `${messageCode.msgAllQueryFetched}:[Netcom, LMS]`, details: issuesCount });
+
+  } catch (error) {
+    res.status(400).json({
+      status: 'FAILED',
+      message: messageCode.msgFailedToFetch,
+      details: error
+    });
+  }
+};
+
+// Retry function to handle failed case
+const fetchTransactionCountWithRetry = async (addressIndex, startDate, endDate, retryCount = 0) => {
+
+  try {
+    return await fetchTransactionCount(addressIndex, startDate, endDate);
+  } catch (error) {
+    if (retryCount < MAX_RETRY_ATTEMPTS) {
+      console.log(`Retrying... Attempt ${retryCount + 1}`);
+      await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+      return fetchTransactionCountWithRetry(addressIndex, startDate, endDate, retryCount + 1);
+    } else {
+      console.error(`Max retries exceeded. Failed to fetch details for ${addressIndex} (${startDate} - ${endDate})`);
+      throw error; // Propagate the error if retries are exhausted
+    }
+  }
+}
+
+// Function to fetch required details from the Smart Contract logs (within the date range)
+const fetchTransactionCount = async (contractAddress, startDate, endDate) => {
+  let module = 'account';
+  let action = 'txlist';
+  let fromBlock = 0;  // Starting block number (optional)
+  let toBlock = 99999999;  // Ending block number (optional)
+  let apiKey = polygonApiKey;
+
+  const startTimestamp = startDate != 0 ? await toUnixTimestamp(startDate) : 0;
+  const endTimestamp = await toUnixTimestamp(endDate);
+  // Address of the specific user whose transactions/logs you want to filter
+  // const userAddress = '0xUserAddress';
+
+  // const url = `${apiUrl}?module=${module}&action=${action}&address=${contractAddress}&fromBlock=${fromBlock}&toBlock=${toBlock}&topic0=0x${web3.utils.padLeft(userAddress.toLowerCase(), 64)}&apikey=${apiKey}`;
+
+  const url = `${apiUrl}?module=${module}&action=${action}&address=${contractAddress}&startblock=${fromBlock}&endblock=${toBlock}&sort=asc&apikey=${apiKey}`;
+
+  try {
+    const response = await axios.get(url);
+    if (response.data.status === '1') {
+      if (startDate != 0) {
+        const transactions = response.data.result.filter(tx => tx.timeStamp >= startTimestamp && tx.timeStamp <= endTimestamp);
+        return transactions.length;
+      } else {
+        let _transactions = response.data.result;
+        return _transactions.length;
+      }
+    } else {
+      console.error(`Error fetching data for contract ${contractAddress}: ${response.data.message}`);
+      return 0;
+    }
+  } catch (error) {
+    console.error(`Error fetching data for contract ${contractAddress}:`, error);
+    return 0;
+  }
+}
+
+// Convert date to Unix timestamp
+const toUnixTimestamp = async (date) => {
+  return Math.floor(new Date(date).getTime() / 1000);
+}
+
+// Function to get past date
+const getPastDate = async (currentDate, daysAgo) => {
+  const pastDate = new Date(currentDate);
+  pastDate.setDate(currentDate.getDate() - daysAgo);
+  return pastDate;
+}
+
 module.exports = {
   // Function to get all issuers (users)
   getAllIssuers,
@@ -1282,6 +1417,7 @@ module.exports = {
   getBatchCertificates,
   getBatchCertificateDates,
   getOrganizationDetails,
-  getIssuesInOrganizationWithName
+  getIssuesInOrganizationWithName,
+  fetchCustomIssuedCertificates
 
 };
