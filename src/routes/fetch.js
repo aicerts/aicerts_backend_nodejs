@@ -563,6 +563,86 @@ router.post('/get-issuer-by-email', validationRoute.emailCheck, adminController.
 
 /**
  * @swagger
+ * /api/get-credits-by-email:
+ *   post:
+ *     summary: Get issuer sevice credit limits by email
+ *     description: API to Fetch Issuer service credit limits details on email request.
+ *     tags: [Fetch/Upload]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: Issuer's email address
+ *     responses:
+ *       '200':
+ *         description: Issuer fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: SUCCESS
+ *                 data:
+ *                   type: object
+ *                   description: Issuer details
+ *                 message:
+ *                   type: string
+ *                   example: Issuer fetched successfully
+ *       '400':
+ *         description: Bad request or issuer not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: Issuer not found (or) Bad request!
+ *       '422':
+ *         description: User given invalid input (Unprocessable Entity)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Error message for invalid input.
+ *       '500':
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred during the process!
+ */
+
+router.post('/get-credits-by-email', validationRoute.emailCheck, adminController.getServiceLimitsByEmail);
+
+/**
+ * @swagger
  * /api/get-custom-issues:
  *   post:
  *     summary: Fetch issues (by Netcom & LMS) data based on a day/week/month of an issuer with an Email(optional)

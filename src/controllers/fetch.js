@@ -104,6 +104,54 @@ const getIssuerByEmail = async (req, res) => {
 };
 
 /**
+ * API to fetch Service limits details of Issuer .
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
+const getServiceLimitsByEmail = async (req, res) => {
+  let validResult = validationResult(req);
+  if (!validResult.isEmpty()) {
+    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+  }
+  try {
+    // Check mongoose connection
+    const dbStatus = await isDBConnected();
+    const dbStatusMessage = (dbStatus == true) ? messageCode.msgDbReady : messageCode.msgDbNotReady;
+    console.log(dbStatusMessage);
+
+    const { email } = req.body;
+
+    const issuerExist = await User.findOne({ email: email }).select('-password');
+    if (!issuerExist || !issuerExist.issuerId) {
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidIssuer, details: email });
+    }
+
+    var fetchServiceQuota = await ServiceAccountQuotas.find({
+      issuerId: issuerExist.issuerId
+    });
+
+    if (!fetchServiceQuota || fetchServiceQuota.length < 1) {
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgMatchLimitsNotFound, details: email });
+    }
+
+    // Transform the original response
+    let transformedResponse = fetchServiceQuota.map(item => ({
+      serviceId: item.serviceId,
+      limit: item.limit
+    }));
+
+    return res.status(200).json({ status: "SUCCESS", message: messageCode.msgMatchLimitsFound, details: transformedResponse });
+
+  } catch (error) {
+    res.json({
+      status: 'FAILED',
+      message: messageCode.msgErrorOnFetching
+    });
+  }
+};
+
+/**
  * API to fetch details of Certification by giving name / certification ID.
  *
  * @param {Object} req - Express request object.
@@ -1395,6 +1443,9 @@ module.exports = {
 
   // Function to fetch issuer details
   getIssuerByEmail,
+  
+  // Function to fetch issuer limits details
+  getServiceLimitsByEmail,
 
   // Function to fetch verification details
   getVerificationDetailsByCourse,
