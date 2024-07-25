@@ -880,11 +880,11 @@ const addDynamicLinkToPdf = async (
   const height = page.getHeight();
 
   // Add link URL to the PDF page
-  page.drawText(linkUrl, {
-    x: 62, // X coordinate of the text
-    y: 30, // Y coordinate of the text
-    size: 8, // Font size
-  });
+  // page.drawText(linkUrl, {
+  //   x: 62, // X coordinate of the text
+  //   y: 30, // Y coordinate of the text
+  //   size: 8, // Font size
+  // });
 
   //Adding qr code
   const pdfDc = await PDFDocument.create();

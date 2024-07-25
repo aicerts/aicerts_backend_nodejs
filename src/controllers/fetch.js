@@ -1334,7 +1334,7 @@ const fetchCustomIssuedCertificates = async (req, res) => {
       return res.status(400).send({ status: "FAILED", message: msgInvalidPolygonCredentials });
     }
     const issuesCount = {
-      Day: [],
+      // Day: [],
       Week: [],
       Month: [],
       Total: []
@@ -1342,7 +1342,7 @@ const fetchCustomIssuedCertificates = async (req, res) => {
 
     // Define date ranges
     const dateRanges = [
-      { name: "Day", startDate: await getPastDate(today, 1), endDate: today },
+      // { name: "Day", startDate: await getPastDate(today, 1), endDate: today },
       { name: "Week", startDate: await getPastDate(today, 7), endDate: today },
       { name: "Month", startDate: await getPastDate(today, 30), endDate: today },
       { name: "Total", startDate: 0, endDate: today }
@@ -1350,7 +1350,7 @@ const fetchCustomIssuedCertificates = async (req, res) => {
 
     for (const addressIndex of contractAddresses) {
       for (const range of dateRanges) {
-        await holdExecution(500);
+        await holdExecution(350);
         let _startDate = range.startDate != 0 ? range.startDate.toISOString().split('T')[0] : 0;
         let _endDate = range.endDate.toISOString().split('T')[0];
         let fetchDetails = await fetchTransactionCountWithRetry(addressIndex, _startDate, _endDate);
