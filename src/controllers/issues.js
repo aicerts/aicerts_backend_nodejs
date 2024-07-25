@@ -36,7 +36,7 @@ const {
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
 const { handleExcelFile } = require('../services/handleExcel');
-const { handleIssueCertification, handleIssuePdfCertification } = require('../services/issue');
+const { handleIssueCertification, handleIssuePdfCertification, handleIssueDynamicPdfCertification } = require('../services/issue');
 
 // Retrieve contract address from environment variable
 const contractAddress = process.env.CONTRACT_ADDRESS;
@@ -109,6 +109,64 @@ const issuePdf = async (req, res) => {
     }
 
     const issueResponse = await handleIssuePdfCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate, req.file.path);
+    const responseDetails = issueResponse.details ? issueResponse.details : '';
+    if (issueResponse.code == 200) {
+
+      // Set response headers for PDF to download
+      const certificateName = `${certificateNumber}_certificate.pdf`;
+
+      res.set({
+        'Content-Type': "application/pdf",
+        'Content-Disposition': `attachment; filename="${certificateName}"`, // Change filename as needed
+      });
+
+      // Send Pdf file
+      res.send(issueResponse.file);
+      return;
+
+    } else {
+      return res.status(issueResponse.code).json({ status: issueResponse.status, message: issueResponse.message, details: responseDetails });
+    }
+
+  } catch (error) {
+    // Handle any errors that occur during token verification or validation
+    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
+  }
+};
+
+const issueDynamicPdf = async (req, res) => {
+  if (!req.file.path) {
+    return res.status(400).json({ status: "FAILED", message: messageCode.msgMustPdf });
+  }
+
+  const fileBuffer = fs.readFileSync(req.file.path);
+  const pdfDoc = await PDFDocument.load(fileBuffer);
+
+  if (pdfDoc.getPageCount() > 1) {
+    // Respond with success status and certificate details
+    await cleanUploadFolder();
+    return res.status(400).json({ status: "FAILED", message: messageCode.msgMultiPagePdf });
+  }
+  try {
+
+      // Extracting required data from the request body
+      let email = req.body.email;
+      let certificateNumber = req.body.certificateNumber;
+      let certificateName = req.body.name;
+      let customFields = req.body.customFields;
+      let positionX = req.body.posx;
+      let positionY = req.body.posy;
+      let qrsize = req.body.qrsize;
+      let _positionX = parseInt(positionX);
+      let _positionY = parseInt(positionY);
+      let _qrsize = parseInt(qrsize);
+
+    if(!email || !certificateNumber || !certificateName || !_positionX || !_positionY || !_qrsize || !customFields){
+      res.status(400).json({ status: "FAILED", message: messageCode.msgInputProvide});
+      return;
+    }
+
+    const issueResponse = await handleIssueDynamicPdfCertification(email, certificateNumber, certificateName, customFields, req.file.path, _positionX, _positionY, _qrsize);
     const responseDetails = issueResponse.details ? issueResponse.details : '';
     if (issueResponse.code == 200) {
 
@@ -486,6 +544,8 @@ const issueBatchCertificateWithRetry = async (root, expirationEpoch, retryCount 
 module.exports = {
   // Function to issue a PDF certificate
   issuePdf,
+
+  issueDynamicPdf,
 
   // Function to issue a certification
   issue,

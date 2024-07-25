@@ -219,6 +219,100 @@ router.post('/issue-pdf', _upload.single("file"), ensureAuthenticated, adminCont
 
 /**
  * @swagger
+ * /api/issue-dynamic-pdf:
+ *   post:
+ *     summary: API call for issuing certificates with a PDF template with Dynamic QR
+ *     description: API call for issuing certificates with Request Data Extraction, Validation Checks, Blockchain Processing, Certificate Issuance, PDF Generation, Database Interaction, Response Handling, PDF Template, QR Code Integration, File Handling, Asynchronous Operation, Cleanup and Response Format.
+ *     tags:
+ *       - Issue Certification (*Upload pdf)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: The issuer email.
+ *               certificateNumber:
+ *                 type: string
+ *                 description: The certificate number.
+ *               name:
+ *                 type: string
+ *                 description: The name associated with the certificate.
+ *               customFields:
+ *                 type: object
+ *                 description: Custom fields associated with the certificate.
+ *               posx:
+ *                 type: integer
+ *                 description: The horizontal(x-axis) position of the QR in the document.
+ *               posy:
+ *                 type: integer
+ *                 description: The vertical(y-axis) position of the QR in the document.
+ *               qrsize:
+ *                 type: integer
+ *                 description: The side of the QR in the document.
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: PDF file to be uploaded.
+ *                 x-parser:
+ *                   expression: file.originalname.endsWith('.pdf') // Allow only PDF files
+ *             required:
+ *               - email
+ *               - certificateNumber
+ *               - name
+ *               - customFields
+ *               - posx
+ *               - posy
+ *               - qrsize
+ *               - file
+ *     responses:
+ *       '200':
+ *         description: Successful certificate issuance in PDF format
+ *         content:
+ *           application/pdf:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *             example:
+ *               status: "SUCCESS"
+ *               message: PDF file containing the issued certificate.
+ *       '400':
+ *         description: Certificate already issued or invalid input
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Error message for certificate already issued or invalid input.
+ *       '500':
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Internal Server Error.
+ */
+
+router.post('/issue-dynamic-pdf', _upload.single("file"), ensureAuthenticated, adminController.issueDynamicPdf);
+
+/**
+ * @swagger
  * /api/batch-certificate-issue:
  *   post:
  *     summary: API call for issuing batch certificates.

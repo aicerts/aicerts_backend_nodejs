@@ -13,7 +13,7 @@ const AWS = require('../config/aws-config');
 const { generateEncryptedUrl } = require("../common/cryptoFunction");
 
 // Import MongoDB models
-const { User, Issues, BatchIssues, ShortUrl } = require("../config/schema");
+const { User, DynamicIssues } = require("../config/schema");
 
 // Import ABI (Application Binary Interface) from the JSON file located at "../config/abi.json"
 const abi = require("../config/abi.json");
@@ -25,7 +25,10 @@ const {
   convertEpochToDate,
   holdExecution,
   insertCertificateData, // Function to insert certificate data into the database
+  insertDynamicCertificateData,
+  extractQRCodeDataFromPDF,
   addLinkToPdf, // Function to add a link to a PDF file
+  addDynamicLinkToPdf,
   verifyPDFDimensions, //Verify the uploading pdf template dimensions
   calculateHash, // Function to calculate the hash of a file
   cleanUploadFolder, // Function to clean up the upload folder
@@ -584,6 +587,232 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
   }
 };
 
+const handleIssueDynamicPdfCertification = async (email, certificateNumber, name, _customFields, _pdfPath, _positionX, _positionY, _qrsize) => {
+  const pdfPath = _pdfPath;
+  try {
+    await isDBConnected();
+    // Check if user with provided email exists
+    const idExist = await User.findOne({ email });
+
+    if (!idExist) {
+      return ({ code: 400, status: "FAILED", message: messageCode.msgIssueNotFound, details: email });
+    }
+    // Check if certificate number already exists
+    const isIssueExist = await DynamicIssues.findOne({certificateNumber : certificateNumber});
+    if (isIssueExist) {
+      const _certStatus = await getCertificationStatus(isIssueExist.certificateStatus);
+      let issuedDate = await convertDateFormat(isIssueExist.issueDate);
+      let moreDetails = { certificateNumber: isIssueExist.certificateNumber, issueDate: issuedDate, certificateStatus: _certStatus };
+      await cleanUploadFolder();
+      return ({ code: 400, status: "FAILED", message: messageCode.msgCertIssued, details: moreDetails });
+    }
+
+    let _result = '';
+    let templateData = await extractQRCodeDataFromPDF(pdfPath)
+      .then(result => {
+        _result = result;
+      })
+      .catch(error => {
+        console.error("Error during verification:", error);
+      });
+
+    // Validation checks for request data
+    if (
+      (idExist.status !== 1) || // User does not exist
+      _result != false ||
+      certificateNumber.length > max_length || // Certificate number exceeds maximum length
+      certificateNumber.length < min_length // Certificate number is shorter than minimum length
+    ) {
+      // res.status(400).json({ message: "Please provide valid details" });
+      let errorMessage = messageCode.msgPlsEnterValid;
+      let moreDetails = '';
+      // Check for specific error conditions and update the error message accordingly
+      if (certificateNumber.length > max_length) {
+        errorMessage = messageCode.msgCertLength;
+      } else if (certificateNumber.length < min_length) {
+        errorMessage = messageCode.msgCertLength;
+      } else if (idExist.status != 1) {
+        errorMessage = messageCode.msgUnauthIssuer;
+      } else if (_result != false) {
+        await cleanUploadFolder();
+        errorMessage = messageCode.msgInvalidPdfUploaded;
+      }
+
+      // Respond with error message
+      return ({ code: 400, status: "FAILED", message: errorMessage, details: moreDetails });
+    } else {
+      // If validation passes, proceed with certificate issuance
+      const fields = {
+        Certificate_Number: certificateNumber,
+        name: name,
+        customFields: _customFields
+      };
+      const hashedFields = {};
+      for (const field in fields) {
+        hashedFields[field] = calculateHash(fields[field]);
+      }
+      const combinedHash = calculateHash(JSON.stringify(hashedFields));
+
+      try {
+        // Verify certificate on blockchain
+        let isPaused = await newContract.paused();
+        // Check if the Issuer wallet address is a valid Ethereum address
+        if (!ethers.isAddress(idExist.issuerId)) {
+          return ({ code: 400, status: "FAILED", message: messageCode.msgInvalidEthereum });
+        }
+        const issuerAuthorized = await newContract.hasRole(process.env.ISSUER_ROLE, idExist.issuerId);
+        const val = await newContract.verifyCertificateById(certificateNumber);
+        console.log("Issuer Authorized: ", issuerAuthorized);
+        if (
+          val[0] === true ||
+          isPaused === true ||
+          issuerAuthorized === false
+        ) {
+          // Certificate already issued / contract paused
+          let messageContent = messageCode.msgCertIssued;
+          let modifiedDate = val[1] == 1 ? 'infinite expiration' : await convertEpochToDate(val[1]);
+          let _certificateStatus = await getCertificationStatus(val[3]);
+          let moreDetails = val[0] === true ? { certificateNumber: certificateNumber, expirationDate: modifiedDate, certificateStatus: _certificateStatus } : "";
+
+          if (isPaused === true) {
+            messageContent = messageCode.msgOpsRestricted;
+          } else if (issuerAuthorized === false) {
+            messageContent = messageCode.msgIssuerUnauthrized;
+          }
+          return ({ code: 400, status: "FAILED", message: messageContent, details: moreDetails });
+        }
+      } catch (error) {
+        // Handle mongoose connection error (log it, response an error, etc.)
+        console.error("Internal server error", error);
+        return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
+      }
+
+      try {
+
+        var { txHash, polygonLink } = await issueCertificateWithRetry(certificateNumber, combinedHash, 1);
+        if (!polygonLink || !txHash) {
+          return ({ code: 400, status: false, message: messageCode.msgFailedToIssueAfterRetry, details: certificateNumber });
+        }
+      } catch (error) {
+        return ({ code: 400, status: false, message: messageCode.msgFailedToIssueAfterRetry, details: error });
+      }
+
+      try {
+        // Generate encrypted URL with certificate data
+        const dataWithLink = {
+          ...fields, polygonLink: polygonLink
+        }
+        const urlLink = await generateEncryptedUrl(dataWithLink);
+        const legacyQR = false;
+        let shortUrlStatus = false;
+        let modifiedUrl;
+
+        let qrCodeData = '';
+        if (legacyQR) {
+          // Include additional data in QR code
+          qrCodeData = `Verify On Blockchain: ${polygonLink},
+            Certification Number: ${dataWithLink.Certificate_Number},
+            Name: ${dataWithLink.name},
+            Type: 'dynamic',
+            Custom Fields: ${_customFields}`;
+        } else {
+          // Directly include the URL in QR code
+          qrCodeData = urlLink;
+        }
+
+        if (urlLink) {
+          let dbStatus = await isDBConnected();
+          if (dbStatus) {
+            const urlData = {
+              email: email,
+              certificateNumber: certificateNumber,
+              url: urlLink
+            }
+            await insertUrlData(urlData);
+            shortUrlStatus = true;
+          }
+        }
+
+        if (shortUrlStatus) {
+          modifiedUrl = process.env.SHORT_URL + certificateNumber;
+        }
+
+        let _qrCodeData = modifiedUrl != false ? modifiedUrl : qrCodeData;
+        // console.log("Short URL", _qrCodeData);
+
+        const qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
+          errorCorrectionLevel: "H", width: _qrsize, height: _qrsize
+        });
+
+        var file = pdfPath;
+        var outputPdf = `${fields.Certificate_Number}${name}.pdf`;
+
+        // Add link and QR code to the PDF file
+        const opdf = await addDynamicLinkToPdf(
+          path.join("./", '.', file),
+          outputPdf,
+          polygonLink,
+          qrCodeImage,
+          combinedHash,
+          _positionX,
+          _positionY
+        );
+
+        // Read the generated PDF file
+        var fileBuffer = fs.readFileSync(outputPdf);
+
+      } catch (error) {
+        return ({ code: 400, status: "FAILED", message: messageCode.msgPdfError, details: error });
+      }
+
+      try {
+        // Check mongoose connection
+        const dbStatus = await isDBConnected();
+        const dbStatusMessage = (dbStatus === true) ? messageCode.msgDbReady : messageCode.msgDbNotReady;
+        console.log(dbStatusMessage);
+
+        // Insert certificate data into database
+        const issuerId = idExist.issuerId;
+        let certificateData = {
+          issuerId,
+          transactionHash: txHash,
+          certificateHash: combinedHash,
+          certificateNumber: fields.Certificate_Number,
+          name: fields.name,
+          email: email,
+          customFields: _customFields
+        };
+        await insertDynamicCertificateData(certificateData);
+
+        // Delete files
+        if (fs.existsSync(outputPdf)) {
+          // Delete the specified file
+          fs.unlinkSync(outputPdf);
+        }
+
+        // Always delete the temporary file (if it exists)
+        if (fs.existsSync(file)) {
+          fs.unlinkSync(file);
+        }
+
+        await cleanUploadFolder();
+
+        // Set response headers for PDF download
+        return ({ code: 200, file: fileBuffer });
+
+      } catch (error) {
+        // Handle mongoose connection error (log it, response an error, etc.)
+        console.error("Internal server error", error);
+        return ({ code: 500, status: "FAILED", message: messageCode.msgInternalError, details: error });
+      }
+    }
+  } catch (error) {
+    // Handle mongoose connection error (log it, response an error, etc.)
+    console.error("Internal server error", error);
+    return ({ code: 400, status: "FAILED", message: messageCode.msgInternalError, details: error });
+  }
+};
+
 const issueCertificateWithRetry = async (certificateNumber, certificateHash, expirationEpoch, retryCount = 3) => {
 
   try {
@@ -688,6 +917,8 @@ const uploadImageToS3 = async (certNumber, imagePath) => {
 module.exports = {
   // Function to issue a PDF certificate
   handleIssuePdfCertification,
+
+  handleIssueDynamicPdfCertification,
 
   // Function to issue a certification
   handleIssueCertification

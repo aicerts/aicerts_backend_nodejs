@@ -86,7 +86,7 @@ const signer = new ethers.Wallet(process.env.PRIVATE_KEY, fallbackProvider);
 const sim_contract = new ethers.Contract(contractAddress, abi, signer);
 
 // Import the Issues models from the schema defined in "../config/schema"
-const { User, Issues, BatchIssues, IssueStatus, VerificationLog, ShortUrl } = require("../config/schema");
+const { User, Issues, BatchIssues, IssueStatus, VerificationLog, ShortUrl, DynamicIssues } = require("../config/schema");
 
 //Connect to polygon
 const connectToPolygon = async () => {
@@ -341,6 +341,9 @@ const insertCertificateData = async (data) => {
     const updateIssuerLog = await insertIssueStatus(data);
 
     const idExist = await User.findOne({ issuerId: data.issuerId });
+    if (idExist.certificatesIssued == undefined) {
+      idExist.certificatesIssued = 0;
+    }
     // If user with given id exists, update certificatesIssued count
     const previousCount = idExist.certificatesIssued || 0; // Initialize to 0 if certificatesIssued field doesn't exist
     idExist.certificatesIssued = previousCount + 1;
@@ -354,6 +357,43 @@ const insertCertificateData = async (data) => {
     console.error("Error connecting to MongoDB:", error);
   }
 };
+
+// Function to insert certification data into MongoDB
+const insertDynamicCertificateData = async (data) => {
+  try {
+    // Create a new Issues document with the provided data
+    const newDynamicIssue = new DynamicIssues({
+      issuerId: data.issuerId,
+      transactionHash: data.transactionHash,
+      certificateHash: data.certificateHash,
+      certificateNumber: data.certificateNumber,
+      name: data.name,
+      certificateStatus: 1,
+      certificateFields: data.customFields,
+      type: 'dynamic',
+      issueDate: Date.now() // Set the issue date to the current timestamp
+    });
+
+    // Save the new Issues document to the database
+    const result = await newDynamicIssue.save();
+
+    const idExist = await User.findOne({ issuerId: data.issuerId });
+    if (idExist.certificatesIssued == undefined) {
+      idExist.certificatesIssued = 0;
+    }
+    // If user with given id exists, update certificatesIssued count
+    const previousCount = idExist.certificatesIssued || 0; // Initialize to 0 if certificatesIssued field doesn't exist
+    idExist.certificatesIssued = previousCount + 1;
+    await idExist.save(); // Save the changes to the existing user
+
+    // Logging confirmation message
+    console.log("Certificate data inserted");
+  } catch (error) {
+    // Handle errors related to database connection or insertion
+    console.error("Error connecting to MongoDB:", error);
+  }
+};
+
 
 // Function to insert certification data into MongoDB
 const insertBatchCertificateData = async (data) => {
@@ -501,23 +541,6 @@ const extractCertificateInfo = async (qrCodeText) => {
   // Check if the data starts with 'http://' or 'https://'
   if (qrCodeText.startsWith('http://') || qrCodeText.startsWith('https://')) {
     var responseLength = qrCodeText.length;
-    if (responseLength < urlLimit && ((qrCodeText.startsWith(process.env.START_URL) || (qrCodeText.startsWith(process.env.START_VERIFY_URL))))) {
-      // Parse the URL
-      const parsedUrl = new URL(qrCodeText);
-      // Extract the query parameter
-      var certificationNumber = parsedUrl.searchParams.get('');
-      // console.log("data in url", parsedUrl, certificationNumber);
-      var dbStatus = await isDBConnected();
-      if (dbStatus) {
-        var isUrlExist = await ShortUrl.findOne({ certificateNumber: certificationNumber });
-        if (isUrlExist) {
-          // console.log("The original", isUrlExist.url);
-          _qrCodeText = isUrlExist.url;
-        }
-      }
-    }
-    // console.log("The original QR", _qrCodeText);
-
     // Parse the URL
     let parsedUrl = new URL(_qrCodeText);
     // Check if the pathname contains 'verify-documents'
@@ -540,6 +563,18 @@ const extractCertificateInfo = async (qrCodeText) => {
 
     // Parse the JSON string into a JavaScript object
     const parsedData = JSON.parse(fetchDetails);
+    // console.log("Parsed Details", parsedData);
+    if (parsedData.customFields != undefined) {
+      // Create a new object with desired key-value mappings for certificate information
+      var convertedData = {
+        "Certificate Number": parsedData.Certificate_Number,
+        "Name": parsedData.name,
+        "Custom Fields": parsedData.customFields,
+        "Polygon URL": parsedData.polygonLink
+      };
+      // console.log("Data of Redirect", convertedData);
+      return [convertedData, _qrCodeText];
+    }
     // Create a new object with desired key-value mappings for certificate information
     var convertedData = {
       "Certificate Number": parsedData.Certificate_Number,
@@ -655,12 +690,23 @@ const extractQRCodeDataFromPDF = async (pdfFilePath) => {
       width: 4000,
       height: 4000,
     };
+
+    const pdf2picOptions4 = {
+      quality: 100,
+      density: 450,
+      format: "png",
+      width: 4500,
+      height: 4500,
+    };
     // Decode QR code from PNG data
     var code = await baseCodeResponse(pdfFilePath, pdf2picOptions);
     if (!code) {
       var code = await baseCodeResponse(pdfFilePath, pdf2picOptions2);
       if (!code) {
         var code = await baseCodeResponse(pdfFilePath, pdf2picOptions3);
+        if (!code) {
+          var code = await baseCodeResponse(pdfFilePath, pdf2picOptions4);
+        }
       }
     }
     const qrCodeText = code?.data;
@@ -672,10 +718,10 @@ const extractQRCodeDataFromPDF = async (pdfFilePath) => {
     } else {
       detailsQR = qrCodeText;
       // Extract certificate information from QR code text
-      const certificateInfo = extractCertificateInfo(qrCodeText);
+      // const certificateInfo = extractCertificateInfo(qrCodeText);
 
       // Return the extracted certificate information
-      return certificateInfo;
+      return qrCodeText;
     }
 
   } catch (error) {
@@ -736,7 +782,99 @@ const addLinkToPdf = async (
   return pdfBytes;
 };
 
+const addDynamicLinkToPdf = async (
+  inputPath, // Path to the input PDF file
+  outputPath, // Path to save the modified PDF file
+  linkUrl, // URL to be added to the PDF
+  qrCode, // QR code image to be added to the PDF
+  combinedHash, // Combined hash value to be displayed (optional)
+  positionHorizontal,
+  positionVertical
+) => {
+  // Read existing PDF file bytes
+  const existingPdfBytes = fs.readFileSync(inputPath);
+
+  // Load existing PDF document
+  const pdfDoc = await pdf.PDFDocument.load(existingPdfBytes);
+
+  // Get the first page of the PDF document
+  const page = pdfDoc.getPage(0);
+
+  // Get page width and height
+  const width = page.getWidth();
+  const height = page.getHeight();
+
+  // Add link URL to the PDF page
+  page.drawText(linkUrl, {
+    x: 62, // X coordinate of the text
+    y: 30, // Y coordinate of the text
+    size: 8, // Font size
+  });
+
+  //Adding qr code
+  const pdfDc = await PDFDocument.create();
+  // Adding QR code to the PDF page
+  const pngImage = await pdfDoc.embedPng(qrCode); // Embed QR code image
+  const pngDims = pngImage.scale(1); // Scale QR code image
+
+  page.drawImage(pngImage, {
+    x: positionHorizontal,
+    y: height - (positionVertical + pngDims.height),
+    width: pngDims.width,
+    height: pngDims.height,
+  });
+  console.log("Width X Height", width, height);
+
+  qrX = width - pngDims.width - 75;
+  qrY = 75;
+  qrWidth = pngDims.width;
+  qrHeight = pngDims.height;
+
+  const pdfBytes = await pdfDoc.save();
+
+  fs.writeFileSync(outputPath, pdfBytes);
+  return pdfBytes;
+};
+
 const verifyPDFDimensions = async (pdfPath) => {
+  // Extract QR code data from the PDF file
+  const certificateData = await extractQRCodeDataFromPDF(pdfPath);
+  const pdfBuffer = fs.readFileSync(pdfPath);
+  const pdfDoc = await PDFDocument.load(pdfBuffer);
+
+  const firstPage = pdfDoc.getPages()[0];
+  const { width, height } = firstPage.getSize();
+
+  // Assuming PDF resolution is 72 points per inch
+  const dpi = 72;
+  const widthInches = width / dpi;
+  const heightInches = height / dpi;
+
+  // Convert inches to millimeters (1 inch = 25.4 mm)
+  const widthMillimeters = widthInches * 25.4;
+  const heightMillimeters = heightInches * 25.4;
+
+  // Check if dimensions fall within the specified ranges
+  if (
+    (widthMillimeters >= 340 && widthMillimeters <= 360) &&
+    (heightMillimeters >= 240 && heightMillimeters <= 260) &&
+    (certificateData === false)
+  ) {
+    // Convert inches to pixels (assuming 1 inch = 96 pixels)
+    // const widthPixels = widthInches * 96;
+    // const heightPixels = heightInches * 96;
+
+    // console.log("The certificate width x height (in mm):", widthMillimeters, heightMillimeters);
+
+    return true;
+  } else {
+    // throw new Error('PDF dimensions must be within 240-260 mm width and 340-360 mm height');
+    return false;
+  }
+
+};
+
+const verifyDynamicPDFDimensions = async (pdfPath) => {
   // Extract QR code data from the PDF file
   const certificateData = await extractQRCodeDataFromPDF(pdfPath);
   const pdfBuffer = fs.readFileSync(pdfPath);
@@ -952,6 +1090,8 @@ module.exports = {
   // Function to insert certificate data into MongoDB
   insertCertificateData,
 
+  insertDynamicCertificateData,
+
   // Insert Batch certificate data into Database
   insertBatchCertificateData,
 
@@ -980,6 +1120,8 @@ module.exports = {
 
   // Function to add a link and QR code to a PDF file
   addLinkToPdf,
+
+  addDynamicLinkToPdf,
 
   //Verify the uploading pdf template dimensions
   verifyPDFDimensions,

@@ -17,7 +17,7 @@ const pdf = require("pdf-lib"); // Library for creating and modifying PDF docume
 const { PDFDocument } = pdf;
 
 // Import MongoDB models
-const { Issues, BatchIssues, ShortUrl, User } = require("../config/schema");
+const { ShortUrl, DynamicIssues } = require("../config/schema");
 
 // Import ABI (Application Binary Interface) from the JSON file located at "../config/abi.json"
 const abi = require("../config/abi.json");
@@ -29,7 +29,8 @@ const {
   isDBConnected, // Function to check if the database connection is established
   extractCertificateInfo,
   verificationLogEntry,
-  isCertificationIdExisted
+  isCertificationIdExisted,
+  holdExecution
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
 // Retrieve contract address from environment variable
@@ -69,6 +70,8 @@ const verify = async (req, res) => {
   var fileBuffer = fs.readFileSync(file);
   var pdfDoc = await PDFDocument.load(fileBuffer);
   var certificateS3Url;
+  var responseUrl;
+  var verificationResponse;
   // Get today's date
   const getTodayDate = async () => {
     const today = new Date();
@@ -91,9 +94,9 @@ const verify = async (req, res) => {
 
   try {
     // Extract QR code data from the PDF file
-    const [certificateData, originalUrl] = await extractQRCodeDataFromPDF(file);
+    const certificateData = await extractQRCodeDataFromPDF(file);
 
-    if (certificateData === false) {
+    if (certificateData == false) {
       if (fs.existsSync(file)) {
         fs.unlinkSync(file);
       }
@@ -102,363 +105,213 @@ const verify = async (req, res) => {
       return res.status(400).json({ status: "FAILED", message: messageCode.msgCertNotValid });
     }
 
-    var verifyLog = {
-      issuerId: "default",
-      course: certificateData["Course Name"]
-    };
-
-    const certificationNumber = certificateData['Certificate Number'];
-    const singleIssueExist = await Issues.findOne({ certificateNumber: certificationNumber });
-    const batchIssueExist = await BatchIssues.findOne({ certificateNumber: certificationNumber });
-
-    // Validation checks for request data
-    if (singleIssueExist) {
-
-      if (singleIssueExist.certificateStatus == 3) {
-        res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
-        if (fs.existsSync(file)) {
-          fs.unlinkSync(file);
-        }
-        // Clean up the upload folder
-        await cleanUploadFolder();
-        return;
-      }
-
-      if (singleIssueExist.certificateStatus == 6) {
-
-        var dbStatus = await isDBConnected();
-        certificateData.url = originalUrl;
-
-        res.status(200).json({
-          status: "SUCCESS",
-          message: "Certification is valid",
-          Details: certificateData
-        });
-        if (fs.existsSync(file)) {
-          fs.unlinkSync(file);
-        }
-        // Clean up the upload folder
-        await cleanUploadFolder();
-        return;
-      }
-
-      if (certificateData['Expiration Date'] == '1') {
-
-        verifyLog.issuerId = singleIssueExist.issuerId;
-        var dbStatus = await isDBConnected();
-        if (dbStatus) {
-          await verificationLogEntry(verifyLog);
-        }
-
-        certificateS3Url = singleIssueExist.url != null ? singleIssueExist.url : null;
-        certificateData.url = originalUrl;
-        certificateData.certificateUrl = certificateS3Url;
-
-        res.status(200).json({
-          status: "SUCCESS",
-          message: "Certification is valid",
-          Details: certificateData
-        });
-        if (fs.existsSync(file)) {
-          fs.unlinkSync(file);
-        }
-        // Clean up the upload folder
-        await cleanUploadFolder();
-        return;
-      }
-      try {
-        // Blockchain processing.
-        var verifyCert = await newContract.verifyCertificateById(certificationNumber);
-        var _certStatus = await newContract.getCertificateStatus(certificationNumber);
-
-        var verifyCertStatus = parseInt(verifyCert[3]);
-        var certStatus = parseInt(_certStatus);
-        if (certStatus == 3) {
-          res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
-          if (fs.existsSync(file)) {
-            fs.unlinkSync(file);
-          }
-          // Clean up the upload folder
-          await cleanUploadFolder();
-          return;
-        }
-
-        if (verifyCert[0] == false && verifyCertStatus == 5) {
-          res.status(400).json({ status: "FAILED", message: messageCode.msgCertExpired });
-          if (fs.existsSync(file)) {
-            fs.unlinkSync(file);
-          }
-          // Clean up the upload folder
-          await cleanUploadFolder();
-          return;
-        }
-      } catch (error) {
-        res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
-        if (fs.existsSync(file)) {
-          fs.unlinkSync(file);
-        }
-        // Clean up the upload folder
-        await cleanUploadFolder();
-        return;
-      }
-
-      if (verifyCert[0] === true) {
-
-        const foundCertification = certificateData;
-
-        verifyLog.issuerId = singleIssueExist.issuerId;
-
-        var dbStatus = await isDBConnected();
-        if (dbStatus != false) {
-          await verificationLogEntry(verifyLog);
-        }
-
-        certificateS3Url = singleIssueExist.url != null ? singleIssueExist.url : null;
-        foundCertification['Expiration Date'] = singleIssueExist.expirationDate;
-        foundCertification.url = originalUrl;
-        foundCertification.certificateUrl = certificateS3Url;
-
-        const verificationResponse = {
-          status: "SUCCESS",
-          message: "Certification is valid",
-          Details: foundCertification
-        };
-        res.status(200).json(verificationResponse);
-        if (fs.existsSync(file)) {
-          fs.unlinkSync(file);
-        }
-        // Clean up the upload folder
-        await cleanUploadFolder();
-        return;
-      } else if (verifyCert[0] === false) {
-        res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
-        if (fs.existsSync(file)) {
-          fs.unlinkSync(file);
-        }
-        // Clean up the upload folder
-        await cleanUploadFolder();
-        return;
-      }
-
-
-    } else if (batchIssueExist) {
-
-      if (batchIssueExist.certificateStatus == 3) {
-        res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
-        if (fs.existsSync(file)) {
-          fs.unlinkSync(file);
-        }
-        // Clean up the upload folder
-        await cleanUploadFolder();
-        return;
-      }
-
-      if (certificateData['Expiration Date'] == '1') {
-
-        // Add the issuerId parameter
-        verifyLog.issuerId = batchIssueExist.issuerId;
-
-        var dbStatus = await isDBConnected();
-        if (dbStatus != false) {
-          await verificationLogEntry(verifyLog);
-        }
-
-        certificateS3Url = batchIssueExist.url != null ? batchIssueExist.url : null;
-        certificateData.url = originalUrl;
-        certificateData.certificateUrl = certificateS3Url;
-
-        res.status(200).json({
-          status: "SUCCESS",
-          message: "Certification is valid",
-          Details: certificateData
-        });
-        if (fs.existsSync(file)) {
-          fs.unlinkSync(file);
-        }
-        // Clean up the upload folder
-        await cleanUploadFolder();
-        return;
-      }
-      if (certificateData['Expiration Date'].length == 10) {
-        // Convert data string to a Date object
-        const dataDate = new Date(certificateData['Expiration Date']);
-        if (dataDate < todayDate) {
-          res.status(400).json({ status: "FAILED", message: messageCode.msgCertExpired });
-          if (fs.existsSync(file)) {
-            fs.unlinkSync(file);
-          }
-          // Clean up the upload folder
-          await cleanUploadFolder();
-          return;
-        }
-      }
-      const batchNumber = (batchIssueExist.batchId) - 1;
-      const dataHash = batchIssueExist.certificateHash;
-      const proof = batchIssueExist.proofHash;
-      const hashProof = batchIssueExist.encodedProof;
-      try {
-        // Blockchain processing.
-        var batchVerifyResponse = await newContract.verifyBatchCertification(batchNumber, dataHash, proof);
-        var _responseStatus = await newContract.verifyCertificateInBatch(hashProof);
-        var responseStatus = parseInt(_responseStatus);
-        if (responseStatus == 3) {
-          res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
-          if (fs.existsSync(file)) {
-            fs.unlinkSync(file);
-          }
-          // Clean up the upload folder
-          await cleanUploadFolder();
-          return;
-        }
-
-        if (responseStatus == 5) {
-          res.status(400).json({ status: "FAILED", message: messageCode.msgCertExpired });
-          if (fs.existsSync(file)) {
-            fs.unlinkSync(file);
-          }
-          // Clean up the upload folder
-          await cleanUploadFolder();
-          return;
-        }
-      } catch (error) {
-        res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
-        if (fs.existsSync(file)) {
-          fs.unlinkSync(file);
-        }
-        // Clean up the upload folder
-        await cleanUploadFolder();
-        return;
-      }
-
-      if (batchVerifyResponse === true) {
+    if (certificateData.startsWith(process.env.START_URL) || certificateData.startsWith(process.env.START_VERIFY_URL)) {
+      var urlSize = certificateData.length;
+      if (urlSize < urlLimit) {
+        // Parse the URL
+        const parsedUrl = new URL(certificateData);
+        // Extract the query parameter
+        const certificationNumber = parsedUrl.searchParams.get('');
 
         try {
+          await isDBConnected();
+          var isIdExist = await isCertificationIdExisted(certificationNumber);
+          if (isIdExist) {
+            var blockchainResponse = 0;
+            if (isIdExist.batchId == undefined) {
+              blockchainResponse = await verifySingleCertificationWithRetry(certificationNumber);
+            } else if (isIdExist.batchId != undefined) {
+              let batchNumber = (isIdExist.batchId) - 1;
+              let dataHash = isIdExist.certificateHash;
+              let proof = isIdExist.proofHash;
+              let hashProof = isIdExist.encodedProof;
+              blockchainResponse = await verifyBatchCertificationWithRetry(batchNumber, dataHash, proof, hashProof);
+            }
+            if (blockchainResponse == 2 || blockchainResponse == 3) {
+              if (blockchainResponse == 2) {
+                verificationResponse = messageCode.msgCertExpired;
+              } else if (blockchainResponse == 3) {
+                verificationResponse = messageCode.msgCertRevoked;
+              }
+              return res.status(400).json({ status: "FAILED", message: verificationResponse });
+            }
+          }
+          var isUrlExisted = await ShortUrl.findOne({ certificateNumber: certificationNumber });
+          var isDynamicCertificateExist = await DynamicIssues.findOne({ certificateNumber: certificationNumber });
+          if (isIdExist) {
+            if (isIdExist.certificateStatus == 6) {
+              var _polygonLink = `https://${process.env.NETWORK}/tx/${isIdExist.transactionHash}`;
 
-          var completeResponse = certificateData;
+              var completeResponse = {
+                'Certificate Number': isIdExist.certificateNumber,
+                'Name': isIdExist.name,
+                'Course Name': isIdExist.course,
+                'Grant Date': isIdExist.grantDate,
+                'Expiration Date': isIdExist.expirationDate,
+                'Polygon URL': _polygonLink
+              };
 
-          // Add the issuerId parameter
-          verifyLog.issuerId = batchIssueExist.issuerId;
+              if (urlIssueExist) {
+                completeResponse.url = urlIssueExist.url;
+              } else {
+                completeResponse.url = null;
+              }
+              if (fs.existsSync(file)) {
+                fs.unlinkSync(file);
+              }
+              // Clean up the upload folder
+              await cleanUploadFolder();
 
-          var dbStatus = await isDBConnected();
-          if (dbStatus != false) {
+              res.status(200).json({
+                status: "SUCCESS",
+                message: "Certification is valid",
+                details: completeResponse
+              });
+              return;
+            }
+
+            let originalUrl = isUrlExisted != null ? isUrlExisted.url : null;
+            let certUrl = (isIdExist.url != undefined && (isIdExist.url).length > 1) ? isIdExist.url : null;
+            let formattedResponse = {
+              "Certificate Number": isIdExist.certificateNumber,
+              "Name": isIdExist.name,
+              "Course Name": isIdExist.course,
+              "Grant Date": isIdExist.grantDate,
+              "Expiration Date": isIdExist.expirationDate,
+              "Polygon URL": `${process.env.NETWORK}/tx/${isIdExist.transactionHash}`,
+              "url": originalUrl,
+              "certificateUrl": certUrl
+            }
+            if (isIdExist.certificateStatus == 3) {
+              if (fs.existsSync(file)) {
+                fs.unlinkSync(file);
+              }
+              // Clean up the upload folder
+              await cleanUploadFolder();
+              return res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
+            }
+
+            certificateS3Url = isIdExist.url != null ? isIdExist.url : null;
+            formattedResponse.certificateUrl = certificateS3Url;
+            var verifyLog = {
+              issuerId: isIdExist.issuerId,
+              course: isIdExist.course,
+            };
             await verificationLogEntry(verifyLog);
+            if (fs.existsSync(file)) {
+              fs.unlinkSync(file);
+            }
+            // Clean up the upload folder
+            await cleanUploadFolder();
+            return res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, details: formattedResponse });
+
+          } else if (isDynamicCertificateExist) {
+            let originalUrl = isUrlExisted != null ? isUrlExisted.url : null;
+            let responseFields = isDynamicCertificateExist.certificateFields;
+            let formattedDynamicResponse = {
+              "Certificate Number": isDynamicCertificateExist.certificateNumber,
+              "Name": isDynamicCertificateExist.name,
+              "Custom Fields": responseFields,
+              "Polygon URL": `${process.env.NETWORK}/tx/${isDynamicCertificateExist.transactionHash}`,
+              "type": isDynamicCertificateExist.type,
+              "url": originalUrl,
+              "certificateUrl": null
+            }
+
+            if (fs.existsSync(file)) {
+              fs.unlinkSync(file);
+            }
+            // Clean up the upload folder
+            await cleanUploadFolder();
+            return res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, details: formattedDynamicResponse });
+          } else {
+            return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
           }
-
-          certificateS3Url = batchIssueExist.url != null ? batchIssueExist.url : null;
-          completeResponse['Expiration Date'] = batchIssueExist.expirationDate;
-          completeResponse.url = originalUrl;
-          completeResponse.certificateUrl = certificateS3Url;
-
-          const _verificationResponse = {
-            status: "SUCCESS",
-            message: "Certification is valid",
-            Details: completeResponse
-          };
-
-          res.status(200).json(_verificationResponse);
-          if (fs.existsSync(file)) {
-            fs.unlinkSync(file);
-          }
-          // Clean up the upload folder
-          await cleanUploadFolder();
-          return;
 
         } catch (error) {
-          res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+          return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert, details: error });
+        }
+      }
+
+      responseUrl = certificateData;
+      var [extractQRData, encodedUrl] = await extractCertificateInfo(responseUrl);
+      if (extractQRData) {
+        try {
+          var dbStatus = await isDBConnected();
+          if (dbStatus) {
+            var getCertificationInfo = await isCertificationIdExisted(extractQRData['Certificate Number']);
+            certificateS3Url = null;
+            if (getCertificationInfo) {
+              certificateS3Url = getCertificationInfo.url != null ? getCertificationInfo.url : null;
+              var formatCertificationStatus = parseInt(getCertificationInfo.certificateStatus);
+              if (formatCertificationStatus && formatCertificationStatus == 3) {
+                if (fs.existsSync(file)) {
+                  fs.unlinkSync(file);
+                }
+                // Clean up the upload folder
+                await cleanUploadFolder();
+                return res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
+              }
+            }
+          }
+        } catch (error) {
           if (fs.existsSync(file)) {
             fs.unlinkSync(file);
           }
           // Clean up the upload folder
           await cleanUploadFolder();
-          return;
+          return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
         }
-      } else {
-        res.status(400).json({ status: "FAILED", message: messageCode.msgCertNotExist });
+        extractQRData.url = encodedUrl;
         if (fs.existsSync(file)) {
           fs.unlinkSync(file);
         }
         // Clean up the upload folder
         await cleanUploadFolder();
+
+        extractQRData.certificateUrl = certificateS3Url;
+        res.status(200).json({ status: "PASSED", message: messageCode.msgCertValid, details: extractQRData });
         return;
       }
-
-
-    } else if (!batchIssueExist && !singleIssueExist) {
-      if (certificateData['Expiration Date'] == '1') {
-        var dbStatus = await isDBConnected();
-        if (dbStatus != false) {
-          await verificationLogEntry(verifyLog);
-        }
-        certificateData.url = originalUrl;
-        certificateData.certificateUrl = "";
-
-        res.status(200).json({
-          status: "SUCCESS",
-          message: "Certification is valid",
-          Details: certificateData
-        });
-        if (fs.existsSync(file)) {
-          fs.unlinkSync(file);
-        }
-        // Clean up the upload folder
-        await cleanUploadFolder();
-        return;
-      }
-      // Extract blockchain URL from the certificate data
-      const blockchainUrl = certificateData["Polygon URL"];
-
-      var fomatedDate = await detectDateFormat(certificateData['Expiration Date']);
-
-      if (fomatedDate != null) {
-        var compareDate = await compareDates(fomatedDate, todayDate);
-        if (!compareDate) {
-          res.status(400).json({ status: "FAILED", message: messageCode.msgCertExpired });
-          if (fs.existsSync(file)) {
-            fs.unlinkSync(file);
-          }
-          // Clean up the upload folder
-          await cleanUploadFolder();
-          return;
-        }
-      }
-
-      // Check if a blockchain URL exists and is valid
-      if (blockchainUrl && blockchainUrl.length > 0) {
-        var dbStatus = await isDBConnected();
-        if (dbStatus != false) {
-          await verificationLogEntry(verifyLog);
-        }
-        certificateData.url = originalUrl;
-        certificateData.certificateUrl = "";
-        // Respond with success status and certificate details
-        res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, Details: certificateData });
-        // await cleanUploadFolder();
-        if (fs.existsSync(file)) {
-          fs.unlinkSync(file);
-        }
-        // Clean up the upload folder
-        await cleanUploadFolder();
-        return;
-      } else {
-        // Respond with failure status if no valid blockchain URL is found
-        res.status(400).json({ status: "FAILED", message: messageCode.msgCertNotValid });
-        if (fs.existsSync(file)) {
-          fs.unlinkSync(file);
-        }
-        // Clean up the upload folder
-        await cleanUploadFolder();
-        return;
-      }
-
-    } else {
-      // Respond with failure status if no valid blockchain URL is found
-      res.status(400).json({ status: "FAILED", message: messageCode.msgCertNotValid });
       if (fs.existsSync(file)) {
         fs.unlinkSync(file);
       }
       // Clean up the upload folder
       await cleanUploadFolder();
-      return;
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
+    } else if (certificateData.startsWith(process.env.START_LMS)) {
+      var [extractQRData, encodedUrl] = await extractCertificateInfo(certificateData);
+      if (extractQRData["Polygon URL"] == undefined) {
+        if (fs.existsSync(file)) {
+          fs.unlinkSync(file);
+        }
+        // Clean up the upload folder
+        await cleanUploadFolder();
+        return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
+      }
+      if (extractQRData) {
+        var verifyLog = {
+          issuerId: 'default',
+          course: extractQRData["Course Name"],
+        };
+        await verificationLogEntry(verifyLog);
+
+        if (fs.existsSync(file)) {
+          fs.unlinkSync(file);
+        }
+        // Clean up the upload folder
+        await cleanUploadFolder();
+        res.status(200).json({ status: "PASSED", message: messageCode.msgCertValid, details: extractQRData });
+        return;
+      }
+      // Clean up the upload folder
+      await cleanUploadFolder();
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
+
+    } else {
+      // Clean up the upload folder
+      await cleanUploadFolder();
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
     }
 
   } catch (error) {
@@ -477,14 +330,6 @@ const verify = async (req, res) => {
     await cleanUploadFolder();
     return;
   }
-
-  // Delete the uploaded file after verification
-  if (fs.existsSync(file)) {
-    fs.unlinkSync(file);
-  }
-
-  // Clean up the upload folder
-  await cleanUploadFolder();
 };
 
 /**
@@ -505,8 +350,8 @@ const decodeQRScan = async (req, res) => {
   var responseUrl = null;
   var decodeResponse = false;
   var certificateS3Url;
+  var verificationResponse;
   try {
-
     if (receivedCode.startsWith(process.env.START_URL) || receivedCode.startsWith(process.env.START_VERIFY_URL)) {
       var urlSize = receivedCode.length;
       if (urlSize < urlLimit) {
@@ -514,48 +359,77 @@ const decodeQRScan = async (req, res) => {
         const parsedUrl = new URL(receivedCode);
         // Extract the query parameter
         const certificationNumber = parsedUrl.searchParams.get('');
+
         try {
-          var dbStatus = await isDBConnected();
-
-          var isUrlExist = await ShortUrl.findOne({ certificateNumber: certificationNumber });
-
-
-          if (isUrlExist) {
-            // console.log("The original url", isUrlExist.url);
-            responseUrl = isUrlExist.url;
-            if (responseUrl && (responseUrl.startsWith(process.env.START_VERIFY_URL) || responseUrl.startsWith(process.env.START_URL))) {
-              var [decodeResponse, originalUrl] = await extractCertificateInfo(responseUrl);
-            } else {
-              return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidUrl });
+          await isDBConnected();
+          var isIdExist = await isCertificationIdExisted(certificationNumber);
+          if (isIdExist) {
+            var blockchainResponse = 0;
+            if (isIdExist.batchId == undefined) {
+              blockchainResponse = await verifySingleCertificationWithRetry(certificationNumber);
+            } else if (isIdExist.batchId != undefined) {
+              let batchNumber = (isIdExist.batchId) - 1;
+              let dataHash = isIdExist.certificateHash;
+              let proof = isIdExist.proofHash;
+              let hashProof = isIdExist.encodedProof;
+              blockchainResponse = await verifyBatchCertificationWithRetry(batchNumber, dataHash, proof, hashProof);
+            }
+            if (blockchainResponse == 2 || blockchainResponse == 3) {
+              if (blockchainResponse == 2) {
+                verificationResponse = messageCode.msgCertExpired;
+              } else if (blockchainResponse == 3) {
+                verificationResponse = messageCode.msgCertRevoked;
+              }
+              return res.status(400).json({ status: "FAILED", message: verificationResponse });
             }
           }
-
-          if (decodeResponse) {
-            let isCertExist = await isCertificationIdExisted(decodeResponse['Certificate Number']);
-            certificateS3Url = isCertExist.url != null ? isCertExist.url : null;
-            if (isCertExist && (isCertExist.certificateStatus == 3)) {
+          var isUrlExisted = await ShortUrl.findOne({ certificateNumber: certificationNumber });
+          var isDynamicCertificateExist = await DynamicIssues.findOne({ certificateNumber: certificationNumber });
+          if (isIdExist) {
+            let originalUrl = isUrlExisted != null ? isUrlExisted.url : null;
+            let certUrl = (isIdExist.url != undefined && (isIdExist.url).length > 1) ? isIdExist.url : null;
+            let formattedResponse = {
+              "Certificate Number": isIdExist.certificateNumber,
+              "Name": isIdExist.name,
+              "Course Name": isIdExist.course,
+              "Grant Date": isIdExist.grantDate,
+              "Expiration Date": isIdExist.expirationDate,
+              "Polygon URL": `${process.env.NETWORK}/tx/${isIdExist.transactionHash}`,
+              "url": originalUrl,
+              "certificateUrl": certUrl
+            }
+            if (isIdExist.certificateStatus == 3) {
               return res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
             }
+
+            var verifyLog = {
+              issuerId: isIdExist.issuerId,
+              course: isIdExist.course,
+            };
+            await verificationLogEntry(verifyLog);
+            return res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, details: formattedResponse });
+
+          } else if (isDynamicCertificateExist) {
+            let originalUrl = isUrlExisted != null ? isUrlExisted.url : null;
+            let responseFields = isDynamicCertificateExist.certificateFields;
+            let formattedDynamicResponse = {
+              "Certificate Number": isDynamicCertificateExist.certificateNumber,
+              "Name": isDynamicCertificateExist.name,
+              "Custom Fields": responseFields,
+              "Polygon URL": `${process.env.NETWORK}/tx/${isDynamicCertificateExist.transactionHash}`,
+              "type": isDynamicCertificateExist.type,
+              "url": originalUrl
+            }
+
+            return res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, details: formattedDynamicResponse });
+          } else {
+            return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
           }
 
-          var isUserExist = await User.findOne({ email: isUrlExist.email });
-          var getIssuerId = isUserExist != null ? isUserExist.issuerId : 'default';
-
-          var verificationResponse = decodeResponse != false ? decodeResponse : "";
-
         } catch (error) {
-          return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, error: error });
+          return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert, details: error });
         }
-        verificationResponse.url = originalUrl;
-        verificationResponse.certificateUrl = certificateS3Url;
-        var verifyLog = {
-          issuerId: getIssuerId,
-          course: verificationResponse["Course Name"],
-        };
-        await verificationLogEntry(verifyLog);
-        return res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, Details: verificationResponse });
       }
-
       responseUrl = receivedCode;
       var [extractQRData, encodedUrl] = await extractCertificateInfo(responseUrl);
       if (extractQRData) {
@@ -563,6 +437,7 @@ const decodeQRScan = async (req, res) => {
           var dbStatus = await isDBConnected();
           if (dbStatus) {
             var getCertificationInfo = await isCertificationIdExisted(extractQRData['Certificate Number']);
+            certificateS3Url = null;
             if (getCertificationInfo) {
               certificateS3Url = getCertificationInfo.url != null ? getCertificationInfo.url : null;
               var formatCertificationStatus = parseInt(getCertificationInfo.certificateStatus);
@@ -575,7 +450,7 @@ const decodeQRScan = async (req, res) => {
           return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
         }
         extractQRData.url = encodedUrl;
-        res.status(200).json({ status: "PASSED", message: messageCode.msgCertValid, Details: extractQRData });
+        res.status(200).json({ status: "PASSED", message: messageCode.msgCertValid, details: extractQRData });
         return;
       }
       return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
@@ -590,8 +465,7 @@ const decodeQRScan = async (req, res) => {
         };
         await verificationLogEntry(verifyLog);
 
-        extractQRData.url = decodedUrl;
-        extractQRData.certificateUrl = certificateS3Url;
+        extractQRData.url = null;
         res.status(200).json({ status: "PASSED", message: messageCode.msgCertValid, Details: extractQRData });
         return;
       }
@@ -634,6 +508,7 @@ const decodeCertificate = async (req, res) => {
       parsedData = {
         "Certificate Number": originalData.Certificate_Number || "",
         "Course Name": originalData.courseName || "",
+        "Custom Fields": originalData.certificateFields || "",
         "Expiration Date": originalData.Expiration_Date || "",
         "Grant Date": originalData.Grant_Date || "",
         "Name": originalData.name || "",
@@ -648,15 +523,15 @@ const decodeCertificate = async (req, res) => {
       };
       isValid = true
       var dbStatus = await isDBConnected();
-      if (dbStatus != false) {
+      if (dbStatus) {
         var getValidCertificatioInfo = await isCertificationIdExisted(originalData.Certificate_Number);
         if (getValidCertificatioInfo) {
           certificateS3Url = getValidCertificatioInfo.url != null ? getValidCertificatioInfo.url : null;
           verifyLog.issuerId = getValidCertificatioInfo.issuerId;
           parsedData['Expiration Date'] = getValidCertificatioInfo.expirationDate;
           parsedData.certificateUrl = certificateS3Url;
-          var formatCertificationStatus = parseInt(getCertificationInfo.certificateStatus);
-          var certificationStatus = formatCertificationStatus || 0;
+          let formatCertificationStatus = parseInt(getCertificationInfo.certificateStatus);
+          let certificationStatus = formatCertificationStatus || 0;
           if ((certificationStatus != 0) && (certificationStatus == 3)) {
             isValid = false;
             messageContent = "Certification has Revoked";
@@ -667,7 +542,7 @@ const decodeCertificate = async (req, res) => {
 
     // Respond with the verification status and decrypted data if valid
     if (isValid) {
-      if (dbStatus) {
+      if (dbStatus && parsedData["Custom Fields"] == undefined) {
         await verificationLogEntry(verifyLog);
       }
       parsedData.url = originalUrl || null;
@@ -688,6 +563,7 @@ const decodeCertificate = async (req, res) => {
  * @param {Object} req - Express request object.
  * @param {Object} res - Express response object.
  */
+
 const verifyCertificationId = async (req, res) => {
   var validResult = validationResult(req);
   if (!validResult.isEmpty()) {
@@ -695,104 +571,60 @@ const verifyCertificationId = async (req, res) => {
   }
   const inputId = req.body.id;
   var certificateS3Url;
-  // Get today's date
-  const getTodayDate = async () => {
-    const today = new Date();
-    const month = String(today.getMonth() + 1).padStart(2, '0'); // Add leading zero if month is less than 10
-    const day = String(today.getDate()).padStart(2, '0'); // Add leading zero if day is less than 10
-    const year = today.getFullYear();
-    return `${month}/${day}/${year}`;
-  };
+  var verificationResponse;
   try {
     let dbStatus = await isDBConnected();
-    const dbStatusMessage = (dbStatus == true) ? messageCode.msgDbReady : messageCode.msgDbNotReady;
+    const dbStatusMessage = (dbStatus === true) ? messageCode.msgDbReady : messageCode.msgDbNotReady;
     console.log(dbStatusMessage);
-
-    const singleIssueExist = await Issues.findOne({ certificateNumber: inputId });
-    const batchIssueExist = await BatchIssues.findOne({ certificateNumber: inputId });
-    const urlIssueExist = await ShortUrl.findOne({ certificateNumber: inputId });
-    // Blockchain processing.
-    const verifyCertification = await newContract.verifyCertificateById(inputId);
-
-    // Validation checks for request data
-    if (!batchIssueExist && !singleIssueExist) {
-      if (verifyCertification && verifyCertification[0] === true) {
-        res.status(200).json({
-          status: "SUCCESS",
-          message: `${inputId} : ${messageCode.msgVlidCertNoDb}`
-        });
-        // Clean up the upload folder
-        await cleanUploadFolder();
-        return;
-      }
-      // Respond with error message
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgCertNotValid });
-    }
-
-    if (singleIssueExist) {
-
-      var verifyLog = {
-        issuerId: singleIssueExist.issuerId,
-        course: singleIssueExist.course
-      };
-      if (singleIssueExist.certificateStatus == 3) {
-        return res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
-      }
-
-      if (singleIssueExist.certificateStatus == 6) {
-        var _polygonLink = `https://${process.env.NETWORK}/tx/${singleIssueExist.transactionHash}`;
-
-        var completeResponse = {
-          'Certificate Number': singleIssueExist.certificateNumber,
-          'Name': singleIssueExist.name,
-          'Course Name': singleIssueExist.course,
-          'Grant Date': singleIssueExist.grantDate,
-          'Expiration Date': singleIssueExist.expirationDate,
-          'Polygon URL': _polygonLink
-        };
-
-        if (urlIssueExist) {
-          completeResponse.url = urlIssueExist.url;
-        } else {
-          completeResponse.url = null;
+    try {
+      await isDBConnected();
+      var isIdExist = await isCertificationIdExisted(inputId);
+      if (isIdExist) {
+        var blockchainResponse = 0;
+        if (isIdExist.batchId == undefined) {
+          blockchainResponse = await verifySingleCertificationWithRetry(inputId);
+        } else if (isIdExist.batchId != undefined) {
+          let batchNumber = (isIdExist.batchId) - 1;
+          let dataHash = isIdExist.certificateHash;
+          let proof = isIdExist.proofHash;
+          let hashProof = isIdExist.encodedProof;
+          blockchainResponse = await verifyBatchCertificationWithRetry(batchNumber, dataHash, proof, hashProof);
         }
-
-        certificateS3Url = singleIssueExist.url != null ? singleIssueExist.url : null;
-        completeResponse.certificateUrl = certificateS3Url;
-
-        res.status(200).json({
-          status: "SUCCESS",
-          message: "Certification is valid",
-          details: completeResponse
-        });
-        return;
+        console.log("The blockchain response", blockchainResponse);
+        if (blockchainResponse == 2 || blockchainResponse == 3) {
+          if (blockchainResponse == 2) {
+            verificationResponse = messageCode.msgCertExpired;
+          } else if (blockchainResponse == 3) {
+            verificationResponse = messageCode.msgCertRevoked;
+          }
+          return res.status(400).json({ status: "FAILED", message: verificationResponse });
+        }
       }
-      try {
 
-        if (singleIssueExist.expirationDate == '1') {
-          var _polygonLink = `https://${process.env.NETWORK}/tx/${singleIssueExist.transactionHash}`;
+      var isUrlExisted = await ShortUrl.findOne({ certificateNumber: inputId });
+      var isDynamicCertificateExist = await DynamicIssues.findOne({ certificateNumber: inputId });
+      
+      if (isIdExist) {
+
+        if (isIdExist.certificateStatus == 6) {
+          let _polygonLink = `https://${process.env.NETWORK}/tx/${isIdExist.transactionHash}`;
 
           var completeResponse = {
-            'Certificate Number': singleIssueExist.certificateNumber,
-            'Name': singleIssueExist.name,
-            'Course Name': singleIssueExist.course,
-            'Grant Date': singleIssueExist.grantDate,
-            'Expiration Date': singleIssueExist.expirationDate,
+            'Certificate Number': isIdExist.certificateNumber,
+            'Name': isIdExist.name,
+            'Course Name': isIdExist.course,
+            'Grant Date': isIdExist.grantDate,
+            'Expiration Date': isIdExist.expirationDate,
             'Polygon URL': _polygonLink
           };
-
-          if (dbStatus) {
-            await verificationLogEntry(verifyLog);
-          }
 
           if (urlIssueExist) {
             completeResponse.url = urlIssueExist.url;
           } else {
             completeResponse.url = null;
           }
-
-          certificateS3Url = singleIssueExist.url != null ? singleIssueExist.url : null;
-          completeResponse.certificateUrl = certificateS3Url;
+          // Clean up the upload folder
+          await cleanUploadFolder();
 
           res.status(200).json({
             status: "SUCCESS",
@@ -801,219 +633,129 @@ const verifyCertificationId = async (req, res) => {
           });
           return;
         }
-        try {
-          // Blockchain processing.
-          const verifyCert = await newContract.verifyCertificateById(inputId);
-          const _certStatus = await newContract.getCertificateStatus(inputId);
 
-          var verifyCertStatus = parseInt(verifyCert[3]);
-          var certStatus = parseInt(_certStatus);
-          if (certStatus == 3) {
-            return res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
-          }
-
-          if (verifyCert[0] == false && verifyCertStatus == 5) {
-            return res.status(400).json({ status: "FAILED", message: messageCode.msgCertExpired });
-          }
-
-          if (verifyCert[0] == true) {
-
-            var _polygonLink = `https://${process.env.NETWORK}/tx/${singleIssueExist.transactionHash}`;
-
-            var completeResponse = {
-              'Certificate Number': singleIssueExist.certificateNumber,
-              'Name': singleIssueExist.name,
-              'Course Name': singleIssueExist.course,
-              'Grant Date': singleIssueExist.grantDate,
-              'Expiration Date': singleIssueExist.expirationDate,
-              'Polygon URL': _polygonLink
-            };
-
-            const foundCertification = (singleIssueExist != null) ? completeResponse : inputId;
-
-            if (dbStatus) {
-              await verificationLogEntry(verifyLog);
-            }
-
-            if (urlIssueExist) {
-              foundCertification.url = urlIssueExist.url;
-            } else {
-              foundCertification.url = null;
-            }
-
-            certificateS3Url = singleIssueExist.url != null ? singleIssueExist.url : null;
-            foundCertification.certificateUrl = certificateS3Url;
-            const verificationResponse = {
-              status: "SUCCESS",
-              message: "Certification is valid",
-              details: foundCertification
-            };
-            res.status(200).json(verificationResponse);
-            // Clean up the upload folder
-            await cleanUploadFolder();
-            return;
-          } else if (verifyCert[0] == false) {
-            return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
-          }
-
-        } catch (error) {
-          return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
+        let originalUrl = isUrlExisted != null ? isUrlExisted.url : null;
+        let certUrl = (isIdExist.url != undefined && (isIdExist.url).length > 1) ? isIdExist.url : null;
+        let formattedResponse = {
+          "Certificate Number": isIdExist.certificateNumber,
+          "Name": isIdExist.name,
+          "Course Name": isIdExist.course,
+          "Grant Date": isIdExist.grantDate,
+          "Expiration Date": isIdExist.expirationDate,
+          "Polygon URL": `${process.env.NETWORK}/tx/${isIdExist.transactionHash}`,
+          "url": originalUrl,
+          "certificateUrl": certUrl
         }
-      } catch (error) {
-        return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
-      }
-
-    } else if (batchIssueExist) {
-
-      var verifyLog = {
-        issuerId: batchIssueExist.issuerId,
-        course: batchIssueExist.course
-      };
-      if (batchIssueExist.certificateStatus == 3) {
-        return res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
-      }
-
-      if (batchIssueExist.expirationDate == '1') {
-        var _polygonLink = `https://${process.env.NETWORK}/tx/${batchIssueExist.transactionHash}`;
-
-        var completeResponse = {
-          'Certificate Number': batchIssueExist.certificateNumber,
-          'Name': batchIssueExist.name,
-          'Course Name': batchIssueExist.course,
-          'Grant Date': batchIssueExist.grantDate,
-          'Expiration Date': batchIssueExist.expirationDate,
-          'Polygon URL': _polygonLink
-        };
-
-        if (dbStatus) {
-          await verificationLogEntry(verifyLog);
-        }
-
-        if (urlIssueExist) {
-          completeResponse.url = urlIssueExist.url;
-        } else {
-          completeResponse.url = null;
-        }
-
-        certificateS3Url = batchIssueExist.url != null ? batchIssueExist.url : null;
-        completeResponse.certificateUrl = certificateS3Url;
-        res.status(200).json({
-          status: "SUCCESS",
-          message: "Certification is valid",
-          details: completeResponse
-        });
-        // Clean up the upload folder
-        await cleanUploadFolder();
-        return;
-      }
-      if ((batchIssueExist.expirationDate).length == 10) {
-        var dateToday = await getTodayDate();
-        var expirationDate = batchIssueExist.expirationDate;
-        var compareResult = await compareDates(expirationDate, dateToday);
-        if (!compareResult) {
-          res.status(400).json({ status: "FAILED", message: messageCode.msgCertExpired });
-          return;
-        }
-      }
-      const batchNumber = (batchIssueExist.batchId) - 1;
-      const dataHash = batchIssueExist.certificateHash;
-      const proof = batchIssueExist.proofHash;
-      const hashProof = batchIssueExist.encodedProof;
-      try {
-        // Blockchain processing.
-        const batchVerifyResponse = await newContract.verifyBatchCertification(batchNumber, dataHash, proof);
-        const _responseStatus = await newContract.verifyCertificateInBatch(hashProof);
-        var responseStatus = parseInt(_responseStatus);
-        if (responseStatus == 3) {
+        if (isIdExist.certificateStatus == 3) {
           return res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
         }
 
-        if (responseStatus == 5) {
-          return res.status(400).json({ status: "FAILED", message: messageCode.msgCertExpired });
+        var verifyLog = {
+          issuerId: isIdExist.issuerId,
+          course: isIdExist.course,
+        };
+        await verificationLogEntry(verifyLog);
+        return res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, details: formattedResponse });
+
+      } else if (isDynamicCertificateExist) {
+        let originalUrl = isUrlExisted != null ? isUrlExisted.url : null;
+        let responseFields = isDynamicCertificateExist.certificateFields;
+        let formattedDynamicResponse = {
+          "Certificate Number": isDynamicCertificateExist.certificateNumber,
+          "Name": isDynamicCertificateExist.name,
+          "Custom Fields": responseFields,
+          "Polygon URL": `${process.env.NETWORK}/tx/${isDynamicCertificateExist.transactionHash}`,
+          "type": isDynamicCertificateExist.type,
+          "url": originalUrl
         }
 
-        if (batchVerifyResponse === true) {
-
-          try {
-
-            var _polygonLink = `https://${process.env.NETWORK}/tx/${batchIssueExist.transactionHash}`;
-
-            var completeResponse = {
-              'Certificate Number': batchIssueExist.certificateNumber,
-              'Name': batchIssueExist.name,
-              'Course Name': batchIssueExist.course,
-              'Grant Date': batchIssueExist.grantDate,
-              'Expiration Date': batchIssueExist.expirationDate,
-              'Polygon URL': _polygonLink
-            };
-
-            if (dbStatus) {
-              await verificationLogEntry(verifyLog);
-            }
-
-            if (urlIssueExist) {
-              completeResponse.url = urlIssueExist.url;
-            } else {
-              completeResponse.url = null;
-            }
-
-            certificateS3Url = batchIssueExist.url != null ? batchIssueExist.url : null;
-            completeResponse.certificateUrl = certificateS3Url;
-            const _verificationResponse = {
-              status: "SUCCESS",
-              message: "Certification is valid",
-              details: completeResponse
-            };
-            res.status(200).json(_verificationResponse);
-            // Clean up the upload folder
-            await cleanUploadFolder();
-            return;
-
-          } catch (error) {
-            return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
-          }
-        } else {
-          return res.status(400).json({ status: "FAILED", message: messageCode.msgCertNotExist });
-        }
-      } catch (error) {
-        return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
+        return res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, details: formattedDynamicResponse });
+      } else {
+        return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
       }
+
+    } catch (error) {
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert, details: error });
     }
+
   } catch (error) {
     return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
   }
-
 };
 
-const detectDateFormat = async (dateString) => {
-  const formats = ['DD MMMM YYYY', 'MMMM DD YYYY', 'MM/DD/YY', 'MM/DD/YYYY'];
+// Function to verify the ID (Single) with Smart Contract with Retry
+const verifySingleCertificationWithRetry = async (certificateId, retryCount = 3) => {
+  console.log("Running");
+  try {
+    // Blockchain processing.
+    let verifyCert = await newContract.verifyCertificateById(certificateId);
+    let _certStatus = await newContract.getCertificateStatus(certificateId);
 
-  for (let format of formats) {
-    const parsedDate = moment(dateString, format, true);
-    if (parsedDate.isValid()) {
-      // Convert to MM/DD/YYYY format
-      const convertedDate = parsedDate.format('MM/DD/YYYY');
-      return convertedDate;
+    if (verifyCert) {
+      let verifyCertStatus = parseInt(verifyCert[3]);
+      if (_certStatus) {
+        let certStatus = parseInt(_certStatus);
+        if (certStatus == 3) {
+          return 3;
+        }
+      }
+      if (verifyCert[0] === false && verifyCertStatus == 5) {
+        return 2;
+      }
+      return 1;
+    }
+    return 0;
+  } catch (error) {
+    if (retryCount > 0 && error.code === 'ETIMEDOUT') {
+      console.log(`Connection timed out. Retrying... Attempts left: ${retryCount}`);
+      // Retry after a delay (e.g., 2 seconds)
+      await holdExecution(2000);
+      return verifySingleCertificationWithRetry(certificateId, retryCount - 1);
+    } else if (error.code === 'NONCE_EXPIRED') {
+      // Extract and handle the error reason
+      // console.log("Error reason:", error.reason);
+      return 0;
+    } else {
+      console.error("The ", error);
+      return 0;
     }
   }
-  return null;
 };
 
-const compareDates = async (dateString1, dateString2) => {
-  // Split the date strings into components
-  const [month1, day1, year1] = dateString1.split('/');
-  const [month2, day2, year2] = dateString2.split('/');
+// Function to verify the ID (Batch) with Smart Contract with Retry
+const verifyBatchCertificationWithRetry = async (batchNumber, dataHash, proof, hashProof, retryCount = 3) => {
+  try {
+    // Blockchain processing.
+    let batchVerifyResponse = await newContract.verifyBatchCertification(batchNumber, dataHash, proof);
+    let _responseStatus = await newContract.verifyCertificateInBatch(hashProof);
+    let responseStatus = parseInt(_responseStatus);
 
-  // Create date objects for comparison
-  const date1 = new Date(year1, month1 - 1, day1);
-  const date2 = new Date(year2, month2 - 1, day2);
-
-  if (date1 > date2) {
-    return true;
-  } else if (date1 == date2) {
-    return true;
-  } else {
-    return false;
+    if (batchVerifyResponse) {
+      if (responseStatus) {
+        if (responseStatus == 3) {
+          return 3;
+        }
+      }
+      if (responseStatus == 5) {
+        return 2;
+      }
+      return 1;
+    }
+    return 0;
+  } catch (error) {
+    if (retryCount > 0 && error.code === 'ETIMEDOUT') {
+      console.log(`Connection timed out. Retrying... Attempts left: ${retryCount}`);
+      // Retry after a delay (e.g., 2 seconds)
+      await holdExecution(2000);
+      return verifyBatchCertificationWithRetry(batchNumber, dataHash, proof, hashProof, retryCount - 1);
+    } else if (error.code === 'NONCE_EXPIRED') {
+      // Extract and handle the error reason
+      // console.log("Error reason:", error.reason);
+      return 0;
+    } else {
+      console.error("The ", error);
+      return 0;
+    }
   }
 };
 
