@@ -457,7 +457,7 @@ const batchIssueCertificate = async (req, res) => {
 
             for (let i = 0; i < certificatesCount; i++) {
               let _proof = tree.getProof(i);
-              console.log("The hash", _proof);
+              // console.log("The hash", _proof);
               // Convert each hexadecimal string to a Buffer
               let buffers = _proof.map(hex => Buffer.from(hex.slice(2), 'hex'));
               // Concatenate all Buffers into one
