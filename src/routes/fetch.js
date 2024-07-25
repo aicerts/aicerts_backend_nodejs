@@ -56,6 +56,8 @@ router.get('/get-all-issuers', ensureAuthenticated, adminController.getAllIssuer
  *     summary: Get Organtization details of all issuers
  *     description: API to fetch Organtization details of all issuers
  *     tags: [Fetch/Upload]
+ *     security:
+ *       - BearerAuth: []
  *     responses:
  *       200:
  *         description: All Organizations details fetched successfully
