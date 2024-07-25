@@ -141,7 +141,7 @@ const scheduledUpdateLimits = async () => {
             // Perform the update
             await ServiceAccountQuotas.updateOne(filter, updateDoc);
           }
-        } catch (error) { 
+        } catch (error) {
           console.error(messageCode.msgFailedToUpdateQuotas, error.message);
         }
       }
@@ -158,7 +158,7 @@ const getIssuerServiceCredits = async (existIssuerId, serviceId) => {
     serviceId: serviceId
   });
   if (getServiceLimit && getServiceLimit.limit > 0) {
-    if(getServiceLimit.status === false){
+    if (getServiceLimit.status === false) {
       return true;
     }
     return getServiceLimit.limit;
@@ -911,7 +911,7 @@ const addDynamicLinkToPdf = async (
   return pdfBytes;
 };
 
-const verifyPDFDimensions = async (pdfPath) => {
+const verifyDynamicPDFDimensions = async (pdfPath, qrSide) => {
   // Extract QR code data from the PDF file
   const certificateData = await extractQRCodeDataFromPDF(pdfPath);
   const pdfBuffer = fs.readFileSync(pdfPath);
@@ -919,37 +919,35 @@ const verifyPDFDimensions = async (pdfPath) => {
 
   const firstPage = pdfDoc.getPages()[0];
   const { width, height } = firstPage.getSize();
+  const qrSize = qrSide * qrSide;
+  const documentSize = width * height;
 
   // Assuming PDF resolution is 72 points per inch
-  const dpi = 72;
-  const widthInches = width / dpi;
-  const heightInches = height / dpi;
+  // const dpi = 72;
+  // const widthInches = width / dpi;
+  // const heightInches = height / dpi;
 
   // Convert inches to millimeters (1 inch = 25.4 mm)
-  const widthMillimeters = widthInches * 25.4;
-  const heightMillimeters = heightInches * 25.4;
+  // const widthMillimeters = widthInches * 25.4;
+  // const heightMillimeters = heightInches * 25.4;
 
+  // Convert inches to pixels (assuming 1 inch = 96 pixels)
+  // const widthPixels = widthInches * 96;
+  // const heightPixels = heightInches * 96;
+  console.log("document and QR", documentSize, qrSize);
   // Check if dimensions fall within the specified ranges
-  if (
-    (widthMillimeters >= 340 && widthMillimeters <= 360) &&
-    (heightMillimeters >= 240 && heightMillimeters <= 260) &&
-    (certificateData === false)
-  ) {
-    // Convert inches to pixels (assuming 1 inch = 96 pixels)
-    // const widthPixels = widthInches * 96;
-    // const heightPixels = heightInches * 96;
-
+  if ((documentSize > qrSize) &&
+    (certificateData == false)) {
     // console.log("The certificate width x height (in mm):", widthMillimeters, heightMillimeters);
-
-    return true;
+    return false;
   } else {
     // throw new Error('PDF dimensions must be within 240-260 mm width and 340-360 mm height');
-    return false;
+    return true;
   }
 
 };
 
-const verifyDynamicPDFDimensions = async (pdfPath) => {
+const verifyPDFDimensions = async (pdfPath) => {
   // Extract QR code data from the PDF file
   const certificateData = await extractQRCodeDataFromPDF(pdfPath);
   const pdfBuffer = fs.readFileSync(pdfPath);
@@ -1206,6 +1204,8 @@ module.exports = {
 
   //Verify the uploading pdf template dimensions
   verifyPDFDimensions,
+
+  verifyDynamicPDFDimensions,
 
   // Function to calculate the hash of data using SHA-256 algorithm
   calculateHash,

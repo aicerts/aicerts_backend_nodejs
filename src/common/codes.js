@@ -66,6 +66,7 @@ module.exports = {
     msgBatchIssuedSuccess: "Batch of Certifications issued successfully",
     msgInvalidPdfTemplate : "Invalid PDF (Certification Template) dimensions",
     msgInvalidPdfUploaded: "Invalid PDF document uploaded",
+    msgInvalidPdfQr : "Invalid PDF (Document Template / QR) dimensions",
     msgCertIssued : "Certification ID already issued",
     msgOpsRestricted : "Operation restricted by the Blockchain",
     msgIssuerUnauthrized : "Unauthorized Issuer to perform operation on Blockchain",

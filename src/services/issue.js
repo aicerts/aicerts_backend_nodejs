@@ -30,6 +30,7 @@ const {
   addLinkToPdf, // Function to add a link to a PDF file
   addDynamicLinkToPdf,
   verifyPDFDimensions, //Verify the uploading pdf template dimensions
+  verifyDynamicPDFDimensions,
   calculateHash, // Function to calculate the hash of a file
   cleanUploadFolder, // Function to clean up the upload folder
   isDBConnected, // Function to check if the database connection is established
@@ -598,7 +599,7 @@ const handleIssueDynamicPdfCertification = async (email, certificateNumber, name
       return ({ code: 400, status: "FAILED", message: messageCode.msgIssueNotFound, details: email });
     }
     // Check if certificate number already exists
-    const isIssueExist = await DynamicIssues.findOne({certificateNumber : certificateNumber});
+    const isIssueExist = await DynamicIssues.findOne({ certificateNumber: certificateNumber });
     if (isIssueExist) {
       const _certStatus = await getCertificationStatus(isIssueExist.certificateStatus);
       let issuedDate = await convertDateFormat(isIssueExist.issueDate);
@@ -608,7 +609,15 @@ const handleIssueDynamicPdfCertification = async (email, certificateNumber, name
     }
 
     let _result = '';
-    let templateData = await extractQRCodeDataFromPDF(pdfPath)
+    // let templateData = await extractQRCodeDataFromPDF(pdfPath)
+    //   .then(result => {
+    //     _result = result;
+    //   })
+    //   .catch(error => {
+    //     console.error("Error during verification:", error);
+    //   });
+
+    let templateData = await verifyDynamicPDFDimensions(pdfPath, _qrsize)
       .then(result => {
         _result = result;
       })
@@ -629,7 +638,7 @@ const handleIssueDynamicPdfCertification = async (email, certificateNumber, name
         errorMessage = messageCode.msgUnauthIssuer;
       } else if (_result != false) {
         await cleanUploadFolder();
-        errorMessage = messageCode.msgInvalidPdfUploaded;
+        errorMessage = messageCode.msgInvalidPdfQr;
       }
 
       // Respond with error message
