@@ -124,6 +124,20 @@ const storage = multer.diskStorage({
  *             example:
  *               status: "FAILED"
  *               message: Internal server error.
+ *       '503':
+ *         description: Service Unavailable temporarily unavailable due to inactive/insufficient credits limit.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: The service is temporarily unavailable due to insufficient credits. Please try again later.
  */
 
 router.post('/issue', validationRoute.issue, ensureAuthenticated, adminController.issue);
@@ -213,6 +227,20 @@ router.post('/issue', validationRoute.issue, ensureAuthenticated, adminControlle
  *             example:
  *               status: "FAILED"
  *               message: Internal Server Error.
+ *       '503':
+ *         description: Service Unavailable temporarily unavailable due to inactive/insufficient credits limit.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: The service is temporarily unavailable due to inactive/insufficient credits. Please try again later.
  */
 
 router.post('/issue-pdf', _upload.single("file"), ensureAuthenticated, adminController.issuePdf);
@@ -397,6 +425,20 @@ router.post('/issue-dynamic-pdf', _upload.single("file"), ensureAuthenticated, a
  *             example:
  *               status: "FAILED"
  *               error: Internal Server Error
+ *       '503':
+ *         description: Service Unavailable temporarily unavailable due to inactive/insufficient credits limit.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: The service is temporarily unavailable due to inactive/insufficient credits. Please try again later.
  */
 
 router.post('/batch-certificate-issue', __upload.single("excelFile"), ensureAuthenticated, adminController.batchIssueCertificate);

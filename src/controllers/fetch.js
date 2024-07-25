@@ -12,7 +12,7 @@ const moment = require('moment');
 const axios = require('axios');
 
 // Import MongoDB models
-const { User, Issues, BatchIssues, IssueStatus, VerificationLog } = require("../config/schema");
+const { User, Issues, BatchIssues, IssueStatus, VerificationLog, ServiceAccountQuotas } = require("../config/schema");
 
 // Importing functions from a custom module
 const {

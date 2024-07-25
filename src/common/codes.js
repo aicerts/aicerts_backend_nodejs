@@ -41,6 +41,7 @@ module.exports = {
     msgNonEmpty : "Input field cannot be empty",
     msgInputProvide : "Input should be provided",
     msgInvalidFormat : "Entered input format is invalid ",
+    msgInvalidDate : "Entered date format is invalid",
     msgCertLength : "Certification ID must between 12 to 20 characters",
     msgMaxLength : "Entered Input must between 8 to 30 characters",
     msgMaxLengthCourse : "Entered Input must not exceed 150 characters",
@@ -64,6 +65,7 @@ module.exports = {
     msgCertIssuedSuccess : "Certification issued successfully",
     msgBatchIssuedSuccess: "Batch of Certifications issued successfully",
     msgInvalidPdfTemplate : "Invalid PDF (Certification Template) dimensions",
+    msgInvalidPdfUploaded: "Invalid PDF document uploaded",
     msgCertIssued : "Certification ID already issued",
     msgOpsRestricted : "Operation restricted by the Blockchain",
     msgIssuerUnauthrized : "Unauthorized Issuer to perform operation on Blockchain",
@@ -121,6 +123,7 @@ module.exports = {
 
     // Dates Messages
     msgInvalidDate : "Invalid Date, Please check and try again ...",
+    msgInvalidDateFormat : "Please provide valid Date format",
     msgOlderGrantDate : "Expiration date must not older than Grant date, Please check and try again ...",
     msgInvalidExpiration : "Please provide valid expiration date or provide more than 30 days from today and try again...",
     msgInvalidNewExpiration : "Please provide valid newer expiration date or provide more than 30 days from today and try again...",
@@ -166,5 +169,20 @@ module.exports = {
     msgInvalidUrl: "Please provide vaid URL",
     msgErrorInUrl: "Error in generating pre-signed URL",
     
+    // Credits
+    msgInsufficientCredits: "Issuer has insufficient credits to perform the operation",
+    msgCreditBalance: "Have low credit balance",
+    msgValidCredits: "Please provide valid credits count",
+    msgProvideValidService: "Please provide valid service code",
+    msgFetchQuotaFailed: "Failed to fetch requested credits details",
+    msgCreditsUpdatedSuccess: "Credits limit updated successfully",
+    msgInvalidStatus: "Invalid Status entered (Recommended True/False)",
+    msgAdminNotFound: "Provided admin email not found / Unauthorized admin",
+    msgMatchLimitsFound: "Match Credits limit results found",
+    msgMatchLimitsNotFound: "No Match Credits limit results found",
+    msgIssuerQuotaStatus: "Issuer restricted to perform service",
+    msgFailedToUpdateQuotas: "Failed to update credit limits quota for Issuers",
+    msgInvalidIssuerId: "Invalid Issuer (or) Issuer ID not found, Please check",
+    msgIssuerQuotaExceeded: "Your account has insufficient credits to perform this operation",
 
 };

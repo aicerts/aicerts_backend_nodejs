@@ -18,7 +18,7 @@ const { PDFDocument } = pdf;
 const { generateEncryptedUrl } = require("../common/cryptoFunction");
 
 // Import MongoDB models
-const { User, Issues, BatchIssues } = require("../config/schema");
+const { User, Issues, BatchIssues, ServiceAccountQuotas } = require("../config/schema");
 
 // Import ABI (Application Binary Interface) from the JSON file located at "../config/abi.json"
 const abi = require("../config/abi.json");
@@ -33,6 +33,8 @@ const {
   cleanUploadFolder, // Function to clean up the upload folder
   isDBConnected, // Function to check if the database connection is established
   insertUrlData,
+  getIssuerServiceCredits,
+  updateIssuerServiceCredits
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
 const { handleExcelFile } = require('../services/handleExcel');
@@ -52,6 +54,7 @@ const providers = [
 const fallbackProvider = new ethers.FallbackProvider(providers);
 
 // Create a new ethers signer instance using the private key from environment variable and the provider(Fallback)
+// const fallbackProvider = new ethers.FallbackProvider([rpcProvider]);
 const signer = new ethers.Wallet(process.env.PRIVATE_KEY, fallbackProvider);
 
 // Create a new ethers contract instance with a signing capability (using the contract Address, ABI and signer)
@@ -64,6 +67,7 @@ const messageCode = require("../common/codes");
 const fileType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"; // File type
 
 const decodeKey = process.env.AUTH_KEY || 0;
+var existIssuerId;
 
 /**
  * API call for Certificate issue with pdf template.
@@ -93,6 +97,27 @@ const issuePdf = async (req, res) => {
     const courseName = req.body.course;
     const _grantDate = await convertDateFormat(req.body.grantDate);
 
+    // Verify with existing credits limit of an issuer to perform the operation
+    if (email) {
+      let dbStatus = await isDBConnected();
+      if (dbStatus) {
+        var issuerExist = await User.findOne({ email: email });
+        if (issuerExist && issuerExist.issuerId) {
+          existIssuerId = issuerExist.issuerId;
+          let fetchCredits = await getIssuerServiceCredits(existIssuerId, 'issue');
+          if(fetchCredits === true){
+            return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaStatus, details: email });
+          }
+          if (fetchCredits) {
+          } else {
+            return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaExceeded, details: email });
+          }
+        } else {
+          return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidIssuerId, details: email });
+        }
+      }
+    }
+
     if (_grantDate == "1" || _grantDate == null || _grantDate == "string") {
       res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidGrantDate, details: req.body.grantDate });
       return;
@@ -111,6 +136,8 @@ const issuePdf = async (req, res) => {
     const issueResponse = await handleIssuePdfCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate, req.file.path);
     const responseDetails = issueResponse.details ? issueResponse.details : '';
     if (issueResponse.code == 200) {
+      // Update Issuer credits limit (decrease by 1)
+      await updateIssuerServiceCredits(existIssuerId, 'issue');
 
       // Set response headers for PDF to download
       const certificateName = `${certificateNumber}_certificate.pdf`;
@@ -211,6 +238,26 @@ const issue = async (req, res) => {
     const courseName = req.body.course;
     const _grantDate = await convertDateFormat(req.body.grantDate);
     let _expirationDate;
+    // Verify with existing credits limit of an issuer to perform the operation
+    if (email) {
+      let dbStatus = await isDBConnected();
+      if (dbStatus) {
+        var issuerExist = await User.findOne({ email: email });
+        if (issuerExist && issuerExist.issuerId) {
+          existIssuerId = issuerExist.issuerId;
+          let fetchCredits = await getIssuerServiceCredits(existIssuerId, 'issue');
+          if(fetchCredits === true){
+            return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaStatus, details: email });
+          }
+          if (fetchCredits) {
+          } else {
+            return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaExceeded, details: email });
+          }
+        } else {
+          return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidIssuerId, details: email });
+        }
+      }
+    }
 
     if (_grantDate == "1" || _grantDate == null || _grantDate == "string") {
       res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidGrantDate, details: req.body.grantDate });
@@ -230,6 +277,10 @@ const issue = async (req, res) => {
     const issueResponse = await handleIssueCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate);
     const responseDetails = issueResponse.details ? issueResponse.details : '';
     if (issueResponse.code == 200) {
+      
+      // Update Issuer credits limit (decrease by 1)
+      await updateIssuerServiceCredits(existIssuerId, 'issue');
+
       return res.status(issueResponse.code).json({ status: issueResponse.status, message: issueResponse.message, qrCodeImage: issueResponse.qrCodeImage, polygonLink: issueResponse.polygonLink, details: responseDetails });
     }
 
@@ -257,13 +308,30 @@ const batchIssueCertificate = async (req, res) => {
     return;
   }
 
+  // Verify with existing credits limit of an issuer to perform the operation
+  if (email) {
+    let dbStatus = await isDBConnected();
+    if (dbStatus) {
+      var issuerExist = await User.findOne({ email: email });
+      if (issuerExist && issuerExist.issuerId) {
+        existIssuerId = issuerExist.issuerId;
+        let fetchCredits = await getIssuerServiceCredits(existIssuerId, 'issue');
+        if(fetchCredits === true){
+          return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaStatus, details: email });
+        }
+        if (fetchCredits) {
+        } else {
+          return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaExceeded, details: email });
+        }
+      } else {
+        return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidIssuerId, details: email });
+      }
+    }
+  }
+
   try {
     await isDBConnected();
-    const idExist = await User.findOne({ email });
-    if (!idExist) {
-      res.status(400).json({ status: "FAILED", message: messageCode.msgUserNotFound });
-      return;
-    }
+    const idExist = issuerExist;
     let filePath = req.file.path;
 
     // Fetch the records from the Excel file
@@ -473,6 +541,9 @@ const batchIssueCertificate = async (req, res) => {
             let oldCount = idExist.certificatesIssued;
             idExist.certificatesIssued = newCount + oldCount;
             await idExist.save();
+
+            // Update Issuer credits limit (decrease by 1)
+            await updateIssuerServiceCredits(existIssuerId, 'issue');
 
             res.status(200).json({
               status: "SUCCESS",

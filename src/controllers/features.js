@@ -16,12 +16,17 @@ const {
 // Importing functions from a custom module
 const {
     convertDateFormat,
+    isDBConnected,
+    getIssuerServiceCredits,
+    updateIssuerServiceCredits
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
-let messageCode = require("../common/codes");
+var messageCode = require("../common/codes");
 
 // Import the Issues models from the schema defined in "../config/schema"
-const { ShortUrl } = require("../config/schema");
+const { User } = require("../config/schema");
+
+var existIssuerId;
 
 
 /**
@@ -41,6 +46,27 @@ const renewCert = async (req, res) => {
         const certificateNumber = req.body.certificateNumber;
         let _expirationDate = req.body.expirationDate;
 
+        // Verify with existing credits limit of an issuer to perform the operation
+        if (email) {
+            let dbStatus = await isDBConnected();
+            if (dbStatus) {
+                var issuerExist = await User.findOne({ email: email });
+                if (issuerExist && issuerExist.issuerId) {
+                    existIssuerId = issuerExist.issuerId;
+                    let fetchCredits = await getIssuerServiceCredits(existIssuerId, 'renew');
+                    if (fetchCredits === true) {
+                        return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaStatus, details: email });
+                    }
+                    if (fetchCredits) {
+                    } else {
+                        return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaExceeded, details: email });
+                    }
+                } else {
+                    return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidIssuerId, details: email });
+                }
+            }
+        }
+
         if (req.body.expirationDate == "1" || req.body.expirationDate == 1 || req.body.expirationDate == null || req.body.expirationDate == "string") {
             _expirationDate = 1;
         } else {
@@ -54,6 +80,8 @@ const renewCert = async (req, res) => {
         const renewResponse = await handleRenewCertification(email, certificateNumber, _expirationDate);
         const responseDetails = renewResponse.details ? renewResponse.details : '';
         if (renewResponse.code == 200) {
+            // Update Issuer credits limit (decrease by 1)
+            await updateIssuerServiceCredits(existIssuerId, 'renew');
             return res.status(renewResponse.code).json({ status: renewResponse.status, message: renewResponse.message, qrCodeImage: renewResponse.qrCodeImage, polygonLink: renewResponse.polygonLink, details: responseDetails });
         }
         res.status(renewResponse.code).json({ status: renewResponse.status, message: renewResponse.message, details: responseDetails });
@@ -81,8 +109,33 @@ const updateCertStatus = async (req, res) => {
         const certificateNumber = req.body.certificateNumber;
         const certStatus = req.body.certStatus;
 
+        var serviceStatus = parseInt(certStatus) == 3 ? 'revoke' : 'reactivate';
+
+        // Verify with existing credits limit of an issuer to perform the operation
+        if (email) {
+            let dbStatus = await isDBConnected();
+            if (dbStatus) {
+                var issuerExist = await User.findOne({ email: email });
+                if (issuerExist && issuerExist.issuerId) {
+                    existIssuerId = issuerExist.issuerId;
+                    let fetchCredits = await getIssuerServiceCredits(existIssuerId, serviceStatus);
+                    if (fetchCredits === true) {
+                        return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaStatus, details: email });
+                    }
+                    if (fetchCredits) {
+                    } else {
+                        return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaExceeded, details: email });
+                    }
+                } else {
+                    return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidIssuerId, details: email });
+                }
+            }
+        }
+
         const updateResponse = await handleUpdateCertificationStatus(email, certificateNumber, certStatus);
         const responseDetails = updateResponse.details ? updateResponse.details : '';
+        // Update Issuer credits limit (decrease by 1)
+        await updateIssuerServiceCredits(existIssuerId, serviceStatus);
         return res.status(updateResponse.code).json({ status: updateResponse.status, message: updateResponse.message, details: responseDetails });
 
     } catch (error) {
@@ -113,10 +166,33 @@ const renewBatchCertificate = async (req, res) => {
         }
         let batchId = parseInt(_batchId);
 
+        // Verify with existing credits limit of an issuer to perform the operation
+        if (email) {
+            let dbStatus = await isDBConnected();
+            if (dbStatus) {
+                var issuerExist = await User.findOne({ email: email });
+                if (issuerExist && issuerExist.issuerId) {
+                    existIssuerId = issuerExist.issuerId;
+                    let fetchCredits = await getIssuerServiceCredits(existIssuerId, 'renew');
+                    if (fetchCredits === true) {
+                        return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaStatus, details: email });
+                    }
+                    if (fetchCredits) {
+                    } else {
+                        return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaExceeded, details: email });
+                    }
+                } else {
+                    return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidIssuerId, details: email });
+                }
+            }
+        }
+
         const batchResponse = await handleRenewBatchOfCertifications(email, batchId, expirationDate);
         if (!batchResponse) {
             return res.status(400).json({ status: "FAILED", message: messageCode.msgInternalError });
         }
+        // Update Issuer credits limit (decrease by 1)
+        await updateIssuerServiceCredits(existIssuerId, 'renew');
         let responseDetails = batchResponse.details ? batchResponse.details : '';
         return res.status(batchResponse.code).json({ status: batchResponse.status, message: batchResponse.message, details: responseDetails });
 
@@ -146,10 +222,35 @@ const updateBatchStatus = async (req, res) => {
         const batchId = parseInt(_batchId);
         const batchStatus = parseInt(_batchStatus);
 
+        var serviceStatus = parseInt(batchStatus) == 3 ? 'revoke' : 'reactivate';
+
+        // Verify with existing credits limit of an issuer to perform the operation
+        if (email) {
+            let dbStatus = await isDBConnected();
+            if (dbStatus) {
+                var issuerExist = await User.findOne({ email: email });
+                if (issuerExist && issuerExist.issuerId) {
+                    existIssuerId = issuerExist.issuerId;
+                    let fetchCredits = await getIssuerServiceCredits(existIssuerId, serviceStatus);
+                    if (fetchCredits === true) {
+                        return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaStatus, details: email });
+                    }
+                    if (fetchCredits) {
+                    } else {
+                        return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaExceeded, details: email });
+                    }
+                } else {
+                    return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidIssuerId, details: email });
+                }
+            }
+        }
+
         const batchStatusResponse = await handleUpdateBatchCertificationStatus(email, batchId, batchStatus);
         if (!batchStatusResponse) {
             return res.status(400).json({ status: "FAILED", message: messageCode.msgInternalError });
         }
+        // Update Issuer credits limit (decrease by 1)
+        await updateIssuerServiceCredits(existIssuerId, serviceStatus);
         const responseDetails = batchStatusResponse.details ? batchStatusResponse.details : '';
         return res.status(batchStatusResponse.code).json({ status: batchStatusResponse.status, message: batchStatusResponse.message, details: responseDetails });
 

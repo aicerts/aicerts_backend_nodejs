@@ -9,6 +9,17 @@ const AdminSchema = new mongoose.Schema({
   status: { type: Boolean, required: true } // Status field is of type Boolean and is required
 });
 
+// Define the schema for the ServiceQuota model
+const ServiceAccountQuotasSchema = new Schema({
+  issuerId: { type: String, required: true }, // Issuer Id field is of type String and is required
+  serviceId: { type: String, required: true }, // Service Id field is of type String and is required
+  limit: {type: Number, default: 0},
+  status: { type: Boolean },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now },
+  resetAt: { type: Date, default: Date.now }
+});
+
 // Define the schema for the User/Isseur model
 const UserSchema = new Schema({
   name: { type: String, required: true },
@@ -111,6 +122,7 @@ const ShortUrlSchema = new mongoose.Schema({
 })
 
 const Admin = mongoose.model('Admin', AdminSchema);
+const ServiceAccountQuotas = mongoose.model('ServiceAccountQuotas', ServiceAccountQuotasSchema);
 const User = mongoose.model('User', UserSchema);
 const Issues = mongoose.model('Issues', IssuesSchema);
 const BatchIssues = mongoose.model('BatchIssues', BatchIssuesSchema);
@@ -121,6 +133,7 @@ const ShortUrl = mongoose.model('ShortUrl', ShortUrlSchema);
 
 module.exports = {
     Admin,
+    ServiceAccountQuotas,
     User,
     Issues,
     BatchIssues,

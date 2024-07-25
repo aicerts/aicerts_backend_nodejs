@@ -619,19 +619,13 @@ const handleIssueDynamicPdfCertification = async (email, certificateNumber, name
     // Validation checks for request data
     if (
       (idExist.status !== 1) || // User does not exist
-      _result != false ||
-      certificateNumber.length > max_length || // Certificate number exceeds maximum length
-      certificateNumber.length < min_length // Certificate number is shorter than minimum length
+      _result != false
     ) {
       // res.status(400).json({ message: "Please provide valid details" });
       let errorMessage = messageCode.msgPlsEnterValid;
       let moreDetails = '';
       // Check for specific error conditions and update the error message accordingly
-      if (certificateNumber.length > max_length) {
-        errorMessage = messageCode.msgCertLength;
-      } else if (certificateNumber.length < min_length) {
-        errorMessage = messageCode.msgCertLength;
-      } else if (idExist.status != 1) {
+      if (idExist.status != 1) {
         errorMessage = messageCode.msgUnauthIssuer;
       } else if (_result != false) {
         await cleanUploadFolder();

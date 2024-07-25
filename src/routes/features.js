@@ -95,6 +95,20 @@ const validationRoute = require("../common/validationRoutes");
  *             example:
  *               status: "FAILED"
  *               message: Internal server error.
+ *       '503':
+ *         description: Service Unavailable temporarily unavailable due to inactive/insufficient credits limit.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: The service is temporarily unavailable due to inactive/insufficient credits. Please try again later.
  */
 
 router.post('/renew-cert', validationRoute.renewIssue, ensureAuthenticated, adminController.renewCert);
@@ -187,6 +201,20 @@ router.post('/renew-cert', validationRoute.renewIssue, ensureAuthenticated, admi
  *             example:
  *               status: "FAILED"
  *               message: Internal server error.
+ *       '503':
+ *         description: Service Unavailable temporarily unavailable due to inactive/insufficient credits limit.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: The service is temporarily unavailable due to inactive/insufficient credits. Please try again later.
  */
 
 router.post('/update-cert-status', validationRoute.updateStatus, ensureAuthenticated, adminController.updateCertStatus);
@@ -279,6 +307,20 @@ router.post('/update-cert-status', validationRoute.updateStatus, ensureAuthentic
  *             example:
  *               status: "FAILED"
  *               message: Internal server error.
+ *       '503':
+ *         description: Service Unavailable temporarily unavailable due to inactive/insufficient credits limit.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: The service is temporarily unavailable due to inactive/insufficient credits. Please try again later.
  */
 
 router.post('/renew-batch', validationRoute.renewBatch, ensureAuthenticated, adminController.renewBatchCertificate);
@@ -371,6 +413,20 @@ router.post('/renew-batch', validationRoute.renewBatch, ensureAuthenticated, adm
  *             example:
  *               status: "FAILED"
  *               message: Internal server error.
+ *       '503':
+ *         description: Service Unavailable temporarily unavailable due to inactive/insufficient credits limit.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: The service is temporarily unavailable due to inactive/insufficient credits. Please try again later.
  */
 
 router.post('/update-batch-status', validationRoute.updateBatch, ensureAuthenticated, adminController.updateBatchStatus);

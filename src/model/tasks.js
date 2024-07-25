@@ -86,7 +86,7 @@ const signer = new ethers.Wallet(process.env.PRIVATE_KEY, fallbackProvider);
 const sim_contract = new ethers.Contract(contractAddress, abi, signer);
 
 // Import the Issues models from the schema defined in "../config/schema"
-const { User, Issues, BatchIssues, IssueStatus, VerificationLog, ShortUrl, DynamicIssues } = require("../config/schema");
+const { User, Issues, BatchIssues, IssueStatus, VerificationLog, ShortUrl, DynamicIssues, ServiceAccountQuotas } = require("../config/schema");
 
 //Connect to polygon
 const connectToPolygon = async () => {
@@ -101,6 +101,81 @@ const connectToPolygon = async () => {
     await new Promise(resolve => setTimeout(resolve, retryDelay)); // Wait before retrying
     return connectToPolygon(providers); // Retry connecting recursively
   }
+};
+
+// Function to Scheduled update Service limit Quotas
+const scheduledUpdateLimits = async () => {
+  var fetchedQuotas;
+  const todayDate = new Date();
+  try {
+    // Calculate the date scheduled days ago
+    let scheduledDaysAgo = new Date();
+    scheduledDaysAgo.setDate(scheduledDaysAgo.getDate() - schedule_days);
+
+    const thresholdDate = new Date(scheduledDaysAgo);
+    // Check mongo DB connection
+    const dbStatus = await isDBConnected();
+    if (dbStatus) {
+      const getServiceQuotas = await ServiceAccountQuotas.find({
+        resetAt: { $lt: thresholdDate },
+        limit: { $lt: limitThreshold }
+      });
+      if (getServiceQuotas) {
+        // Extracting required properties
+        fetchedQuotas = getServiceQuotas.map(item => ({
+          issuerId: item.issuerId,
+          limit: item.limit,
+          serviceId: item.serviceId,
+          resetAt: item.resetAt
+        }));
+        try {
+          // Update limit to quota and resetAt to today's date for each item
+          for (let count = 0; count < fetchedQuotas.length; count++) {
+            let getRecord = fetchedQuotas[count];
+            let filter = { issuerId: getRecord.issuerId, serviceId: getRecord.serviceId };
+            let newLimit = getRecord.limit > 0 ? (getRecord.limit + serviceLimit) : serviceLimit;
+            // Update operation
+            let updateDoc = {
+              $set: { limit: newLimit, resetAt: todayDate } // Assuming you want to update 'resetAt' field
+            };
+            // Perform the update
+            await ServiceAccountQuotas.updateOne(filter, updateDoc);
+          }
+        } catch (error) { 
+          console.error(messageCode.msgFailedToUpdateQuotas, error.message);
+        }
+      }
+    }
+  } catch (error) {
+    console.error(messageCode.msgFailedToUpdateQuotas, error.message);
+  }
+};
+
+// Function to get issuer limit
+const getIssuerServiceCredits = async (existIssuerId, serviceId) => {
+  let getServiceLimit = await ServiceAccountQuotas.findOne({
+    issuerId: existIssuerId,
+    serviceId: serviceId
+  });
+  if (getServiceLimit && getServiceLimit.limit > 0) {
+    if(getServiceLimit.status === false){
+      return true;
+    }
+    return getServiceLimit.limit;
+  } else {
+    return null;
+  }
+};
+
+// Function to update issuer limit
+const updateIssuerServiceCredits = async (existIssuerId, serviceId) => {
+  let existServiceLimit = await ServiceAccountQuotas.findOne({
+    issuerId: existIssuerId,
+    serviceId: serviceId
+  });
+  let newLimit = existServiceLimit.limit > 1 ? existServiceLimit.limit - 1 : 0;
+  existServiceLimit.limit = newLimit;
+  await existServiceLimit.save();
 };
 
 // Function to convert the Date format
@@ -1114,6 +1189,12 @@ module.exports = {
   getCertificationStatus,
 
   verificationLogEntry,
+
+  scheduledUpdateLimits,
+
+  getIssuerServiceCredits,
+
+  updateIssuerServiceCredits,
 
   // Function to extract QR code data from a PDF file
   extractQRCodeDataFromPDF,

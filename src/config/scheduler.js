@@ -13,6 +13,11 @@ const { User } = require("./schema");
 // Parse environment variables for days to be deleted
 const schedule_days = parseInt(process.env.SCHEDULE_DAYS);
 
+// Importing functions from a custom module
+const {
+  scheduledUpdateLimits
+} = require('../model/tasks'); // Importing functions from the '../model/tasks' module
+
 const MONGODB_OPTIONS = {
   connectTimeoutMS: 6000000
   // Add more MongoDB connection options as needed
@@ -47,7 +52,7 @@ try {
       createUploadsFolder();
       // Schedule the task to run every day at midnight
       cron.schedule('0 0 * * *', async () => {
-
+        await scheduledUpdateLimits();
         try {
           // Calculate the date scheduled days ago
           const scheduledDaysAgo = new Date();

@@ -5,7 +5,7 @@ const { validationResult } = require("express-validator");
 const { ethers } = require("ethers"); // Ethereum JavaScript library
 
 // Import MongoDB models
-const { User } = require("../config/schema");
+const { User, ServiceAccountQuotas } = require("../config/schema");
 
 // Import ABI (Application Binary Interface) from the JSON file located at "../config/abi.json"
 const abi = require("../config/abi.json");
@@ -19,6 +19,7 @@ const {
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
 // Retrieve contract address from environment variable
+const rpcProvider = new ethers.JsonRpcProvider(process.env.RPC_ENDPOINT);
 const contractAddress = process.env.CONTRACT_ADDRESS;
 
 // Define an array of providers to use as fallbacks
@@ -29,10 +30,8 @@ const providers = [
 ];
 
 // Create a new FallbackProvider instance
+// const fallbackProvider = new ethers.FallbackProvider([rpcProvider]);
 const fallbackProvider = new ethers.FallbackProvider(providers);
-
-// Create a new ethers provider using the default provider and the RPC endpoint from environment variable
-const provider = new ethers.JsonRpcProvider(process.env.RPC_ENDPOINT);
 
 // Create a new ethers signer instance using the private key from environment variable and the provider(Fallback)
 const signer = new ethers.Wallet(process.env.PRIVATE_KEY, fallbackProvider);
@@ -41,6 +40,8 @@ const signer = new ethers.Wallet(process.env.PRIVATE_KEY, fallbackProvider);
 const newContract = new ethers.Contract(contractAddress, abi, signer);
 
 var messageCode = require("../common/codes");
+
+const statusCount = parseInt(process.env.STATUS_COUNT) || 4;
 
 var linkUrl = process.env.NETWORK || "polygon";
 /**
@@ -380,7 +381,7 @@ const checkBalance = async (req, res) => {
  */
 
 const createAndValidateIssuerIdUponLogin = async (req, res) => {
-  var validResult = validationResult(req);
+  let validResult = validationResult(req);
   if (!validResult.isEmpty()) {
     return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
@@ -388,6 +389,17 @@ const createAndValidateIssuerIdUponLogin = async (req, res) => {
   const email = req.body.email;
   let attempts = 0;
   let getNewId = null;
+  // Define a mapping object for credits to service names
+  const creditToServiceName = {
+    1: 'issue',
+    2: 'renew',
+    3: 'revoke',
+    4: 'reactivate'
+  };
+  const serviceLimit = process.env.SERVICE_LIMIT || 10;
+  var insertPromises = [];
+  var creditsExist;
+  const todayDate = new Date();
 
   try {
     var dbStatus = isDBConnected();
@@ -420,12 +432,15 @@ const createAndValidateIssuerIdUponLogin = async (req, res) => {
           if (userExist['certificatesRenewed'] == undefined) {
             userExist.certificatesRenewed = 0;
           }
+          if (userExist['credits'] == undefined) {
+            userExist.credits = 0;
+          }
           await userExist.save();
 
           try {
             // Blockchain processing.
-            var response = await newContract.hasRole(process.env.ISSUER_ROLE, getIssuerId);
-            if(!response){
+            let response = await newContract.hasRole(process.env.ISSUER_ROLE, getIssuerId);
+            if (!response) {
               var { txHash, polygonLink } = await grantOrRevokeRoleWithRetry("grant", process.env.ISSUER_ROLE, getIssuerId);
               if (!polygonLink || !txHash) {
                 return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedToGrantRoleRetry });
@@ -433,6 +448,35 @@ const createAndValidateIssuerIdUponLogin = async (req, res) => {
             }
           } catch (error) {
             return res.status(500).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
+          }
+
+          creditsExist = await ServiceAccountQuotas.find({ issuerId: getIssuerId });
+          if (!creditsExist || creditsExist.length < statusCount) {
+            for (let count = 1; count < 5; count++) {
+              let serviceName = creditToServiceName[count];
+              let serveiceExist = await ServiceAccountQuotas.findOne({
+                issuerId: getIssuerId,
+                serviceId: serviceName
+              });
+
+              if (!serveiceExist) {
+                // Initialise credits
+                let newServiceAccountQuota = new ServiceAccountQuotas({
+                  issuerId: getIssuerId,
+                  serviceId: serviceName,
+                  limit: serviceLimit,
+                  status: true,
+                  createdAt: todayDate,
+                  updatedAt: todayDate,
+                  resetAt: todayDate
+                });
+
+                // await newServiceAccountQuota.save();
+                insertPromises.push(newServiceAccountQuota.save());
+              }
+            }
+            // Wait for all insert promises to resolve
+            await Promise.all(insertPromises);
           }
 
           return res.status(200).json({ status: "SUCCESS", message: messageCode.msgIssuerIdExist });
@@ -462,7 +506,29 @@ const createAndValidateIssuerIdUponLogin = async (req, res) => {
           if (userExist['certificatesRenewed'] == undefined) {
             userExist.certificatesRenewed = 0;
           }
+          if (userExist['credits'] == undefined) {
+            userExist.credits = 0;
+          }
           await userExist.save();
+
+          for (let count = 1; count < 5; count++) {
+            let serviceName = creditToServiceName[count];
+            // Initialise credits
+            let newServiceAccountQuota = new ServiceAccountQuotas({
+              issuerId: getNewId,
+              serviceId: serviceName,
+              limit: serviceLimit,
+              status: true,
+              createdAt: todayDate,
+              updatedAt: todayDate,
+              resetAt: todayDate
+            });
+
+            // await newServiceAccountQuota.save();
+            insertPromises.push(newServiceAccountQuota.save());
+          }
+          // Wait for all insert promises to resolve
+          await Promise.all(insertPromises);
 
           return res.status(200).json({ status: "SUCCESS", message: messageCode.msgIssuerApproveSuccess, details: polygonLink });
 
@@ -474,15 +540,18 @@ const createAndValidateIssuerIdUponLogin = async (req, res) => {
         if (userExist['certificatesRenewed'] == undefined) {
           userExist.certificatesRenewed = 0;
         }
+        if (userExist['credits'] == undefined) {
+          userExist.credits = 0;
+        }
         userExist.approved = true;
         userExist.status = 1;
         userExist.rejectedDate = null;
         await userExist.save();
-        
+
         try {
           // Blockchain processing.
           var response = await newContract.hasRole(process.env.ISSUER_ROLE, userExist.issuerId);
-          if(!response){
+          if (!response) {
             var { txHash, polygonLink } = await grantOrRevokeRoleWithRetry("grant", process.env.ISSUER_ROLE, userExist.issuerId);
             if (!polygonLink || !txHash) {
               return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedToGrantRoleRetry });
@@ -491,6 +560,36 @@ const createAndValidateIssuerIdUponLogin = async (req, res) => {
         } catch (error) {
           return res.status(500).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
         }
+
+        creditsExist = await ServiceAccountQuotas.find({ issuerId: userExist.issuerId });
+          if (!creditsExist || creditsExist.length < statusCount) {
+            for (let count = 1; count < 5; count++) {
+              let serviceName = creditToServiceName[count];
+              let serveiceExist = await ServiceAccountQuotas.findOne({
+                issuerId: userExist.issuerId,
+                serviceId: serviceName
+              });
+
+              if (!serveiceExist) {
+                // Initialise credits
+                let newServiceAccountQuota = new ServiceAccountQuotas({
+                  issuerId: userExist.issuerId,
+                  serviceId: serviceName,
+                  limit: serviceLimit,
+                  status: true,
+                  createdAt: todayDate,
+                  updatedAt: todayDate,
+                  resetAt: todayDate
+                });
+
+                // await newServiceAccountQuota.save();
+                insertPromises.push(newServiceAccountQuota.save());
+              }
+            }
+            // Wait for all insert promises to resolve
+            await Promise.all(insertPromises);
+          }
+
         return res.status(200).json({ status: "SUCCESS", message: messageCode.msgIssuerIdExist });
       }
     } else {
@@ -502,6 +601,87 @@ const createAndValidateIssuerIdUponLogin = async (req, res) => {
     return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
   }
 };
+
+/**
+ * API to allocate / update credits to an issuer based on the email and Service ID.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
+
+const allocateCredits = async (req, res) => {
+  let validResult = validationResult(req);
+  if (!validResult.isEmpty()) {
+    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+  }
+  const email = req.body.email;
+  const activeStatus = req.body.status;
+  let _service = req.body.service;
+  let _credits = req.body.credits;
+  // Define a mapping object for credits to service names
+  const creditToServiceName = {
+    1: 'issue',
+    2: 'renew',
+    3: 'revoke',
+    4: 'reactivate'
+  };
+
+  var service = parseInt(_service);
+  var credits = parseInt(_credits);
+
+  // Determine serviceName based on service code input
+  const serviceName = creditToServiceName[service] || null;
+
+  if (!serviceName) {
+    return res.status(400).json({ status: "FAILED", message: messageCode.msgProvideValidService });
+  }
+
+  try {
+    var dbStatus = isDBConnected();
+    if (dbStatus) {
+     
+      // Check if user with provided email exists
+      const issuerExist = await User.findOne({ email: email }).select('-password');
+
+      if (!issuerExist || !issuerExist.issuerId) {
+        return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidIssuer, details: email });
+      }
+
+      var fetchServiceQuota = await ServiceAccountQuotas.findOne({
+        issuerId: issuerExist.issuerId,
+        serviceId: serviceName
+      });
+
+      if (!fetchServiceQuota) {
+        return res.status(400).json({ status: "FAILED", message: messageCode.msgFetchQuotaFailed });
+      }
+
+      const newLimit = fetchServiceQuota.limit > 0 ? fetchServiceQuota.limit + credits : credits;
+      fetchServiceQuota.limit = newLimit;
+      fetchServiceQuota.status = activeStatus;
+      fetchServiceQuota.updatedAt = new Date();
+      await fetchServiceQuota.save();
+
+      let updatedDetails = {
+        newLimit: newLimit,
+        serviceType: serviceName,
+        status: activeStatus == true ? 'Active' : 'Inactive'
+      }
+
+      let messageContent = activeStatus == true ? messageCode.msgCreditsUpdatedSuccess : `${messageCode.msgIssuerQuotaStatus}:${serviceName}`;
+
+      return res.status(200).json({ status: "SUCCESS", message: messageContent, details: updatedDetails });
+      // const userExist
+    } else {
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgDbNotReady });
+    }
+
+  } catch (error) {
+    // Handle errors
+    console.error(error);
+    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+  }
+}
 
 // Blockchain call for Grant / Revoke Issuer role
 const grantOrRevokeRoleWithRetry = async (roleStatus, role, id, retryCount = 3) => {
@@ -556,6 +736,9 @@ module.exports = {
   validateIssuer,
 
   createAndValidateIssuerIdUponLogin,
+
+  // Function to allocate Credits to Issuer
+  allocateCredits,
 
   // Function to grant role to an address
   addTrustedOwner,

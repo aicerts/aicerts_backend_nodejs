@@ -1,4 +1,8 @@
 
+// Load environment variables from .env file
+require('dotenv').config();
+
+const MAX_CREDITS_LIMIT = process.env.LIMIT_THRESHOLD || 100;
 const { body } = require('express-validator');
 const messageCode = require("./codes");
 
@@ -81,6 +85,12 @@ const validationRoutes = {
     validateIssuer: [
         body("status").notEmpty().trim().isNumeric().withMessage(messageCode.msgNonEmpty).isIn([1, 2]).withMessage(messageCode.msgProvideValidStatus),
         body("email").notEmpty().trim().isEmail().withMessage(messageCode.msgInvalidEmail)  
+    ],
+    validateCredits: [
+        body("email").notEmpty().trim().isEmail().withMessage(messageCode.msgInvalidEmail),
+        body("status").notEmpty().isBoolean().withMessage(messageCode.msgInvalidStatus),
+        body("service").notEmpty().trim().isNumeric().withMessage(messageCode.msgNonEmpty).isIn([1, 2, 3, 4]).withMessage(messageCode.msgProvideValidService),
+        body("credits").notEmpty().trim().isNumeric().withMessage(messageCode.msgNonEmpty).isInt({ min: 0, max: MAX_CREDITS_LIMIT }).withMessage(messageCode.msgValidCredits)
     ],
     searchCertification: [
         body("email").notEmpty().trim().isEmail().withMessage(messageCode.msgInvalidEmail),

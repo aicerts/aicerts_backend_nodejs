@@ -90,6 +90,98 @@ router.post('/validate-issuer', validationRoute.validateIssuer, ensureAuthentica
 
 /**
  * @swagger
+ * /api/allocate-credits:
+ *   post:
+ *     summary: API to allocate/update credits to Issuer based on the email(Issuer) and Service ID.
+ *     description: API to allocate/update credits with respective service code Issue(1), renew(2), revoke(3) and reactivate(4), Active status (True/False) Issuer to perform operations over the Blockchain.
+ *     tags: [Blockchain]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: Email of the issuer to be allocated/update credits
+ *               status:
+ *                 type: boolean
+ *                 description: Respective active status (True/False) with particular issuer.
+ *               service:
+ *                 type: integer
+ *                 description: Respective service Code with particular issuer.
+ *               credits:
+ *                 type: integer
+ *                 description: credits to be added/updated with particular issuer.
+ *             example:
+ *               email: issuer@example.com
+ *               status: true
+ *               service: 1
+ *               credits: 0
+ *     responses:
+ *       '200':
+ *         description: Successfully allocted / updated credits.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the allocation/updation credits (SUCCESS).
+ *                 email:
+ *                   type: string
+ *                   description: Status of the email (sent or NA).
+ *                 message:
+ *                   type: string
+ *                   description: Allocate/update credits to the issuer successfully.
+ *       '400':
+ *         description: Invalid input parameter or issuer status. Returns a failure message.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the operation (FAILED).
+ *                 message:
+ *                   type: string
+ *                   description: Error message detailing the issue.
+ *       '422':
+ *         description: User given invalid input (Unprocessable Entity)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Error message for invalid input.
+ *       '500':
+ *         description: Internal server error. Returns a failure message.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the operation (FAILED).
+ *                 message:
+ *                   type: string
+ *                   description: Error message indicating an error during the allocation process.
+ */
+
+router.post('/allocate-credits', validationRoute.validateCredits, adminController.allocateCredits);
+
+/**
+ * @swagger
  * /api/add-trusted-owner:
  *   post:
  *     summary: Grant Admin / Issuer role to an address
