@@ -766,22 +766,12 @@ const extractQRCodeDataFromPDF = async (pdfFilePath) => {
       height: 4000,
     };
 
-    const pdf2picOptions4 = {
-      quality: 100,
-      density: 450,
-      format: "png",
-      width: 4500,
-      height: 4500,
-    };
     // Decode QR code from PNG data
     var code = await baseCodeResponse(pdfFilePath, pdf2picOptions);
     if (!code) {
       var code = await baseCodeResponse(pdfFilePath, pdf2picOptions2);
       if (!code) {
         var code = await baseCodeResponse(pdfFilePath, pdf2picOptions3);
-        if (!code) {
-          var code = await baseCodeResponse(pdfFilePath, pdf2picOptions4);
-        }
       }
     }
     const qrCodeText = code?.data;
