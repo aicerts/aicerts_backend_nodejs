@@ -337,7 +337,7 @@ router.post('/issue-pdf', _upload.single("file"), ensureAuthenticated, adminCont
  *               message: Internal Server Error.
  */
 
-router.post('/issue-dynamic-pdf', _upload.single("file"), ensureAuthenticated, adminController.issueDynamicPdf);
+router.post('/issue-dynamic-pdf', _upload.single("file"), adminController.issueDynamicPdf);
 
 /**
  * @swagger
