@@ -194,14 +194,22 @@ const getIssueDetails = async (req, res) => {
         // check if the input is Existed cert ID or name for Renew
         var isIssueSingleName = Issues.find({
           issuerId: issuerExist.issuerId,
-          name: input,
+          $expr: {
+            $and: [
+              { $eq: [{ $toLower: "$name" }, input.toLowerCase()] }
+            ]
+          },
           certificateStatus: { $in: [1, 2, 4] },
           expirationDate: { $ne: "1" }
         }).lean();
 
         var isIssueBatchName = BatchIssues.find({
           issuerId: issuerExist.issuerId,
-          name: input,
+          $expr: {
+            $and: [
+              { $eq: [{ $toLower: "$name" }, input.toLowerCase()] }
+            ]
+          },
           certificateStatus: { $in: [1, 2, 4] },
           expirationDate: { $ne: "1" }
         }).lean();
@@ -210,13 +218,21 @@ const getIssueDetails = async (req, res) => {
         // check if the input is Existed cert ID or name for Reactivate
         var isIssueSingleName = Issues.find({
           issuerId: issuerExist.issuerId,
-          name: input,
+          $expr: {
+            $and: [
+              { $eq: [{ $toLower: "$name" }, input.toLowerCase()] }
+            ]
+          },
           certificateStatus: 3
         }).lean();
 
         var isIssueBatchName = BatchIssues.find({
           issuerId: issuerExist.issuerId,
-          name: input,
+          $expr: {
+            $and: [
+              { $eq: [{ $toLower: "$name" }, input.toLowerCase()] }
+            ]
+          },
           certificateStatus: 3
         }).lean();
 
@@ -224,13 +240,21 @@ const getIssueDetails = async (req, res) => {
         // check if the input is Existed cert ID or name for Revoke
         var isIssueSingleName = Issues.find({
           issuerId: issuerExist.issuerId,
-          name: input,
+          $expr: {
+            $and: [
+              { $eq: [{ $toLower: "$name" }, input.toLowerCase()] }
+            ]
+          },
           certificateStatus: { $in: [1, 2, 4] }
         }).lean();
 
         var isIssueBatchName = BatchIssues.find({
           issuerId: issuerExist.issuerId,
-          name: input,
+          $expr: {
+            $and: [
+              { $eq: [{ $toLower: "$name" }, input.toLowerCase()] }
+            ]
+          },
           certificateStatus: { $in: [1, 2, 4] }
         }).lean();
       }
