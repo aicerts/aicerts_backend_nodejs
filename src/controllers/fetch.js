@@ -351,6 +351,7 @@ const uploadFileToS3 = async (req, res) => {
 
   const bucketName = process.env.BUCKET_NAME;
   const keyName = file.originalname;
+  const acl = process.env.ACL_NAME;
 
   const s3 = new AWS.S3();
   const fileStream = fs.createReadStream(filePath);
@@ -358,7 +359,8 @@ const uploadFileToS3 = async (req, res) => {
   const uploadParams = {
     Bucket: bucketName,
     Key: keyName,
-    Body: fileStream
+    Body: fileStream,
+    ACL : acl
   };
 
   try {
@@ -960,11 +962,13 @@ const uploadCertificateToS3 = async (req, res) => {
   const keyName = `${file.originalname}_${timestamp}`;
   const s3 = new AWS.S3();
   const fileStream = fs.createReadStream(filePath);
+  const acl = process.env.ACL_NAME;
 
   const uploadParams = {
     Bucket: bucketName,
     Key: keyName,
-    Body: fileStream
+    Body: fileStream,
+    ACL: acl
   };
 
   try {
@@ -1304,12 +1308,14 @@ const getIssuesInOrganizationWithName = async (req, res) => {
       let bucketUrl = `https://${bucketName}.s3.amazonaws.com/`;
       // Extract codes from each URL
       const urls = _urls.map(url => url.replace(bucketUrl, ''));
+      const acl = process.env.ACL_NAME;
 
       for (let count = 0; count < urls.length; count++) {
         let fileKey = urls[count];
         let downloadParams = {
           Bucket: bucketName,
           Key: fileKey,
+          ACL: acl,
           Expires: 600000,
         };
 

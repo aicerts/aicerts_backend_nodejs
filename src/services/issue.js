@@ -901,11 +901,13 @@ const uploadImageToS3 = async (certNumber, imagePath) => {
   const keyName = `${certNumber}_${timestamp}`;
   const s3 = new AWS.S3();
   const fileStream = fs.createReadStream(imagePath);
+  const acl = process.env.ACL_NAME;
 
   const uploadParams = {
     Bucket: bucketName,
     Key: keyName,
-    Body: fileStream
+    Body: fileStream,
+    ACL: acl
   };
 
   try {
