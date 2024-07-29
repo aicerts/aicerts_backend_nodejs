@@ -1266,7 +1266,7 @@ const getIssuesInOrganizationWithName = async (req, res) => {
             { $eq: [{ $toLower: "$name" }, targetName.toLowerCase()] }
           ]
         },
-        url: { $exists: true, $ne: null, $ne: "" } // Filter to include documents where `url` exists
+        url: { $exists: true, $ne: null, $ne: "", $regex: /certs365-live/ } // Filter to include documents where `url` exists
       });
 
       // Query 2
@@ -1277,7 +1277,7 @@ const getIssuesInOrganizationWithName = async (req, res) => {
             { $eq: [{ $toLower: "$name" }, targetName.toLowerCase()] }
           ]
         },
-        url: { $exists: true, $ne: null, $ne: "" } // Filter to include documents where `url` exists
+        url: { $exists: true, $ne: null, $ne: "", $regex: /certs365-live/ } // Filter to include documents where `url` exists
       });
 
       // Await both promises
@@ -1308,14 +1308,12 @@ const getIssuesInOrganizationWithName = async (req, res) => {
       let bucketUrl = `https://${bucketName}.s3.amazonaws.com/`;
       // Extract codes from each URL
       const urls = _urls.map(url => url.replace(bucketUrl, ''));
-      const acl = process.env.ACL_NAME;
 
       for (let count = 0; count < urls.length; count++) {
         let fileKey = urls[count];
         let downloadParams = {
           Bucket: bucketName,
           Key: fileKey,
-          ACL: acl,
           Expires: 600000,
         };
 
@@ -1331,9 +1329,9 @@ const getIssuesInOrganizationWithName = async (req, res) => {
     }
 
     // Iterate through data and update the url property
-    fetchedIssues.forEach((item, index) => {
-      item.url = getUrl[index];
-    });
+    // fetchedIssues.forEach((item, index) => {
+    //   item.url = getUrl[index];
+    // });
 
     return res.status(200).json({ status: "SUCCESS", message: messageCode.msgAllQueryFetched, response: fetchedIssues });
 
