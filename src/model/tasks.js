@@ -63,28 +63,6 @@ const mailOptions = {
 };
 
 
-// Import ABI (Application Binary Interface) from the JSON file located at "../config/abi.json"
-const abi = require("../config/abi.json");
-
-// Retrieve contract address from environment variable
-const contractAddress = process.env.CONTRACT_ADDRESS;
-
-// Define an array of providers to use as fallbacks
-const providers = [
-  new ethers.AlchemyProvider(process.env.RPC_NETWORK, process.env.ALCHEMY_API_KEY),
-  new ethers.InfuraProvider(process.env.RPC_NETWORK, process.env.INFURA_API_KEY)
-  // Add more providers as needed
-];
-
-// Create a new FallbackProvider instance
-const fallbackProvider = new ethers.FallbackProvider(providers);
-
-// Create a new ethers wallet instance using the private key from environment variable and the provider
-const signer = new ethers.Wallet(process.env.PRIVATE_KEY, fallbackProvider);
-
-// Create a new ethers contract instance with a signing capability (using the contract ABI and wallet)
-const sim_contract = new ethers.Contract(contractAddress, abi, signer);
-
 // Import the Issues models from the schema defined in "../config/schema"
 const { User, Issues, BatchIssues, IssueStatus, VerificationLog, ShortUrl, DynamicIssues, ServiceAccountQuotas } = require("../config/schema");
 
@@ -912,18 +890,6 @@ const verifyDynamicPDFDimensions = async (pdfPath, qrSide) => {
   const qrSize = qrSide * qrSide;
   const documentSize = width * height;
 
-  // Assuming PDF resolution is 72 points per inch
-  // const dpi = 72;
-  // const widthInches = width / dpi;
-  // const heightInches = height / dpi;
-
-  // Convert inches to millimeters (1 inch = 25.4 mm)
-  // const widthMillimeters = widthInches * 25.4;
-  // const heightMillimeters = heightInches * 25.4;
-
-  // Convert inches to pixels (assuming 1 inch = 96 pixels)
-  // const widthPixels = widthInches * 96;
-  // const heightPixels = heightInches * 96;
   console.log("document and QR", documentSize, qrSize);
   // Check if dimensions fall within the specified ranges
   if ((documentSize > qrSize) &&

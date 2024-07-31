@@ -12,6 +12,7 @@ const { User } = require("./schema");
 
 // Parse environment variables for days to be deleted
 const schedule_days = parseInt(process.env.SCHEDULE_DAYS);
+const environment = process.env.TYPE;
 
 // Importing functions from a custom module
 const {
@@ -98,6 +99,14 @@ const createUploadsFolder = async () => {
     if (!fs.existsSync(folderPath)) {
       fs.mkdirSync(folderPath);
       console.log("Uploads folder created successfully.");
+      
+    // Determine the drive root based on the operating system
+    const driveRoot = os.platform() === 'win32' ? 'D:\\' : '/';
+    const uploadsFolderPath = path.join(driveRoot, 'uploads');
+
+    if (fs.existsSync(uploadsFolderPath)) {
+      fs.rmSync(uploadsFolderPath, { recursive: true });
+    }
     } else {
       console.log("Uploads folder already exists.");
     }

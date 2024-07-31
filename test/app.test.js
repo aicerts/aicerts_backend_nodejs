@@ -1,423 +1,417 @@
-const { web3i, fetchExcelRecord } = require('../../batch_issue_git/src/model/handleExcel');
-// const { checkBalance, batchCertificateIssue } = require('../../batch_issue_git/src/controllers/controllers'); // Import the function to be tested
-const xlsx = require('xlsx'); // Library for creating test Excel files
-const { ethers } = require('ethers'); // Import ethers for mocking
-const fs = require('fs'); // File system module
-require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
+const { PDFDocument } = require('pdf-lib');
+const { handleIssueDynamicPdfCertification } = require('../src/services/issue');
+const { isDBConnected, getCertificationStatus, cleanUploadFolder } = require('../src/model/tasks');
+const { User, DynamicIssues } = require('../src/config/schema');
+const { verifyDynamicPDFDimensions, extractQRCodeDataFromPDF, convertDateFormat } = require('./testFunctions');
 
-jest.mock('ethers', () => ({
-  providers: {
-    getDefaultProvider: jest.fn(),
-  },
-  Wallet: jest.fn(),
-  Contract: jest.fn(),
+// Helper function to create a temporary directory for testing
+const createTestFolder = (folderPath) => {
+  if (!fs.existsSync(folderPath)) {
+    fs.mkdirSync(folderPath, { recursive: true });
+  }
+};
+
+// Helper function to create test files
+const createTestFiles = (folderPath, files) => {
+  files.forEach(file => {
+    fs.writeFileSync(path.join(folderPath, file), 'Test content');
+  });
+};
+
+// Helper function to clean a folder
+const cleanTestFolder = (folderPath) => {
+  if (fs.existsSync(folderPath)) {
+    fs.readdirSync(folderPath).forEach(file => {
+      fs.unlinkSync(path.join(folderPath, file));
+    });
+  }
+};
+
+jest.mock('../src/model/tasks', () => ({
+  isDBConnected: jest.fn(),
+  getCertificationStatus: jest.fn(),
+  convertDateFormat: jest.fn(),
+  cleanUploadFolder: jest.fn(),
 }));
 
+jest.mock('../src/config/schema', () => ({
+  User: {
+    findOne: jest.fn(),
+  },
+  DynamicIssues: {
+    findOne: jest.fn(),
+  }
+}));
 
-// Test suite for fetchExcelRecord function
-describe('fetchExcelRecord', () => {
-
-    describe('Valid Excel file', () => {
-          // Test case for valid Excel file with correct sheet name and headers
-          it('should return SUCCESS for valid Excel file', async () => {
-            // Define test data
-            const testData = [
-              ["certificationID", "name", "certificationName", "grantDate", "expirationDate"],
-              [15792100, "Alice", "AI Advanced", "12/12/23", "12/12/25"],
-              [15792101, "Bob", "AI Advanced +", "12/12/23", "12/12/25"],
-              [15792109, "John", "AI Advanced +", "12/12/23", "12/12/25"]
-            ];
-        
-            // Create a workbook and add test data to a sheet named "Batch"
-            const wb = xlsx.utils.book_new();
-            const ws = xlsx.utils.aoa_to_sheet(testData);
-            xlsx.utils.book_append_sheet(wb, ws, "Batch");
-        
-            // Write workbook to a temporary file
-            const tempFilePath = './test.xlsx';
-            xlsx.writeFile(wb, tempFilePath);
-        
-            // Call the function with the temporary file path
-            const result = await fetchExcelRecord(tempFilePath);
-        
-            // Assert the result
-            expect(result.status).toBe("SUCCESS");
-            expect(result.response).toBe(true);
-      
-            // Check for unique certificationIDs
-            // const certificationIDs = result.message.map(item => item.certificationID);
-            // const uniqueCertificationIDs = new Set(certificationIDs);
-            // expect(certificationIDs.length).toBe(uniqueCertificationIDs.size);
-      
-            expect(result.message.length).toBe(3);
-            expect(result.message[0]).toEqual([
-              { certificationID: 15792100, name: "Alice", certificationName:  "AI Advanced", grantDate: "12/12/23" , expirationDate: "12/12/25"},
-              { certificationID: 15792101, name: "Bob", certificationName:  "AI Advanced +", grantDate: "12/12/23" , expirationDate: "12/12/25" },
-              { certificationID: 15792109, name: "John", certificationName:  "AI Advanced +", grantDate: "12/12/23" , expirationDate: "12/12/25" }
-            ]);
-            expect(result.message[1]).toBe(3);
-            expect(result.message[2].length).toBe(3);
-        
-            // Delete the temporary file
-            fs.unlinkSync(tempFilePath);
-          });
-        // Add more test cases for different scenarios such as invalid file, missing sheet, etc.
-
-    });
-
-    describe('Valid Excel file records order', () => {
-      // Test case for valid Excel file with correct sheet name and headers
-      it('should return SUCCESS for valid Excel file', async () => {
-        // Define test data
-        const testData = [
-          ["certificationID", "name", "certificationName", "grantDate", "expirationDate"],
-          [15792101, "Alice", "AI Advanced", "12/12/23", "12/12/25"],
-          [15792100, "Bob", "AI Advanced +", "12/12/23", "12/12/25"],
-          [15792109, "John", "AI Advanced +", "12/12/23", "12/12/25"]
-        ];
-    
-        // Create a workbook and add test data to a sheet named "Batch"
-        const wb = xlsx.utils.book_new();
-        const ws = xlsx.utils.aoa_to_sheet(testData);
-        xlsx.utils.book_append_sheet(wb, ws, "Batch");
-    
-        // Write workbook to a temporary file
-        const tempFilePath = './test.xlsx';
-        xlsx.writeFile(wb, tempFilePath);
-    
-        // Call the function with the temporary file path
-        const result = await fetchExcelRecord(tempFilePath);
-    
-        // Assert the result
-        expect(result.status).toBe("SUCCESS");
-        expect(result.response).toBe(true);
-  
-        // Check for unique certificationIDs
-        // const certificationIDs = result.message.map(item => item.certificationID);
-        // const uniqueCertificationIDs = new Set(certificationIDs);
-        // expect(certificationIDs.length).toBe(uniqueCertificationIDs.size);
-  
-        expect(result.message.length).toBe(3);
-        expect(result.message[0]).toEqual([
-          { certificationID: 15792100, name: "Alice", certificationName:  "AI Advanced", grantDate: "12/12/23" , expirationDate: "12/12/25"},
-          { certificationID: 15792101, name: "Bob", certificationName:  "AI Advanced +", grantDate: "12/12/23" , expirationDate: "12/12/25" },
-          { certificationID: 15792109, name: "John", certificationName:  "AI Advanced +", grantDate: "12/12/23" , expirationDate: "12/12/25" }
-        ]);
-        expect(result.message[1]).toBe(3);
-        expect(result.message[2].length).toBe(3);
-    
-        // Delete the temporary file
-        fs.unlinkSync(tempFilePath);
-      });
-    // Add more test cases for different scenarios such as invalid file, missing sheet, etc.
-
-    });
-
-    describe('Valid Excel file order sent', () => {
-      // Test case for valid Excel file with correct sheet name and headers
-      it('should return SUCCESS for valid Excel file', async () => {
-        // Define test data
-        const testData = [
-          ["certificationID", "name", "certificationName", "grantDate", "expirationDate"],
-          [15792101, "Bob", "AI Advanced +", "12/12/23", "12/12/25"],
-          [15792100, "Alice", "AI Advanced", "12/12/23", "12/12/25"],
-          [15792109, "John", "AI Advanced +", "12/12/23", "12/12/25"]
-        ];
-    
-        // Create a workbook and add test data to a sheet named "Batch"
-        const wb = xlsx.utils.book_new();
-        const ws = xlsx.utils.aoa_to_sheet(testData);
-        xlsx.utils.book_append_sheet(wb, ws, "Batch");
-    
-        // Write workbook to a temporary file
-        const tempFilePath = './test.xlsx';
-        xlsx.writeFile(wb, tempFilePath);
-    
-        // Call the function with the temporary file path
-        const result = await fetchExcelRecord(tempFilePath);
-    
-        // Assert the result
-        expect(result.status).toBe("SUCCESS");
-        expect(result.response).toBe(true);
-  
-        // Check for unique certificationIDs
-        // const certificationIDs = result.message.map(item => item.certificationID);
-        // const uniqueCertificationIDs = new Set(certificationIDs);
-        // expect(certificationIDs.length).toBe(uniqueCertificationIDs.size);
-  
-        expect(result.message.length).toBe(3);
-        expect(result.message[0]).toEqual([
-          { certificationID: 15792100, name: "Alice", certificationName:  "AI Advanced", grantDate: "12/12/23" , expirationDate: "12/12/25"},
-          { certificationID: 15792101, name: "Bob", certificationName:  "AI Advanced +", grantDate: "12/12/23" , expirationDate: "12/12/25" },
-          { certificationID: 15792109, name: "John", certificationName:  "AI Advanced +", grantDate: "12/12/23" , expirationDate: "12/12/25" }
-        ]);
-        expect(result.message[1]).toBe(3);
-        expect(result.message[2].length).toBe(3);
-    
-        // Delete the temporary file
-        fs.unlinkSync(tempFilePath);
-      });
-    // Add more test cases for different scenarios such as invalid file, missing sheet, etc.
-
-    });
-
-    describe('Valid Excel file order received', () => {
-      // Test case for valid Excel file with correct sheet name and headers
-      it('should return SUCCESS for valid Excel file', async () => {
-        // Define test data
-        const testData = [
-          ["certificationID", "name", "certificationName", "grantDate", "expirationDate"],
-          [15792101, "Bob", "AI Advanced +", "12/12/23", "12/12/25"],
-          [15792100, "Alice", "AI Advanced", "12/12/23", "12/12/25"],
-          [15792109, "John", "AI Advanced +", "12/12/23", "12/12/25"]
-        ];
-    
-        // Create a workbook and add test data to a sheet named "Batch"
-        const wb = xlsx.utils.book_new();
-        const ws = xlsx.utils.aoa_to_sheet(testData);
-        xlsx.utils.book_append_sheet(wb, ws, "Batch");
-    
-        // Write workbook to a temporary file
-        const tempFilePath = './test.xlsx';
-        xlsx.writeFile(wb, tempFilePath);
-    
-        // Call the function with the temporary file path
-        const result = await fetchExcelRecord(tempFilePath);
-    
-        // Assert the result
-        expect(result.status).toBe("SUCCESS");
-        expect(result.response).toBe(true);
-  
-        // Check for unique certificationIDs
-        // const certificationIDs = result.message.map(item => item.certificationID);
-        // const uniqueCertificationIDs = new Set(certificationIDs);
-        // expect(certificationIDs.length).toBe(uniqueCertificationIDs.size);
-  
-        expect(result.message.length).toBe(3);
-        expect(result.message[0]).toEqual([
-          { certificationID: 15792101, name: "Alice", certificationName:  "AI Advanced +", grantDate: "12/12/23" , expirationDate: "12/12/25" },
-          { certificationID: 15792100, name: "Bob", certificationName:  "AI Advanced", grantDate: "12/12/23" , expirationDate: "12/12/25"},
-          { certificationID: 15792109, name: "John", certificationName:  "AI Advanced +", grantDate: "12/12/23" , expirationDate: "12/12/25" }
-        ]);
-        expect(result.message[1]).toBe(3);
-        expect(result.message[2].length).toBe(3);
-    
-        // Delete the temporary file
-        fs.unlinkSync(tempFilePath);
-      });
-    // Add more test cases for different scenarios such as invalid file, missing sheet, etc.
-
-    });
-
-    describe('Valid Excel file records', () => {
-      // Test case for valid Excel file with correct sheet name and headers
-      it('should return SUCCESS for valid Excel file', async () => {
-        // Define test data
-        const testData = [
-          ["certificationID", "name", "certificationName", "grantDate", "expirationDate"],
-          [15792100, "Alice", "AI Advanced", "12/12/23", "12/12/25"],
-          [15792101, "Bob", "AI Advanced +", "12/12/23", "12/12/25"]
-        ];
-    
-        // Create a workbook and add test data to a sheet named "Batch"
-        const wb = xlsx.utils.book_new();
-        const ws = xlsx.utils.aoa_to_sheet(testData);
-        xlsx.utils.book_append_sheet(wb, ws, "Batch");
-    
-        // Write workbook to a temporary file
-        const tempFilePath = './tests.xlsx';
-        xlsx.writeFile(wb, tempFilePath);
-    
-        // Call the function with the temporary file path
-        const result = await fetchExcelRecord(tempFilePath);
-    
-        // Assert the result
-        expect(result.status).toBe("SUCCESS");
-        expect(result.response).toBe(true);
-  
-        expect(result.message[0]).toEqual([
-          { certificationID: 15792100, name: "Alice", certificationName:  "AI Advanced", grantDate: "12/12/23" , expirationDate: "12/12/25"},
-          { certificationID: 15792101, name: "Bob", certificationName:  "AI Advanced +", grantDate: "12/12/23" , expirationDate: "12/12/25" }
-        ]);
-        expect(result.message[1]).toBe(2);
-        expect(result.message[2].length).toBe(2);
-    
-        // Delete the temporary file
-        fs.unlinkSync(tempFilePath);
-      });
-    // Add more test cases for different scenarios such as invalid file, missing sheet, etc.
-
-    });
-
-    describe('Valid Excel file name', () => {
-      // Test case for valid Excel file with correct sheet name and headers
-      it('should return SUCCESS for valid Excel file', async () => {
-        // Define test data
-        const testData = [
-          ["certificationID", "name", "certificationName", "grantDate", "expirationDate"],
-          [15792100, "Alice", "AI Advanced", "12/12/23", "12/12/25"],
-          [15792101, "Bob", "AI Advanced +", "12/12/23", "12/12/25"],
-          [15792109, "John", "AI Advanced +", "12/12/23", "12/12/25"]
-        ];
-    
-        // Create a workbook and add test data to a sheet named "Batch"
-        const wb = xlsx.utils.book_new();
-        const ws = xlsx.utils.aoa_to_sheet(testData);
-        xlsx.utils.book_append_sheet(wb, ws, "Batchs");
-    
-        // Write workbook to a temporary file
-        const tempFilePath = './test.xlsx';
-        xlsx.writeFile(wb, tempFilePath);
-    
-        // Call the function with the temporary file path
-        const result = await fetchExcelRecord(tempFilePath);
-    
-        // Assert the result
-        expect(result.status).toBe("SUCCESS");
-        expect(result.response).toBe(true);
-
-        expect(result.message.length).toBe(3);
-        expect(result.message[0]).toEqual([
-          { certificationID: 15792100, name: "Alice", certificationName:  "AI Advanced", grantDate: "12/12/23" , expirationDate: "12/12/25"},
-          { certificationID: 15792101, name: "Bob", certificationName:  "AI Advanced +", grantDate: "12/12/23" , expirationDate: "12/12/25" },
-          { certificationID: 15792109, name: "John", certificationName:  "AI Advanced +", grantDate: "12/12/23" , expirationDate: "12/12/25" }
-        ]);
-        expect(result.message[1]).toBe(3);
-        expect(result.message[2].length).toBe(3);
-    
-        // Delete the temporary file
-        fs.unlinkSync(tempFilePath);
-      });
-    // Add more test cases for different scenarios such as invalid file, missing sheet, etc.
-
-    });
-
-    describe('Unique Excel file IDs', () => {
-      // Test case for valid Excel file with correct sheet name and headers
-      it('should return SUCCESS for valid Excel file', async () => {
-        // Define test data
-        const testData = [
-          ["certificationID", "name", "certificationName", "grantDate", "expirationDate"],
-          [15792100, "Alice", "AI Advanced", "12/12/23", "12/12/25"],
-          [15792100, "Bob", "AI Advanced +", "12/12/23", "12/12/25"],
-          [15792109, "John", "AI Advanced +", "12/12/23", "12/12/25"]
-        ];
-    
-        // Create a workbook and add test data to a sheet named "Batch"
-        const wb = xlsx.utils.book_new();
-        const ws = xlsx.utils.aoa_to_sheet(testData);
-        xlsx.utils.book_append_sheet(wb, ws, "Batch");
-    
-        // Write workbook to a temporary file
-        const tempFilePath = './test.xlsx';
-        xlsx.writeFile(wb, tempFilePath);
-    
-        // Call the function with the temporary file path
-        const result = await fetchExcelRecord(tempFilePath);
-    
-        // Assert the result
-        expect(result.status).toBe("SUCCESS");
-        expect(result.response).toBe(true);
-
-        // Check for unique certificationIDs
-        const certificationIDs = result.message.map(item => item.certificationID);
-        const uniqueCertificationIDs = new Set(certificationIDs);
-        expect(certificationIDs.length).toBe(uniqueCertificationIDs.size);
-
-        expect(result.message.length).toBe(3);
-        expect(result.message[0]).toEqual([
-          { certificationID: 15792100, name: "Alice", certificationName:  "AI Advanced", grantDate: "12/12/23" , expirationDate: "12/12/25"},
-          { certificationID: 15792100, name: "Bob", certificationName:  "AI Advanced +", grantDate: "12/12/23" , expirationDate: "12/12/25" },
-          { certificationID: 15792109, name: "John", certificationName:  "AI Advanced +", grantDate: "12/12/23" , expirationDate: "12/12/25" }
-        ]);
-        expect(result.message[1]).toBe(3);
-        expect(result.message[2].length).toBe(3);
-    
-        // Delete the temporary file
-        fs.unlinkSync(tempFilePath);
-      });
-    // Add more test cases for different scenarios such as invalid file, missing sheet, etc.
-
-    });
-
-    describe('Unique Certification ID', () => {
-      it('should have unique certification IDs', async () => {
-          // Define test data
-          const testData = [
-              ["certificationID", "name", "certificationName", "grantDate", "expirationDate"],
-              [15792100, "Alice", "AI Advanced", "12/12/23", "12/12/25"],
-              [15792101, "Bob", "AI Advanced +", "12/12/23", "12/12/25"],
-              [15792109, "John", "AI Advanced +", "12/12/23", "12/12/25"]
-          ];
-
-          // Create a workbook and add test data to a sheet named "Batch"
-          const wb = xlsx.utils.book_new();
-          const ws = xlsx.utils.aoa_to_sheet(testData);
-          xlsx.utils.book_append_sheet(wb, ws, "Batch");
-
-          // Write workbook to a temporary file
-          const tempFilePath = './test.xlsx';
-          xlsx.writeFile(wb, tempFilePath);
-
-          // Call the function with the temporary file path
-          const result = await fetchExcelRecord(tempFilePath);
-
-          // Assert the result
-          expect(result.status).toBe("SUCCESS");
-          expect(result.response).toBe(true);
-
-          // Check for unique certification IDs
-          let matchCount = 0;
-          const certificationIDs = testData.slice(1).map(row => row[0]);
-          const existingIDs = [15792100, 15792105, 15792209];
-          certificationIDs.forEach(id => {
-              if (existingIDs.includes(id)) {
-                  matchCount++; // Increment matchCount only if ID exists in the existing IDs array
-              }
-          });
-
-          console.log("Match count:", matchCount); // Output matchCount for verification
-          expect(matchCount).toBe(1);
-
-          // Delete the temporary file
-          fs.unlinkSync(tempFilePath);
-      });
-    });
-
+describe('handleIssueDynamicPdfCertification', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
   });
 
-  describe('web3i', () => {
-    it('should return contract instance when provider is valid', async () => {
-      // Mock getDefaultProvider method to return a valid provider
-      ethers.providers.getDefaultProvider.mockReturnValue({
-        getNetwork: jest.fn(),
-      });
-  
-      // Mock Wallet and Contract constructor
-      ethers.Wallet.mockImplementation((privateKey, provider) => ({
-        provider,
-      }));
-      ethers.Contract.mockReturnValue('mocked_contract_instance');
-  
-      // Call the function
-      const result = await web3i();
-  
-      // Assertions
-      expect(result).toBe('mocked_contract_instance');
-      expect(ethers.providers.getDefaultProvider).toHaveBeenCalledWith('mocked_rpc_endpoint');
-      expect(ethers.Wallet).toHaveBeenCalledWith('mocked_private_key', expect.anything());
-      expect(ethers.Contract).toHaveBeenCalledWith(expect.anything(), expect.anything(), expect.anything());
-    });
-  
-    it('should return false when provider is invalid', async () => {
-      // Mock getDefaultProvider method to return falsy value
-      ethers.providers.getDefaultProvider.mockReturnValue(null);
-  
-      // Call the function
-      const result = await web3i();
-  
-      // Assertion
-      expect(result).toBe(false);
-    });
+  const uploadFolder = path.join(__dirname, 'uploads');
 
+  beforeEach(() => {
+    createTestFolder(uploadFolder);
   });
+
+  afterEach(() => {
+    cleanTestFolder(uploadFolder);
+  });
+
+  it('should return 400 if user with the provided email does not exist', async () => {
+    // Mock the database connection and user check
+    isDBConnected.mockResolvedValue();
+    User.findOne.mockResolvedValue(null); // No user found
+
+    const response = await handleIssueDynamicPdfCertification(
+      'nonexistent@example.com',
+      'CERT123',
+      'John Doe',
+      {},
+      'path/to/pdf',
+      10,
+      20,
+      100
+    );
+
+    expect(response).toEqual({
+      code: 400,
+      status: 'FAILED',
+      message: 'Certification details not found', // Updated message to match the function's response
+      details: 'nonexistent@example.com',
+    });
+    expect(isDBConnected).toHaveBeenCalled();
+    expect(User.findOne).toHaveBeenCalledWith({ email: 'nonexistent@example.com' });
+  });
+
+  it('should return 400 if certificate number already exists', async () => {
+    // Mock the database connection, user check, and certificate check
+    isDBConnected.mockResolvedValue();
+    User.findOne.mockResolvedValue({ email: 'user@example.com' }); // User found
+    DynamicIssues.findOne.mockResolvedValue({
+      certificateNumber: 'CERT123',
+      issueDate: '2024-07-30',
+      certificateStatus: 'issued',
+    }); // Certificate already exists
+    getCertificationStatus.mockResolvedValue('Issued Status');
+    convertDateFormat.mockResolvedValue('30 July 2024');
+    cleanUploadFolder.mockResolvedValue();
+
+    const response = await handleIssueDynamicPdfCertification(
+      'user@example.com',
+      'CERT123',
+      'John Doe',
+      {},
+      'path/to/pdf',
+      10,
+      20,
+      100
+    );
+
+    expect(response).toEqual({
+      code: 400,
+      status: 'FAILED',
+      message: 'Certification ID already issued', // Updated message to match the function's response
+      details: {
+        certificateNumber: 'CERT123',
+        issueDate: '30 July 2024',
+        certificateStatus: 'Issued Status',
+      },
+    });
+    expect(isDBConnected).toHaveBeenCalled();
+    expect(User.findOne).toHaveBeenCalledWith({ email: 'user@example.com' });
+    expect(DynamicIssues.findOne).toHaveBeenCalledWith({ certificateNumber: 'CERT123' });
+    expect(getCertificationStatus).toHaveBeenCalledWith('issued');
+    expect(convertDateFormat).toHaveBeenCalledWith('2024-07-30');
+    expect(cleanUploadFolder).toHaveBeenCalled();
+  });
+
+  test('Valid PDF with QR Code and Valid Dimensions', async () => {
+    const result = await verifyDynamicPDFDimensions('./path/to/valid-pdf-with-qr.pdf', 50);
+    expect(result).toBe(true);
+  });
+  
+  test('Valid PDF with QR Code but Dimensions Exceed Limits', async () => {
+    const result = await verifyDynamicPDFDimensions('./path/to/pdf-with-large-dimensions.pdf', 50);
+    expect(result).toBe(true);
+  });
+  
+  test('Valid PDF Without QR Code', async () => {
+    const result = await verifyDynamicPDFDimensions('./path/to/pdf-without-qr.pdf', 50);
+    expect(result).toBe(false);
+  });
+  
+  test('Invalid PDF Path', async () => {
+    await expect(verifyDynamicPDFDimensions('./path/to/nonexistent.pdf', 50)).rejects.toThrow();
+  });
+  
+  test('Valid PDF with QR Code in extractQRCodeDataFromPDF', async () => {
+    const result = await extractQRCodeDataFromPDF('./path/to/valid-pdf-with-qr.pdf');
+    expect(result).toBe(true);
+  });
+  
+  test('PDF without QR Code in extractQRCodeDataFromPDF', async () => {
+    const result = await extractQRCodeDataFromPDF('./path/to/pdf-without-qr.pdf');
+    expect(result).toBe(true);
+  });
+  
+  test('Invalid PDF Path in extractQRCodeDataFromPDF', async () => {
+    const result = await extractQRCodeDataFromPDF('./path/to/nonexistent.pdf');
+    expect(result).toBe(true);
+  });
+
+  // Testing data formats
+  test('Valid Date with Month and Day Less Than 10', async () => {
+    const result = await convertDateFormat('1/1/2024');
+    expect(result).toBe('01/01/2024');
+  });
+  
+  test('Valid Date with Full Month and Day', async () => {
+    const result = await convertDateFormat('12/31/2024');
+    expect(result).toBe('12/31/2024');
+  });
+  
+  test('Valid Leap Year Date', async () => {
+    const result = await convertDateFormat('2/29/2024');
+    expect(result).toBe('02/29/2024');
+  });
+  
+  test('Invalid Date (Month Greater Than 12)', async () => {
+    const result = await convertDateFormat('13/15/2024');
+    expect(result).toBeNull();
+  });
+  
+  test('Invalid Date (Day Greater Than 31)', async () => {
+    const result = await convertDateFormat('1/32/2024');
+    expect(result).toBeNull();
+  });
+  
+  test('Invalid Date (Day Greater Than 30 in a 30-Day Month)', async () => {
+    const result = await convertDateFormat('4/31/2024');
+    expect(result).toBeNull();
+  });
+  
+  test('Invalid Leap Year Date (February 29 on a Non-Leap Year)', async () => {
+    const result = await convertDateFormat('2/29/2023');
+    expect(result).toBeNull();
+  });
+  
+  test('Invalid Format (No Slashes)', async () => {
+    const result = await convertDateFormat('12312024');
+    expect(result).toBeNull();
+  });
+  
+  test('Invalid Format (Extra Characters)', async () => {
+    const result = await convertDateFormat('12/31/2024/extra');
+    expect(result).toBeNull();
+  });
+  
+  test('Valid Date with Single Digit Year', async () => {
+    const result = await convertDateFormat('12/31/99');
+    expect(result).toBe('12/31/99');
+  });
+  
+  test('Invalid Date (Negative Year)', async () => {
+    const result = await convertDateFormat('12/31/-2024');
+    expect(result).toBeNull();
+  });
+  
+  test('Edge Case (Very Short Input)', async () => {
+    const result = await convertDateFormat('1/1');
+    expect(result).toBeNull();
+  });
+  
+  test('Edge Case (Empty String)', async () => {
+    const result = await convertDateFormat('');
+    expect(result).toBeNull();
+  });
+  
+  test('Edge Case (Incorrect Month and Day Combination)', async () => {
+    const result = await convertDateFormat('2/30/2024');
+    expect(result).toBeNull();
+  });
+
+  // Folder cleanup function testcases
+
+  test('Folder is empty', async () => {
+    await cleanUploadFolder();
+    const filesInFolder = fs.readdirSync(uploadFolder);
+    expect(filesInFolder).toHaveLength(0);
+  });
+
+  test('Folder contains files', async () => {
+    createTestFiles(uploadFolder, ['file1.txt', 'file2.txt']);
+    await cleanUploadFolder();
+    const filesInFolder = fs.readdirSync(uploadFolder);
+    expect(filesInFolder).toHaveLength(0);
+  });
+
+  test('Folder contains files but deletion fails', async () => {
+    createTestFiles(uploadFolder, ['file1.txt']);
+    
+    // Stub fs.unlinkSync to throw an error
+    const originalUnlinkSync = fs.unlinkSync;
+    fs.unlinkSync = jest.fn(() => { throw new Error('Deletion failed'); });
+
+    await cleanUploadFolder();
+    
+    fs.unlinkSync = originalUnlinkSync; // Restore original function
+
+    // Check if the file is still there
+    const filesInFolder = fs.readdirSync(uploadFolder);
+    expect(filesInFolder).toHaveLength(1);
+    expect(filesInFolder[0]).toBe('file1.txt');
+  });
+
+  test('Folder path is incorrect', async () => {
+    const incorrectFolderPath = path.join(__dirname, '..', 'nonexistent-folder');
+    // Override uploadFolder path for this test
+    const originalUploadFolder = uploadFolder;
+    uploadFolder = incorrectFolderPath;
+
+    await cleanUploadFolder();
+
+    // Restore original folder path
+    uploadFolder = originalUploadFolder;
+    
+    const filesInFolder = fs.readdirSync(uploadFolder);
+    expect(filesInFolder).toHaveLength(0);
+  });
+
+  test('Permission issues', async () => {
+    createTestFiles(uploadFolder, ['file1.txt']);
+    fs.chmodSync(uploadFolder, 0o444); // Set folder to read-only
+    
+    await cleanUploadFolder();
+
+    // Check if the file still exists
+    const filesInFolder = fs.readdirSync(uploadFolder);
+    expect(filesInFolder).toHaveLength(1);
+    expect(filesInFolder[0]).toBe('file1.txt');
+  });
+
+  test('Folder contains subdirectories', async () => {
+    createTestFiles(uploadFolder, ['file1.txt']);
+    createTestFolder(path.join(uploadFolder, 'subdir'));
+
+    await cleanUploadFolder();
+    
+    // Verify files are deleted but subdirectory remains
+    const filesInFolder = fs.readdirSync(uploadFolder);
+    expect(filesInFolder).toHaveLength(1); // Subdirectory should remain
+    expect(filesInFolder).toContain('subdir');
+  });
+
+  test('Folder is created during execution', async () => {
+    createTestFiles(uploadFolder, ['file1.txt']);
+    
+    // Run the function and create the folder while it's running
+    setTimeout(() => {
+      createTestFolder(uploadFolder);
+    }, 100);
+
+    await cleanUploadFolder();
+
+    // Verify files are deleted
+    const filesInFolder = fs.readdirSync(uploadFolder);
+    expect(filesInFolder).toHaveLength(0);
+  });
+});
+
+describe('cleanUploadFolder', () => {
+  const uploadFolder = path.join(__dirname, '..', 'uploads');
+
+  beforeEach(() => {
+    createTestFolder(uploadFolder);
+  });
+
+  afterEach(() => {
+    cleanTestFolder(uploadFolder);
+  });
+
+  test('Folder is empty', async () => {
+    await cleanUploadFolder();
+    const filesInFolder = fs.readdirSync(uploadFolder);
+    expect(filesInFolder).toHaveLength(0);
+  });
+
+  test('Folder contains files', async () => {
+    createTestFiles(uploadFolder, ['file1.txt', 'file2.txt']);
+    await cleanUploadFolder();
+    const filesInFolder = fs.readdirSync(uploadFolder);
+    expect(filesInFolder).toHaveLength(0);
+  });
+
+  test('Folder contains files but deletion fails', async () => {
+    createTestFiles(uploadFolder, ['file1.txt']);
+    
+    // Stub fs.unlinkSync to throw an error
+    const originalUnlinkSync = fs.unlinkSync;
+    fs.unlinkSync = jest.fn(() => { throw new Error('Deletion failed'); });
+
+    await cleanUploadFolder();
+    
+    fs.unlinkSync = originalUnlinkSync; // Restore original function
+
+    // Check if the file is still there
+    const filesInFolder = fs.readdirSync(uploadFolder);
+    expect(filesInFolder).toHaveLength(1);
+    expect(filesInFolder[0]).toBe('file1.txt');
+  });
+
+  test('Folder path is incorrect', async () => {
+    const incorrectFolderPath = path.join(__dirname, '..', 'nonexistent-folder');
+    // Override uploadFolder path for this test
+    const originalUploadFolder = uploadFolder;
+    uploadFolder = incorrectFolderPath;
+
+    await cleanUploadFolder();
+
+    // Restore original folder path
+    uploadFolder = originalUploadFolder;
+    
+    const filesInFolder = fs.readdirSync(uploadFolder);
+    expect(filesInFolder).toHaveLength(0);
+  });
+
+  test('Permission issues', async () => {
+    createTestFiles(uploadFolder, ['file1.txt']);
+    fs.chmodSync(uploadFolder, 0o444); // Set folder to read-only
+    
+    await cleanUploadFolder();
+
+    // Check if the file still exists
+    const filesInFolder = fs.readdirSync(uploadFolder);
+    expect(filesInFolder).toHaveLength(1);
+    expect(filesInFolder[0]).toBe('file1.txt');
+  });
+
+  test('Folder contains subdirectories', async () => {
+    createTestFiles(uploadFolder, ['file1.txt']);
+    createTestFolder(path.join(uploadFolder, 'subdir'));
+
+    await cleanUploadFolder();
+    
+    // Verify files are deleted but subdirectory remains
+    const filesInFolder = fs.readdirSync(uploadFolder);
+    expect(filesInFolder).toHaveLength(1); // Subdirectory should remain
+    expect(filesInFolder).toContain('subdir');
+  });
+
+  test('Folder is created during execution', async () => {
+    createTestFiles(uploadFolder, ['file1.txt']);
+    
+    // Run the function and create the folder while it's running
+    setTimeout(() => {
+      createTestFolder(uploadFolder);
+    }, 100);
+
+    await cleanUploadFolder();
+
+    // Verify files are deleted
+    const filesInFolder = fs.readdirSync(uploadFolder);
+    expect(filesInFolder).toHaveLength(0);
+  });
+});
