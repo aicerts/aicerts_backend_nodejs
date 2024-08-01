@@ -106,6 +106,25 @@ const DynamicIssuesSchema = new mongoose.Schema({
   type:{type: String}
 });
 
+// Define the schema for the Dynamic Issues model
+const DynamicBatchIssuesSchema = new mongoose.Schema({
+  issuerId: { type: String, required: true },
+  batchId: { type: Number, required: true },
+  proofHash: [String],
+  encodedProof: { type: String, required: true },
+  transactionHash: { type: String, required: true },
+  certificateHash: { type: String, required: true },
+  certificateNumber: { type: String, required: true },
+  certificateFields: { type: Object, required: true },
+  name: { type: String, required: true },
+  course: { type: String, required: true },
+  grantDate: { type: String, required: true },
+  expirationDate: { type: String, required: true },
+  certificateStatus: { type: Number, required: true, default: 1 },
+  issueDate: { type: Date, default: Date.now },
+  type:{type: String, default: 'dynamic'}
+});
+
 // Define the schema for the VerificationLog model
 const VerificationLogSchema = new mongoose.Schema({
   email: { type: String, required: true },
@@ -119,7 +138,19 @@ const ShortUrlSchema = new mongoose.Schema({
   email: { type: String, required: true },
   certificateNumber: { type: String, required: true }, // CertificateNumber field is of type
   url: { type: String, required: true }
-})
+});
+
+// Define the schema for the Issues model
+const DynamicParamsSchema = new mongoose.Schema({
+  email: { type: String, required: true },
+  positionX: { type: Number, required: true },
+  positionY: { type: Number, required: true },
+  qrSide: { type: Number, required: true },
+  pdfWidth: { type: Number, required: true },
+  pdfHeight: { type: Number, required: true },
+  paramStatus: { type: Boolean, default: false },
+  modifiedDate: { type: Date, default: Date.now } // issueDate field is of type Date and defaults to the current date/time
+});
 
 const Admin = mongoose.model('Admin', AdminSchema);
 const ServiceAccountQuotas = mongoose.model('ServiceAccountQuotas', ServiceAccountQuotasSchema);
@@ -128,8 +159,10 @@ const Issues = mongoose.model('Issues', IssuesSchema);
 const BatchIssues = mongoose.model('BatchIssues', BatchIssuesSchema);
 const IssueStatus = mongoose.model('IssueStatus', IssueStatusSchema);
 const DynamicIssues = mongoose.model('DynamicIssues', DynamicIssuesSchema);
+const DynamicBatchIssues = mongoose.model('DynamicBatchIssues', DynamicBatchIssuesSchema);
 const VerificationLog = mongoose.model('VerificationLog', VerificationLogSchema);
 const ShortUrl = mongoose.model('ShortUrl', ShortUrlSchema);
+const DynamicParameters = mongoose.model('DynamicParameters', DynamicParamsSchema);
 
 module.exports = {
     Admin,
@@ -139,7 +172,9 @@ module.exports = {
     BatchIssues,
     IssueStatus,
     DynamicIssues,
+    DynamicBatchIssues,
     VerificationLog,
     IssueStatus,
-    ShortUrl
+    ShortUrl,
+    DynamicParameters
 };

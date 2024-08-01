@@ -22,6 +22,8 @@ const storage = multer.diskStorage({
   
   const __upload = multer({dest: "./uploads/"});
 
+  const upload = multer({ dest: "./uploads/" });
+
 /**
  * @swagger
  * /api/issue:
@@ -442,5 +444,235 @@ router.post('/issue-dynamic-pdf', _upload.single("file"), adminController.issueD
  */
 
 router.post('/batch-certificate-issue', __upload.single("excelFile"), ensureAuthenticated, adminController.batchIssueCertificate);
+
+/**
+ * @swagger
+ * /api/bulk-single-issue:
+ *   post:
+ *     summary: upload ZIP contain Excel & Pdfs with bulk issue with single approach.
+ *     description: API extract zip file contents into uploads folder
+ *     tags: [Dynamic Bulk Issue]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: Issuer email id to be validated
+ *               zipFile:
+ *                 type: string
+ *                 format: binary
+ *                 description: ZIP file containing the PDF certificates & Excel to be issued.
+ *             required:
+ *                - email
+ *                - zipFile
+ *           example:
+ *             status: "FAILED"
+ *             error: Internal Server Error
+ *     responses:
+ *       '200':
+ *         description: Files successfully extracted
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 detailsQR:
+ *                   type: string
+ *             example:
+ *               status: "SUCCESS"
+ *               message: Files successfully extracted.
+ *       '400':
+ *         description: Files successfully not extracted
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Files successfully Not extracted.
+ *       '500':
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Internal Server Error.
+ */
+
+router.post('/bulk-single-issue', upload.single("zipFile"), adminController.bulkSingleIssueCertificates);
+
+/**
+ * @swagger
+ * /api/bulk-batch-issue:
+ *   post:
+ *     summary: upload ZIP contain Excel & Pdfs with bulk issue with batch approach.
+ *     description: API extract zip file contents into uploads folder
+ *     tags: [Dynamic Bulk Issue]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: Issuer email id to be validated
+ *               zipFile:
+ *                 type: string
+ *                 format: binary
+ *                 description: ZIP file containing the PDF certificates & Excel to be issued.
+ *             required:
+ *                - email
+ *                - zipFile
+ *           example:
+ *             status: "FAILED"
+ *             error: Internal Server Error
+ *     responses:
+ *       '200':
+ *         description: Files successfully extracted
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 detailsQR:
+ *                   type: string
+ *             example:
+ *               status: "SUCCESS"
+ *               message: Files successfully extracted.
+ *       '400':
+ *         description: Files successfully not extracted
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Files successfully Not extracted.
+ *       '500':
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Internal Server Error.
+ */
+
+router.post('/bulk-batch-issue', upload.single("zipFile"), adminController.bulkBatchIssueCertificates);
+
+/**
+ * @swagger
+ * /api/verify-inputs:
+ *   post:
+ *     summary: Verify dynamic input values
+ *     description: Verify single/batch certificates using their certification ID. It checks whether the certification ID exists in the database and validates it against blockchain records if found.
+ *     tags: [Dynamic Template]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: Issuer email id to be validated
+ *               posx:
+ *                 type: integer
+ *                 description: The horizontal(x-axis) from left position of the QR in the document.
+ *               posy:
+ *                 type: integer
+ *                 description: The vertical(x-axis) from top position of the QR in the document.
+ *               qrside:
+ *                 type: integer
+ *                 description: Certificate QR size
+ *               pdfFile:
+ *                 type: string
+ *                 format: binary
+ *                 description: PDF file containing the certificate to be validated.
+ *             required:
+ *                - email
+ *                - posx
+ *                - posy
+ *                - qrside
+ *                - pdfFile
+ *     responses:
+ *       '200':
+ *         description: Successful response
+ *         content:
+ *           application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                status:
+ *                  type: string
+ *                  example: "SUCCESS"
+ *                message:
+ *                  type: string
+ *                  example: "Valid Inputs"
+ *                details:
+ *                  type: object
+ *                  properties:
+ *                    // Define properties of dynamic QR details object here
+ *       '400':
+ *         description: Invalid input values
+ *         content:
+ *           application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                status:
+ *                  type: string
+ *                  example: "FAILED"
+ *                message:
+ *                  type: string
+ *                  example: "Invalid input provided"
+ *       '500':
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                status:
+ *                  type: string
+ *                  example: "FAILED"
+ *                message:
+ *                  type: string
+ *                  example: "Internal Server error"
+ */
+
+router.post('/verify-inputs', _upload.single("pdfFile"), adminController.acceptDynamicInputs);
 
 module.exports=router;

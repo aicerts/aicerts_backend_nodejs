@@ -64,7 +64,7 @@ const mailOptions = {
 
 
 // Import the Issues models from the schema defined in "../config/schema"
-const { User, Issues, BatchIssues, IssueStatus, VerificationLog, ShortUrl, DynamicIssues, ServiceAccountQuotas } = require("../config/schema");
+const { User, Issues, BatchIssues, IssueStatus, VerificationLog, ShortUrl, DynamicIssues, ServiceAccountQuotas, DynamicBatchIssues } = require("../config/schema");
 
 //Connect to polygon
 const connectToPolygon = async () => {
@@ -80,6 +80,56 @@ const connectToPolygon = async () => {
     return connectToPolygon(providers); // Retry connecting recursively
   }
 };
+
+
+// Function to convert the Date format
+const validateSearchDateFormat = async (dateString) => {
+  if (dateString.length < 11) {
+    let month, day, year;
+    if (dateString.includes('-')) {
+      [month, day, year] = dateString.split('-');
+    } else {
+      // If the dateString does not contain '-', extract month, day, and year using substring
+      month = dateString.substring(0, 2);
+      day = dateString.substring(3, 5);
+      year = dateString.substring(6);
+    }
+
+    // Convert month and day to integers and pad with leading zeros if necessary
+    month = parseInt(month, 10).toString().padStart(2, '0');
+    day = parseInt(day, 10).toString().padStart(2, '0');
+
+    let formatDate = `${month}-${day}-${year}`;
+    const numericMonth = parseInt(month, 10);
+    const numericDay = parseInt(day, 10);
+    const numericYear = parseInt(year, 10);
+    // Check if month, day, and year are within valid ranges
+    if (numericMonth > 0 && numericMonth <= 12 && numericDay > 0 && numericDay <= 31 && numericYear >= 1900 && numericYear <= 9999) {
+      if ((numericMonth == 1 || numericMonth == 3 || numericMonth == 5 || numericMonth == 7 ||
+        numericMonth == 8 || numericMonth == 10 || numericMonth == 12) && numericDay <= 31) {
+        return formatDate;
+      } else if ((numericMonth == 4 || numericMonth == 6 || numericMonth == 9 || numericMonth == 11) && numericDay <= 30) {
+        return formatDate;
+      } else if (numericMonth == 2 && numericDay <= 29) {
+        if (numericYear % 4 == 0 && numericDay <= 29) {
+          // Leap year: February has 29 days
+          return formatDate;
+        } else if (numericYear % 4 != 0 && numericDay <= 28) {
+          // Non-leap year: February has 28 days
+          return formatDate;
+        } else {
+          return null;
+        }
+      } else {
+        return null;
+      }
+    } else {
+      return null;
+    }
+  } else {
+    return null;
+  }
+}
 
 // Function to Scheduled update Service limit Quotas
 const scheduledUpdateLimits = async () => {
@@ -407,6 +457,65 @@ const insertCertificateData = async (data) => {
     console.log("Certificate data inserted");
   } catch (error) {
     // Handle errors related to database connection or insertion
+    console.error("Error connecting to MongoDB:", error);
+  }
+};
+
+// Function to insert certification data into MongoDB
+const insertBulkSingleIssueData = async (data) => {
+  try {
+    // Create a new Issues document with the provided data
+    const newIssue = new Issues({
+      issuerId: data.issuerId,
+      transactionHash: data.transactionHash,
+      certificateHash: data.certificateHash,
+      certificateNumber: data.certificateNumber,
+      name: data.name,
+      course: data.course,
+      grantDate: data.grantDate,
+      expirationDate: data.expirationDate,
+      url: data.url || '',
+      type: data.type || 'dynamic',
+      certificateStatus: 1,
+      issueDate: Date.now() // Set the issue date to the current timestamp
+    });
+
+    // Save the new Issues document to the database
+    const result = await newIssue.save();
+    // Logging confirmation message
+    // console.log("Certificate data inserted");
+  } catch (error) {
+    // Handle errors related to database connection or insertion
+    console.error("Error connecting to MongoDB:", error);
+  }
+};
+
+// Function to insert certification data into MongoDB
+const insertBulkBatchIssueData = async (data) => {
+  try {
+
+    // Insert data into MongoDB
+    const newBatchIssue = new BatchIssues({
+      issuerId: data.issuerId,
+      batchId: data.batchId,
+      proofHash: data.proofHash,
+      encodedProof: data.encodedProof,
+      transactionHash: data.transactionHash,
+      certificateHash: data.certificateHash,
+      certificateNumber: data.certificateNumber,
+      name: data.name,
+      course: data.course,
+      grantDate: data.grantDate,
+      expirationDate: data.expirationDate,
+      certificateStatus: 1,
+      issueDate: Date.now()
+    });
+
+    const result = await newBatchIssue.save();
+    // Logging confirmation message
+    // console.log("Certificate data inserted");
+
+  } catch (error) {
     console.error("Error connecting to MongoDB:", error);
   }
 };
@@ -775,6 +884,60 @@ const extractQRCodeDataFromPDF = async (pdfFilePath) => {
   }
 };
 
+const extractDynamicQRCodeDataFromPDF = async (pdfFilePath) => {
+  try {
+    const pdf2picOptions = {
+      quality: 100,
+      density: 300,
+      format: "png",
+      width: 2000,
+      height: 2000,
+    };
+
+    const pdf2picOptions2 = {
+      quality: 100,
+      density: 350,
+      format: "png",
+      width: 3000,
+      height: 3000,
+    };
+
+    const pdf2picOptions3 = {
+      quality: 100,
+      density: 350,
+      format: "png",
+      width: 4000,
+      height: 4000,
+    };
+    // Decode QR code from PNG data
+    var code = await baseCodeResponse(pdfFilePath, pdf2picOptions);
+    if (!code) {
+      var code = await baseCodeResponse(pdfFilePath, pdf2picOptions2);
+      if (!code) {
+        var code = await baseCodeResponse(pdfFilePath, pdf2picOptions3);
+      }
+    }
+    const qrCodeText = code?.data;
+    // Throw error if QR code text is not available
+    if (!qrCodeText) {
+      // throw new Error("QR Code Text could not be extracted from PNG image");
+      console.log("QR Code Not Found / QR Code Text could not be extracted");
+      return false;
+    } else {
+      detailsQR = qrCodeText;
+console.log("The qr found", qrCodeText);
+      // Return the extracted certificate information
+      return true;
+    }
+
+  } catch (error) {
+    // Log and rethrow any errors that occur during the process
+    console.error(error);
+    // throw error;
+    return false;
+  }
+};
+
 const addLinkToPdf = async (
   inputPath, // Path to the input PDF file
   outputPath, // Path to save the modified PDF file
@@ -903,6 +1066,43 @@ const verifyDynamicPDFDimensions = async (pdfPath, qrSide) => {
 
 };
 
+
+const verifyBulkDynamicPDFDimensions = async (pdfPath, posx, posy, qrside) => {
+  // Extract QR code data from the PDF file
+  try {
+    const certificateData = await extractDynamicQRCodeDataFromPDF(pdfPath);
+    const pdfBuffer = fs.readFileSync(pdfPath);
+    const pdfDoc = await PDFDocument.load(pdfBuffer);
+    const firstPage = pdfDoc.getPages()[0];
+    const pageCount = pdfDoc.getPageCount();
+    var morePages = parseInt(1);
+    var status = false;
+    if (pageCount > morePages) {
+      return { morePages };
+    }
+    var { width, height } = firstPage.getSize();
+    const qrSize = qrside * qrside;
+    const documentSize = width * height;
+    const postionArea = posx * posy;
+
+    console.log("document and QR", documentSize, qrSize, postionArea);
+    // Check if dimensions fall within the specified ranges
+    if (documentSize < qrSize ||
+      documentSize < postionArea ||
+      documentSize < (postionArea + qrSize) ||
+      certificateData != status
+    ) {
+      return { status };
+    } else {
+      // throw new Error('PDF dimensions must be within 240-260 mm width and 340-360 mm height');
+      return { width, height };
+    }
+  } catch (error) {
+    console.error("Error:", error.message);
+    return { error: error.message };
+  }
+};
+
 const verifyPDFDimensions = async (pdfPath) => {
   // Extract QR code data from the PDF file
   const certificateData = await extractQRCodeDataFromPDF(pdfPath);
@@ -927,12 +1127,34 @@ const verifyPDFDimensions = async (pdfPath) => {
     (heightMillimeters >= 240 && heightMillimeters <= 260) &&
     (certificateData === false)
   ) {
-    // Convert inches to pixels (assuming 1 inch = 96 pixels)
-    // const widthPixels = widthInches * 96;
-    // const heightPixels = heightInches * 96;
+
+    return true;
+  } else {
+    // throw new Error('PDF dimensions must be within 240-260 mm width and 340-360 mm height');
+    return false;
+  }
+
+};
+
+const validatePDFDimensions = async (pdfPath, _width, _height) => {
+  console.log("Called here", pdfPath);
+  // Extract QR code data from the PDF file
+  const certificateData = await extractDynamicQRCodeDataFromPDF(pdfPath);
+  const pdfBuffer = fs.readFileSync(pdfPath);
+  const pdfDoc = await PDFDocument.load(pdfBuffer);
+  const bufferMeasure = parseInt(5);
+
+  const firstPage = pdfDoc.getPages()[0];
+  const { width, height } = firstPage.getSize();
+  console.log(`The file: Certdata:${certificateData}, Path:${pdfPath}, Height:${height}x Weidth:${width}, stored height: ${_height} x stored width: ${_width}`);
+  // Check if dimensions fall within the specified ranges
+  if (
+    (width < (_width+bufferMeasure) && width > (_width-bufferMeasure)) &&
+    (height < (_height+bufferMeasure) && height > (_height-bufferMeasure)) &&
+    (certificateData == false)
+  ) {
 
     // console.log("The certificate width x height (in mm):", widthMillimeters, heightMillimeters);
-
     return true;
   } else {
     // throw new Error('PDF dimensions must be within 240-260 mm width and 340-360 mm height');
@@ -1000,6 +1222,53 @@ const cleanUploadFolder = async () => {
     });
   }
 };
+
+const flushUploadFolder = async () => {
+  const uploadFolder = '../uploads'; // Specify the folder path you want
+  const folderPath = path.join(__dirname, '..', uploadFolder);
+
+  // Check if the folder is not empty
+  const filesInFolder = fs.readdirSync(folderPath);
+
+  const fileToDelete = filesInFolder[0]; // Get the first file in the folder
+  const filePathToDelete = path.join(folderPath, fileToDelete); // Construct the full path of the file to delete
+
+  // Delete the file
+  fs.unlink(filePathToDelete, (err) => {
+    if (err) {
+      console.error(`Error deleting file "${filePathToDelete}":`, err);
+    } else {
+      console.log(`Only Files in "${filePathToDelete}" were deleted successfully.`);
+    }
+  });
+};
+
+const wipeUploadFolder = async () => {
+  const uploadFolder = '../uploads'; // Specify the folder path you want
+  const folderPath = path.join(__dirname, '..', uploadFolder);
+
+  // Check if the folder is not empty
+  const filesInFolder = fs.readdirSync(folderPath);
+
+  if (filesInFolder.length > 0) {
+    // Delete all files in the folder
+    filesInFolder.forEach(fileToDelete => {
+      const filePathToDelete = path.join(folderPath, fileToDelete);
+      try {
+        if (fs.lstatSync(filePathToDelete).isDirectory()) {
+          // If it's a directory, recursively delete it
+          fs.rmSync(filePathToDelete, { recursive: true });
+        } else {
+          // If it's a file, just delete it
+          fs.unlinkSync(filePathToDelete);
+        }
+      } catch (error) {
+        console.error("Error deleting file:", filePathToDelete, error);
+      }
+    });
+  }
+};
+
 
 const isDBConnected = async () => {
   let retryCount = 0; // Initialize retry count
@@ -1113,13 +1382,19 @@ module.exports = {
   // Connect to Polygon 
   connectToPolygon,
 
+  validateSearchDateFormat,
+
   // Verify Certification ID from both collections (single / batch)
   isCertificationIdExisted,
 
   // Function to insert certificate data into MongoDB
   insertCertificateData,
 
+  insertBulkSingleIssueData,
+
   insertDynamicCertificateData,
+
+  insertBulkBatchIssueData,
 
   // Insert Batch certificate data into Database
   insertBatchCertificateData,
@@ -1161,7 +1436,11 @@ module.exports = {
   //Verify the uploading pdf template dimensions
   verifyPDFDimensions,
 
+  validatePDFDimensions,
+
   verifyDynamicPDFDimensions,
+
+  verifyBulkDynamicPDFDimensions,
 
   // Function to calculate the hash of data using SHA-256 algorithm
   calculateHash,
@@ -1174,6 +1453,10 @@ module.exports = {
 
   // Function to clean up the upload folder
   cleanUploadFolder,
+
+  flushUploadFolder,
+
+  wipeUploadFolder,
 
   // Function to check if MongoDB is connected
   isDBConnected,

@@ -11,6 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "@openzeppelin/merkle-tree": "^1.0.6",
+    "archiver": "^7.0.1",
     "aws-sdk": "^2.1575.0",
     "axios": "^1.7.2",
     "bcrypt": "^5.1.1",
@@ -45,6 +46,7 @@
     "sharp": "^0.32.6",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.0",
+    "unzipper": "^0.12.2",
     "uuid": "^8.3.2"
   },
   "devDependencies": {

@@ -2,18 +2,20 @@
 require('dotenv').config();
 
 // Import required modules
+const crypto = require('crypto'); // Module for cryptographic functions
 const path = require("path");
 const QRCode = require("qrcode");
 const fs = require("fs");
 const { fromBuffer, fromBase64 } = require("pdf2pic");
 const { ethers } = require("ethers"); // Ethereum JavaScript library
 const AWS = require('../config/aws-config');
+const { StandardMerkleTree } = require("@openzeppelin/merkle-tree");
 
 // Import custom cryptoFunction module for encryption and decryption
 const { generateEncryptedUrl } = require("../common/cryptoFunction");
 
 // Import MongoDB models
-const { User, DynamicIssues } = require("../config/schema");
+const { User, DynamicIssues, DynamicParameters } = require("../config/schema");
 
 // Import ABI (Application Binary Interface) from the JSON file located at "../config/abi.json"
 const abi = require("../config/abi.json");
@@ -26,9 +28,10 @@ const {
   holdExecution,
   insertCertificateData, // Function to insert certificate data into the database
   insertDynamicCertificateData,
-  extractQRCodeDataFromPDF,
-  addLinkToPdf, // Function to add a link to a PDF file
   addDynamicLinkToPdf,
+  insertBulkSingleIssueData,
+  insertBulkBatchIssueData,
+  addLinkToPdf, // Function to add a link to a PDF file
   verifyPDFDimensions, //Verify the uploading pdf template dimensions
   verifyDynamicPDFDimensions,
   calculateHash, // Function to calculate the hash of a file
@@ -816,24 +819,356 @@ const handleIssueDynamicPdfCertification = async (email, certificateNumber, name
   }
 };
 
-const issueCertificateWithRetry = async (certificateNumber, certificateHash, expirationEpoch, retryCount = 3) => {
+const bulkIssueSingleCertificates = async (_pdfReponse, _excelResponse, excelFilePath, posx, posy, qrside) => {
+  console.log("single inputs", _pdfReponse, _excelResponse[0], excelFilePath);
+  const pdfResponse = _pdfReponse;
+  const excelResponse = _excelResponse;
+  var insertPromises = []; // Array to hold all insert promises
+
+  if (!pdfResponse || pdfResponse.length == 0) {
+    return ({ code: 400, status: false, message: messageCode.msgUnableToFindPdfFiles });
+  }
 
   try {
+    // Check if the directory exists, if not, create it
+    const destDirectory = path.join(__dirname, '../../uploads/completed');
+    console.log("Present working directory", __dirname, destDirectory);
+    if (fs.existsSync(destDirectory)) {
+      // Delete the existing directory recursively
+      fs.rmSync(destDirectory, { recursive: true });
+    }
+    // Recreate the directory
+    fs.mkdirSync(destDirectory, { recursive: true });
+    const excelFileName = path.basename(excelFilePath);
+    // Destination file path
+    const destinationFilePath = path.join(destDirectory, excelFileName);
+    // Read the content of the source file
+    const fileContent = fs.readFileSync(excelFilePath);
+    // Write the content to the destination file
+    fs.writeFileSync(destinationFilePath, fileContent);
+    try {
+      await isDBConnected();
+      console.log("working directory", __dirname);
+      for (let i = 0; i < pdfResponse.length; i++) {
+        const pdfFileName = pdfResponse[i];
+        const pdfFilePath = path.join(__dirname, '../../uploads', pdfFileName);
+        console.log("pdf directory path", pdfFilePath);
+
+        // Extract Certs from pdfFileName
+        const certs = pdfFileName.split('.')[0]; // Remove file extension
+        const foundEntry = await excelResponse.find(entry => entry.Certs === certs);
+        if (foundEntry) {
+          // Do something with foundEntry
+          console.log("Found entry for", certs);
+        } else {
+          console.log("No matching entry found for", certs);
+          return ({ code: 400, status: false, message: messageCode.msgNoEntryMatchFound, Details: certs });
+        }
+
+        const epochExpiration = foundEntry.expirationDate != 1 ? await convertDateToEpoch(foundEntry.expirationDate) : 1;
+
+        // const getQrStatus = await extractQRCodeDataFromPDF(pdfFilePath);
+        var fields = {
+          Certificate_Number: foundEntry.certificationID,
+          name: foundEntry.name,
+          courseName: foundEntry.certificationName,
+          Grant_Date: foundEntry.grantDate,
+          Expiration_Date: foundEntry.expirationDate,
+        };
+
+        var hashedFields = {};
+        for (const field in fields) {
+          hashedFields[field] = calculateHash(fields[field]);
+        }
+        var combinedHash = calculateHash(JSON.stringify(hashedFields));
+
+        console.log("Source Cert", pdfFilePath);
+
+        var { txHash, polygonLink } = await issueCertificateWithRetry(foundEntry.certificationID, combinedHash, epochExpiration);
+        var linkUrl = polygonLink;
+        if (!linkUrl) {
+          return ({ code: 400, status: false, message: messageCode.msgFaileToIssueAfterRetry, Details: certs });
+        }
+        try {
+          await isDBConnected();
+          var certificateData = {
+            issuerId: process.env.ACCOUNT_ADDRESS,
+            transactionHash: txHash,
+            certificateHash: combinedHash,
+            certificateNumber: fields.Certificate_Number,
+            name: fields.name,
+            course: fields.courseName,
+            grantDate: fields.Grant_Date,
+            expirationDate: fields.Expiration_Date
+          };
+          // await insertCertificateData(certificateData);
+          insertPromises.push(insertBulkSingleIssueData(certificateData));
+
+        } catch (error) {
+          console.error('Error:', error);
+          return ({ code: 400, status: false, message: messageCode.msgDBFailed, Details: error });
+
+        }
+
+        // Generate encrypted URL with certificate data
+        const dataWithLink = {
+          ...fields, polygonLink: linkUrl
+        }
+        const urlLink = generateEncryptedUrl(dataWithLink);
+
+        const qrCodeImage = await QRCode.toDataURL(urlLink, {
+          errorCorrectionLevel: "H", width: qrside, height: qrside
+        });
+
+        file = pdfFilePath;
+        var outputPdf = `${pdfFileName}`;
+
+        // Add link and QR code to the PDF file
+        var opdf = await addDynamicLinkToPdf(
+          path.join("./", '.', file),
+          outputPdf,
+          linkUrl,
+          qrCodeImage,
+          combinedHash,
+          posx,
+          posy
+        );
+        // Read the generated PDF file
+        var fileBuffer = fs.readFileSync(outputPdf);
+
+        // Assuming fileBuffer is available after the code you provided
+
+        var outputPath = path.join(__dirname, '../../uploads', 'completed', `${pdfFileName}`);
+
+
+        // Always delete the source files (if it exists)
+        if (fs.existsSync(file)) {
+          fs.unlinkSync(file);
+        }
+
+        // Always delete the source files (if it exists)
+        if (fs.existsSync(outputPdf)) {
+          fs.unlinkSync(outputPdf);
+        }
+
+        fs.writeFileSync(outputPath, fileBuffer);
+
+        console.log('File saved successfully at:', outputPath);
+
+      }
+
+      // Wait for all insert promises to resolve
+      await Promise.all(insertPromises);
+      return ({ status: true });
+
+    } catch (error) {
+      return ({ code: 500, status: false, message: messageCode.msgDBFailed, Details: error });
+    }
+
+  } catch (error) {
+    return ({ code: 500, status: false, message: messageCode.msgInternalError, Details: error });
+  }
+};
+
+const bulkIssueBatchCertificates = async (_pdfReponse, _excelResponse, excelFilePath, posx, posy, qrside) => {
+  console.log("Batch inputs", _pdfReponse, excelFilePath);
+  const pdfResponse = _pdfReponse;
+  const excelResponse = _excelResponse[0];
+  var insertPromises = []; // Array to hold all insert promises
+
+  if (!pdfResponse || pdfResponse.length == 0) {
+    return ({ code: 400, status: false, message: messageCode.msgUnableToFindPdfFiles });
+  }
+
+  try {
+    // Check if the directory exists, if not, create it
+    const destDirectory = path.join(__dirname, '../../uploads/completed');
+    console.log("Present working directory", __dirname, destDirectory);
+    if (fs.existsSync(destDirectory)) {
+      // Delete the existing directory recursively
+      fs.rmSync(destDirectory, { recursive: true });
+    }
+    // Recreate the directory
+    fs.mkdirSync(destDirectory, { recursive: true });
+    const excelFileName = path.basename(excelFilePath);
+    // Destination file path
+    const destinationFilePath = path.join(destDirectory, excelFileName);
+    // Read the content of the source file
+    const fileContent = fs.readFileSync(excelFilePath);
+    // Write the content to the destination file
+    fs.writeFileSync(destinationFilePath, fileContent);
+
+    var transformedResponse = _excelResponse[2];
+    // return ({ code: 400, status: false, message: messageCode.msgUnderConstruction, Details: `${transformedResponse}, ${pdfResponse}`});
+
+    const hashedBatchData = transformedResponse.map(data => {
+      // Convert data to string and calculate hash
+      const dataString = data.map(item => item.toString()).join('');
+      const _hash = calculateHash(dataString);
+      return _hash;
+    });
+    // Format as arrays with corresponding elements using a loop
+    var values = [];
+    for (let i = 0; i < excelResponse.length; i++) {
+      values.push([hashedBatchData[i]]);
+    }
+    try {
+
+      // Generate the Merkle tree
+      let tree = StandardMerkleTree.of(values, ['string']);
+      let batchExpiration = 1;
+      try {
+        var batchNumber = await newContract.getRootLength();
+        var allocateBatchId = parseInt(batchNumber) + 1;
+
+        var { txHash, polygonLink } = await issueBatchCertificateWithRetry(tree.root, batchExpiration);
+        var linkUrl = polygonLink;
+        if (!linkUrl) {
+          return ({ code: 400, status: false, message: messageCode.msgFaileToIssueAfterRetry });
+        }
+
+      } catch (error) {
+        return ({ code: 400, status: false, message: messageCode.msgFailedAtBlockchain, Details: error });
+      }
+
+      if (pdfResponse.length == _excelResponse[1]) {
+        console.log("working directory", __dirname);
+
+        for (let i = 0; i < pdfResponse.length; i++) {
+          const pdfFileName = pdfResponse[i];
+          const pdfFilePath = path.join(__dirname, '../../uploads', pdfFileName);
+          console.log("pdf directory path", pdfFilePath);
+
+          // Extract Certs from pdfFileName
+          const certs = pdfFileName.split('.')[0]; // Remove file extension
+          const foundEntry = await excelResponse.find(entry => entry.Certs === certs);
+          if (foundEntry) {
+            var index = excelResponse.indexOf(foundEntry);
+            var _proof = tree.getProof(index);
+
+            let buffers = _proof.map(hex => Buffer.from(hex.slice(2), 'hex'));
+            // Concatenate all Buffers into one
+            let concatenatedBuffer = Buffer.concat(buffers);
+            // Calculate SHA-256 hash of the concatenated buffer
+            var _proofHash = crypto.createHash('sha256').update(concatenatedBuffer).digest('hex');
+            // Do something with foundEntry
+            console.log("Found entry for", certs);
+            // You can return or process foundEntry here
+          } else {
+            console.log("No matching entry found for", certs);
+            return ({ code: 400, status: false, message: messageCode.msgNoEntryMatchFound, Details: certs });
+          }
+
+          var fields = {
+            Certificate_Number: foundEntry.certificationID,
+            name: foundEntry.name,
+            courseName: foundEntry.certificationName,
+            Grant_Date: foundEntry.grantDate,
+            Expiration_Date: foundEntry.expirationDate,
+            polygonLink: linkUrl
+          };
+
+          var combinedHash = hashedBatchData[index];
+
+          try {
+            await isDBConnected();
+            var certificateData = {
+              issuerId: process.env.ACCOUNT_ADDRESS,
+              batchId: allocateBatchId,
+              proofHash: _proof,
+              encodedProof: `0x${_proofHash}`,
+              transactionHash: txHash,
+              certificateHash: combinedHash,
+              certificateNumber: fields.Certificate_Number,
+              name: fields.name,
+              course: fields.courseName,
+              grantDate: fields.Grant_Date,
+              expirationDate: fields.Expiration_Date
+            };
+            // await insertCertificateData(certificateData);
+            insertPromises.push(insertBulkBatchIssueData(certificateData));
+
+          } catch (error) {
+            console.error('Error:', error);
+            return ({ code: 400, status: false, message: messageCode.msgDBFailed, Details: error });
+          }
+
+          // Generate encrypted URL with certificate data
+          var encryptLink = await generateEncryptedUrl(fields);
+
+          const qrCodeImage = await QRCode.toDataURL(encryptLink, {
+            errorCorrectionLevel: "H", width: qrside, height: qrside
+          });
+
+          file = pdfFilePath;
+          var outputPdf = `${pdfFileName}`;
+
+          // Add link and QR code to the PDF file
+          var opdf = await addDynamicLinkToPdf(
+            path.join("./", '.', file),
+            outputPdf,
+            linkUrl,
+            qrCodeImage,
+            combinedHash,
+            posx,
+            posy
+          );
+          // Read the generated PDF file
+          var fileBuffer = fs.readFileSync(outputPdf);
+
+          // Assuming fileBuffer is available after the code you provided
+
+          var outputPath = path.join(__dirname, '../../uploads', 'completed', `${pdfFileName}`);
+
+
+          // Always delete the source files (if it exists)
+          if (fs.existsSync(file)) {
+            fs.unlinkSync(file);
+          }
+
+          // Always delete the source files (if it exists)
+          if (fs.existsSync(outputPdf)) {
+            fs.unlinkSync(outputPdf);
+          }
+
+          fs.writeFileSync(outputPath, fileBuffer);
+
+          console.log('File saved successfully at:', outputPath);
+
+        }
+        // Wait for all insert promises to resolve
+        await Promise.all(insertPromises);
+        return ({ status: true });
+      } else {
+        return ({ code: 400, status: false, message: messageCode.msgInputRecordsNotMatched, Details: error });
+      }
+
+    } catch (error) {
+      return ({ code: 400, status: false, message: messageCode.msgFailedToIssueBulkCerts, Details: error });
+    }
+
+  } catch (error) {
+    return ({ code: 500, status: false, message: messageCode.msgInternalError, Details: error });
+  }
+
+};
+
+const issueCertificateWithRetry = async (certificateNumber, certificateHash, expirationEpoch, retryCount = 3) => {
+try {
     // Issue Single Certifications on Blockchain
     const tx = await newContract.issueCertificate(
       certificateNumber,
       certificateHash,
       expirationEpoch
     );
-
     let txHash = tx.hash;
 
     let polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
-
+console.log("Tx Inputs contract", txHash);
+  
     if (!txHash) {
       return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain });
     }
-
     return { txHash, polygonLink };
 
   } catch (error) {
@@ -842,6 +1177,43 @@ const issueCertificateWithRetry = async (certificateNumber, certificateHash, exp
       // Retry after a delay (e.g., 2 seconds)
       await holdExecution(2000);
       return issueCertificateWithRetry(certificateNumber, certificateHash, expirationEpoch, retryCount - 1);
+    } else if (error.code === 'NONCE_EXPIRED') {
+      // Extract and handle the error reason
+      // console.log("Error reason:", error.reason);
+      return null;
+    } else if (error.reason) {
+      // Extract and handle the error reason
+      // console.log("Error reason:", error.reason);
+      return null;
+    } else {
+      // If there's no specific reason provided, handle the error generally
+      // console.error(messageCode.msgFailedOpsAtBlockchain, error);
+      return null;
+    }
+  }
+};
+
+const issueBatchCertificateWithRetry = async (root, expirationEpoch, retryCount = 3) => {
+
+  try {
+    // Issue Single Certifications on Blockchain
+    const tx = await newContract.issueBatchOfCertificates(
+      root,
+      expirationEpoch
+    );
+
+    let txHash = tx.hash;
+
+    let polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
+
+    return { txHash, polygonLink };
+
+  } catch (error) {
+    if (retryCount > 0 && error.code === 'ETIMEDOUT') {
+      console.log(`Connection timed out. Retrying... Attempts left: ${retryCount}`);
+      // Retry after a delay (e.g., 2 seconds)
+      await holdExecution(2000);
+      return issueCertificateWithRetry(root, expirationEpoch, retryCount - 1);
     } else if (error.code === 'NONCE_EXPIRED') {
       // Extract and handle the error reason
       // console.log("Error reason:", error.reason);
@@ -924,6 +1296,10 @@ module.exports = {
   handleIssuePdfCertification,
 
   handleIssueDynamicPdfCertification,
+
+  bulkIssueSingleCertificates,
+
+  bulkIssueBatchCertificates,
 
   // Function to issue a certification
   handleIssueCertification
