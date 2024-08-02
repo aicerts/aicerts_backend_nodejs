@@ -820,7 +820,7 @@ const handleIssueDynamicPdfCertification = async (email, certificateNumber, name
 };
 
 const bulkIssueSingleCertificates = async (email, issuerId, _pdfReponse, _excelResponse, excelFilePath, posx, posy, qrside, pdfWidth, pdfHeight) => {
-  console.log("single inputs", _pdfReponse, _excelResponse[0], excelFilePath);
+  // console.log("single inputs", _pdfReponse, _excelResponse[0], excelFilePath);
   const pdfResponse = _pdfReponse;
   const excelResponse = _excelResponse;
   var insertPromises = []; // Array to hold all insert promises
