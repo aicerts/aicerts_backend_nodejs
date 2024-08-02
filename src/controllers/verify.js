@@ -270,7 +270,7 @@ const verify = async (req, res) => {
         await cleanUploadFolder();
 
         extractQRData.certificateUrl = certificateS3Url;
-        res.status(200).json({ status: "PASSED", message: messageCode.msgCertValid, details: extractQRData });
+        res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, details: extractQRData });
         return;
       }
       if (fs.existsSync(file)) {
@@ -301,7 +301,7 @@ const verify = async (req, res) => {
         }
         // Clean up the upload folder
         await cleanUploadFolder();
-        res.status(200).json({ status: "PASSED", message: messageCode.msgCertValid, details: extractQRData });
+        res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, details: extractQRData });
         return;
       }
       // Clean up the upload folder
@@ -450,7 +450,7 @@ const decodeQRScan = async (req, res) => {
           return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
         }
         extractQRData.url = encodedUrl;
-        res.status(200).json({ status: "PASSED", message: messageCode.msgCertValid, details: extractQRData });
+        res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, details: extractQRData });
         return;
       }
       return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
@@ -466,7 +466,7 @@ const decodeQRScan = async (req, res) => {
         await verificationLogEntry(verifyLog);
 
         extractQRData.url = null;
-        res.status(200).json({ status: "PASSED", message: messageCode.msgCertValid, Details: extractQRData });
+        res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, Details: extractQRData });
         return;
       }
       return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
@@ -546,7 +546,7 @@ const decodeCertificate = async (req, res) => {
         await verificationLogEntry(verifyLog);
       }
       parsedData.url = originalUrl || null;
-      res.status(200).json({ status: "PASSED", message: "Verified", data: parsedData });
+      res.status(200).json({ status: "SUCCESS", message: "Verified", data: parsedData });
     } else {
       res.status(200).json({ status: "FAILED", message: messageContent });
     }
