@@ -1013,7 +1013,7 @@ const bulkIssueSingleCertificates = async (email, issuerId, _pdfReponse, _excelR
 };
 
 const bulkIssueBatchCertificates = async (email, issuerId, _pdfReponse, _excelResponse, excelFilePath, posx, posy, qrside, pdfWidth, pdfHeight) => {
-  console.log("Batch inputs", _pdfReponse, excelFilePath);
+  // console.log("Batch inputs", _pdfReponse, excelFilePath);
   const pdfResponse = _pdfReponse;
   const excelResponse = _excelResponse[0];
   var insertPromises = []; // Array to hold all insert promises

@@ -1152,7 +1152,7 @@ const validatePDFDimensions = async (pdfPath, _width, _height) => {
 
   const firstPage = pdfDoc.getPages()[0];
   const { width, height } = firstPage.getSize();
-  console.log(`The file: Certdata:${certificateData}, Path:${pdfPath}, Height:${height}x Weidth:${width}, stored height: ${_height} x stored width: ${_width}`);
+  console.log(`The file: Path:${pdfPath}, Height:${height}x Weidth:${width}, stored height: ${_height} x stored width: ${_width}`);
   // Check if dimensions fall within the specified ranges
   if (
     (width < (_width + bufferMeasure) && width > (_width - bufferMeasure)) &&
