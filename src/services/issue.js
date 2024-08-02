@@ -1413,10 +1413,14 @@ const _convertPdfBufferToPng = async (imagePath, pdfBuffer, _width, _height) => 
 const _uploadImageToS3 = async (certNumber, imagePath) => {
 
   const bucketName = process.env.BUCKET_NAME;
-  const keyName = `${certNumber}.png`;
+  const timestamp = Date.now(); // Get the current timestamp in milliseconds
+  const _keyName = `${timestamp}_${certNumber}.png`;
   const s3 = new AWS.S3();
   const fileStream = fs.createReadStream(imagePath);
   const acl = process.env.ACL_NAME;
+  const keyPrefix = 'dynamic_bulk_issues/';
+
+  const keyName = keyPrefix + _keyName;
 
   let uploadParams = {
     Bucket: bucketName,
