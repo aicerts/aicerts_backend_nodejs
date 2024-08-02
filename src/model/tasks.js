@@ -1070,7 +1070,7 @@ const verifyDynamicPDFDimensions = async (pdfPath, qrSide) => {
 const verifyBulkDynamicPDFDimensions = async (pdfPath, posx, posy, qrside) => {
   // Extract QR code data from the PDF file
   try {
-    const certificateData = await extractDynamicQRCodeDataFromPDF(pdfPath);
+    // const certificateData = await extractDynamicQRCodeDataFromPDF(pdfPath);
     const pdfBuffer = fs.readFileSync(pdfPath);
     const pdfDoc = await PDFDocument.load(pdfBuffer);
     const firstPage = pdfDoc.getPages()[0];
@@ -1089,8 +1089,8 @@ const verifyBulkDynamicPDFDimensions = async (pdfPath, posx, posy, qrside) => {
     // Check if dimensions fall within the specified ranges
     if (documentSize < qrSize ||
       documentSize < postionArea ||
-      documentSize < (postionArea + qrSize) ||
-      certificateData != status
+      documentSize < (postionArea + qrSize)
+      // certificateData != status
     ) {
       return { status };
     } else {
@@ -1137,9 +1137,9 @@ const verifyPDFDimensions = async (pdfPath) => {
 };
 
 const validatePDFDimensions = async (pdfPath, _width, _height) => {
-  console.log("Called here", pdfPath);
+  // console.log("Called here", pdfPath);
   // Extract QR code data from the PDF file
-  const certificateData = await extractDynamicQRCodeDataFromPDF(pdfPath);
+  // const certificateData = await extractDynamicQRCodeDataFromPDF(pdfPath);
   const pdfBuffer = fs.readFileSync(pdfPath);
   const pdfDoc = await PDFDocument.load(pdfBuffer);
   const bufferMeasure = parseInt(5);
@@ -1150,8 +1150,8 @@ const validatePDFDimensions = async (pdfPath, _width, _height) => {
   // Check if dimensions fall within the specified ranges
   if (
     (width < (_width+bufferMeasure) && width > (_width-bufferMeasure)) &&
-    (height < (_height+bufferMeasure) && height > (_height-bufferMeasure)) &&
-    (certificateData == false)
+    (height < (_height+bufferMeasure) && height > (_height-bufferMeasure)) 
+    // (certificateData == false)
   ) {
 
     // console.log("The certificate width x height (in mm):", widthMillimeters, heightMillimeters);
