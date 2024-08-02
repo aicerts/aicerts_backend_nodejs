@@ -399,19 +399,24 @@ const insertUrlData = async (data) => {
   }
   try {
     isDBConnected();
-    // Store new url details fro provided data
-    const newUrlData = new ShortUrl({
-      email: data.email,
-      certificateNumber: data.certificateNumber,
-      url: data.url
-    });
-    // Save the new shortUrl document to the database
-    const result = await newUrlData.save();
+    const isUrlExist = await ShortUrl.findOne({ email: data.email, certificateNumber: data.certificateNumber });
 
+    if (isUrlExist) {
+      isUrlExist.url = data.url;
+      await isUrlExist.save();
+    } else {
+      // Store new url details fro provided data
+      const newUrlData = new ShortUrl({
+        email: data.email,
+        certificateNumber: data.certificateNumber,
+        url: data.url
+      });
+      // Save the new shortUrl document to the database
+      const result = await newUrlData.save();
+    }
     // Logging confirmation message
     console.log("URL data inserted");
     return true;
-
   } catch (error) {
     // Handle errors related to database connection or insertion
     console.error("Error connecting in update URL data", error);
@@ -508,6 +513,7 @@ const insertBulkBatchIssueData = async (data) => {
       grantDate: data.grantDate,
       expirationDate: data.expirationDate,
       certificateStatus: 1,
+      url: data.url || '',
       issueDate: Date.now()
     });
 
@@ -925,7 +931,7 @@ const extractDynamicQRCodeDataFromPDF = async (pdfFilePath) => {
       return false;
     } else {
       detailsQR = qrCodeText;
-console.log("The qr found", qrCodeText);
+      console.log("The qr found", qrCodeText);
       // Return the extracted certificate information
       return true;
     }
@@ -1149,8 +1155,8 @@ const validatePDFDimensions = async (pdfPath, _width, _height) => {
   console.log(`The file: Certdata:${certificateData}, Path:${pdfPath}, Height:${height}x Weidth:${width}, stored height: ${_height} x stored width: ${_width}`);
   // Check if dimensions fall within the specified ranges
   if (
-    (width < (_width+bufferMeasure) && width > (_width-bufferMeasure)) &&
-    (height < (_height+bufferMeasure) && height > (_height-bufferMeasure)) 
+    (width < (_width + bufferMeasure) && width > (_width - bufferMeasure)) &&
+    (height < (_height + bufferMeasure) && height > (_height - bufferMeasure))
     // (certificateData == false)
   ) {
 

@@ -819,11 +819,13 @@ const handleIssueDynamicPdfCertification = async (email, certificateNumber, name
   }
 };
 
-const bulkIssueSingleCertificates = async (_pdfReponse, _excelResponse, excelFilePath, posx, posy, qrside) => {
+const bulkIssueSingleCertificates = async (email, issuerId, _pdfReponse, _excelResponse, excelFilePath, posx, posy, qrside, pdfWidth, pdfHeight) => {
   console.log("single inputs", _pdfReponse, _excelResponse[0], excelFilePath);
   const pdfResponse = _pdfReponse;
   const excelResponse = _excelResponse;
   var insertPromises = []; // Array to hold all insert promises
+  var insertUrl = [];
+  var shortUrlStatus = false;
 
   if (!pdfResponse || pdfResponse.length == 0) {
     return ({ code: 400, status: false, message: messageCode.msgUnableToFindPdfFiles });
@@ -889,26 +891,6 @@ const bulkIssueSingleCertificates = async (_pdfReponse, _excelResponse, excelFil
         if (!linkUrl) {
           return ({ code: 400, status: false, message: messageCode.msgFaileToIssueAfterRetry, Details: certs });
         }
-        try {
-          await isDBConnected();
-          var certificateData = {
-            issuerId: process.env.ACCOUNT_ADDRESS,
-            transactionHash: txHash,
-            certificateHash: combinedHash,
-            certificateNumber: fields.Certificate_Number,
-            name: fields.name,
-            course: fields.courseName,
-            grantDate: fields.Grant_Date,
-            expirationDate: fields.Expiration_Date
-          };
-          // await insertCertificateData(certificateData);
-          insertPromises.push(insertBulkSingleIssueData(certificateData));
-
-        } catch (error) {
-          console.error('Error:', error);
-          return ({ code: 400, status: false, message: messageCode.msgDBFailed, Details: error });
-
-        }
 
         // Generate encrypted URL with certificate data
         const dataWithLink = {
@@ -916,7 +898,26 @@ const bulkIssueSingleCertificates = async (_pdfReponse, _excelResponse, excelFil
         }
         const urlLink = generateEncryptedUrl(dataWithLink);
 
-        const qrCodeImage = await QRCode.toDataURL(urlLink, {
+        if (urlLink) {
+          let dbStatus = await isDBConnected();
+          if (dbStatus) {
+            let urlData = {
+              email: email,
+              certificateNumber: foundEntry.certificationID,
+              url: urlLink
+            }
+            await insertUrlData(urlData);
+            shortUrlStatus = true;
+          }
+        }
+
+        if (shortUrlStatus) {
+          modifiedUrl = process.env.SHORT_URL + foundEntry.certificationID;
+        }
+
+        let _qrCodeData = modifiedUrl != false ? modifiedUrl : qrCodeData;
+
+        const qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
           errorCorrectionLevel: "H", width: qrside, height: qrside
         });
 
@@ -940,6 +941,47 @@ const bulkIssueSingleCertificates = async (_pdfReponse, _excelResponse, excelFil
 
         var outputPath = path.join(__dirname, '../../uploads', 'completed', `${pdfFileName}`);
 
+        var generatedImage = `${fields.Certificate_Number}.png`;
+
+        var imageBuffer = await _convertPdfBufferToPng(generatedImage, fileBuffer, pdfWidth, pdfHeight);
+
+        if (imageBuffer) {
+          var imageUrl = await _uploadImageToS3(fields.Certificate_Number, generatedImage);
+          if (!imageUrl) {
+            return ({ code: 400, status: "FAILED", message: messageCode.msgUploadError });
+          }
+          insertUrl.push(imageUrl);
+        } else {
+          return ({ code: 400, status: "FAILED", message: messageCode.msgImageError });
+        }
+
+        try {
+          await isDBConnected();
+          var certificateData = {
+            issuerId: issuerId,
+            transactionHash: txHash,
+            certificateHash: combinedHash,
+            certificateNumber: fields.Certificate_Number,
+            name: fields.name,
+            course: fields.courseName,
+            grantDate: fields.Grant_Date,
+            expirationDate: fields.Expiration_Date,
+            url: imageUrl
+          };
+          // await insertCertificateData(certificateData);
+          insertPromises.push(insertBulkSingleIssueData(certificateData));
+
+        } catch (error) {
+          console.error('Error:', error);
+          return ({ code: 400, status: false, message: messageCode.msgDBFailed, Details: error });
+
+        }
+
+        // Delete image source files (if it exists)
+        if (fs.existsSync(generatedImage)) {
+          // Delete the specified file
+          fs.unlinkSync(generatedImage);
+        }
 
         // Always delete the source files (if it exists)
         if (fs.existsSync(file)) {
@@ -959,7 +1001,7 @@ const bulkIssueSingleCertificates = async (_pdfReponse, _excelResponse, excelFil
 
       // Wait for all insert promises to resolve
       await Promise.all(insertPromises);
-      return ({ status: true });
+      return ({ code: 200, status: true, Details: insertUrl });
 
     } catch (error) {
       return ({ code: 500, status: false, message: messageCode.msgDBFailed, Details: error });
@@ -970,11 +1012,13 @@ const bulkIssueSingleCertificates = async (_pdfReponse, _excelResponse, excelFil
   }
 };
 
-const bulkIssueBatchCertificates = async (_pdfReponse, _excelResponse, excelFilePath, posx, posy, qrside) => {
+const bulkIssueBatchCertificates = async (email, issuerId, _pdfReponse, _excelResponse, excelFilePath, posx, posy, qrside, pdfWidth, pdfHeight) => {
   console.log("Batch inputs", _pdfReponse, excelFilePath);
   const pdfResponse = _pdfReponse;
   const excelResponse = _excelResponse[0];
   var insertPromises = []; // Array to hold all insert promises
+  var insertUrl = [];
+  var shortUrlStatus = false;
 
   if (!pdfResponse || pdfResponse.length == 0) {
     return ({ code: 400, status: false, message: messageCode.msgUnableToFindPdfFiles });
@@ -1070,33 +1114,30 @@ const bulkIssueBatchCertificates = async (_pdfReponse, _excelResponse, excelFile
 
           var combinedHash = hashedBatchData[index];
 
-          try {
-            await isDBConnected();
-            var certificateData = {
-              issuerId: process.env.ACCOUNT_ADDRESS,
-              batchId: allocateBatchId,
-              proofHash: _proof,
-              encodedProof: `0x${_proofHash}`,
-              transactionHash: txHash,
-              certificateHash: combinedHash,
-              certificateNumber: fields.Certificate_Number,
-              name: fields.name,
-              course: fields.courseName,
-              grantDate: fields.Grant_Date,
-              expirationDate: fields.Expiration_Date
-            };
-            // await insertCertificateData(certificateData);
-            insertPromises.push(insertBulkBatchIssueData(certificateData));
-
-          } catch (error) {
-            console.error('Error:', error);
-            return ({ code: 400, status: false, message: messageCode.msgDBFailed, Details: error });
-          }
 
           // Generate encrypted URL with certificate data
           var encryptLink = await generateEncryptedUrl(fields);
 
-          const qrCodeImage = await QRCode.toDataURL(encryptLink, {
+          if (encryptLink) {
+            let dbStatus = await isDBConnected();
+            if (dbStatus) {
+              let urlData = {
+                email: email,
+                certificateNumber: foundEntry.certificationID,
+                url: encryptLink
+              }
+              await insertUrlData(urlData);
+              shortUrlStatus = true;
+            }
+          }
+
+          if (shortUrlStatus) {
+            modifiedUrl = process.env.SHORT_URL + foundEntry.certificationID;
+          }
+
+          let _qrCodeData = modifiedUrl != false ? modifiedUrl : qrCodeData;
+
+          const qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
             errorCorrectionLevel: "H", width: qrside, height: qrside
           });
 
@@ -1119,7 +1160,49 @@ const bulkIssueBatchCertificates = async (_pdfReponse, _excelResponse, excelFile
           // Assuming fileBuffer is available after the code you provided
 
           var outputPath = path.join(__dirname, '../../uploads', 'completed', `${pdfFileName}`);
+          var generatedImage = `${fields.Certificate_Number}.png`;
 
+          var imageBuffer = await _convertPdfBufferToPng(generatedImage, fileBuffer, pdfWidth, pdfHeight);
+
+          if (imageBuffer) {
+            var imageUrl = await _uploadImageToS3(fields.Certificate_Number, generatedImage);
+            if (!imageUrl) {
+              return ({ code: 400, status: "FAILED", message: messageCode.msgUploadError });
+            }
+            insertUrl.push(imageUrl);
+          } else {
+            return ({ code: 400, status: "FAILED", message: messageCode.msgImageError });
+          }
+
+          try {
+            await isDBConnected();
+            var certificateData = {
+              issuerId: issuerId,
+              batchId: allocateBatchId,
+              proofHash: _proof,
+              encodedProof: `0x${_proofHash}`,
+              transactionHash: txHash,
+              certificateHash: combinedHash,
+              certificateNumber: fields.Certificate_Number,
+              name: fields.name,
+              course: fields.courseName,
+              grantDate: fields.Grant_Date,
+              expirationDate: fields.Expiration_Date,
+              url: imageUrl
+            };
+            // await insertCertificateData(certificateData);
+            insertPromises.push(insertBulkBatchIssueData(certificateData));
+
+          } catch (error) {
+            console.error('Error:', error);
+            return ({ code: 400, status: false, message: messageCode.msgDBFailed, Details: error });
+          }
+
+          // Delete image source files (if it exists)
+          if (fs.existsSync(generatedImage)) {
+            // Delete the specified file
+            fs.unlinkSync(generatedImage);
+          }
 
           // Always delete the source files (if it exists)
           if (fs.existsSync(file)) {
@@ -1138,7 +1221,7 @@ const bulkIssueBatchCertificates = async (_pdfReponse, _excelResponse, excelFile
         }
         // Wait for all insert promises to resolve
         await Promise.all(insertPromises);
-        return ({ status: true });
+        return ({ code: 200, status: true, Details: insertUrl });
       } else {
         return ({ code: 400, status: false, message: messageCode.msgInputRecordsNotMatched, Details: error });
       }
@@ -1154,7 +1237,7 @@ const bulkIssueBatchCertificates = async (_pdfReponse, _excelResponse, excelFile
 };
 
 const issueCertificateWithRetry = async (certificateNumber, certificateHash, expirationEpoch, retryCount = 3) => {
-try {
+  try {
     // Issue Single Certifications on Blockchain
     const tx = await newContract.issueCertificate(
       certificateNumber,
@@ -1164,8 +1247,8 @@ try {
     let txHash = tx.hash;
 
     let polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
-console.log("Tx Inputs contract", txHash);
-  
+    console.log("Tx Inputs contract", txHash);
+
     if (!txHash) {
       return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain });
     }
@@ -1275,7 +1358,67 @@ const uploadImageToS3 = async (certNumber, imagePath) => {
   const fileStream = fs.createReadStream(imagePath);
   const acl = process.env.ACL_NAME;
 
-  const uploadParams = {
+  let uploadParams = {
+    Bucket: bucketName,
+    Key: keyName,
+    Body: fileStream,
+    ACL: acl
+  };
+
+  try {
+    const urlData = await s3.upload(uploadParams).promise();
+    return urlData.Location;
+  } catch (error) {
+    console.error("Internal server error", error);
+    return false;
+  }
+};
+
+const _convertPdfBufferToPng = async (imagePath, pdfBuffer, _width, _height) => {
+  if (!imagePath || !pdfBuffer) {
+    return false;
+  }
+  const options = {
+    format: 'png', // Specify output format (optional, defaults to 'png')
+    responseType: 'buffer', // Ensure binary output (PNG buffer)
+    width: _width, // Optional width for the image
+    height: _height, // Optional height for the image
+    density: 100, // Optional DPI (dots per inch)
+    // Other options (refer to pdf2pic documentation for details)
+  };
+
+  try {
+    const convert = fromBuffer(pdfBuffer, options);
+    const pageOutput = await convert(1, { responseType: 'buffer' }); // Convert page 1 (adjust as needed)
+    let base64String = await pageOutput.base64;
+    // Remove the data URL prefix if present
+    const base64Data = await base64String.replace(/^data:image\/png;base64,/, '');
+
+    // Convert Base64 to buffer
+    const _buffer = Buffer.from(base64Data, 'base64');
+    fs.writeFile(imagePath, _buffer, (err) => {
+      if (err) {
+        console.error("Error writing PNG file:", err);
+        return false;
+      }
+    });
+    // Save the PNG buffer to a file
+    return true;
+  } catch (error) {
+    console.error('Error converting PDF to PNG buffer:', error);
+    return false;
+  }
+};
+
+const _uploadImageToS3 = async (certNumber, imagePath) => {
+
+  const bucketName = process.env.BUCKET_NAME;
+  const keyName = `${certNumber}.png`;
+  const s3 = new AWS.S3();
+  const fileStream = fs.createReadStream(imagePath);
+  const acl = process.env.ACL_NAME;
+
+  let uploadParams = {
     Bucket: bucketName,
     Key: keyName,
     Body: fileStream,

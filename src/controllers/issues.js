@@ -44,7 +44,6 @@ const {
   wipeUploadFolder,
   getIssuerServiceCredits,
   updateIssuerServiceCredits,
-  verifyDynamicPDFDimensions,
   validatePDFDimensions,
   verifyBulkDynamicPDFDimensions
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
@@ -752,7 +751,7 @@ const bulkSingleIssueCertificates = async (req, res) => {
     var pdfTemplateValidation = [];
     for (let index = 0; index < pdfFiles.length; index++) {
       try {
-        console.log("Processing file index:", index);
+        // console.log("Processing file index:", index);
         let targetDocument = pdfFiles[index];
         
         // Construct the PDF file path
@@ -777,7 +776,7 @@ const bulkSingleIssueCertificates = async (req, res) => {
       return;
     }
 
-    var bulkIssueResponse = await bulkIssueSingleCertificates(pdfFiles, excelDataResponse, excelFilePath, paramsExist.positionX, paramsExist.positionY, paramsExist.qrSide);
+    var bulkIssueResponse = await bulkIssueSingleCertificates(emailExist.email, emailExist.issuerId, pdfFiles, excelDataResponse, excelFilePath, paramsExist.positionX, paramsExist.positionY, paramsExist.qrSide, paramsExist.pdfWidth, paramsExist.pdfHeight);
 
     if (bulkIssueResponse.status == false) {
       var statusCode = bulkIssueResponse.code || 400;
@@ -787,7 +786,18 @@ const bulkSingleIssueCertificates = async (req, res) => {
       await wipeUploadFolder();
       // await flushUploadFolder();
       return;
-    } else {
+    } else if(bulkIssueResponse.code == 200) {
+      let bulkResponse = {
+        email: emailExist.email,
+        issuerId: emailExist.issuerId,
+        urls: bulkIssueResponse.Details
+      }
+      res.status(bulkIssueResponse.code).json({ status: "SUCCESS", message: messageCode.msgBatchIssuedSuccess, details: bulkResponse });
+      await wipeUploadFolder();
+      // await flushUploadFolder();
+      return;
+    }
+    else {
       const zipFileName = `${formattedDateTime}.zip`;
       const resultFilePath = path.join(__dirname, '../../uploads/completed', zipFileName);
 
@@ -1049,7 +1059,7 @@ const bulkBatchIssueCertificates = async (req, res) => {
       return;
     }
 
-    var bulkIssueResponse = await bulkIssueBatchCertificates(pdfFiles, excelData.message, excelFilePath, paramsExist.positionX, paramsExist.positionY, paramsExist.qrSide);
+    var bulkIssueResponse = await bulkIssueBatchCertificates(emailExist.email, emailExist.issuerId, pdfFiles, excelData.message, excelFilePath, paramsExist.positionX, paramsExist.positionY, paramsExist.qrSide, paramsExist.pdfWidth, paramsExist.pdfHeight);
 
     if (bulkIssueResponse.status == false) {
       var statusCode = bulkIssueResponse.code || 400;
@@ -1059,7 +1069,17 @@ const bulkBatchIssueCertificates = async (req, res) => {
       await wipeUploadFolder();
       // await flushUploadFolder();
       return;
-    } else {
+    } else if(bulkIssueResponse.code == 200) {
+      let bulkResponse = {
+        email: emailExist.email,
+        issuerId: emailExist.issuerId,
+        urls: bulkIssueResponse.Details
+      }
+      res.status(bulkIssueResponse.code).json({ status: "SUCCESS", message: messageCode.msgBatchIssuedSuccess, details: bulkResponse });
+      await wipeUploadFolder();
+      // await flushUploadFolder();
+      return;
+    }else {
       const zipFileName = `${formattedDateTime}.zip`;
       const resultFilePath = path.join(__dirname, '../../uploads/completed', zipFileName);
 
