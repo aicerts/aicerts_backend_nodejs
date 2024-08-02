@@ -1226,6 +1226,7 @@ const acceptDynamicInputs = async (req, res) => {
         isParamsExist.pdfHeight = pdfHeight;
         isParamsExist.pdfWidth = pdfWidth;
         isParamsExist.paramStatus = true;
+        isParamsExist.issueDate = Date.now();
         await isParamsExist.save();
 
       }
