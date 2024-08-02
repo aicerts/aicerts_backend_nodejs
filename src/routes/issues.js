@@ -449,8 +449,8 @@ router.post('/batch-certificate-issue', __upload.single("excelFile"), ensureAuth
  * @swagger
  * /api/bulk-single-issue:
  *   post:
- *     summary: upload ZIP contain Excel & Pdfs with bulk issue with single approach.
- *     description: API extract zip file contents into uploads folder
+ *     summary: upload ZIP contain Excel & Pdfs with bulk issue with single approach with issuer email.
+ *     description: API extract zip file contents into uploads folder for Dynamic Bulk issue.
  *     tags: [Dynamic Bulk Issue]
  *     requestBody:
  *       required: true
@@ -474,7 +474,7 @@ router.post('/batch-certificate-issue', __upload.single("excelFile"), ensureAuth
  *             error: Internal Server Error
  *     responses:
  *       '200':
- *         description: Files successfully extracted
+ *         description: Dynamic Bulk issued successfully
  *         content:
  *           application/json:
  *             schema:
@@ -482,13 +482,13 @@ router.post('/batch-certificate-issue', __upload.single("excelFile"), ensureAuth
  *               properties:
  *                 message:
  *                   type: string
- *                 detailsQR:
+ *                 details:
  *                   type: string
  *             example:
  *               status: "SUCCESS"
- *               message: Files successfully extracted.
+ *               message: Dynamic Bulk issued successfully.
  *       '400':
- *         description: Files successfully not extracted
+ *         description: Dynamic Bulk not issued successfully
  *         content:
  *           application/json:
  *             schema:
@@ -498,7 +498,7 @@ router.post('/batch-certificate-issue', __upload.single("excelFile"), ensureAuth
  *                   type: string
  *             example:
  *               status: "FAILED"
- *               message: Files successfully Not extracted.
+ *               message: Dynamic Bulk not issued successfully
  *       '500':
  *         description: Internal Server Error
  *         content:
@@ -521,8 +521,8 @@ router.post('/bulk-single-issue', upload.single("zipFile"), adminController.bulk
  * @swagger
  * /api/bulk-batch-issue:
  *   post:
- *     summary: upload ZIP contain Excel & Pdfs with bulk issue with batch approach.
- *     description: API extract zip file contents into uploads folder
+ *     summary: upload ZIP contain Excel & Pdfs with bulk issue with batch approach with issuer email.
+ *     description: API extract zip file contents into uploads folder for Dynamic Bulk issue.
  *     tags: [Dynamic Bulk Issue]
  *     requestBody:
  *       required: true
@@ -546,7 +546,7 @@ router.post('/bulk-single-issue', upload.single("zipFile"), adminController.bulk
  *             error: Internal Server Error
  *     responses:
  *       '200':
- *         description: Files successfully extracted
+ *         description: Dynamic Bulk issued successfully
  *         content:
  *           application/json:
  *             schema:
@@ -558,9 +558,9 @@ router.post('/bulk-single-issue', upload.single("zipFile"), adminController.bulk
  *                   type: string
  *             example:
  *               status: "SUCCESS"
- *               message: Files successfully extracted.
+ *               message: Dynamic Bulk issued successfully.
  *       '400':
- *         description: Files successfully not extracted
+ *         description: Dynamic Bulk not issued successfully
  *         content:
  *           application/json:
  *             schema:
@@ -570,7 +570,7 @@ router.post('/bulk-single-issue', upload.single("zipFile"), adminController.bulk
  *                   type: string
  *             example:
  *               status: "FAILED"
- *               message: Files successfully Not extracted.
+ *               message: Dynamic Bulk not issued successfully.
  *       '500':
  *         description: Internal Server Error
  *         content:
