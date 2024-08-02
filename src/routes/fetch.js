@@ -811,7 +811,6 @@ router.post('/get-custom-issues', validationRoute.emailCheck, adminController.fe
 
 router.post('/get-core-issues', validationRoute.emailCheck, adminController.fetchStatusCoreFeatureIssues);
 
-
 /**
  * @swagger
  * /api/get-verification-details:

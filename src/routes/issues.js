@@ -691,7 +691,7 @@ router.post('/provide-inputs', _upload.single("pdfFile"), adminController.accept
  *             properties:
  *               email:
  *                 type: string
- *                 description: Issuer email id to be validated
+ *                 description: Issuer email id to be validate
  *               zipFile:
  *                 type: string
  *                 format: binary

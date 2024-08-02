@@ -1230,7 +1230,7 @@ const acceptDynamicInputs = async (req, res) => {
 
       }
       await cleanUploadFolder();
-      res.status(200).json({ status: "FAILED", message: messageCode.msgUnderConstruction, details: isParamsExist });
+      res.status(200).json({ status: "SUCCESS", message: messageCode.msgUnderConstruction, details: isParamsExist });
       return;
     }
   } catch (error) {
