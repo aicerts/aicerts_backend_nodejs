@@ -935,15 +935,96 @@ const getMonthAggregatedCertsDetails = async (data, month, year) => {
  * @param {Object} req - Express request object.
  * @param {Object} res - Express response object.
  */
-const fetchStatusCoreFeatureIssues = async(req, res) => {
+const fetchStatusCoreFeatureIssues = async (req, res) => {
   var validResult = validationResult(req);
   if (!validResult.isEmpty()) {
     return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
   const email = req.body.email;
 
-  return res.status(200).send({ status: "FAILED", message: messageCode.msgWorkInProgress, details: email });
-  
+  try {
+    await isDBConnected();
+    // Check if user with provided email exists
+    const issuerExist = await User.findOne({ email: email });
+    if (!issuerExist) {
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgUserEmailNotFound, details: email });
+    }
+
+    var fetchAllIssues = await IssueStatus.find({
+      email: issuerExist.email,
+      certStatus: 1
+    }).lean();
+
+    var fetchAllRenews = await IssueStatus.find({
+      email: issuerExist.email,
+      certStatus: 2
+    }).lean();
+
+    var fetchAllRevokes = await IssueStatus.find({
+      email: issuerExist.email,
+      certStatus: 3
+    }).lean();
+
+    var fetchAllReactivates = await IssueStatus.find({
+      email: issuerExist.email,
+      certStatus: 4
+    }).lean();
+
+    // Wait for both queries to resolve
+    var [queryIssues, queryRenews, queryRevokes, queryReactivates] = await Promise.all([fetchAllIssues, fetchAllRenews, fetchAllRevokes, fetchAllReactivates]);
+
+    if (queryIssues.length == 0 && queryRenews.length == 0 && queryRevokes.length == 0 && queryReactivates.length == 0) {
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgNoMatchFound });
+    }
+
+    // Process all data concurrently
+    const [getIssues, getRenews, getRevokes, getReactivates] = await Promise.all([
+      getAggregatedCoreDetails(queryIssues),
+      getAggregatedCoreDetails(queryRenews),
+      getAggregatedCoreDetails(queryRevokes),
+      getAggregatedCoreDetails(queryReactivates)
+    ]);
+
+    let getResponse = {
+      issues: getIssues,
+      renews: getRenews,
+      revoke: getRevokes,
+      reactivate: getReactivates
+    }
+    return res.status(200).send({ status: "SUCCESS", message: messageCode.msgAllIssuersFetched, details: getResponse });
+
+  } catch (error) {
+    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+  }
+
+};
+
+const getAggregatedCoreDetails = async (data) => {
+  // Function to get counts of records for a given date range
+  const getCountForRange = (startDate, endDate) => {
+    return data.filter(entry => {
+      const entryDate = moment(entry.lastUpdate);
+      return entryDate.isBetween(startDate, endDate, null, '[]');
+    }).length;
+  };
+
+  // Define the date ranges
+  const now = moment();
+  const past7DaysStart = now.clone().subtract(7, 'days').startOf('day');
+  const past30DaysStart = now.clone().subtract(30, 'days').startOf('day');
+  const pastYearStart = now.clone().subtract(1, 'year').startOf('day');
+
+  // Calculate counts for each range
+  const past7DaysCount = getCountForRange(past7DaysStart, now);
+  const past30DaysCount = getCountForRange(past30DaysStart, now);
+  const pastYearCount = getCountForRange(pastYearStart, now);
+
+  // Return the results
+  return {
+    week: past7DaysCount,
+    month: past30DaysCount,
+    year: pastYearCount
+  };
 };
 
 const uploadCertificateToS3 = async (req, res) => {
