@@ -729,6 +729,91 @@ router.post('/get-custom-issues', validationRoute.emailCheck, adminController.fe
 
 /**
  * @swagger
+ * /api/get-core-issues:
+ *   post:
+ *     summary: Fetch issues (Core & Feature) data based on a week/month/annual of an issuer with an Email
+ *     description: Retrieve issues data based on the range (Week/Month/Annual).
+ *     tags: [Fetch/Upload]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: Input valid email address (any)
+ *     responses:
+ *       '200':
+ *         description: Successfully fetched issues data (Core & Feature).
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: number
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Indicates if the request was successful.
+ *                 message:
+ *                   type: string
+ *                   description: A message indicating the result of the operation.
+ *                 details:
+ *                   type: object
+ *                   description: The fetched issues data.
+ *             example:
+ *               status: "SUCCESS"
+ *               message: Issues data fetched successfully.
+ *               details: []
+ *       '400':
+ *         description: Invalid request due to missing or invalid parameters.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Invalid request due to missing or invalid parameters.
+ *       '422':
+ *         description: User given invalid input (Unprocessable Entity)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Error message for invalid input.
+ *       '500':
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Internal Server Error.
+ */
+
+router.post('/get-core-issues', validationRoute.emailCheck, adminController.fetchStatusCoreFeatureIssues);
+
+
+/**
+ * @swagger
  * /api/get-verification-details:
  *   post:
  *     summary: Get Verification details with Issuer email input

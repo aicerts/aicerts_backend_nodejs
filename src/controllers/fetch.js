@@ -929,6 +929,23 @@ const getMonthAggregatedCertsDetails = async (data, month, year) => {
 
 };
 
+/**
+ * API to fetch issue details (core, feature) weekly, monthly, annually.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
+const fetchStatusCoreFeatureIssues = async(req, res) => {
+  var validResult = validationResult(req);
+  if (!validResult.isEmpty()) {
+    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+  }
+  const email = req.body.email;
+
+  return res.status(200).send({ status: "FAILED", message: messageCode.msgWorkInProgress, details: email });
+  
+};
+
 const uploadCertificateToS3 = async (req, res) => {
   const file = req?.file;
   const filePath = file?.path;
@@ -1599,6 +1616,8 @@ module.exports = {
   fetchGraphDetails,
 
   fetchGraphStatusDetails,
+
+  fetchStatusCoreFeatureIssues,
 
   uploadCertificateToS3,
   getSingleCertificates,
