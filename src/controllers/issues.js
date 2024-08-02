@@ -868,7 +868,8 @@ const bulkSingleIssueCertificates = async (req, res) => {
     res.status(400).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
     return;
   }
-}
+};
+
 
 /**
  * API call for Bulk Certificate issue (batch) with pdf templates.
@@ -1154,7 +1155,7 @@ const bulkBatchIssueCertificates = async (req, res) => {
 };
 
 /**
- * API call for Single / Batch Certificates for dynamic QR poisioning.
+ * API call for store dynamic QR poisioning parameters for the Dynamic Bulk Issue.
  *
  * @param {Object} req - Express request object.
  * @param {Object} res - Express response object.
@@ -1236,6 +1237,193 @@ const acceptDynamicInputs = async (req, res) => {
     res.status(400).json({ status: "FAILED", message: messageCode.msgDbNotReady, details: error });
     return;
   }
+};
+
+/**
+ * API call for validate Certificates for dynamic QR poisioning.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
+const validateDynamicBulkIssueDocuments = async (req, res) => {
+  // Check if the file path matches the pattern
+  if (!req.file || !req.file.originalname.endsWith('.zip')) {
+    // File path does not match the pattern
+    const errorMessage = messageCode.msgMustZip;
+    res.status(400).json({ status: "FAILED", message: errorMessage });
+    await cleanUploadFolder();
+    return;
+  }
+
+  var filesList = [];
+  // Initialize an empty array to store the file(s) ending with ".xlsx"
+  var xlsxFiles = [];
+  // Initialize an empty array to store the file(s) ending with ".pdf"
+  var pdfFiles = [];
+
+  var certsExist = [];
+
+  try{
+    await isDBConnected();
+
+    var filePath = req.file.path;
+    const email = req.body.email;
+
+    const emailExist = await User.findOne({ email: email });
+    const paramsExist = await DynamicParameters.findOne({ email: email });
+
+    if (!emailExist || !paramsExist) {
+      var messageContent = messageCode.msgInvalidEmail;
+      if (!paramsExist) {
+        messageContent = messageCode.msgInvalidParams;
+      }
+      res.status(400).json({ status: "FAILED", message: messageContent, details: email });
+      return;
+    }
+
+    // Function to check if a file is empty
+    const stats = fs.statSync(filePath);
+    var zipFileSize = parseInt(stats.size);
+    if (zipFileSize <= 100) {
+      res.status(400).json({ status: "FAILED", message: messageCode.msgUnableToFindFiles });
+      // await cleanUploadFolder();
+      await wipeUploadFolder();
+      return;
+    }
+
+    // Create a readable stream from the zip file
+    const readStream = fs.createReadStream(filePath);
+
+    // Pipe the read stream to the unzipper module for extraction
+    await new Promise((resolve, reject) => {
+      readStream.pipe(unzipper.Extract({ path: extractionPath }))
+        .on('error', err => {
+          console.error('Error extracting zip file:', err);
+          res.status(400).json({ status: "FAILED", message: messageCode.msgUnableToFindFiles, details: err });
+          reject(err);
+        })
+        .on('finish', () => {
+          console.log('Zip file extracted successfully.');
+          resolve();
+        });
+    });
+
+    filesList = await fs.promises.readdir(extractionPath);
+
+    if (filesList.length == 0 || filesList.length == 1) {
+      res.status(400).json({ status: "FAILED", message: messageCode.msgUnableToFindFiles });
+      // await cleanUploadFolder();
+      await wipeUploadFolder();
+      return;
+    }
+
+    filesList.forEach(file => {
+      if (file.endsWith('.xlsx')) {
+        xlsxFiles.push(file);
+      }
+    });
+
+    if (xlsxFiles.length == 0) {
+      res.status(400).json({ status: "FAILED", message: messageCode.msgUnableToFindExcelFiles });
+      // await cleanUploadFolder();
+      await wipeUploadFolder();
+      return;
+    }
+
+    filesList.forEach(file => {
+      if (file.endsWith('.pdf')) {
+        pdfFiles.push(file);
+      }
+    });
+
+    if (pdfFiles.length == 0) {
+      res.status(400).json({ status: "FAILED", message: messageCode.msgUnableToFindPdfFiles });
+      await cleanUploadFolder();
+      return;
+    }
+
+    const excelFilePath = path.join('./uploads', xlsxFiles[0]);
+
+    // console.log(excelFilePath); // Output: ./uploads/sample.xlsx
+    // Fetch the records from the Excel file
+    const excelData = await handleBulkExcelFile(excelFilePath);
+    // await _fs.remove(filePath);
+
+    if (excelData.response == false) {
+      var errorDetails = (excelData.Details).length > 0 ? excelData.Details : "";
+      res.status(400).json({ status: "FAILED", message: excelData.message, details: errorDetails });
+      // await cleanUploadFolder();
+      await wipeUploadFolder();
+      return;
+    }
+
+    var excelDataResponse = excelData.message[0];
+
+    // Extract Certs values from data and append ".pdf"
+    const certsWithPDF = excelDataResponse.map(item => item.Certs + ".pdf");
+    // Compare certsWithPDF with data in Excel
+    const matchedCerts = pdfFiles.filter(cert => certsWithPDF.includes(cert));
+    //Exctract only cert Ids
+    const certsIds = excelDataResponse.map(item => item.certificationID);
+    for(let index = 0; index < certsIds.length; index++){
+      let targetId = certsIds[index];
+      let val = await newContract.verifyCertificateById(targetId);
+      if(val[0] == true){
+        certsExist.push(targetId);
+      }
+    }
+    if(certsExist.length > 0){
+      res.status(400).json({ status: "FAILED", message: messageCode.msgExcelHasExistingIds, details: certsExist });
+      // await cleanUploadFolder();
+      await wipeUploadFolder();
+      return;
+    }
+
+    if ((pdfFiles.length != matchedCerts.length) || (matchedCerts.length != excelData.message[1])) {
+      res.status(400).json({ status: "FAILED", message: messageCode.msgInputRecordsNotMatched });
+      // await cleanUploadFolder();
+      await wipeUploadFolder();
+      return;
+    }
+
+    var pdfTemplateValidation = [];
+    for (let index = 0; index < pdfFiles.length; index++) {
+      try {
+        // console.log("Processing file index:", index);
+        let targetDocument = pdfFiles[index];
+        
+        // Construct the PDF file path
+        let pdfFilePath = path.join(__dirname, '../../uploads', targetDocument);
+    
+        // Validate PDF dimensions
+        let validityCheck = await validatePDFDimensions(pdfFilePath, paramsExist.pdfWidth, paramsExist.pdfHeight);
+    
+        // Push invalid PDFs to the array
+        if (validityCheck === false) {
+          pdfTemplateValidation.push(targetDocument); // Use targetDocument instead of pdfFiles[index]
+        }
+      } catch (error) {
+        console.error("Error processing file:", pdfFiles[index], error);
+      }
+    }
+
+    if (pdfTemplateValidation.length > 0) {
+      res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidPdfTemplate, details: pdfTemplateValidation });
+      // await cleanUploadFolder();
+      await wipeUploadFolder();
+      return;
+    }
+
+    res.status(200).json({ status: "SUCCESS", message: messageCode.msgValidDocumentsUploaded, details: email });
+    await wipeUploadFolder();
+    return;
+
+  } catch (error) {
+    res.status(400).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+    await wipeUploadFolder();
+    return;
+  }
+
 };
 
 const issueBatchCertificateWithRetry = async (root, expirationEpoch, retryCount = 3) => {
@@ -1322,5 +1510,7 @@ module.exports = {
 
   bulkBatchIssueCertificates,
 
-  acceptDynamicInputs
+  acceptDynamicInputs,
+
+  validateDynamicBulkIssueDocuments
 };

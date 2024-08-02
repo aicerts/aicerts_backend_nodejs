@@ -591,10 +591,10 @@ router.post('/bulk-batch-issue', upload.single("zipFile"), adminController.bulkB
 
 /**
  * @swagger
- * /api/verify-inputs:
+ * /api/provide-inputs:
  *   post:
- *     summary: Verify dynamic input values
- *     description: Verify single/batch certificates using their certification ID. It checks whether the certification ID exists in the database and validates it against blockchain records if found.
+ *     summary: Provide input parameters for Bulk dynamic issues
+ *     description: Provide certificate template dimensions, X-coordinate, y-coordinate, QR Size, Document widht and Document height.
  *     tags: [Dynamic Template]
  *     security:
  *       - BearerAuth: []
@@ -673,6 +673,78 @@ router.post('/bulk-batch-issue', upload.single("zipFile"), adminController.bulkB
  *                  example: "Internal Server error"
  */
 
-router.post('/verify-inputs', _upload.single("pdfFile"), adminController.acceptDynamicInputs);
+router.post('/provide-inputs', _upload.single("pdfFile"), adminController.acceptDynamicInputs);
+
+/**
+ * @swagger
+ * /api/validate-bulk-issue:
+ *   post:
+ *     summary: upload ZIP contain Excel & Pdfs to perform validation for dynamic bulk issue approach.
+ *     description: API extract zip file contents into uploads folder and validate each document dimension, unique certification ID, QR existance etc.
+ *     tags: [Dynamic Template]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: Issuer email id to be validated
+ *               zipFile:
+ *                 type: string
+ *                 format: binary
+ *                 description: ZIP file containing the PDF certificates & Excel to be validate.
+ *             required:
+ *                - email
+ *                - zipFile
+ *           example:
+ *             status: "FAILED"
+ *             error: Internal Server Error
+ *     responses:
+ *       '200':
+ *         description: Files successfully extracted & validated.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 details:
+ *                   type: string
+ *             example:
+ *               status: "SUCCESS"
+ *               message: Files successfully validated.
+ *       '400':
+ *         description: Files successfully not validated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Files successfully Not validated.
+ *       '500':
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Internal Server Error.
+ */
+
+router.post('/validate-bulk-issue', upload.single("zipFile"), adminController.validateDynamicBulkIssueDocuments);
 
 module.exports=router;

@@ -45,6 +45,7 @@ module.exports = {
     msgFailedToIssueBulkCerts: "Failed to issue Bulk certifications, Please try again",
     msgNoEntryMatchFound: "No matching entry found for Certifcate",
     msgFaileToIssueAfterRetry: "Failed to issue certificate after retries.",
+    msgValidDocumentsUploaded: "Uploaded valid documents and excel file",
 
     // Validation Error codes Issues (Route)
     msgInvalidFile: "Invalid file uploaded / Please Try again ...",
