@@ -3,10 +3,15 @@ import * as fs from 'fs/promises'; // Use the promises API for async file operat
 import * as xml2js from 'xml2js';
 import * as csv from 'csv-parse/sync'; // Use synchronous API for simplicity
 
-async function convertToExcel(inputFile: string, outputFile: string) {
-  const fileExtension = inputFile.split('.').pop()?.toLowerCase();
-  let data: any[];
+export async function testFunction() {
+    return "TS Function calling!";
+};
 
+export async function convertToExcel(inputFile: string, extension: string, outputFile: string) { 
+// Read the file content
+console.log("Inputs", extension, outputFile);
+const fileExtension = extension;
+  let data: any[];
   try {
     switch (fileExtension) {
       case 'xml':
@@ -21,7 +26,7 @@ async function convertToExcel(inputFile: string, outputFile: string) {
       default:
         throw new Error('Unsupported file format');
     }
-
+console.log("the data", data);
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Sheet1');
 
@@ -36,9 +41,14 @@ async function convertToExcel(inputFile: string, outputFile: string) {
       worksheet.addRow(Object.values(row));
     });
 
-    await workbook.xlsx.writeFile(outputFile);
-
+    let _theResponse = await workbook.xlsx.writeFile(outputFile);
+    
+    const _excelBuffer = await workbook.xlsx.readFile(outputFile);
+    const excelBuffer = await fs.readFile(outputFile);
+    console.log("The buffer", excelBuffer, _excelBuffer);
     console.log(`Conversion complete. Excel file saved as ${outputFile}`);
+    return _excelBuffer;
+
   } catch (error) {
     console.error('Error during conversion:', error);
   }
@@ -67,5 +77,5 @@ async function parseCSV(filePath: string): Promise<any[]> {
   return csv.parse(csvData, { columns: true });
 }
 
-// Example usage
-convertToExcel('data.xml', 'output.xlsx');
+
+

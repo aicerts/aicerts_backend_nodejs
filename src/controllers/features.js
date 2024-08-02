@@ -1,5 +1,6 @@
 // Load environment variables from .env file
 require('dotenv').config();
+const path = require("path");
 
 // Import required modules
 const { validationResult } = require("express-validator");
@@ -18,8 +19,11 @@ const {
     convertDateFormat,
     isDBConnected,
     getIssuerServiceCredits,
-    updateIssuerServiceCredits
+    updateIssuerServiceCredits,
+    cleanUploadFolder
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
+
+const { testFunction, convertToExcel } = require('../dist/convert');
 
 var messageCode = require("../common/codes");
 
@@ -260,6 +264,62 @@ const updateBatchStatus = async (req, res) => {
     }
 };
 
+
+/**
+ * API call to convert json/csv/xml file into excel file extension.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
+const convertIntoExcel = async (req, res) => {
+
+    // Check if the file path matches the pattern
+    if (!req.file) {
+        // File path does not match the pattern
+        let errorMessage = messageCode.msgInvalidFile;
+        await cleanUploadFolder();
+        res.status(400).json({ status: "FAILED", message: errorMessage, details: req.file });
+        return;
+    }
+    let originalName = req.file.originalname;
+    const getExtension = path.extname(originalName).slice(1);
+    console.log("the extension", getExtension);
+    const uploadDir = path.join(__dirname, '..', '..', './', req.file.path);
+    try {
+        const email = req.body.email;
+        // console.log("reached", uploadDir, email);
+        let dbStatus = isDBConnected();
+        if (dbStatus) {
+            let isEmailExist = await User.findOne({ email: email });
+            if (!isEmailExist) {
+                res.status(400).json({ status: "FAILED", message: messageCode.msgUserEmailNotFound, details: email });
+                return;
+            }
+            var responseCall = await testFunction();
+            console.log("Reached", responseCall, req.file.originalname, uploadDir);
+            const targetFile = await convertToExcel(uploadDir, getExtension, 'test.xlsx');
+            console.log("The response", targetFile);
+            await cleanUploadFolder();
+
+            // Set response headers for PDF to download
+            const resultExcel = `test.xlsx`;
+
+            res.set({
+                'Content-Type': "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                'Content-Disposition': `attachment; filename="${resultExcel}"`, // Change filename as needed
+            });
+            // Send Pdf file
+            res.send(issueResponse.file);
+            return;
+        }
+    } catch (error) {
+        await cleanUploadFolder();
+        res.status(400).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+        return;
+    }
+
+};
+
 module.exports = {
     // Function to renew a certification (single / in batch)
     renewCert,
@@ -272,5 +332,7 @@ module.exports = {
 
     // Function to revoke/reactivate a Batch of certifications
     updateBatchStatus,
+
+    convertIntoExcel,
 
 };

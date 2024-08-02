@@ -1,8 +1,11 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
 const { ensureAuthenticated } = require("../config/auth"); // Import authentication middleware
 const adminController = require('../controllers/features');
 const validationRoute = require("../common/validationRoutes");
+
+const upload = multer({ dest: "./uploads/" });
 
 /**
  * @swagger
@@ -431,5 +434,77 @@ router.post('/renew-batch', validationRoute.renewBatch, ensureAuthenticated, adm
 
 router.post('/update-batch-status', validationRoute.updateBatch, ensureAuthenticated, adminController.updateBatchStatus);
 
+/**
+ * @swagger
+ * /api/convert-excel:
+ *   post:
+ *     summary: Input json/csv/xml file containing the data to be converted into excel
+ *     description: Provided json/csv/xml file containing the data to be validated and converted into excel.
+ *     tags: [Dynamic Template]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: Issuer email id to be validated
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: json/csv/xml file containing the data to be converted into excel.
+ *             required:
+ *                - email
+ *                - file
+ *     responses:
+ *       '200':
+ *         description: Successful response
+ *         content:
+ *           application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                status:
+ *                  type: string
+ *                  example: "SUCCESS"
+ *                message:
+ *                  type: string
+ *                  example: "Valid Inputs"
+ *                details:
+ *                  type: object
+ *                  properties:
+ *                    // Define properties of dynamic QR details object here
+ *       '400':
+ *         description: Invalid input values
+ *         content:
+ *           application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                status:
+ *                  type: string
+ *                  example: "FAILED"
+ *                message:
+ *                  type: string
+ *                  example: "Invalid input provided"
+ *       '500':
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                status:
+ *                  type: string
+ *                  example: "FAILED"
+ *                message:
+ *                  type: string
+ *                  example: "Internal Server error"
+ */
+router.post('/convert-excel', upload.single("file"), adminController.convertIntoExcel);
 
 module.exports=router;

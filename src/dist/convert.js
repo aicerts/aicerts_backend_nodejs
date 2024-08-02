@@ -32,14 +32,23 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.testFunction = testFunction;
+exports.convertToExcel = convertToExcel;
 const ExcelJS = __importStar(require("exceljs"));
 const fs = __importStar(require("fs/promises")); // Use the promises API for async file operations
 const xml2js = __importStar(require("xml2js"));
 const csv = __importStar(require("csv-parse/sync")); // Use synchronous API for simplicity
-function convertToExcel(inputFile, outputFile) {
+function testFunction() {
     return __awaiter(this, void 0, void 0, function* () {
-        var _a;
-        const fileExtension = (_a = inputFile.split('.').pop()) === null || _a === void 0 ? void 0 : _a.toLowerCase();
+        return "TS Function calling!";
+    });
+}
+;
+function convertToExcel(inputFile, extension, outputFile) {
+    return __awaiter(this, void 0, void 0, function* () {
+        // Read the file content
+        console.log("Inputs", extension, outputFile);
+        const fileExtension = extension;
         let data;
         try {
             switch (fileExtension) {
@@ -55,6 +64,7 @@ function convertToExcel(inputFile, outputFile) {
                 default:
                     throw new Error('Unsupported file format');
             }
+            console.log("the data", data);
             const workbook = new ExcelJS.Workbook();
             const worksheet = workbook.addWorksheet('Sheet1');
             // Add headers
@@ -66,8 +76,12 @@ function convertToExcel(inputFile, outputFile) {
             data.forEach(row => {
                 worksheet.addRow(Object.values(row));
             });
-            yield workbook.xlsx.writeFile(outputFile);
+            let _theResponse = yield workbook.xlsx.writeFile(outputFile);
+            const _excelBuffer = yield workbook.xlsx.readFile(outputFile);
+            const excelBuffer = yield fs.readFile(outputFile);
+            console.log("The buffer", excelBuffer, _excelBuffer);
             console.log(`Conversion complete. Excel file saved as ${outputFile}`);
+            return _excelBuffer;
         }
         catch (error) {
             console.error('Error during conversion:', error);
@@ -101,5 +115,3 @@ function parseCSV(filePath) {
         return csv.parse(csvData, { columns: true });
     });
 }
-// Example usage
-convertToExcel('data.xml', 'output.xlsx');
