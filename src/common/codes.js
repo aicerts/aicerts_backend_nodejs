@@ -46,6 +46,7 @@ module.exports = {
     msgNoEntryMatchFound: "No matching entry found for Certifcate",
     msgFaileToIssueAfterRetry: "Failed to issue certificate after retries.",
     msgValidDocumentsUploaded: "Uploaded valid documents and excel file",
+    msgUnableToConvert: "Unable to convert the file, please check file format data and upload again...",
 
     // Validation Error codes Issues (Route)
     msgInvalidFile: "Invalid file uploaded / Please Try again ...",
@@ -54,7 +55,6 @@ module.exports = {
     msgNonEmpty: "Input field cannot be empty",
     msgInputProvide: "Input should be provided",
     msgInvalidFormat: "Entered input format is invalid ",
-    msgInvalidDate: "Entered date format is invalid",
     msgCertLength: "Certification ID must between 12 to 20 characters",
     msgMaxLength: "Entered Input must between 8 to 30 characters",
     msgMaxLengthCourse: "Entered Input must not exceed 150 characters",
@@ -74,11 +74,9 @@ module.exports = {
     msgInvalidIssuer: "Invalid Issuer email",
     msgCertIdRequired: "Certification ID is required",
     msgUnauthIssuer: "Unauthorised Issuer Email",
-    msgProvideValidDates: "Please provide valid dates",
     msgInvalidEthereum: "Invalid Ethereum address format",
     msgCertIssuedSuccess: "Certification issued successfully",
     msgBatchIssuedSuccess: "Batch of Certifications issued successfully",
-    msgInvalidPdfTemplate: "Invalid PDF (Certification Template) dimensions",
     msgInvalidPdfUploaded: "Invalid PDF document uploaded",
     msgInvalidPdfQr: "Invalid PDF (Document Template / QR) dimensions",
     msgCertIssued: "Certification ID already issued",
@@ -98,7 +96,6 @@ module.exports = {
     msgInvalidPassword: "Invalid password entered!",
     msgErrorOnPwdCompare: "An error occurred while comparing passwords",
     msgErrorOnExistUser: "An error occurred while checking for existing user",
-    msgAdminNotFound: "Admin not found (or) Not Logged in!",
     msgLogoutSuccess: "Admin Logged out successfully",
     msgErrorInLogout: "An error occurred during the logout!",
     msgPwdSuccess: "Password reset successful",
@@ -140,8 +137,7 @@ module.exports = {
     
 
     // Dates Messages
-    msgInvalidDate: "Invalid Date, Please check and try again ...",
-    msgInvalidDateFormat: "Please provide valid Date format",
+    msgInvalidDate: "Invalid Date, recommended (MM/DD/YYYY) Please check and try again ...",
     msgOlderGrantDate: "Expiration date must not older than Grant date, Please check and try again ...",
     msgInvalidExpiration: "Please provide valid expiration date or provide more than 30 days from today and try again...",
     msgInvalidNewExpiration: "Please provide valid newer expiration date or provide more than 30 days from today and try again...",

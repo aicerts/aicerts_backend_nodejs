@@ -47,14 +47,13 @@ function testFunction() {
 function convertToExcel(inputFile, extension) {
     return __awaiter(this, void 0, void 0, function* () {
         // Read the file content
-        // const downloadDir = path.join(__dirname, '..', '..', '/uploads', outputFile);
-        // console.log("Inputs", extension, outputFile, downloadDir);
+        // console.log("Input type", extension);
         const fileExtension = extension;
         let data;
         try {
             switch (fileExtension) {
                 case 'xml':
-                    data = yield extractDataFromXML(inputFile);
+                    data = yield parseXML(inputFile);
                     break;
                 case 'json':
                     data = yield parseJSON(inputFile);
@@ -66,8 +65,24 @@ function convertToExcel(inputFile, extension) {
                     throw new Error('Unsupported file format');
             }
             console.log("the data", data);
+            if (!data) {
+                return null;
+            }
             const workbook = new ExcelJS.Workbook();
             const worksheet = workbook.addWorksheet('Batch');
+            if (extension == 'xml') {
+                // Access the Workbook and its Worksheet
+                let workbookData = data[0].Workbook;
+                let worksheetData = workbookData.Worksheet;
+                // console.log("The worksheet", worksheetData);
+                // Extract rows from Worksheet
+                // You might need to adjust this based on the actual XML structure
+                let { rows, columns } = yield processWorksheet(worksheetData);
+                console.log("The rows", rows, columns);
+                if (!rows || !columns) {
+                    return null;
+                }
+            }
             // Add column headers
             const headers = Object.keys(data[0]);
             worksheet.addRow(headers);
@@ -98,6 +113,34 @@ function parseXML(filePath) {
                     resolve(Array.isArray(result) ? result : [result]);
             });
         });
+    });
+}
+;
+function processWorksheet(worksheet) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const columns = (worksheet['ss:Table'].Column || []).map(col => {
+            var _a, _b;
+            return ({
+                index: ((_a = col === null || col === void 0 ? void 0 : col.$.ss) === null || _a === void 0 ? void 0 : _a.Index) || '',
+                width: ((_b = col === null || col === void 0 ? void 0 : col.$.ss) === null || _b === void 0 ? void 0 : _b.Width) || ''
+            });
+        });
+        const rows = (worksheet['ss:Table'].Row || []).map(row => {
+            var _a;
+            return ({
+                index: ((_a = row === null || row === void 0 ? void 0 : row.$.ss) === null || _a === void 0 ? void 0 : _a.Index) || '',
+                cells: (row.Cell || []).map(cell => {
+                    var _a, _b;
+                    return ({
+                        styleId: ((_a = cell === null || cell === void 0 ? void 0 : cell.$.ss) === null || _a === void 0 ? void 0 : _a.StyleID) || '',
+                        data: ((_b = cell === null || cell === void 0 ? void 0 : cell.Data) === null || _b === void 0 ? void 0 : _b.$.Type) || ''
+                    });
+                })
+            });
+        });
+        // const columns = worksheet['ss:Table'].Column || [];
+        // const rows = worksheet['ss:Table'].Row || [];
+        return { rows, columns };
     });
 }
 function extractDataFromXML(filePath) {

@@ -9,14 +9,13 @@ export async function testFunction() {
 
 export async function convertToExcel(inputFile: string, extension: string) {
   // Read the file content
-  // const downloadDir = path.join(__dirname, '..', '..', '/uploads', outputFile);
-  // console.log("Inputs", extension, outputFile, downloadDir);
+  // console.log("Input type", extension);
   const fileExtension = extension;
   let data: any[];
   try {
     switch (fileExtension) {
       case 'xml':
-        data = await extractDataFromXML(inputFile);
+        data = await parseXML(inputFile);
         break;
       case 'json':
         data = await parseJSON(inputFile);
@@ -28,8 +27,25 @@ export async function convertToExcel(inputFile: string, extension: string) {
         throw new Error('Unsupported file format');
     }
     console.log("the data", data);
+    if (!data) {
+      return null;
+    }
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Batch');
+
+    if (extension == 'xml') {
+      // Access the Workbook and its Worksheet
+      let workbookData = data[0].Workbook;
+      let worksheetData = workbookData.Worksheet;
+      // console.log("The worksheet", worksheetData);
+      // Extract rows from Worksheet
+      // You might need to adjust this based on the actual XML structure
+      let { rows, columns } = await processWorksheet(worksheetData);
+      console.log("The rows", rows, columns);
+      if (!rows || !columns) {
+        return null;
+      }
+    }
 
     // Add column headers
     const headers = Object.keys(data[0]);
@@ -52,6 +68,33 @@ export async function convertToExcel(inputFile: string, extension: string) {
   }
 }
 
+interface Worksheet {
+  $: {
+    ss: {
+      Name: string;
+    };
+  };
+  'ss:Names': string;
+  'ss:Table': {
+    $: {
+      ss: {
+        DefaultRowHeight: string;
+        DefaultColumnWidth: string;
+        ExpandedRowCount: string;
+        ExpandedColumnCount: string;
+      };
+    };
+    Column: Array<{ $: { ss: { Index: string; Width: string; }; }; }>;
+    Row: Array<{ $: { ss: { Index: string; }; }; Cell: Array<{ $: { ss: { StyleID: string; }; }; Data: { $: { Type: string; }; }; }>; }>;
+    // ... other properties
+  };
+  WorksheetOptions: {
+    $: { xmlns: string; };
+    PageSetup: { Header: any; Footer: any; PageMargins: any; };
+    Print: { ValidPrinterInfo: string; PaperSizeIndex: string; HorizontalResolution: string; VerticalResolution: string; };
+    Panes: { Pane: any; };
+  };
+}
 
 async function parseXML(filePath: string): Promise<any[]> {
   const xmlData = await fs.readFile(filePath, 'utf-8');
@@ -63,6 +106,26 @@ async function parseXML(filePath: string): Promise<any[]> {
       else resolve(Array.isArray(result) ? result : [result]);
     });
   });
+};
+
+async function processWorksheet(worksheet: Worksheet) {
+  const columns = (worksheet['ss:Table'].Column || []).map(col => ({
+    index: col?.$.ss?.Index || '',
+    width: col?.$.ss?.Width || ''
+  }));
+
+  const rows = (worksheet['ss:Table'].Row || []).map(row => ({
+    index: row?.$.ss?.Index || '',
+    cells: (row.Cell || []).map(cell => ({
+      styleId: cell?.$.ss?.StyleID || '',
+      data: cell?.Data?.$.Type || ''
+    }))
+  }));
+
+  // const columns = worksheet['ss:Table'].Column || [];
+  // const rows = worksheet['ss:Table'].Row || [];
+
+  return { rows, columns };
 }
 
 async function extractDataFromXML(filePath: string) {

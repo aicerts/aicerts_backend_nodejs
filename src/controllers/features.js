@@ -296,12 +296,17 @@ const convertIntoExcel = async (req, res) => {
                 res.status(400).json({ status: "FAILED", message: messageCode.msgUserEmailNotFound, details: email });
                 return;
             }
-            
+
             let outputPath = path.join(__dirname, '../../uploads', `test.xlsx`);
-            console.log("Reached", req.file.originalname, uploadDir);
+            // console.log("Reached", req.file.originalname, uploadDir);
 
             const targetFileBuffer = await convertToExcel(uploadDir, getExtension);
             console.log("The response", targetFileBuffer);
+            if (!targetFileBuffer || targetFileBuffer == null) {
+                res.status(400).json({ status: "FAILED", message: messageCode.msgUnableToConvert });
+                await cleanUploadFolder();
+                return;
+            }
             await cleanUploadFolder();
 
             const resultExcel = `tested.xlsx`;
