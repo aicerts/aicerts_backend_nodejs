@@ -1,6 +1,8 @@
 // Load environment variables from .env file
 require('dotenv').config();
 const path = require("path");
+const fs = require("fs");
+const ExcelJS = require('exceljs');
 
 // Import required modules
 const { validationResult } = require("express-validator");
@@ -287,7 +289,6 @@ const convertIntoExcel = async (req, res) => {
     const uploadDir = path.join(__dirname, '..', '..', './', req.file.path);
     try {
         const email = req.body.email;
-        // console.log("reached", uploadDir, email);
         let dbStatus = isDBConnected();
         if (dbStatus) {
             let isEmailExist = await User.findOne({ email: email });
@@ -295,21 +296,23 @@ const convertIntoExcel = async (req, res) => {
                 res.status(400).json({ status: "FAILED", message: messageCode.msgUserEmailNotFound, details: email });
                 return;
             }
-            var responseCall = await testFunction();
-            console.log("Reached", responseCall, req.file.originalname, uploadDir);
-            const targetFile = await convertToExcel(uploadDir, getExtension, 'test.xlsx');
-            console.log("The response", targetFile);
+            
+            let outputPath = path.join(__dirname, '../../uploads', `test.xlsx`);
+            console.log("Reached", req.file.originalname, uploadDir);
+
+            const targetFileBuffer = await convertToExcel(uploadDir, getExtension);
+            console.log("The response", targetFileBuffer);
             await cleanUploadFolder();
 
-            // Set response headers for PDF to download
-            const resultExcel = `test.xlsx`;
+            const resultExcel = `tested.xlsx`;
 
             res.set({
                 'Content-Type': "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 'Content-Disposition': `attachment; filename="${resultExcel}"`, // Change filename as needed
             });
-            // Send Pdf file
-            res.send(issueResponse.file);
+
+            // Send excel file
+            res.send(targetFileBuffer);
             return;
         }
     } catch (error) {

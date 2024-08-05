@@ -1171,7 +1171,7 @@ const acceptDynamicInputs = async (req, res) => {
   }
 
   // Extracting file path from the request
-  file = req.file.path;
+  const file = req.file.path;
   const email = req.body.email;
   const positionx = parseInt(req.body.posx);
   const positiony = parseInt(req.body.posy);

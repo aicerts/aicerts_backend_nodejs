@@ -37,23 +37,24 @@ exports.convertToExcel = convertToExcel;
 const ExcelJS = __importStar(require("exceljs"));
 const fs = __importStar(require("fs/promises")); // Use the promises API for async file operations
 const xml2js = __importStar(require("xml2js"));
-const csv = __importStar(require("csv-parse/sync")); // Use synchronous API for simplicity
+const csv_parse_1 = require("csv-parse");
 function testFunction() {
     return __awaiter(this, void 0, void 0, function* () {
         return "TS Function calling!";
     });
 }
 ;
-function convertToExcel(inputFile, extension, outputFile) {
+function convertToExcel(inputFile, extension) {
     return __awaiter(this, void 0, void 0, function* () {
         // Read the file content
-        console.log("Inputs", extension, outputFile);
+        // const downloadDir = path.join(__dirname, '..', '..', '/uploads', outputFile);
+        // console.log("Inputs", extension, outputFile, downloadDir);
         const fileExtension = extension;
         let data;
         try {
             switch (fileExtension) {
                 case 'xml':
-                    data = yield parseXML(inputFile);
+                    data = yield extractDataFromXML(inputFile);
                     break;
                 case 'json':
                     data = yield parseJSON(inputFile);
@@ -66,22 +67,19 @@ function convertToExcel(inputFile, extension, outputFile) {
             }
             console.log("the data", data);
             const workbook = new ExcelJS.Workbook();
-            const worksheet = workbook.addWorksheet('Sheet1');
-            // Add headers
-            if (data.length > 0) {
-                const headers = Object.keys(data[0]);
-                worksheet.addRow(headers);
-            }
-            // Add data
+            const worksheet = workbook.addWorksheet('Batch');
+            // Add column headers
+            const headers = Object.keys(data[0]);
+            worksheet.addRow(headers);
+            // Add data rows
             data.forEach(row => {
                 worksheet.addRow(Object.values(row));
             });
-            let _theResponse = yield workbook.xlsx.writeFile(outputFile);
-            const _excelBuffer = yield workbook.xlsx.readFile(outputFile);
-            const excelBuffer = yield fs.readFile(outputFile);
-            console.log("The buffer", excelBuffer, _excelBuffer);
-            console.log(`Conversion complete. Excel file saved as ${outputFile}`);
-            return _excelBuffer;
+            // Write to buffer instead of file directly
+            const excelBuffer = yield workbook.xlsx.writeBuffer();
+            // await workbook.xlsx.writeFile(outputFile);
+            console.log(`Conversion complete. Excel file buffer generated`);
+            return excelBuffer;
         }
         catch (error) {
             console.error('Error during conversion:', error);
@@ -102,6 +100,33 @@ function parseXML(filePath) {
         });
     });
 }
+function extractDataFromXML(filePath) {
+    return __awaiter(this, void 0, void 0, function* () {
+        var _a, _b, _c;
+        const result = yield parseXML(filePath);
+        // The result is an array with a single object containing the Workbook
+        let workbook = (_a = result[0]) === null || _a === void 0 ? void 0 : _a.Workbook;
+        if (!workbook || !workbook.Worksheet) {
+            throw new Error('Invalid XML structure: missing Workbook or Worksheet');
+        }
+        // Handle case where there might be multiple worksheets
+        let worksheet = workbook.Worksheet;
+        console.log("Result worksheet data", worksheet);
+        // Check if Table and Row exist
+        // let rows = worksheet.Table?.Row || [];
+        const table = (_c = (_b = worksheet.data) === null || _b === void 0 ? void 0 : _b.ss) === null || _c === void 0 ? void 0 : _c.Table; // Use optional chaining
+        if (!table) {
+            // Handle missing table case (e.g., return empty arrays)
+            throw new Error('Invalid XML structure: missing Workbook or Worksheet');
+        }
+        console.log("Result data", table);
+        // Convert rows to an array of arrays
+        // let _data = rows.map((row: any) => 
+        //   row.Cell.map((cell: any) => cell.Data._ || '') // Extract text data from each cell
+        // );
+        return result;
+    });
+}
 function parseJSON(filePath) {
     return __awaiter(this, void 0, void 0, function* () {
         const jsonData = yield fs.readFile(filePath, 'utf-8');
@@ -112,6 +137,21 @@ function parseJSON(filePath) {
 function parseCSV(filePath) {
     return __awaiter(this, void 0, void 0, function* () {
         const csvData = yield fs.readFile(filePath, 'utf-8');
-        return csv.parse(csvData, { columns: true });
+        return new Promise((resolve, reject) => {
+            (0, csv_parse_1.parse)(csvData, {
+                columns: true,
+                delimiter: ',', // Ensure the delimiter matches your CSV format
+                skip_empty_lines: true,
+                trim: true, // Trim whitespace around values
+                relax_column_count: true // Allow rows with varying column counts
+            }, (err, records) => {
+                if (err) {
+                    reject(err);
+                }
+                else {
+                    resolve(records);
+                }
+            });
+        });
     });
 }
