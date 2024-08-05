@@ -3,9 +3,14 @@ import * as fs from 'fs/promises'; // Use the promises API for async file operat
 import * as xml2js from 'xml2js';
 import { parse } from 'csv-parse';
 
-export async function testFunction() {
-  return "TS Function calling!";
-};
+interface Record {
+  Certs: string;
+  certificationID: string;
+  name: string;
+  certificationName: string;
+  grantDate: string;
+  expirationDate: string;
+}
 
 export async function convertToExcel(inputFile: string, extension: string) {
   // Read the file content
@@ -26,26 +31,13 @@ export async function convertToExcel(inputFile: string, extension: string) {
       default:
         throw new Error('Unsupported file format');
     }
-    console.log("the data", data);
-    if (!data) {
+    // console.log("the data", data);
+    if (!data || !data.length) {
+      console.error('No data to convert');
       return null;
     }
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('Batch');
-
-    if (extension == 'xml') {
-      // Access the Workbook and its Worksheet
-      let workbookData = data[0].Workbook;
-      let worksheetData = workbookData.Worksheet;
-      // console.log("The worksheet", worksheetData);
-      // Extract rows from Worksheet
-      // You might need to adjust this based on the actual XML structure
-      let { rows, columns } = await processWorksheet(worksheetData);
-      console.log("The rows", rows, columns);
-      if (!rows || !columns) {
-        return null;
-      }
-    }
 
     // Add column headers
     const headers = Object.keys(data[0]);
@@ -66,96 +58,36 @@ export async function convertToExcel(inputFile: string, extension: string) {
   } catch (error) {
     console.error('Error during conversion:', error);
   }
-}
-
-interface Worksheet {
-  $: {
-    ss: {
-      Name: string;
-    };
-  };
-  'ss:Names': string;
-  'ss:Table': {
-    $: {
-      ss: {
-        DefaultRowHeight: string;
-        DefaultColumnWidth: string;
-        ExpandedRowCount: string;
-        ExpandedColumnCount: string;
-      };
-    };
-    Column: Array<{ $: { ss: { Index: string; Width: string; }; }; }>;
-    Row: Array<{ $: { ss: { Index: string; }; }; Cell: Array<{ $: { ss: { StyleID: string; }; }; Data: { $: { Type: string; }; }; }>; }>;
-    // ... other properties
-  };
-  WorksheetOptions: {
-    $: { xmlns: string; };
-    PageSetup: { Header: any; Footer: any; PageMargins: any; };
-    Print: { ValidPrinterInfo: string; PaperSizeIndex: string; HorizontalResolution: string; VerticalResolution: string; };
-    Panes: { Pane: any; };
-  };
-}
-
-async function parseXML(filePath: string): Promise<any[]> {
-  const xmlData = await fs.readFile(filePath, 'utf-8');
-  const parser = new xml2js.Parser({ explicitArray: false });
-
-  return new Promise((resolve, reject) => {
-    parser.parseString(xmlData, (err, result) => {
-      if (err) reject(err);
-      else resolve(Array.isArray(result) ? result : [result]);
-    });
-  });
 };
 
-async function processWorksheet(worksheet: Worksheet) {
-  const columns = (worksheet['ss:Table'].Column || []).map(col => ({
-    index: col?.$.ss?.Index || '',
-    width: col?.$.ss?.Width || ''
-  }));
+async function parseXML(filePath: string): Promise<any[]> {
+  try {
+    const xmlData = await fs.readFile(filePath, 'utf-8');
+    const parser = new xml2js.Parser({ explicitArray: false });
 
-  const rows = (worksheet['ss:Table'].Row || []).map(row => ({
-    index: row?.$.ss?.Index || '',
-    cells: (row.Cell || []).map(cell => ({
-      styleId: cell?.$.ss?.StyleID || '',
-      data: cell?.Data?.$.Type || ''
-    }))
-  }));
+    // return new Promise((resolve, reject) => {
+    //   parser.parseString(xmlData, (err, result) => {
+    //     if (err) reject(err);
+    //     else resolve(Array.isArray(result) ? result : [result]);
+    //   });
+    // });
+    const result = await new Promise<Record[]>((resolve, reject) => {
+      parser.parseString(xmlData, (err, parsedResult) => {
+        if (err) {
+          reject(err);
+        } else {
+          const records = parsedResult.root.record;
+          resolve(Array.isArray(records) ? records : [records]);
+        }
+      });
+    });
 
-  // const columns = worksheet['ss:Table'].Column || [];
-  // const rows = worksheet['ss:Table'].Row || [];
-
-  return { rows, columns };
-}
-
-async function extractDataFromXML(filePath: string) {
-  const result = await parseXML(filePath);
-  // The result is an array with a single object containing the Workbook
-  let workbook = result[0]?.Workbook;
-  if (!workbook || !workbook.Worksheet) {
-    throw new Error('Invalid XML structure: missing Workbook or Worksheet');
+    return result;
+  } catch (error) {
+    console.error('Error parsing XML:', error);
+    throw error;
   }
-  // Handle case where there might be multiple worksheets
-  let worksheet = workbook.Worksheet;
-
-  console.log("Result worksheet data", worksheet);
-  // Check if Table and Row exist
-  // let rows = worksheet.Table?.Row || [];
-  const table = worksheet.data?.ss?.Table; // Use optional chaining
-
-  if (!table) {
-    // Handle missing table case (e.g., return empty arrays)
-    throw new Error('Invalid XML structure: missing Workbook or Worksheet');
-  }
-
-  console.log("Result data", table);
-  // Convert rows to an array of arrays
-  // let _data = rows.map((row: any) => 
-  //   row.Cell.map((cell: any) => cell.Data._ || '') // Extract text data from each cell
-  // );
-
-  return result;
-}
+};
 
 async function parseJSON(filePath: string): Promise<any[]> {
   const jsonData = await fs.readFile(filePath, 'utf-8');

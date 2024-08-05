@@ -25,7 +25,7 @@ const {
     cleanUploadFolder
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
-const { testFunction, convertToExcel } = require('../dist/convert');
+const { convertToExcel } = require('../dist/convert');
 
 var messageCode = require("../common/codes");
 
@@ -301,7 +301,7 @@ const convertIntoExcel = async (req, res) => {
             // console.log("Reached", req.file.originalname, uploadDir);
 
             const targetFileBuffer = await convertToExcel(uploadDir, getExtension);
-            console.log("The response", targetFileBuffer);
+            // console.log("The response", targetFileBuffer);
             if (!targetFileBuffer || targetFileBuffer == null) {
                 res.status(400).json({ status: "FAILED", message: messageCode.msgUnableToConvert });
                 await cleanUploadFolder();

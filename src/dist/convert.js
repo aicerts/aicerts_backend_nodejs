@@ -32,18 +32,11 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.testFunction = testFunction;
 exports.convertToExcel = convertToExcel;
 const ExcelJS = __importStar(require("exceljs"));
 const fs = __importStar(require("fs/promises")); // Use the promises API for async file operations
 const xml2js = __importStar(require("xml2js"));
 const csv_parse_1 = require("csv-parse");
-function testFunction() {
-    return __awaiter(this, void 0, void 0, function* () {
-        return "TS Function calling!";
-    });
-}
-;
 function convertToExcel(inputFile, extension) {
     return __awaiter(this, void 0, void 0, function* () {
         // Read the file content
@@ -64,25 +57,13 @@ function convertToExcel(inputFile, extension) {
                 default:
                     throw new Error('Unsupported file format');
             }
-            console.log("the data", data);
-            if (!data) {
+            // console.log("the data", data);
+            if (!data || !data.length) {
+                console.error('No data to convert');
                 return null;
             }
             const workbook = new ExcelJS.Workbook();
             const worksheet = workbook.addWorksheet('Batch');
-            if (extension == 'xml') {
-                // Access the Workbook and its Worksheet
-                let workbookData = data[0].Workbook;
-                let worksheetData = workbookData.Worksheet;
-                // console.log("The worksheet", worksheetData);
-                // Extract rows from Worksheet
-                // You might need to adjust this based on the actual XML structure
-                let { rows, columns } = yield processWorksheet(worksheetData);
-                console.log("The rows", rows, columns);
-                if (!rows || !columns) {
-                    return null;
-                }
-            }
             // Add column headers
             const headers = Object.keys(data[0]);
             worksheet.addRow(headers);
@@ -101,75 +82,38 @@ function convertToExcel(inputFile, extension) {
         }
     });
 }
+;
 function parseXML(filePath) {
     return __awaiter(this, void 0, void 0, function* () {
-        const xmlData = yield fs.readFile(filePath, 'utf-8');
-        const parser = new xml2js.Parser({ explicitArray: false });
-        return new Promise((resolve, reject) => {
-            parser.parseString(xmlData, (err, result) => {
-                if (err)
-                    reject(err);
-                else
-                    resolve(Array.isArray(result) ? result : [result]);
+        try {
+            const xmlData = yield fs.readFile(filePath, 'utf-8');
+            const parser = new xml2js.Parser({ explicitArray: false });
+            // return new Promise((resolve, reject) => {
+            //   parser.parseString(xmlData, (err, result) => {
+            //     if (err) reject(err);
+            //     else resolve(Array.isArray(result) ? result : [result]);
+            //   });
+            // });
+            const result = yield new Promise((resolve, reject) => {
+                parser.parseString(xmlData, (err, parsedResult) => {
+                    if (err) {
+                        reject(err);
+                    }
+                    else {
+                        const records = parsedResult.root.record;
+                        resolve(Array.isArray(records) ? records : [records]);
+                    }
+                });
             });
-        });
+            return result;
+        }
+        catch (error) {
+            console.error('Error parsing XML:', error);
+            throw error;
+        }
     });
 }
 ;
-function processWorksheet(worksheet) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const columns = (worksheet['ss:Table'].Column || []).map(col => {
-            var _a, _b;
-            return ({
-                index: ((_a = col === null || col === void 0 ? void 0 : col.$.ss) === null || _a === void 0 ? void 0 : _a.Index) || '',
-                width: ((_b = col === null || col === void 0 ? void 0 : col.$.ss) === null || _b === void 0 ? void 0 : _b.Width) || ''
-            });
-        });
-        const rows = (worksheet['ss:Table'].Row || []).map(row => {
-            var _a;
-            return ({
-                index: ((_a = row === null || row === void 0 ? void 0 : row.$.ss) === null || _a === void 0 ? void 0 : _a.Index) || '',
-                cells: (row.Cell || []).map(cell => {
-                    var _a, _b;
-                    return ({
-                        styleId: ((_a = cell === null || cell === void 0 ? void 0 : cell.$.ss) === null || _a === void 0 ? void 0 : _a.StyleID) || '',
-                        data: ((_b = cell === null || cell === void 0 ? void 0 : cell.Data) === null || _b === void 0 ? void 0 : _b.$.Type) || ''
-                    });
-                })
-            });
-        });
-        // const columns = worksheet['ss:Table'].Column || [];
-        // const rows = worksheet['ss:Table'].Row || [];
-        return { rows, columns };
-    });
-}
-function extractDataFromXML(filePath) {
-    return __awaiter(this, void 0, void 0, function* () {
-        var _a, _b, _c;
-        const result = yield parseXML(filePath);
-        // The result is an array with a single object containing the Workbook
-        let workbook = (_a = result[0]) === null || _a === void 0 ? void 0 : _a.Workbook;
-        if (!workbook || !workbook.Worksheet) {
-            throw new Error('Invalid XML structure: missing Workbook or Worksheet');
-        }
-        // Handle case where there might be multiple worksheets
-        let worksheet = workbook.Worksheet;
-        console.log("Result worksheet data", worksheet);
-        // Check if Table and Row exist
-        // let rows = worksheet.Table?.Row || [];
-        const table = (_c = (_b = worksheet.data) === null || _b === void 0 ? void 0 : _b.ss) === null || _c === void 0 ? void 0 : _c.Table; // Use optional chaining
-        if (!table) {
-            // Handle missing table case (e.g., return empty arrays)
-            throw new Error('Invalid XML structure: missing Workbook or Worksheet');
-        }
-        console.log("Result data", table);
-        // Convert rows to an array of arrays
-        // let _data = rows.map((row: any) => 
-        //   row.Cell.map((cell: any) => cell.Data._ || '') // Extract text data from each cell
-        // );
-        return result;
-    });
-}
 function parseJSON(filePath) {
     return __awaiter(this, void 0, void 0, function* () {
         const jsonData = yield fs.readFile(filePath, 'utf-8');

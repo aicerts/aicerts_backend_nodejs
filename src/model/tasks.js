@@ -64,7 +64,7 @@ const mailOptions = {
 
 
 // Import the Issues models from the schema defined in "../config/schema"
-const { User, Issues, BatchIssues, IssueStatus, VerificationLog, ShortUrl, DynamicIssues, ServiceAccountQuotas, DynamicBatchIssues } = require("../config/schema");
+const { User, Issues, BatchIssues, BulkIssues, BulkBatchIssues, IssueStatus, VerificationLog, ShortUrl, DynamicIssues, ServiceAccountQuotas, DynamicBatchIssues } = require("../config/schema");
 
 //Connect to polygon
 const connectToPolygon = async () => {
@@ -470,7 +470,7 @@ const insertCertificateData = async (data) => {
 const insertBulkSingleIssueData = async (data) => {
   try {
     // Create a new Issues document with the provided data
-    const newIssue = new Issues({
+    const newIssue = new BulkIssues({
       issuerId: data.issuerId,
       transactionHash: data.transactionHash,
       certificateHash: data.certificateHash,
@@ -500,7 +500,7 @@ const insertBulkBatchIssueData = async (data) => {
   try {
 
     // Insert data into MongoDB
-    const newBatchIssue = new BatchIssues({
+    const newBatchIssue = new BulkBatchIssues({
       issuerId: data.issuerId,
       batchId: data.batchId,
       proofHash: data.proofHash,
