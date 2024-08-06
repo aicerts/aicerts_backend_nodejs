@@ -391,6 +391,34 @@ const isCertificationIdExisted = async (certId) => {
   }
 };
 
+const isBulkCertificationIdExisted = async (certId) => {
+  const dbStaus = await isDBConnected();
+
+  if (certId == null || certId == "") {
+    return null;
+  }
+
+  const singleIssueExist = await BulkIssues.findOne({ certificateNumber: certId });
+  const batchIssueExist = await BulkBatchIssues.findOne({ certificateNumber: certId });
+
+  try {
+    if (singleIssueExist) {
+
+      return singleIssueExist;
+    } else if (batchIssueExist) {
+
+      return batchIssueExist;
+    } else {
+
+      return null;
+    }
+
+  } catch (error) {
+    console.error("Error during validation:", error);
+    return null;
+  }
+};
+
 // Function to insert url data into DB
 const insertUrlData = async (data) => {
   if (!data) {
@@ -1392,6 +1420,8 @@ module.exports = {
 
   // Verify Certification ID from both collections (single / batch)
   isCertificationIdExisted,
+
+  isBulkCertificationIdExisted,
 
   // Function to insert certificate data into MongoDB
   insertCertificateData,

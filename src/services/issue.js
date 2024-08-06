@@ -833,21 +833,21 @@ const bulkIssueSingleCertificates = async (email, issuerId, _pdfReponse, _excelR
 
   try {
     // Check if the directory exists, if not, create it
-    const destDirectory = path.join(__dirname, '../../uploads/completed');
-    console.log("Present working directory", __dirname, destDirectory);
-    if (fs.existsSync(destDirectory)) {
-      // Delete the existing directory recursively
-      fs.rmSync(destDirectory, { recursive: true });
-    }
-    // Recreate the directory
-    fs.mkdirSync(destDirectory, { recursive: true });
-    const excelFileName = path.basename(excelFilePath);
-    // Destination file path
-    const destinationFilePath = path.join(destDirectory, excelFileName);
-    // Read the content of the source file
-    const fileContent = fs.readFileSync(excelFilePath);
-    // Write the content to the destination file
-    fs.writeFileSync(destinationFilePath, fileContent);
+    // const destDirectory = path.join(__dirname, '../../uploads/completed');
+    // console.log("Present working directory", __dirname, destDirectory);
+    // if (fs.existsSync(destDirectory)) {
+    //   // Delete the existing directory recursively
+    //   fs.rmSync(destDirectory, { recursive: true });
+    // }
+    // // Recreate the directory
+    // fs.mkdirSync(destDirectory, { recursive: true });
+    // const excelFileName = path.basename(excelFilePath);
+    // // Destination file path
+    // const destinationFilePath = path.join(destDirectory, excelFileName);
+    // // Read the content of the source file
+    // const fileContent = fs.readFileSync(excelFilePath);
+    // // Write the content to the destination file
+    // fs.writeFileSync(destinationFilePath, fileContent);
     try {
       await isDBConnected();
       console.log("working directory", __dirname);
@@ -993,9 +993,9 @@ const bulkIssueSingleCertificates = async (email, issuerId, _pdfReponse, _excelR
           fs.unlinkSync(outputPdf);
         }
 
-        fs.writeFileSync(outputPath, fileBuffer);
+        // fs.writeFileSync(outputPath, fileBuffer);
 
-        console.log('File saved successfully at:', outputPath);
+        // console.log('File saved successfully at:', outputPath);
 
       }
 
@@ -1026,21 +1026,21 @@ const bulkIssueBatchCertificates = async (email, issuerId, _pdfReponse, _excelRe
 
   try {
     // Check if the directory exists, if not, create it
-    const destDirectory = path.join(__dirname, '../../uploads/completed');
-    console.log("Present working directory", __dirname, destDirectory);
-    if (fs.existsSync(destDirectory)) {
-      // Delete the existing directory recursively
-      fs.rmSync(destDirectory, { recursive: true });
-    }
-    // Recreate the directory
-    fs.mkdirSync(destDirectory, { recursive: true });
-    const excelFileName = path.basename(excelFilePath);
-    // Destination file path
-    const destinationFilePath = path.join(destDirectory, excelFileName);
-    // Read the content of the source file
-    const fileContent = fs.readFileSync(excelFilePath);
-    // Write the content to the destination file
-    fs.writeFileSync(destinationFilePath, fileContent);
+    // const destDirectory = path.join(__dirname, '../../uploads/completed');
+    // console.log("Present working directory", __dirname, destDirectory);
+    // if (fs.existsSync(destDirectory)) {
+    //   // Delete the existing directory recursively
+    //   fs.rmSync(destDirectory, { recursive: true });
+    // }
+    // // Recreate the directory
+    // fs.mkdirSync(destDirectory, { recursive: true });
+    // const excelFileName = path.basename(excelFilePath);
+    // // Destination file path
+    // const destinationFilePath = path.join(destDirectory, excelFileName);
+    // // Read the content of the source file
+    // const fileContent = fs.readFileSync(excelFilePath);
+    // // Write the content to the destination file
+    // fs.writeFileSync(destinationFilePath, fileContent);
 
     var transformedResponse = _excelResponse[2];
     // return ({ code: 400, status: false, message: messageCode.msgUnderConstruction, Details: `${transformedResponse}, ${pdfResponse}`});
@@ -1214,9 +1214,9 @@ const bulkIssueBatchCertificates = async (email, issuerId, _pdfReponse, _excelRe
             fs.unlinkSync(outputPdf);
           }
 
-          fs.writeFileSync(outputPath, fileBuffer);
+          // fs.writeFileSync(outputPath, fileBuffer);
 
-          console.log('File saved successfully at:', outputPath);
+          // console.log('File saved successfully at:', outputPath);
 
         }
         // Wait for all insert promises to resolve

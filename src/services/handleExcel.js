@@ -5,7 +5,8 @@ const path = require("path");
 
 // Importing functions from a custom module
 const {
-    isCertificationIdExisted
+    isCertificationIdExisted,
+    isBulkCertificationIdExisted
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
 // Import MongoDB models
@@ -262,7 +263,7 @@ const handleBulkExcelFile = async (_path) => {
 
                 // Assuming BatchIssues is your MongoDB model
                 for (const id of certificationIDs) {
-                    const issueExist = await isCertificationIdExisted(id);
+                    const issueExist = await isBulkCertificationIdExisted(id);
                     if (issueExist) {
                         matchingIDs.push(id);
                     }
