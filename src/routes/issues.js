@@ -591,6 +591,79 @@ router.post('/bulk-batch-issue', upload.single("zipFile"), adminController.bulkB
 
 /**
  * @swagger
+ * /api/bulk-batch-issue-module:
+ *   post:
+ *     summary: upload ZIP contain Excel & Pdfs with bulk issue with batch approach with issuer email.
+ *     description: API extract zip file contents into uploads folder for Dynamic Bulk issue.
+ *     tags: [Dynamic Bulk Issue]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: Issuer email id to be validated
+ *               zipFile:
+ *                 type: string
+ *                 format: binary
+ *                 description: ZIP file containing the PDF certificates & Excel to be issued.
+ *             required:
+ *                - email
+ *                - zipFile
+ *           example:
+ *             status: "FAILED"
+ *             error: Internal Server Error
+ *     responses:
+ *       '200':
+ *         description: Dynamic Bulk issued successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 detailsQR:
+ *                   type: string
+ *             example:
+ *               status: "SUCCESS"
+ *               message: Dynamic Bulk issued successfully.
+ *       '400':
+ *         description: Dynamic Bulk not issued successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Dynamic Bulk not issued successfully.
+ *       '500':
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Internal Server Error.
+ */
+
+router.post('/bulk-batch-issue-module', upload.single("zipFile"), adminController.bulkBatchIssues);
+
+
+/**
+ * @swagger
  * /api/provide-inputs:
  *   post:
  *     summary: Provide input parameters for Bulk dynamic issues
