@@ -915,7 +915,7 @@ const bulkIssueSingleCertificates = async (email, issuerId, _pdfReponse, _excelR
           modifiedUrl = process.env.SHORT_URL + foundEntry.certificationID;
         }
 
-        let _qrCodeData = modifiedUrl != false ? modifiedUrl : qrCodeData;
+        let _qrCodeData = modifiedUrl != false ? modifiedUrl : urlLink;
 
         const qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
           errorCorrectionLevel: "H", width: qrside, height: qrside
@@ -1135,7 +1135,7 @@ const bulkIssueBatchCertificates = async (email, issuerId, _pdfReponse, _excelRe
             modifiedUrl = process.env.SHORT_URL + foundEntry.certificationID;
           }
 
-          let _qrCodeData = modifiedUrl != false ? modifiedUrl : qrCodeData;
+          let _qrCodeData = modifiedUrl != false ? modifiedUrl : encryptLink;
 
           const qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
             errorCorrectionLevel: "H", width: qrside, height: qrside
