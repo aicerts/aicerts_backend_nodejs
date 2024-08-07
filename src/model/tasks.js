@@ -1063,7 +1063,7 @@ const addDynamicLinkToPdf = async (
     width: pngDims.width,
     height: pngDims.height,
   });
-  console.log("Width X Height", width, height);
+  // console.log("Width X Height", width, height);
 
   qrX = width - pngDims.width - 75;
   qrY = 75;

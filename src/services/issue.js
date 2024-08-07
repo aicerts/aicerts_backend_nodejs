@@ -941,7 +941,9 @@ const bulkIssueSingleCertificates = async (email, issuerId, _pdfReponse, _excelR
 
         var outputPath = path.join(__dirname, '../../uploads', 'completed', `${pdfFileName}`);
 
-        var generatedImage = `${fields.Certificate_Number}.png`;
+        // var generatedImage = `${fields.Certificate_Number}.png`;
+        var _generatedImage = `${fields.Certificate_Number}.png`;
+        var generatedImage = path.join(__dirname, _generatedImage);
 
         var imageBuffer = await _convertPdfBufferToPng(generatedImage, fileBuffer, pdfWidth, pdfHeight);
 
@@ -1158,9 +1160,10 @@ const bulkIssueBatchCertificates = async (email, issuerId, _pdfReponse, _excelRe
           var fileBuffer = fs.readFileSync(outputPdf);
 
           // Assuming fileBuffer is available after the code you provided
-
           var outputPath = path.join(__dirname, '../../uploads', 'completed', `${pdfFileName}`);
-          var generatedImage = `${fields.Certificate_Number}.png`;
+          var _generatedImage = `${fields.Certificate_Number}.png`;
+          var generatedImage = path.join(__dirname, '../../', _generatedImage);
+          console.log("Image path", generatedImage);
 
           var imageBuffer = await _convertPdfBufferToPng(generatedImage, fileBuffer, pdfWidth, pdfHeight);
 
