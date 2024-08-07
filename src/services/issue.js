@@ -1029,8 +1029,8 @@ const bulkIssueBatchCertificates = async (email, issuerId, _pdfReponse, _excelRe
 
   try {
     // Check if the directory exists, if not, create it
-    // const destDirectory = path.join(__dirname, '../../uploads/completed');
-    // console.log("Present working directory", __dirname, destDirectory);
+    const destDirectory = path.join(__dirname, '../../uploads/completed');
+    console.log("Present working directory", __dirname, destDirectory);
     // if (fs.existsSync(destDirectory)) {
     //   // Delete the existing directory recursively
     //   fs.rmSync(destDirectory, { recursive: true });
@@ -1082,8 +1082,8 @@ const bulkIssueBatchCertificates = async (email, issuerId, _pdfReponse, _excelRe
         console.log("working directory", __dirname);
 
         for (let i = 0; i < pdfResponse.length; i++) {
-          const pdfFileName = pdfResponse[i];
-          const pdfFilePath = path.join(__dirname, '../../uploads', pdfFileName);
+          var pdfFileName = pdfResponse[i];
+          var pdfFilePath = path.join(__dirname, '../../uploads', pdfFileName);
           console.log("pdf directory path", pdfFilePath);
 
           // Extract Certs from pdfFileName
@@ -1147,9 +1147,17 @@ const bulkIssueBatchCertificates = async (email, issuerId, _pdfReponse, _excelRe
           file = pdfFilePath;
           var outputPdf = `${pdfFileName}`;
 
+          console.log("page paths", pdfFilePath);
+          console.log("page paths2", path.join("./", '.', file));
+          if (!fs.existsSync(pdfFilePath)){
+            return ({ code: 400, status: "FAILED", message: messageCode.msgInvalidPdfUploaded });
+          }
+          if (!fs.existsSync(path.join("./", '.', file))){
+            return ({ code: 400, status: "FAILED", message: messageCode.msgNoMatchFound });
+          }
           // Add link and QR code to the PDF file
           var opdf = await addDynamicLinkToPdf(
-            path.join("./", '.', file),
+            pdfFilePath,
             outputPdf,
             linkUrl,
             qrCodeImage,
@@ -1157,8 +1165,12 @@ const bulkIssueBatchCertificates = async (email, issuerId, _pdfReponse, _excelRe
             posx,
             posy
           );
+          if (!fs.existsSync(outputPdf)){
+            return ({ code: 400, status: "FAILED", message: messageCode.msgInvalidFilePath });
+          }
           // Read the generated PDF file
           var fileBuffer = fs.readFileSync(outputPdf);
+
 
           // Assuming fileBuffer is available after the code you provided
           var outputPath = path.join(__dirname, '../../uploads', 'completed', `${pdfFileName}`);

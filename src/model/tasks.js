@@ -1031,9 +1031,10 @@ const addDynamicLinkToPdf = async (
   positionHorizontal,
   positionVertical
 ) => {
+  console.log("QR Inputs", inputPath, outputPath, positionHorizontal, positionVertical);
   // Read existing PDF file bytes
   const existingPdfBytes = fs.readFileSync(inputPath);
-
+console.log("Existing pdf bytes", existingPdfBytes);
   // Load existing PDF document
   const pdfDoc = await pdf.PDFDocument.load(existingPdfBytes);
 
