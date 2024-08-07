@@ -103,12 +103,12 @@ const createUploadsFolder = async () => {
       console.log("Uploads folder already exists.");
     }      
     // Determine the drive root based on the operating system
-    const driveRoot = (environment) == 'DEV' ? 'D:\\' : '/';
-    const uploadsFolderPath = path.join(driveRoot, 'uploads');
+    // const driveRoot = (environment) == 'DEV' ? 'D:\\' : '/';
+    // const uploadsFolderPath = path.join(driveRoot, 'uploads');
 
-    if (fs.existsSync(uploadsFolderPath)) {
-      fs.rmSync(uploadsFolderPath, { recursive: true });
-    }
+    // if (fs.existsSync(uploadsFolderPath)) {
+    //   fs.rmSync(uploadsFolderPath, { recursive: true });
+    // }
   } catch (error) {
     console.error("Error creating uploads folder:", error);
   }

@@ -97,6 +97,10 @@ const validationRoutes = {
         body("input").notEmpty().trim().isString().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide),
         body("type").notEmpty().trim().isNumeric().withMessage(messageCode.msgNonEmpty).isIn([1, 2, 3]).withMessage(messageCode.msgProvideValidType),
     ],
+    filterIssues: [
+        body("filter").notEmpty().trim().isNumeric().withMessage(messageCode.msgNonEmpty).isIn([1, 2, 3]).withMessage(messageCode.msgProvideValidFilter),
+        body("input").notEmpty().trim().isString().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide),  
+    ],
     checkAddress: [
         body("address").notEmpty().trim().isString().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide).isLength(42).withMessage(messageCode.msgInvalidEthereum)
     ],

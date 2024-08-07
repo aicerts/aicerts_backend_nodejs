@@ -66,7 +66,7 @@ const urlLimit = process.env.MAX_URL_SIZE || 50;
 const verify = async (req, res) => {
   // Extracting file path from the request
   file = req.file.path;
-
+console.log("file path", req.file.path);
   var fileBuffer = fs.readFileSync(file);
   var pdfDoc = await PDFDocument.load(fileBuffer);
   var certificateS3Url;

@@ -341,6 +341,89 @@ const getIssueDetails = async (req, res) => {
 };
 
 /**
+ * API to search issues based on filters.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
+const getIssuesWithFilter = async (req, res) => {
+  var validResult = validationResult(req);
+  if (!validResult.isEmpty()) {
+    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+  }
+
+  const input = req.body.input;
+  // The filter value 1-Organization, 1-issuer
+  const filter = parseInt(req.body.filter);
+  var fetchedIssues = [];
+
+  if (!input || !filter) {
+    return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidInput });
+  }
+
+  try {
+    let dbStatus = await isDBConnected();
+    if (filter == 1) {
+      let getIssuers = await User.find({
+        $expr: {
+          $and: [
+            { $eq: [{ $toLower: "$organization" }, input.toLowerCase()] }
+          ]
+        },
+      });
+
+      if (getIssuers.length == 0) {
+        return res.status(400).json({ status: "FAILED", message: messageCode.msgNoMatchFound });
+      }
+      return res.status(200).json({ status: "SUCCESS", message: messageCode.msgIssueFound, details: getIssuers });
+    } else if (filter == 2 || filter == 3) {
+      let targetCategory = filter == 2 ? "$name" : "$certificateNumber";
+      // Query 1
+      let query1Promise = Issues.find({
+        $expr: {
+          $and: [
+            { $eq: [{ $toLower: targetCategory }, input.toLowerCase()] }
+          ]
+        },
+        url: { $exists: true, $ne: null, $ne: "", $regex: /certs365-live/ } // Filter to include documents where `url` exists
+      });
+
+      // Query 2
+      let query2Promise = BatchIssues.find({
+        $expr: {
+          $and: [
+            { $eq: [{ $toLower: targetCategory }, input.toLowerCase()] }
+          ]
+        },
+        url: { $exists: true, $ne: null, $ne: "", $regex: /certs365-live/ } // Filter to include documents where `url` exists
+      });
+
+      // Await both promises
+      let [query1Result, query2Result] = await Promise.all([query1Promise, query2Promise]);
+      // Check if results are non-empty and push to finalResults
+      if (query1Result.length > 0) {
+        fetchedIssues = fetchedIssues.concat(query1Result);
+      }
+      if (query2Result.length > 0) {
+        fetchedIssues = fetchedIssues.concat(query2Result);
+      }
+
+      if (fetchedIssues.length == 0) {
+        return res.status(400).json({ status: "FAILED", message: messageCode.msgNoMatchFound });
+      }
+      return res.status(200).json({ status: "SUCCESS", message: messageCode.msgIssueFound, details: fetchedIssues });
+    } else {
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgNoMatchFound });
+    }
+
+  } catch (error) {
+    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
+  }
+
+}
+
+
+/**
  * API to Upload Files to AWS-S3 bucket.
  *
  * @param {Object} req - Express request object.
@@ -1440,6 +1523,7 @@ const getIssuesInOrganizationWithName = async (req, res) => {
 
 };
 
+
 /**
  * Api to fetch Daily and Monthly issues (by LMS and Netcom).
  * 
@@ -1707,6 +1791,7 @@ module.exports = {
   getOrganizationDetails,
   getIssuesInOrganizationWithName,
   fetchCustomIssuedCertificates,
-  getBulkBackupFiles
+  getBulkBackupFiles,
+  getIssuesWithFilter
 
 };

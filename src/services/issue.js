@@ -941,9 +941,9 @@ const bulkIssueSingleCertificates = async (email, issuerId, _pdfReponse, _excelR
 
         var outputPath = path.join(__dirname, '../../uploads', 'completed', `${pdfFileName}`);
 
-        // var generatedImage = `${fields.Certificate_Number}.png`;
-        var _generatedImage = `${fields.Certificate_Number}.png`;
-        var generatedImage = path.join(__dirname, _generatedImage);
+        var generatedImage = `${fields.Certificate_Number}.png`;
+        // var _generatedImage = `${fields.Certificate_Number}.png`;
+        // var generatedImage = path.join(__dirname, _generatedImage);
 
         var imageBuffer = await _convertPdfBufferToPng(generatedImage, fileBuffer, pdfWidth, pdfHeight);
 
@@ -1021,6 +1021,7 @@ const bulkIssueBatchCertificates = async (email, issuerId, _pdfReponse, _excelRe
   var insertPromises = []; // Array to hold all insert promises
   var insertUrl = [];
   var shortUrlStatus = false;
+  var modifiedUrl;
 
   if (!pdfResponse || pdfResponse.length == 0) {
     return ({ code: 400, status: false, message: messageCode.msgUnableToFindPdfFiles });
@@ -1161,8 +1162,8 @@ const bulkIssueBatchCertificates = async (email, issuerId, _pdfReponse, _excelRe
 
           // Assuming fileBuffer is available after the code you provided
           var outputPath = path.join(__dirname, '../../uploads', 'completed', `${pdfFileName}`);
-          var _generatedImage = `${fields.Certificate_Number}.png`;
-          var generatedImage = path.join(__dirname, '../../', _generatedImage);
+          var generatedImage = `${fields.Certificate_Number}.png`;
+          // var generatedImage = path.join(__dirname, '../../', _generatedImage);
           console.log("Image path", generatedImage);
 
           var imageBuffer = await _convertPdfBufferToPng(generatedImage, fileBuffer, pdfWidth, pdfHeight);
@@ -1224,7 +1225,7 @@ const bulkIssueBatchCertificates = async (email, issuerId, _pdfReponse, _excelRe
         }
         // Wait for all insert promises to resolve
         await Promise.all(insertPromises);
-        return ({ code: 200, status: true, Details: insertUrl });
+        return ({ code: 200, status: true, message: messageCode.msgBatchIssuedSuccess, Details: insertUrl });
       } else {
         return ({ code: 400, status: false, message: messageCode.msgInputRecordsNotMatched, Details: error });
       }
