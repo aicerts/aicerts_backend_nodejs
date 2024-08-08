@@ -728,14 +728,14 @@ const bulkSingleIssueCertificates = async (req, res) => {
     const matchedCerts = pdfFiles.filter(cert => certsWithPDF.includes(cert));
     //Exctract only cert Ids
     const certsIds = excelDataResponse.map(item => item.certificationID);
-    for(let index = 0; index < certsIds.length; index++){
+    for (let index = 0; index < certsIds.length; index++) {
       let targetId = certsIds[index];
       let val = await newContract.verifyCertificateById(targetId);
-      if(val[0] == true){
+      if (val[0] == true) {
         certsExist.push(targetId);
       }
     }
-    if(certsExist.length > 0){
+    if (certsExist.length > 0) {
       res.status(400).json({ status: "FAILED", message: messageCode.msgExcelHasExistingIds, details: certsExist });
       // await cleanUploadFolder();
       await wipeUploadFolder();
@@ -754,13 +754,13 @@ const bulkSingleIssueCertificates = async (req, res) => {
       try {
         // console.log("Processing file index:", index);
         let targetDocument = pdfFiles[index];
-        
+
         // Construct the PDF file path
         let pdfFilePath = path.join(__dirname, '../../uploads', targetDocument);
-    
+
         // Validate PDF dimensions
         let validityCheck = await validatePDFDimensions(pdfFilePath, paramsExist.pdfWidth, paramsExist.pdfHeight);
-    
+
         // Push invalid PDFs to the array
         if (validityCheck === false) {
           pdfTemplateValidation.push(targetDocument); // Use targetDocument instead of pdfFiles[index]
@@ -776,18 +776,9 @@ const bulkSingleIssueCertificates = async (req, res) => {
       await wipeUploadFolder();
       return;
     }
-
     var bulkIssueResponse = await bulkIssueSingleCertificates(emailExist.email, emailExist.issuerId, pdfFiles, excelDataResponse, excelFilePath, paramsExist.positionX, paramsExist.positionY, paramsExist.qrSide, paramsExist.pdfWidth, paramsExist.pdfHeight);
 
-    if (bulkIssueResponse.status == false) {
-      var statusCode = bulkIssueResponse.code || 400;
-      var statusMessage = bulkIssueResponse.message || messageCode.msgFailedToIssueBulkCerts;
-      var statusDetails = bulkIssueResponse.Details || "";
-      res.status(statusCode).json({ status: "FAILED", message: statusMessage, details: statusDetails });
-      await wipeUploadFolder();
-      // await flushUploadFolder();
-      return;
-    } else {
+    if (bulkIssueResponse.code == 200) {
       let bulkResponse = {
         email: emailExist.email,
         issuerId: emailExist.issuerId,
@@ -795,6 +786,14 @@ const bulkSingleIssueCertificates = async (req, res) => {
       }
       res.status(bulkIssueResponse.code).json({ status: "SUCCESS", message: messageCode.msgBatchIssuedSuccess, details: bulkResponse });
       await cleanUploadFolder();
+      // await flushUploadFolder();
+      return;
+    } else {
+      var statusCode = bulkIssueResponse.code || 400;
+      var statusMessage = bulkIssueResponse.message || messageCode.msgFailedToIssueBulkCerts;
+      var statusDetails = bulkIssueResponse.Details || "";
+      res.status(statusCode).json({ status: "FAILED", message: statusMessage, details: statusDetails });
+      await wipeUploadFolder();
       // await flushUploadFolder();
       return;
     }
@@ -956,7 +955,6 @@ const bulkBatchIssueCertificates = async (req, res) => {
         });
     });
     filesList = await fs.promises.readdir(extractionPath);
-console.log("Reached");
     if (filesList.length == 0 || filesList.length == 1) {
       res.status(400).json({ status: "FAILED", message: messageCode.msgUnableToFindFiles });
       // await cleanUploadFolder();
@@ -1012,14 +1010,14 @@ console.log("Reached");
     const matchedCerts = pdfFiles.filter(cert => certsWithPDF.includes(cert));
     //Exctract only cert Ids
     const certsIds = excelDataResponse.map(item => item.certificationID);
-    for(let index = 0; index < certsIds.length; index++){
+    for (let index = 0; index < certsIds.length; index++) {
       let targetId = certsIds[index];
       let val = await newContract.verifyCertificateById(targetId);
-      if(val[0] == true){
+      if (val[0] == true) {
         certsExist.push(targetId);
       }
     }
-    if(certsExist.length > 0){
+    if (certsExist.length > 0) {
       res.status(400).json({ status: "FAILED", message: messageCode.msgExcelHasExistingIds, details: certsExist });
       // await cleanUploadFolder();
       await wipeUploadFolder();
@@ -1038,13 +1036,13 @@ console.log("Reached");
       try {
         console.log("Processing file index:", index);
         let targetDocument = pdfFiles[index];
-        
+
         // Construct the PDF file path
         let pdfFilePath = path.join(__dirname, '../../uploads', targetDocument);
-    
+
         // Validate PDF dimensions
         let validityCheck = await validatePDFDimensions(pdfFilePath, paramsExist.pdfWidth, paramsExist.pdfHeight);
-    
+
         // Push invalid PDFs to the array
         if (validityCheck === false) {
           pdfTemplateValidation.push(targetDocument); // Use targetDocument instead of pdfFiles[index]
@@ -1063,15 +1061,7 @@ console.log("Reached");
 
     var bulkIssueResponse = await bulkIssueBatchCertificates(emailExist.email, emailExist.issuerId, pdfFiles, excelData.message, excelFilePath, paramsExist.positionX, paramsExist.positionY, paramsExist.qrSide, paramsExist.pdfWidth, paramsExist.pdfHeight);
 
-    if (bulkIssueResponse.status == false) {
-      var statusCode = bulkIssueResponse.code || 400;
-      var statusMessage = bulkIssueResponse.message || messageCode.msgFailedToIssueBulkCerts;
-      var statusDetails = bulkIssueResponse.Details || "";
-      res.status(statusCode).json({ status: "FAILED", message: statusMessage, details: statusDetails });
-      await wipeUploadFolder();
-      // await flushUploadFolder();
-      return;
-    } else {
+    if (bulkIssueResponse.code == 200) {
       let bulkResponse = {
         email: emailExist.email,
         issuerId: emailExist.issuerId,
@@ -1081,7 +1071,16 @@ console.log("Reached");
       await cleanUploadFolder();
       // await flushUploadFolder();
       return;
+    } else {
+      var statusCode = bulkIssueResponse.code || 400;
+      var statusMessage = bulkIssueResponse.message || messageCode.msgFailedToIssueBulkCerts;
+      var statusDetails = bulkIssueResponse.Details || "";
+      res.status(statusCode).json({ status: "FAILED", message: statusMessage, details: statusDetails });
+      await wipeUploadFolder();
+      // await flushUploadFolder();
+      return;
     }
+
     // else {
     //   const zipFileName = `${formattedDateTime}.zip`;
     //   const resultFilePath = path.join(__dirname, '../../uploads/completed', zipFileName);
@@ -1266,7 +1265,7 @@ const validateDynamicBulkIssueDocuments = async (req, res) => {
 
   var certsExist = [];
 
-  try{
+  try {
     await isDBConnected();
 
     var filePath = req.file.path;
@@ -1368,14 +1367,14 @@ const validateDynamicBulkIssueDocuments = async (req, res) => {
     const matchedCerts = pdfFiles.filter(cert => certsWithPDF.includes(cert));
     //Exctract only cert Ids
     const certsIds = excelDataResponse.map(item => item.certificationID);
-    for(let index = 0; index < certsIds.length; index++){
+    for (let index = 0; index < certsIds.length; index++) {
       let targetId = certsIds[index];
       let val = await newContract.verifyCertificateById(targetId);
-      if(val[0] == true){
+      if (val[0] == true) {
         certsExist.push(targetId);
       }
     }
-    if(certsExist.length > 0){
+    if (certsExist.length > 0) {
       res.status(400).json({ status: "FAILED", message: messageCode.msgExcelHasExistingIds, details: certsExist });
       // await cleanUploadFolder();
       await wipeUploadFolder();
@@ -1394,13 +1393,13 @@ const validateDynamicBulkIssueDocuments = async (req, res) => {
       try {
         // console.log("Processing file index:", index);
         let targetDocument = pdfFiles[index];
-        
+
         // Construct the PDF file path
         let pdfFilePath = path.join(__dirname, '../../uploads', targetDocument);
-    
+
         // Validate PDF dimensions
         let validityCheck = await validatePDFDimensions(pdfFilePath, paramsExist.pdfWidth, paramsExist.pdfHeight);
-    
+
         // Push invalid PDFs to the array
         if (validityCheck === false) {
           pdfTemplateValidation.push(targetDocument); // Use targetDocument instead of pdfFiles[index]

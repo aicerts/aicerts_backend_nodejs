@@ -39,7 +39,9 @@ const {
   isDBConnected, // Function to check if the database connection is established
   insertUrlData,
   getCertificationStatus,
-  isCertificationIdExisted
+  isCertificationIdExisted,
+  checkForPngFiles,
+  deletePngFiles,
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
 // Retrieve contract address from environment variable
@@ -65,7 +67,8 @@ const newContract = new ethers.Contract(contractAddress, abi, signer);
 const min_length = parseInt(process.env.MIN_LENGTH);
 const max_length = parseInt(process.env.MAX_LENGTH);
 
-let messageCode = require("../common/codes");
+const messageCode = require("../common/codes");
+const rootDirectory = path.join(__dirname, '../../');
 
 const handleIssueCertification = async (email, certificateNumber, name, courseName, _grantDate, _expirationDate) => {
   const grantDate = await convertDateFormat(_grantDate);
@@ -501,9 +504,13 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
         var file = pdfPath;
         var outputPdf = `${fields.Certificate_Number}${name}.pdf`;
 
+        if (!fs.existsSync(pdfPath)){
+          return ({ code: 400, status: "FAILED", message: messageCode.msgInvalidPdfUploaded });
+        }
+
         // Add link and QR code to the PDF file
         const opdf = await addLinkToPdf(
-          path.join("./", '.', file),
+          pdfPath,
           outputPdf,
           polygonLink,
           qrCodeImage,
@@ -520,9 +527,11 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
 
       // Define the directory where you want to save the file
       const uploadDir = path.join(__dirname, '..', '..', 'uploads'); // Go up two directories from __dirname
-      let generatedImage = `${fields.Certificate_Number}.png`;
-      // var convertedPath = path.join(uploadDir, generatedImage);
-      var imageBuffer = await convertPdfBufferToPng(generatedImage, fileBuffer);
+      let _generatedImage = `${fields.Certificate_Number}.png`;
+      var generatedImage = path.join(rootDirectory, _generatedImage);
+      console.log("Image path", generatedImage);
+
+      var imageBuffer = await convertPdfBufferToPngWithRetry(generatedImage, fileBuffer);
       if (imageBuffer) {
         var imageUrl = await uploadImageToS3(fields.Certificate_Number, generatedImage);
         if (!imageUrl) {
@@ -924,9 +933,13 @@ const bulkIssueSingleCertificates = async (email, issuerId, _pdfReponse, _excelR
         file = pdfFilePath;
         var outputPdf = `${pdfFileName}`;
 
+        if (!fs.existsSync(pdfFilePath)){
+          return ({ code: 400, status: "FAILED", message: messageCode.msgInvalidPdfUploaded });
+        }
+
         // Add link and QR code to the PDF file
         var opdf = await addDynamicLinkToPdf(
-          path.join("./", '.', file),
+          pdfFilePath,
           outputPdf,
           linkUrl,
           qrCodeImage,
@@ -941,11 +954,12 @@ const bulkIssueSingleCertificates = async (email, issuerId, _pdfReponse, _excelR
 
         var outputPath = path.join(__dirname, '../../uploads', 'completed', `${pdfFileName}`);
 
-        var generatedImage = `${fields.Certificate_Number}.png`;
-        // var _generatedImage = `${fields.Certificate_Number}.png`;
-        // var generatedImage = path.join(__dirname, _generatedImage);
+        // var generatedImage = `${fields.Certificate_Number}.png`;
+        let _generatedImage = `${fields.Certificate_Number}.png`;
+        var generatedImage = path.join(rootDirectory, _generatedImage);
+        console.log("Image path", generatedImage);
 
-        var imageBuffer = await _convertPdfBufferToPng(generatedImage, fileBuffer, pdfWidth, pdfHeight);
+        var imageBuffer = await _convertPdfBufferToPngWithRetry(generatedImage, fileBuffer, pdfWidth, pdfHeight);
 
         if (imageBuffer) {
           var imageUrl = await _uploadImageToS3(fields.Certificate_Number, generatedImage);
@@ -1147,13 +1161,8 @@ const bulkIssueBatchCertificates = async (email, issuerId, _pdfReponse, _excelRe
           file = pdfFilePath;
           var outputPdf = `${pdfFileName}`;
 
-          console.log("page paths", pdfFilePath);
-          console.log("page paths2", path.join("./", '.', file));
           if (!fs.existsSync(pdfFilePath)){
             return ({ code: 400, status: "FAILED", message: messageCode.msgInvalidPdfUploaded });
-          }
-          if (!fs.existsSync(path.join("./", '.', file))){
-            return ({ code: 400, status: "FAILED", message: messageCode.msgNoMatchFound });
           }
           // Add link and QR code to the PDF file
           var opdf = await addDynamicLinkToPdf(
@@ -1171,14 +1180,13 @@ const bulkIssueBatchCertificates = async (email, issuerId, _pdfReponse, _excelRe
           // Read the generated PDF file
           var fileBuffer = fs.readFileSync(outputPdf);
 
-
           // Assuming fileBuffer is available after the code you provided
           var outputPath = path.join(__dirname, '../../uploads', 'completed', `${pdfFileName}`);
-          var generatedImage = `${fields.Certificate_Number}.png`;
-          // var generatedImage = path.join(__dirname, '../../', _generatedImage);
+          let _generatedImage = `${fields.Certificate_Number}.png`;
+          var generatedImage = path.join(rootDirectory, _generatedImage);
           console.log("Image path", generatedImage);
 
-          var imageBuffer = await _convertPdfBufferToPng(generatedImage, fileBuffer, pdfWidth, pdfHeight);
+          var imageBuffer = await _convertPdfBufferToPngWithRetry(generatedImage, fileBuffer, pdfWidth, pdfHeight);
 
           if (imageBuffer) {
             var imageUrl = await _uploadImageToS3(fields.Certificate_Number, generatedImage);
@@ -1263,7 +1271,6 @@ const issueCertificateWithRetry = async (certificateNumber, certificateHash, exp
     let txHash = tx.hash;
 
     let polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
-    console.log("Tx Inputs contract", txHash);
 
     if (!txHash) {
       return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain });
@@ -1329,6 +1336,48 @@ const issueBatchCertificateWithRetry = async (root, expirationEpoch, retryCount 
   }
 };
 
+const convertPdfBufferToPngWithRetry = async(imagePath, pdfBuffer, retryCount = 3) => {
+
+  try{
+    const imageResponse = await convertPdfBufferToPng(imagePath, pdfBuffer);
+    if (!imageResponse) {
+      if (retryCount > 0) {
+        console.log(`Image conversion failed. Retrying... Attempts left: ${retryCount}`);
+        // Retry after a delay (e.g., 1 second)
+        await holdExecution(1000);
+        let pngExist = await checkForPngFiles(rootDirectory);
+        if(pngExist){
+          await deletePngFiles(rootDirectory);
+        }
+        return convertPdfBufferToPngWithRetry(imagePath, pdfBuffer, retryCount - 1);
+      } else {
+        // throw new Error('Image conversion failed after multiple attempts');
+        return null;
+      }
+    }
+    return imageResponse;
+  } catch(error){
+    if(retryCount > 0 && error.code === 'ETIMEDOUT'){
+      console.log(`Connection timed out. Retrying... Attempts left: ${retryCount}`);
+      // Retry after a delay (e.g., 2 seconds)
+      await holdExecution(2000);
+      return convertPdfBufferToPngWithRetry(imagePath, pdfBuffer, retryCount - 1);
+    } else if (error.code === 'NONCE_EXPIRED') {
+      // Extract and handle the error reason
+      // console.log("Error reason:", error.reason);
+      return null;
+    } else if (error.reason) {
+      // Extract and handle the error reason
+      // console.log("Error reason:", error.reason);
+      return null;
+    } else {
+      // If there's no specific reason provided, handle the error generally
+      // console.error(messageCode.msgFailedOpsAtBlockchain, error);
+      return null;
+    }
+  }
+}
+
 const convertPdfBufferToPng = async (imagePath, pdfBuffer) => {
   if (!imagePath || !pdfBuffer) {
     return false;
@@ -1389,6 +1438,48 @@ const uploadImageToS3 = async (certNumber, imagePath) => {
     return false;
   }
 };
+
+const _convertPdfBufferToPngWithRetry = async(imagePath, pdfBuffer, _width, _height, retryCount = 3) => {
+
+  try{
+    const imageResponse = await _convertPdfBufferToPng(imagePath, pdfBuffer, _width, _height);
+    if (!imageResponse) {
+      if (retryCount > 0) {
+        console.log(`Image conversion failed. Retrying... Attempts left: ${retryCount}`);
+        // Retry after a delay (e.g., 1 second)
+        await holdExecution(1000);
+        let pngExist = await checkForPngFiles(rootDirectory);
+        if(pngExist){
+          await deletePngFiles(rootDirectory);
+        }
+        return _convertPdfBufferToPngWithRetry(imagePath, pdfBuffer, _width, _height, retryCount - 1);
+      } else {
+        // throw new Error('Image conversion failed after multiple attempts');
+        return null;
+      }
+    }
+    return imageResponse;
+  } catch(error){
+    if(retryCount > 0 && error.code === 'ETIMEDOUT'){
+      console.log(`Connection timed out. Retrying... Attempts left: ${retryCount}`);
+      // Retry after a delay (e.g., 2 seconds)
+      await holdExecution(2000);
+      return _convertPdfBufferToPngWithRetry(imagePath, pdfBuffer, _width, _height, retryCount - 1);
+    } else if (error.code === 'NONCE_EXPIRED') {
+      // Extract and handle the error reason
+      // console.log("Error reason:", error.reason);
+      return null;
+    } else if (error.reason) {
+      // Extract and handle the error reason
+      // console.log("Error reason:", error.reason);
+      return null;
+    } else {
+      // If there's no specific reason provided, handle the error generally
+      // console.error(messageCode.msgFailedOpsAtBlockchain, error);
+      return null;
+    }
+  }
+}
 
 const _convertPdfBufferToPng = async (imagePath, pdfBuffer, _width, _height) => {
   if (!imagePath || !pdfBuffer) {

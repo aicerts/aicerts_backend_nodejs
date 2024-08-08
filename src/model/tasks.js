@@ -1031,10 +1031,8 @@ const addDynamicLinkToPdf = async (
   positionHorizontal,
   positionVertical
 ) => {
-  console.log("QR Inputs", inputPath, outputPath, positionHorizontal, positionVertical);
   // Read existing PDF file bytes
   const existingPdfBytes = fs.readFileSync(inputPath);
-console.log("Existing pdf bytes", existingPdfBytes);
   // Load existing PDF document
   const pdfDoc = await pdf.PDFDocument.load(existingPdfBytes);
 
@@ -1304,6 +1302,56 @@ const wipeUploadFolder = async () => {
   }
 };
 
+// Function to delete PNG files
+const deletePngFiles = async (dirPath) => {
+  try {
+    // Read the directory contents
+    const files = await fs.promises.readdir(dirPath);
+
+    // Filter PNG files
+    const pngFiles = files.filter(file => path.extname(file).toLowerCase() === '.png');
+
+    if (pngFiles.length === 0) {
+      console.log('No PNG files found.');
+      return;
+    }
+
+    // Delete each PNG file
+    for (const file of pngFiles) {
+      const filePath = path.join(dirPath, file);
+      await fs.promises.unlink(filePath);
+      console.log(`Deleted: ${filePath}`);
+    }
+
+    console.log('All unused PNG files have been deleted.');
+
+  } catch (error) {
+    console.error('Error occurred while deleting PNG files:', error);
+  }
+};
+
+// Function to check for PNG files
+const checkForPngFiles = async (dirPath) => {
+  try {
+    // Read the directory contents
+    const files = await fs.promises.readdir(dirPath);
+
+    // Filter PNG files
+    const pngFiles = files.filter(file => path.extname(file).toLowerCase() === '.png');
+
+    if (pngFiles.length > 0) {
+      console.log('PNG files found:', pngFiles);
+      return true;
+    } else {
+      console.log('No PNG files found.');
+      return false;
+    }
+  } catch (error) {
+    console.error('Error occurred while checking for PNG files:', error);
+    throw error;
+  }
+};
+
 
 const isDBConnected = async () => {
   let retryCount = 0; // Initialize retry count
@@ -1494,6 +1542,10 @@ module.exports = {
   flushUploadFolder,
 
   wipeUploadFolder,
+
+  checkForPngFiles,
+
+  deletePngFiles,
 
   // Function to check if MongoDB is connected
   isDBConnected,
