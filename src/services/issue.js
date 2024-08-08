@@ -44,7 +44,7 @@ const {
   deletePngFiles,
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
-const { convertPdfBufferToPng } = require('../utils/generateImage');
+const { convertPdfBufferToPng, _convertPdfBufferToPng } = require('../utils/generateImage');
 
 // Retrieve contract address from environment variable
 const contractAddress = process.env.CONTRACT_ADDRESS;
@@ -1448,8 +1448,8 @@ const _convertPdfBufferToPngWithRetry = async(imagePath, pdfBuffer, _width, _hei
     if (!imageResponse) {
       if (retryCount > 0) {
         console.log(`Image conversion failed. Retrying... Attempts left: ${retryCount}`);
-        // Retry after a delay (e.g., 1 second)
-        await holdExecution(1000);
+        // Retry after a delay (e.g., 2 seconds)
+        await holdExecution(2000);
         let pngExist = await checkForPngFiles(rootDirectory);
         if(pngExist){
           await deletePngFiles(rootDirectory);
@@ -1483,41 +1483,41 @@ const _convertPdfBufferToPngWithRetry = async(imagePath, pdfBuffer, _width, _hei
   }
 }
 
-const _convertPdfBufferToPng = async (imagePath, pdfBuffer, _width, _height) => {
-  if (!imagePath || !pdfBuffer) {
-    return false;
-  }
-  const options = {
-    format: 'png', // Specify output format (optional, defaults to 'png')
-    responseType: 'buffer', // Ensure binary output (PNG buffer)
-    // width: _width, // Optional width for the image
-    // height: _height, // Optional height for the image
-    density: 100, // Optional DPI (dots per inch)
-    // Other options (refer to pdf2pic documentation for details)
-  };
+// const _convertPdfBufferToPng = async (imagePath, pdfBuffer, _width, _height) => {
+//   if (!imagePath || !pdfBuffer) {
+//     return false;
+//   }
+//   const options = {
+//     format: 'png', // Specify output format (optional, defaults to 'png')
+//     responseType: 'buffer', // Ensure binary output (PNG buffer)
+//     // width: _width, // Optional width for the image
+//     // height: _height, // Optional height for the image
+//     density: 100, // Optional DPI (dots per inch)
+//     // Other options (refer to pdf2pic documentation for details)
+//   };
 
-  try {
-    const convert = fromBuffer(pdfBuffer, options);
-    const pageOutput = await convert(1, { responseType: 'buffer' }); // Convert page 1 (adjust as needed)
-    let base64String = await pageOutput.base64;
-    // Remove the data URL prefix if present
-    const base64Data = await base64String.replace(/^data:image\/png;base64,/, '');
+//   try {
+//     const convert = fromBuffer(pdfBuffer, options);
+//     const pageOutput = await convert(1, { responseType: 'buffer' }); // Convert page 1 (adjust as needed)
+//     let base64String = await pageOutput.base64;
+//     // Remove the data URL prefix if present
+//     const base64Data = await base64String.replace(/^data:image\/png;base64,/, '');
 
-    // Convert Base64 to buffer
-    const _buffer = Buffer.from(base64Data, 'base64');
-    fs.writeFile(imagePath, _buffer, (err) => {
-      if (err) {
-        console.error("Error writing PNG file:", err);
-        return false;
-      }
-    });
-    // Save the PNG buffer to a file
-    return true;
-  } catch (error) {
-    console.error('Error converting PDF to PNG buffer:', error);
-    return false;
-  }
-};
+//     // Convert Base64 to buffer
+//     const _buffer = Buffer.from(base64Data, 'base64');
+//     fs.writeFile(imagePath, _buffer, (err) => {
+//       if (err) {
+//         console.error("Error writing PNG file:", err);
+//         return false;
+//       }
+//     });
+//     // Save the PNG buffer to a file
+//     return true;
+//   } catch (error) {
+//     console.error('Error converting PDF to PNG buffer:', error);
+//     return false;
+//   }
+// };
 
 const _uploadImageToS3 = async (certNumber, imagePath) => {
 
