@@ -37,7 +37,7 @@ export async function convertToExcel(inputFile: string, extension: string, outpu
       default:
         throw new Error('Unsupported file format');
     }
-    console.log("the data", data);
+    // console.log("the data", data);
     if (!data || !data.length) {
       console.error('No data to convert');
       return null;

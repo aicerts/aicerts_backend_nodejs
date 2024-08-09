@@ -301,10 +301,8 @@ const convertIntoExcel = async (req, res) => {
             // console.log("Reached", req.file.originalname, uploadDir);
 
             const targetFileBuffer = await convertToExcel(uploadDir, getExtension);
-            console.log("The response", targetFileBuffer);
-            // await cleanUploadFolder();
-            // return;
             // console.log("The response", targetFileBuffer);
+
             if (!targetFileBuffer || targetFileBuffer == null) {
                 res.status(400).json({ status: "FAILED", message: messageCode.msgUnableToConvert });
                 await cleanUploadFolder();
