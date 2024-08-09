@@ -393,7 +393,6 @@ const getIssuesWithFilter = async (req, res) => {
     return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
 
-
   const filterName = {
     1: '$name',
     2: '$course',
