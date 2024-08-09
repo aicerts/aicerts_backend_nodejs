@@ -68,10 +68,6 @@ function convertToExcel(inputFile, extension, outputFile) {
                 return null;
             }
             const excelFileBuffer = yield convertToExcelFile(data);
-            if (!excelFileBuffer) {
-                console.error('No data to convert');
-            }
-            console.log("The result is here");
             return excelFileBuffer;
         }
         catch (error) {

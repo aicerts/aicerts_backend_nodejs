@@ -44,10 +44,6 @@ export async function convertToExcel(inputFile: string, extension: string, outpu
     }
     const excelFileBuffer = await convertToExcelFile(data);
 
-    if (!excelFileBuffer) {
-      console.error('No data to convert');
-    }
-    console.log("The result is here");
     return excelFileBuffer;
 
   } catch (error) {
