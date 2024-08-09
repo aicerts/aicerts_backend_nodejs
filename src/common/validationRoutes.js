@@ -106,7 +106,7 @@ const validationRoutes = {
         body("type").notEmpty().trim().isNumeric().withMessage(messageCode.msgNonEmpty).isIn([1, 2, 3]).withMessage(messageCode.msgProvideValidType),
     ],
     filterIssues: [
-        body("filter").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isNumeric().withMessage(messageCode.msgNumericOnly).isIn([1, 2, 3]).withMessage(messageCode.msgProvideValidFilter).matches(/^\d+$/).withMessage(messageCode.msgNumericOnly), // Checks that input is numeric,
+        body("filter").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isNumeric().withMessage(messageCode.msgNumericOnly).isIn([1, 2, 3, 4]).withMessage(messageCode.msgProvideValidFilter).matches(/^\d+$/).withMessage(messageCode.msgNumericOnly), // Checks that input is numeric,
         body("input").notEmpty().trim().isString().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide),
     ],
     checkAddress: [

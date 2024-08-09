@@ -396,7 +396,8 @@ const getIssuesWithFilter = async (req, res) => {
   const filterName = {
     1: '$name',
     2: '$course',
-    3: '$expirationDate'
+    3: '$expirationDate',
+    4: '$certificateNumber'
   };
   var fetchedIssues = [];
 
@@ -404,7 +405,7 @@ const getIssuesWithFilter = async (req, res) => {
     const input = req.body.input;
     const filter = parseInt(req.body.filter);
 
-    if (input && (filter == 1 || filter == 2 || filter == 3)) {
+    if (input && (filter == 1 || filter == 2 || filter == 3 || filter == 4)) {
       let filterCriteria = filterName[filter];
 
       if(filter == 3){

@@ -111,7 +111,7 @@ module.exports = {
     msgAllQueryFetched: "Requested details fetched successfully",
     msgErrorOnFetching: "An error occurred while fetching Issuer details",
     msgProvideValidStatus: "Please provide valid status as 1 : approve or 2 : reject",
-    msgProvideValidFilter: "Please provide valid filter as 1 : organization, 2 : name, 3 : certificate ID",
+    msgProvideValidFilter: "Please provide valid filter as 1: name, 2: course, 3: Expiration date, 4: certificate ID",
     msgProvideValidCertStatus: "Please provide valid status",
     msgTypeRestricted: "Please provide valid type input (1, 2 or 3)",
     msgProvideValidType: "Please provide valid type as 1, 2 or 3",
