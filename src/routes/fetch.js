@@ -238,8 +238,8 @@ router.get('/get-issuers-details', adminController. getIssuersWithFilter);
  * @swagger
  * /api/get-filered-issues:
  *   post:
- *     summary: Get details of certifications issued by Issuers under particular input name(1)/course(2)/expiration date(3)/certification Number(4) with filter code.
- *     description: API to fetch details of certifications issued by Issuers under particular input name(1)/course(2)/expiration date(3)/certification Number(4) with filter code.
+ *     summary: Get details of certifications issued by Issuers under particular filter: input as 1: name, 2: course, 3:expiration date, 4:certification Number with filter code.
+ *     description: API to fetch details of certifications issued by Issuers under particular filter: input as 1: name, 2: course, 3:expiration date, 4:certification Number with filter code.
  *     tags: [Fetch/Upload]
  *     security:
  *       - BearerAuth: []

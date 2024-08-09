@@ -320,7 +320,7 @@ const getIssueDetails = async (req, res) => {
       }
 
       var [singleNameResponse, batchNameResponse] = await Promise.all([isIssueSingleName, isIssueBatchName]);
-
+      console.log("batch response", batchNameResponse);
       if (singleNameResponse.length != 0 || batchNameResponse.length != 0) {
         if (singleNameResponse.length != 0 || batchNameResponse.length != 0) {
           responseData = singleNameResponse.length != 0 ? singleNameResponse : batchNameResponse;
@@ -408,9 +408,9 @@ const getIssuesWithFilter = async (req, res) => {
     if (input && (filter == 1 || filter == 2 || filter == 3 || filter == 4)) {
       let filterCriteria = filterName[filter];
 
-      if(filter == 3){
+      if (filter == 3) {
         let convertDate = await convertDateFormat(input);
-        if(!convertDate){
+        if (!convertDate) {
           return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidDateFormat, details: input });
         }
       }
