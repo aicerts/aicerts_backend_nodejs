@@ -1436,10 +1436,13 @@ const getOrganizationDetails = async (req, res) => {
     let _organizations = organizations.map(user => user.organization);
     // Use Set to filter unique values
     let uniqueResponses = [...new Set(_organizations.map(item => item))];
+    // Sort the array in alphabetical order
+    const sortedUniqueResponses = uniqueResponses.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+    
     res.json({
       status: "SUCCESS",
       message: messageCode.msgOrganizationFetched,
-      data: uniqueResponses
+      data: sortedUniqueResponses
     });
   } catch (err) {
     return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: err });
