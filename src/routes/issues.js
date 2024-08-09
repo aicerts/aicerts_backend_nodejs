@@ -99,6 +99,19 @@ const storage = multer.diskStorage({
  *             example:
  *               status: "FAILED"
  *               message: Error message for certificate already issued or invalid input.
+ *       '401':
+ *         description: Unauthorized Aceess / No token provided.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the operation (FAILED).
+ *                 message:
+ *                   type: string
+ *                   description: Unauthorized access. No token provided.
  *       '422':
  *         description: User given invalid input (Unprocessable Entity)
  *         content:
@@ -216,6 +229,19 @@ router.post('/issue', validationRoute.issue, ensureAuthenticated, adminControlle
  *             example:
  *               status: "FAILED"
  *               message: Error message for certificate already issued or invalid input.
+ *       '401':
+ *         description: Unauthorized Aceess / No token provided.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the operation (FAILED).
+ *                 message:
+ *                   type: string
+ *                   description: Unauthorized access. No token provided.
  *       '500':
  *         description: Internal Server Error
  *         content:
@@ -407,8 +433,8 @@ router.post('/issue-dynamic-pdf', _upload.single("file"), adminController.issueD
  *               error: Bad Request
  *               status: "FAILED"
  *               message: Please provide valid Certification(Batch) details.
- *       '422':
- *         description: User given invalid input (Unprocessable Entity)
+ *       '401':
+ *         description: Unauthorized Aceess / No token provided.
  *         content:
  *           application/json:
  *             schema:
@@ -416,11 +442,10 @@ router.post('/issue-dynamic-pdf', _upload.single("file"), adminController.issueD
  *               properties:
  *                 status:
  *                   type: string
+ *                   description: Status of the operation (FAILED).
  *                 message:
  *                   type: string
- *             example:
- *               status: "FAILED"
- *               message: Error message for invalid input.
+ *                   description: Unauthorized access. No token provided.
  *       '500':
  *         description: Internal Server Error
  *         content:

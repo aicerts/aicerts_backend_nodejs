@@ -70,6 +70,19 @@ const upload = multer({ dest: "./uploads/" });
  *             example:
  *               status: "FAILED"
  *               message: Error message for certificate already issued or invalid input.
+ *       '401':
+ *         description: Unauthorized Aceess / No token provided.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the operation (FAILED).
+ *                 message:
+ *                   type: string
+ *                   description: Unauthorized access. No token provided.
  *       '422':
  *         description: User given invalid input (Unprocessable Entity)
  *         content:
@@ -176,6 +189,19 @@ router.post('/renew-cert', validationRoute.renewIssue, ensureAuthenticated, admi
  *             example:
  *               status: "FAILED"
  *               message: Error message for certificate status update input.
+ *       '401':
+ *         description: Unauthorized Aceess / No token provided.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the operation (FAILED).
+ *                 message:
+ *                   type: string
+ *                   description: Unauthorized access. No token provided.
  *       '422':
  *         description: User given invalid input (Unprocessable Entity)
  *         content:
@@ -282,6 +308,19 @@ router.post('/update-cert-status', validationRoute.updateStatus, ensureAuthentic
  *             example:
  *               status: "FAILED"
  *               message: Error message for batch expiration date update.
+ *       '401':
+ *         description: Unauthorized Aceess / No token provided.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the operation (FAILED).
+ *                 message:
+ *                   type: string
+ *                   description: Unauthorized access. No token provided.
  *       '422':
  *         description: User given invalid input (Unprocessable Entity)
  *         content:
@@ -388,6 +427,19 @@ router.post('/renew-batch', validationRoute.renewBatch, ensureAuthenticated, adm
  *             example:
  *               status: "FAILED"
  *               message: Error message for Batch certification status update input.
+ *       '401':
+ *         description: Unauthorized Aceess / No token provided.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the operation (FAILED).
+ *                 message:
+ *                   type: string
+ *                   description: Unauthorized access. No token provided.
  *       '422':
  *         description: User given invalid input (Unprocessable Entity)
  *         content:

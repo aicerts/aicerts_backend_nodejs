@@ -1,5 +1,4 @@
-
-const fs = require("fs").promises;
+const fs = require("fs");
 const { fromBuffer, fromBase64 } = require("pdf2pic");
 
 const convertPdfBufferToPng = async (imagePath, pdfBuffer) => {
@@ -24,7 +23,7 @@ const convertPdfBufferToPng = async (imagePath, pdfBuffer) => {
 
         // Convert Base64 to buffer
         const _buffer = Buffer.from(base64Data, 'base64');
-        await fs.writeFile(imagePath, _buffer, (err) => {
+        fs.writeFileSync(imagePath, _buffer, (err) => {
             if (err) {
                 console.error("Error writing PNG file:", err);
                 return false;
@@ -68,7 +67,7 @@ const _convertPdfBufferToPng = async (imagePath, pdfBuffer, _width, _height) => 
 
         // Convert Base64 to buffer
         const _buffer = Buffer.from(base64Data, 'base64');
-        await fs.writeFile(imagePath, _buffer);
+        fs.writeFileSync(imagePath, _buffer);
         
         // await fs.writeFile(imagePath, _buffer, (err) => {
         //     if (err) {

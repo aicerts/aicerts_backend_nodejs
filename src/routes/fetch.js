@@ -179,10 +179,67 @@ router.post('/get-organization-issues', validationRoute.organizationIssues, admi
 
 /**
  * @swagger
- * /api/get-filtered-issues:
- *   post:
+ * /api/get-issuers-details:
+ *   get:
  *     summary: Get details of all certifications issued by Issuers in an organization under particular name/id (filter)
  *     description: API to fetch details of all certifications issued by Issuers in an organization under particular name/id (filter).
+ *     tags: [Fetch/Upload]
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       '200':
+ *         description: All issues details fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: SUCCESS
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     [Issuers Log Details]
+ *                 message:
+ *                   type: string
+ *                   example: All issues details fetched successfully
+ *       '400':
+ *         description: Bad request or Invalid code
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: Issues details not found (or) Bad request!
+ *       '500':
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred while fetching issues details
+ */
+
+router.get('/get-issuers-details', adminController. getIssuersWithFilter);
+
+/**
+ * @swagger
+ * /api/get-filered-issues:
+ *   post:
+ *     summary: Get details of certifications issued by Issuers under particular input name(1)/course(2)/expiration date(3) with filter code.
+ *     description: API to fetch details of certifications issued by Issuers under particular input name(1)/course(2)/expiration date(3) with filter code.
  *     tags: [Fetch/Upload]
  *     security:
  *       - BearerAuth: []
@@ -193,11 +250,11 @@ router.post('/get-organization-issues', validationRoute.organizationIssues, admi
  *           schema:
  *             type: object
  *             properties:
- *               filter:
- *                 type: integer
- *                 description: Provide filter value (1,2,...)
  *               input:
  *                 type: string
+ *                 description: Provide organization name
+ *               filter:
+ *                 type: number
  *                 description: Provide Student/Candidate target name
  *     responses:
  *       '200':
@@ -259,8 +316,7 @@ router.post('/get-organization-issues', validationRoute.organizationIssues, admi
  *                   example: An error occurred while fetching issues details
  */
 
-router.post('/get-filtered-issues', validationRoute.filterIssues, adminController. getIssuesWithFilter);
-
+router.post('/get-filered-issues', validationRoute.filterIssues, adminController.getIssuesWithFilter);
 
 /**
  * @swagger

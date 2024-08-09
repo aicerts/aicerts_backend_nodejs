@@ -42,6 +42,7 @@ const newContract = new ethers.Contract(contractAddress, abi, signer);
 var messageCode = require("../common/codes");
 
 const statusCount = parseInt(process.env.STATUS_COUNT) || 4;
+const maxCreditLimit = process.env.LIMIT_THRESHOLD || 100;
 
 var linkUrl = process.env.NETWORK || "polygon";
 /**
@@ -628,6 +629,10 @@ const allocateCredits = async (req, res) => {
 
   var service = parseInt(_service);
   var credits = parseInt(_credits);
+
+  if(credits > maxCreditLimit){
+    return res.status(400).json({ status: "FAILED", message: messageCode.msgValidCredits });
+  }
 
   // Determine serviceName based on service code input
   const serviceName = creditToServiceName[service] || null;

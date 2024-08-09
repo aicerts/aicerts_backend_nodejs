@@ -107,12 +107,12 @@ router.post('/validate-issuer', validationRoute.validateIssuer, ensureAuthentica
  *                 description: Email of the issuer to be allocated/update credits
  *               status:
  *                 type: boolean
- *                 description: Respective active status (True/False) with particular issuer.
+ *                 description: Respective active status (true/false) with particular issuer.
  *               service:
- *                 type: integer
+ *                 type: number
  *                 description: Respective service Code with particular issuer.
  *               credits:
- *                 type: integer
+ *                 type: number
  *                 description: credits to be added/updated with particular issuer.
  *             example:
  *               email: issuer@example.com
@@ -149,6 +149,19 @@ router.post('/validate-issuer', validationRoute.validateIssuer, ensureAuthentica
  *                 message:
  *                   type: string
  *                   description: Error message detailing the issue.
+ *       '401':
+ *         description: Unauthorized Aceess / No token provided.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the operation (FAILED).
+ *                 message:
+ *                   type: string
+ *                   description: Unauthorized access. No token provided.
  *       '422':
  *         description: User given invalid input (Unprocessable Entity)
  *         content:

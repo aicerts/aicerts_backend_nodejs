@@ -187,7 +187,8 @@ module.exports = {
     // Credits
     msgInsufficientCredits: "Issuer has insufficient credits to perform the operation",
     msgCreditBalance: "Have low credit balance",
-    msgValidCredits: "Please provide valid credits count",
+    msgValidCredits: "Please provide valid (non-negative) credits count",
+    msgNumericOnly: 'Input must contain only numbers.',
     msgProvideValidService: "Please provide valid service code",
     msgFetchQuotaFailed: "Failed to fetch requested credits details",
     msgCreditsUpdatedSuccess: "Credits limit updated successfully",

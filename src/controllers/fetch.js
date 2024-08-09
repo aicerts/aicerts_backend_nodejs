@@ -18,6 +18,7 @@ const { User, Issues, BatchIssues, IssueStatus, VerificationLog, ServiceAccountQ
 const {
   holdExecution,
   validateSearchDateFormat,
+  convertDateFormat,
   isDBConnected // Function to check if the database connection is established
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
@@ -346,65 +347,102 @@ const getIssueDetails = async (req, res) => {
  * @param {Object} req - Express request object.
  * @param {Object} res - Express response object.
  */
+const getIssuersWithFilter = async (req, res) => {
+  try {
+    let dbStatus = await isDBConnected();
+    let fetchRecords = await User.find(); // Only select the 'organization' field
+    // let organizations = await User.find(
+    //   { organization: { $exists: true, $ne: null } } // Query to check if 'organization' exists and is not null
+    // );
+    let _organizations = fetchRecords.map(user => user.organization);
+    let _emails = fetchRecords.map(user => user.email);
+    let _names = fetchRecords.map(user => user.name);
+    // Use Set to filter unique values
+    let uniqueOrgResponses = [...new Set(_organizations)];
+    let uniqueemailsResponses = [...new Set(_emails)];
+    let uniquenamesResponses = [...new Set(_names.map(name => name.toLowerCase()))];
+    // Sort the array in alphabetical order
+    const sortedOrganizations = uniqueOrgResponses.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+    const sortedEmails = uniqueemailsResponses.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+    const sortedNames = uniquenamesResponses.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+
+    let fetchDetails = {
+      organizations: sortedOrganizations,
+      emails: sortedEmails,
+      names: sortedNames,
+      data: fetchRecords
+    }
+    if (fetchRecords.length == 0) {
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgNoMatchFound });
+    }
+    return res.status(200).json({ status: "SUCCESS", message: messageCode.msgIssueFound, details: fetchDetails });
+  } catch (error) {
+    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
+  }
+};
+
+/**
+ * API to Fetch issues details as per the filter end user/ course name/ expiration date.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
 const getIssuesWithFilter = async (req, res) => {
-  var validResult = validationResult(req);
+  let validResult = validationResult(req);
   if (!validResult.isEmpty()) {
     return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
 
-  const input = req.body.input;
-  // The filter value 1-Organization, 1-issuer
-  const filter = parseInt(req.body.filter);
+  const filterName = {
+    1: '$name',
+    2: '$course',
+    3: '$expirationDate'
+  };
   var fetchedIssues = [];
 
-  if (!input || !filter) {
-    return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidInput });
-  }
-
   try {
-    let dbStatus = await isDBConnected();
-    if (filter == 1) {
-      let getIssuers = await User.find({
-        $expr: {
-          $and: [
-            { $eq: [{ $toLower: "$organization" }, input.toLowerCase()] }
-          ]
-        },
-      });
+    const input = req.body.input;
+    const filter = parseInt(req.body.filter);
 
-      if (getIssuers.length == 0) {
-        return res.status(400).json({ status: "FAILED", message: messageCode.msgNoMatchFound });
+    if (input && (filter == 1 || filter == 2 || filter == 3)) {
+      let filterCriteria = filterName[filter];
+
+      if(filter == 3){
+        let convertDate = await convertDateFormat(input);
+        if(!convertDate){
+          return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidDateFormat, details: input });
+        }
       }
-      return res.status(200).json({ status: "SUCCESS", message: messageCode.msgIssueFound, details: getIssuers });
-    } else if (filter == 2 || filter == 3) {
-      let targetCategory = filter == 2 ? "$name" : "$certificateNumber";
+
       // Query 1
-      let query1Promise = Issues.find({
+      var query1Promise = Issues.find({
         $expr: {
           $and: [
-            { $eq: [{ $toLower: targetCategory }, input.toLowerCase()] }
+            { $eq: [{ $toLower: filterCriteria }, input.toLowerCase()] }
           ]
         },
         url: { $exists: true, $ne: null, $ne: "", $regex: /certs365-live/ } // Filter to include documents where `url` exists
       });
 
       // Query 2
-      let query2Promise = BatchIssues.find({
+      var query2Promise = BatchIssues.find({
         $expr: {
           $and: [
-            { $eq: [{ $toLower: targetCategory }, input.toLowerCase()] }
+            { $eq: [{ $toLower: filterCriteria }, input.toLowerCase()] }
           ]
         },
         url: { $exists: true, $ne: null, $ne: "", $regex: /certs365-live/ } // Filter to include documents where `url` exists
       });
 
       // Await both promises
-      let [query1Result, query2Result] = await Promise.all([query1Promise, query2Promise]);
+      var [query1Result, query2Result] = await Promise.all([query1Promise, query2Promise]);
       // Check if results are non-empty and push to finalResults
       if (query1Result.length > 0) {
+        // fetchedIssues.push(query1Result);
         fetchedIssues = fetchedIssues.concat(query1Result);
       }
       if (query2Result.length > 0) {
+        // fetchedIssues.push(query2Result);
         fetchedIssues = fetchedIssues.concat(query2Result);
       }
 
@@ -412,16 +450,15 @@ const getIssuesWithFilter = async (req, res) => {
         return res.status(400).json({ status: "FAILED", message: messageCode.msgNoMatchFound });
       }
       return res.status(200).json({ status: "SUCCESS", message: messageCode.msgIssueFound, details: fetchedIssues });
+
     } else {
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgNoMatchFound });
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidInput, detail: filter });
     }
 
   } catch (error) {
     return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
   }
-
-}
-
+};
 
 /**
  * API to Upload Files to AWS-S3 bucket.
@@ -464,7 +501,7 @@ const uploadFileToS3 = async (req, res) => {
  * @param {Object} res - Express response object.
  */
 const getVerificationDetailsByCourse = async (req, res) => {
-  var validResult = validationResult(req);
+  let validResult = validationResult(req);
   if (!validResult.isEmpty()) {
     return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
@@ -514,7 +551,7 @@ const getVerificationDetailsByCourse = async (req, res) => {
  * @param {Object} res - Express response object.
  */
 const fetchIssuesLogDetails = async (req, res) => {
-  var validResult = validationResult(req);
+  let validResult = validationResult(req);
   if (!validResult.isEmpty()) {
     return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
@@ -1792,6 +1829,7 @@ module.exports = {
   getIssuesInOrganizationWithName,
   fetchCustomIssuedCertificates,
   getBulkBackupFiles,
+  getIssuersWithFilter,
   getIssuesWithFilter
 
 };
