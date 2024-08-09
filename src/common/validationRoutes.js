@@ -8,19 +8,20 @@ const messageCode = require("./codes");
 const validationRoutes = {
     issuePdf: [
         body("email").notEmpty().trim().isEmail().withMessage(messageCode.msgInvalidEmail).not().equals("string").withMessage(messageCode.msgInvalidEmail),
-        body("certificateNumber").notEmpty().trim().isString().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide).isLength({ min: 12, max: 20 }).withMessage(messageCode.msgCertLength),
-        body(["name", "course"]).notEmpty().trim().isString().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide).isLength({ max: 40 }).withMessage(messageCode.msgMaxLength),
+        body("certificateNumber").notEmpty().trim().isString().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide).isLength({ min: 5, max: 50 }).withMessage(messageCode.msgCertLength),
+        body("name").notEmpty().trim().isString().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide).isLength({ max: 50 }).withMessage(messageCode.msgMaxLength),
+        body("course").notEmpty().trim().isString().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide).isLength({ max: 150 }).withMessage(messageCode.msgMaxLength),
         body(["grantDate, expirationDate"]).notEmpty().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide)
     ],
     issue: [
         body("email").notEmpty().trim().isEmail().withMessage(messageCode.msgInvalidEmail).not().equals("string").withMessage(messageCode.msgInvalidEmail),
-        body("certificateNumber").notEmpty().trim().isString().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide).isLength({ min: 12, max: 20 }).withMessage(messageCode.msgCertLength),
+        body("certificateNumber").notEmpty().trim().isString().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide).isLength({ min: 5, max: 50 }).withMessage(messageCode.msgCertLength),
         body(["name", "course"]).notEmpty().trim().isString().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide).isLength({ max: 40 }).withMessage(messageCode.msgMaxLength),
         body("grantDate").not().equals("string").withMessage(messageCode.msgInputProvide)
     ],
     renewIssue: [
         body("email").notEmpty().trim().isEmail().withMessage(messageCode.msgInvalidEmail).not().equals("string").withMessage(messageCode.msgInvalidEmail),
-        body("certificateNumber").notEmpty().trim().isString().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide).isLength({ min: 12, max: 20 }).withMessage(messageCode.msgCertLength)
+        body("certificateNumber").notEmpty().trim().isString().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide).isLength({ min: 5, max: 50 }).withMessage(messageCode.msgCertLength)
     ],
     organizationIssues: [
         body("organization").notEmpty().trim().isString().not().equals("string").withMessage(messageCode.msgInvalidEmail),
@@ -49,18 +50,18 @@ const validationRoutes = {
     ],
     updateStatus: [
         body("email").notEmpty().trim().isEmail().withMessage(messageCode.msgInvalidEmail).not().equals("string").withMessage(messageCode.msgInvalidEmail),
-        body("certificateNumber").notEmpty().trim().isString().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide).isLength({ min: 12, max: 25 }).withMessage(messageCode.msgCertLength),
+        body("certificateNumber").notEmpty().trim().isString().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide).isLength({ min: 5, max: 50 }).withMessage(messageCode.msgCertLength),
         body("certStatus").notEmpty().trim().isNumeric().withMessage(messageCode.msgNonEmpty).isIn([3, 4]).withMessage(messageCode.msgProvideValidCertStatus),
     ],
     fetchGraph: [
-        body("value").notEmpty().trim().isNumeric().withMessage(messageCode.msgNonEmpty).isIn([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 2024]).withMessage(messageCode.msgInvalidGraphInput),
+        body("value").notEmpty().trim().isNumeric().withMessage(messageCode.msgNonEmpty).isIn({min: 1, max: 9999}).withMessage(messageCode.msgInvalidGraphInput),
     ],
     courseCheck: [
         body("email").notEmpty().trim().isEmail().withMessage(messageCode.msgInvalidEmail).not().equals("string").withMessage(messageCode.msgInvalidEmail),
         body("course").notEmpty().trim().isString().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide)
     ],
     signUp: [
-        body(["name"]).notEmpty().withMessage(messageCode.msgNonEmpty).trim().isString().not().equals("string").withMessage(messageCode.msgInputProvide).isLength({ max: 30 }).withMessage(messageCode.msgMaxLength),
+        body(["name"]).notEmpty().withMessage(messageCode.msgNonEmpty).trim().isString().not().equals("string").withMessage(messageCode.msgInputProvide).isLength({ max: 50 }).withMessage(messageCode.msgMaxLength),
         body(["password"]).notEmpty().withMessage(messageCode.msgNonEmpty).trim().isString().not().equals("string").withMessage(messageCode.msgInputProvide).isLength({ min: 8, max: 30 }).withMessage(messageCode.msgMaxLength),
         body("email").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isEmail().withMessage(messageCode.msgInvalidEmail).not().equals("string").withMessage(messageCode.msgInvalidEmail)
     ],
@@ -106,7 +107,8 @@ const validationRoutes = {
         body("type").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isNumeric().isIn([1, 2, 3]).withMessage(messageCode.msgProvideValidType),
     ],
     filterIssues: [
-        body("filter").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isNumeric().withMessage(messageCode.msgNumericOnly).isIn([1, 2, 3, 4]).withMessage(messageCode.msgProvideValidFilter).matches(/^\d+$/).withMessage(messageCode.msgNumericOnly), // Checks that input is numeric,
+        body("email").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isEmail().withMessage(messageCode.msgInvalidEmail),
+        body("filter").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isNumeric().withMessage(messageCode.msgNumericOnly).isIn([1, 2, 3, 4, 5]).withMessage(messageCode.msgProvideValidFilter).matches(/^\d+$/).withMessage(messageCode.msgNumericOnly), // Checks that input is numeric,
         body("input").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isString().not().equals("string").withMessage(messageCode.msgInputProvide),
     ],
     checkAddress: [

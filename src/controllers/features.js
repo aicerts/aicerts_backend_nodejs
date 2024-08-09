@@ -285,8 +285,8 @@ const convertIntoExcel = async (req, res) => {
     }
     let originalName = req.file.originalname;
     const getExtension = path.extname(originalName).slice(1);
-    console.log("the extension", getExtension);
     const uploadDir = path.join(__dirname, '..', '..', './', req.file.path);
+    console.log("the extension", getExtension);
     try {
         const email = req.body.email;
         let dbStatus = isDBConnected();
@@ -297,10 +297,13 @@ const convertIntoExcel = async (req, res) => {
                 return;
             }
 
-            let outputPath = path.join(__dirname, '../../uploads', `test.xlsx`);
+            // let outputPath = path.join(__dirname, '../../uploads', `test.xlsx`);
             // console.log("Reached", req.file.originalname, uploadDir);
 
             const targetFileBuffer = await convertToExcel(uploadDir, getExtension);
+            console.log("The response", targetFileBuffer);
+            // await cleanUploadFolder();
+            // return;
             // console.log("The response", targetFileBuffer);
             if (!targetFileBuffer || targetFileBuffer == null) {
                 res.status(400).json({ status: "FAILED", message: messageCode.msgUnableToConvert });
@@ -309,7 +312,7 @@ const convertIntoExcel = async (req, res) => {
             }
             await cleanUploadFolder();
 
-            const resultExcel = `tested.xlsx`;
+            const resultExcel = `converted.xlsx`;
 
             res.set({
                 'Content-Type': "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

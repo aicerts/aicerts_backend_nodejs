@@ -393,22 +393,30 @@ const getIssuesWithFilter = async (req, res) => {
     return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
 
+
   const filterName = {
     1: '$name',
     2: '$course',
-    3: '$expirationDate',
-    4: '$certificateNumber'
+    3: '$grantDate',
+    4: '$expirationDate',
+    5: '$certificateNumber'
   };
   var fetchedIssues = [];
 
   try {
     const input = req.body.input;
     const filter = parseInt(req.body.filter);
+    const email = req.body.email;
+    await isDBConnected();
+    const isEmailExist = await User.findOne({email: email});
+    if(!isEmailExist){
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidDateFormat, details: input });
+    }
 
-    if (input && (filter == 1 || filter == 2 || filter == 3 || filter == 4)) {
+    if (input && (filter == 1 || filter == 2 || filter == 3 || filter == 4 || filter == 5)) {
       let filterCriteria = filterName[filter];
 
-      if (filter == 3) {
+      if (filter == 3 || filter == 4) {
         let convertDate = await convertDateFormat(input);
         if (!convertDate) {
           return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidDateFormat, details: input });
@@ -417,6 +425,7 @@ const getIssuesWithFilter = async (req, res) => {
 
       // Query 1
       var query1Promise = Issues.find({
+          issuerId: isEmailExist.issuerId,
         $expr: {
           $and: [
             { $eq: [{ $toLower: filterCriteria }, input.toLowerCase()] }
@@ -427,6 +436,7 @@ const getIssuesWithFilter = async (req, res) => {
 
       // Query 2
       var query2Promise = BatchIssues.find({
+          issuerId: isEmailExist.issuerId,
         $expr: {
           $and: [
             { $eq: [{ $toLower: filterCriteria }, input.toLowerCase()] }
