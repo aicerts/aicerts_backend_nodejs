@@ -625,7 +625,6 @@ const bulkSingleIssueCertificates = async (req, res) => {
   var formattedDateTime = today.toLocaleString('en-US', options).replace(/\//g, '-').replace(/,/g, '-').replace(/:/g, '-').replace(/\s/g, '');
 
   const resultDierectory = path.join(__dirname, '../../uploads/completed');
-
   try {
     await isDBConnected();
 

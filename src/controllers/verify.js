@@ -685,7 +685,6 @@ const verifyCertificationId = async (req, res) => {
 
 // Function to verify the ID (Single) with Smart Contract with Retry
 const verifySingleCertificationWithRetry = async (certificateId, retryCount = 3) => {
-  console.log("Running");
   try {
     // Blockchain processing.
     let verifyCert = await newContract.verifyCertificateById(certificateId);

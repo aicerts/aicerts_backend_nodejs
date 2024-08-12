@@ -1617,7 +1617,7 @@ const fetchCustomIssuedCertificates = async (req, res) => {
       // Day: [],
       Week: [],
       Month: [],
-      Total: []
+      Annual: []
     };
 
     // Define date ranges
@@ -1625,7 +1625,7 @@ const fetchCustomIssuedCertificates = async (req, res) => {
       // { name: "Day", startDate: await getPastDate(today, 1), endDate: today },
       { name: "Week", startDate: await getPastDate(today, 7), endDate: today },
       { name: "Month", startDate: await getPastDate(today, 30), endDate: today },
-      { name: "Total", startDate: 0, endDate: today }
+      { name: "Annual", startDate: await getPastDate(today, 365), endDate: today }
     ];
 
     for (const addressIndex of contractAddresses) {
