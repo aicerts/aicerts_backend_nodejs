@@ -180,12 +180,25 @@ router.post('/get-organization-issues', validationRoute.organizationIssues, admi
 /**
  * @swagger
  * /api/get-issuers-details:
- *   get:
+ *   post:
  *     summary: Get details of all certifications issued by Issuers in an organization under particular name/id (filter)
  *     description: API to fetch details of all certifications issued by Issuers in an organization under particular name/id (filter).
  *     tags: [Fetch/Upload]
  *     security:
  *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               value:
+ *                 type: string
+ *                 description: Provide input value organization name/ issuer name/email
+ *               key:
+ *                 type: string
+ *                 description: Provide key 
  *     responses:
  *       '200':
  *         description: All issues details fetched successfully
@@ -217,6 +230,20 @@ router.post('/get-organization-issues', validationRoute.organizationIssues, admi
  *                 message:
  *                   type: string
  *                   example: Issues details not found (or) Bad request!
+ *       '422':
+ *         description: User given invalid input (Unprocessable Entity)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Error message for invalid input.
  *       '500':
  *         description: Internal server error
  *         content:
@@ -232,14 +259,14 @@ router.post('/get-organization-issues', validationRoute.organizationIssues, admi
  *                   example: An error occurred while fetching issues details
  */
 
-router.get('/get-issuers-details', adminController. getIssuersWithFilter);
+router.post('/get-issuers-details', validationRoute.fetchIssuers ,adminController. getIssuersWithFilter);
 
 /**
  * @swagger
  * /api/get-filered-issues:
  *   post:
- *     summary: Get details of certifications issued by Issuers under particular filter:input as 1:name, 2:course, 3:grant date, 4:expiration date, 5:certification number with filter code.
- *     description: API to fetch details of certifications issued by Issuers under particular filter:input as 1:name, 2:course, 3:grant date, 4:expiration date, 5:certification number with filter code.
+ *     summary: Get details of certifications issued by Issuers under particular input:filter as name, course, grantDate, expirationDate, certificationNumber with filter code.
+ *     description: API to fetch details of certifications issued by Issuers under particular input:filter as name, course, grantDate, expirationDate, certificationNumber as filter code.
  *     tags: [Fetch/Upload]
  *     security:
  *       - BearerAuth: []
@@ -257,6 +284,12 @@ router.get('/get-issuers-details', adminController. getIssuersWithFilter);
  *                 type: string
  *                 description: Provide organization name
  *               filter:
+ *                 type: string
+ *                 description: Provide Student/Candidate target name
+ *               page:
+ *                 type: number
+ *                 description: Provide organization name
+ *               limit:
  *                 type: number
  *                 description: Provide Student/Candidate target name
  *     responses:

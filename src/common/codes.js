@@ -10,6 +10,7 @@ module.exports = {
     msgDatesMustNotSame: "Grant date and Expiration date must not be same",
 
     // Response code messages
+    msgPageNotFound: "Page not found",
     msgInternalError: "Internal server error",
     msgWorkInProgress: "🚧 !⚠! Work In Porgress !⚠! 🚧",
 
@@ -111,7 +112,8 @@ module.exports = {
     msgAllQueryFetched: "Requested details fetched successfully",
     msgErrorOnFetching: "An error occurred while fetching Issuer details",
     msgProvideValidStatus: "Please provide valid status as 1 : approve or 2 : reject",
-    msgProvideValidFilter: "Please provide valid filter as 1: name, 2: course, 3: Expiration date, 4: certificate ID",
+    msgProvideValidFilter: "Please provide valid filter key",
+    msgProvideValidValue: "Please provide valid filter Value",
     msgProvideValidCertStatus: "Please provide valid status",
     msgTypeRestricted: "Please provide valid type input (1, 2 or 3)",
     msgProvideValidType: "Please provide valid type as 1, 2 or 3",

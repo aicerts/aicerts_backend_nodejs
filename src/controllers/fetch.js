@@ -348,34 +348,28 @@ const getIssueDetails = async (req, res) => {
  * @param {Object} res - Express response object.
  */
 const getIssuersWithFilter = async (req, res) => {
+  let validResult = validationResult(req);
+  if (!validResult.isEmpty()) {
+    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+  }
   try {
-    let dbStatus = await isDBConnected();
-    let fetchRecords = await User.find(); // Only select the 'organization' field
-    // let organizations = await User.find(
-    //   { organization: { $exists: true, $ne: null } } // Query to check if 'organization' exists and is not null
-    // );
-    let _organizations = fetchRecords.map(user => user.organization);
-    let _emails = fetchRecords.map(user => user.email);
-    let _names = fetchRecords.map(user => user.name);
-    // Use Set to filter unique values
-    let uniqueOrgResponses = [...new Set(_organizations)];
-    let uniqueemailsResponses = [...new Set(_emails)];
-    let uniquenamesResponses = [...new Set(_names.map(name => name.toLowerCase()))];
-    // Sort the array in alphabetical order
-    const sortedOrganizations = uniqueOrgResponses.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
-    const sortedEmails = uniqueemailsResponses.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
-    const sortedNames = uniquenamesResponses.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
-
-    let fetchDetails = {
-      organizations: sortedOrganizations,
-      emails: sortedEmails,
-      names: sortedNames,
-      data: fetchRecords
+    const value = req.body.value;
+    const key = req.body.key;
+    // const { key, value } = req.body; 
+    if (!key || !value) {
+      return res.status(400).send({ status: "FAILED", message: messageCode.msgInputProvide });
     }
-    if (fetchRecords.length == 0) {
+
+    const query = {};
+    query[key] = { $regex: `^${value}`, $options: 'i' };
+
+    const fetchResult = await User.find(query);
+
+    if (fetchResult.length == 0) {
       return res.status(400).json({ status: "FAILED", message: messageCode.msgNoMatchFound });
     }
-    return res.status(200).json({ status: "SUCCESS", message: messageCode.msgIssueFound, details: fetchDetails });
+
+    return res.status(200).json({ status: "SUCCESS", message: messageCode.msgIssueFound, details: fetchResult });
   } catch (error) {
     return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
   }
@@ -393,41 +387,35 @@ const getIssuesWithFilter = async (req, res) => {
     return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
 
-  const filterName = {
-    1: '$name',
-    2: '$course',
-    3: '$grantDate',
-    4: '$expirationDate',
-    5: '$certificateNumber'
-  };
   var fetchedIssues = [];
 
   try {
     const input = req.body.input;
-    const filter = parseInt(req.body.filter);
+    const filter = req.body.filter;
     const email = req.body.email;
-    await isDBConnected();
-    const isEmailExist = await User.findOne({email: email});
-    if(!isEmailExist){
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidDateFormat, details: input });
+    // Get page and limit from query parameters, with defaults
+    const page = parseInt(req.body.page) || 1;
+    const limit = parseInt(req.body.limit);
+
+    // Validate page and limit
+    if (page < 1 || limit < 1) {
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgNonZero });
     }
 
-    if (input && (filter == 1 || filter == 2 || filter == 3 || filter == 4 || filter == 5)) {
-      let filterCriteria = filterName[filter];
-
-      if (filter == 3 || filter == 4) {
-        let convertDate = await convertDateFormat(input);
-        if (!convertDate) {
-          return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidDateFormat, details: input });
-        }
-      }
+    await isDBConnected();
+    const isEmailExist = await User.findOne({ email: email });
+    if (!isEmailExist) {
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidEmail, details: email });
+    }
+    if (input && filter) {
+      let filterCriteria = `$${filter}`;
 
       // Query 1
       var query1Promise = Issues.find({
-          issuerId: isEmailExist.issuerId,
+        issuerId: isEmailExist.issuerId,
         $expr: {
           $and: [
-            { $eq: [{ $toLower: filterCriteria }, input.toLowerCase()] }
+            { $regexMatch: { input: { $toLower: filterCriteria }, regex: new RegExp(`^${input.toLowerCase()}`, 'i') } }
           ]
         },
         url: { $exists: true, $ne: null, $ne: "", $regex: /certs365-live/ } // Filter to include documents where `url` exists
@@ -435,10 +423,10 @@ const getIssuesWithFilter = async (req, res) => {
 
       // Query 2
       var query2Promise = BatchIssues.find({
-          issuerId: isEmailExist.issuerId,
+        issuerId: isEmailExist.issuerId,
         $expr: {
           $and: [
-            { $eq: [{ $toLower: filterCriteria }, input.toLowerCase()] }
+            { $regexMatch: { input: { $toLower: filterCriteria }, regex: new RegExp(`^${input.toLowerCase()}`, 'i') } }
           ]
         },
         url: { $exists: true, $ne: null, $ne: "", $regex: /certs365-live/ } // Filter to include documents where `url` exists
@@ -455,14 +443,45 @@ const getIssuesWithFilter = async (req, res) => {
         // fetchedIssues.push(query2Result);
         fetchedIssues = fetchedIssues.concat(query2Result);
       }
+      // Calculate the start and end indices for the slice
+      const startIndex = (page - 1) * limit;
+      const endIndex = startIndex + limit;
+
+      // Slice the array to get the current page of results
+      const paginatedData = fetchedIssues.slice(startIndex, endIndex);
+
+      // Calculate total number of pages
+      const totalItems = fetchedIssues.length;
+      const totalPages = Math.ceil(totalItems / limit);
+
+      const paginationDetails = {
+        total: totalItems,
+        page: page,
+        limit: limit,
+        totalPages: totalPages
+      }
 
       if (fetchedIssues.length == 0) {
         return res.status(400).json({ status: "FAILED", message: messageCode.msgNoMatchFound });
       }
-      return res.status(200).json({ status: "SUCCESS", message: messageCode.msgIssueFound, details: fetchedIssues });
+      // Check if the requested page is beyond the total pages
+      if (page > totalPages && totalPages > 0) {
+        return res.status(404).json({
+          message: messageCode.msgPageNotFound,
+          data: [],
+          pagination: paginationDetails
+        });
+      }
+
+      const matchPages = {
+        data: paginatedData,
+        ...paginationDetails
+      }
+
+      return res.status(200).json({ status: "SUCCESS", message: messageCode.msgIssueFound, details: matchPages });
 
     } else {
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidInput, detail: filter });
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidInput, detail: input });
     }
 
   } catch (error) {
@@ -1437,7 +1456,7 @@ const getOrganizationDetails = async (req, res) => {
     let uniqueResponses = [...new Set(_organizations.map(item => item))];
     // Sort the array in alphabetical order
     const sortedUniqueResponses = uniqueResponses.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
-    
+
     res.json({
       status: "SUCCESS",
       message: messageCode.msgOrganizationFetched,
@@ -1830,6 +1849,7 @@ module.exports = {
   // Function to fetch details for Graph from Issuer log
   fetchGraphDetails,
 
+  // Function to fetch 
   fetchGraphStatusDetails,
 
   fetchStatusCoreFeatureIssues,

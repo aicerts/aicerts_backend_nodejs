@@ -106,10 +106,21 @@ const validationRoutes = {
         body("input").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isString().not().equals("string").withMessage(messageCode.msgInputProvide),
         body("type").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isNumeric().isIn([1, 2, 3]).withMessage(messageCode.msgProvideValidType),
     ],
+    fetchIssuers: [
+        body("key").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isString().not().equals("string").withMessage(messageCode.msgProvideValidFilter),
+        body("value").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isString().not().equals("string").withMessage(messageCode.msgProvideValidValue),
+    ],
     filterIssues: [
         body("email").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isEmail().withMessage(messageCode.msgInvalidEmail),
-        body("filter").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isNumeric().withMessage(messageCode.msgNumericOnly).isIn([1, 2, 3, 4, 5]).withMessage(messageCode.msgProvideValidFilter).matches(/^\d+$/).withMessage(messageCode.msgNumericOnly), // Checks that input is numeric,
-        body("input").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isString().not().equals("string").withMessage(messageCode.msgInputProvide),
+        body("filter").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isString().not().equals("string").withMessage(messageCode.msgProvideValidFilter),
+        body("input").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isString().withMessage(messageCode.msgInputProvide),
+        body(["page", "limit"]).optional().notEmpty().withMessage(messageCode.msgNonEmpty).trim().isNumeric().withMessage(messageCode.msgInputProvide).custom((value) => {
+            const intValue = parseInt(value);
+            if (intValue <= 0) {
+                throw new Error(messageCode.msgNonZero);
+            }
+            return true;
+        })
     ],
     checkAddress: [
         body("address").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isString().not().equals("string").withMessage(messageCode.msgInputProvide).isLength(42).withMessage(messageCode.msgInvalidEthereum)
