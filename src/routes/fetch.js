@@ -179,7 +179,7 @@ router.post('/get-organization-issues', validationRoute.organizationIssues, admi
 
 /**
  * @swagger
- * /api/get-issuers-details:
+ * /api/get-filtered-issuers:
  *   post:
  *     summary: Get details of all certifications issued by Issuers in an organization under particular name/id (filter)
  *     description: API to fetch details of all certifications issued by Issuers in an organization under particular name/id (filter).
@@ -193,12 +193,19 @@ router.post('/get-organization-issues', validationRoute.organizationIssues, admi
  *           schema:
  *             type: object
  *             properties:
- *               value:
+ *               input:
  *                 type: string
  *                 description: Provide input value organization name/ issuer name/email
- *               key:
+ *               filter:
  *                 type: string
  *                 description: Provide key 
+ *               flag:
+ *                 type: number
+ *                 description: Provide flag value 
+ *             required:
+ *               - input
+ *               - filter
+ *               - flag
  *     responses:
  *       '200':
  *         description: All issues details fetched successfully
@@ -259,11 +266,11 @@ router.post('/get-organization-issues', validationRoute.organizationIssues, admi
  *                   example: An error occurred while fetching issues details
  */
 
-router.post('/get-issuers-details', validationRoute.fetchIssuers ,adminController. getIssuersWithFilter);
+router.post('/get-filtered-issuers', validationRoute.fetchIssuers ,adminController. getIssuersWithFilter);
 
 /**
  * @swagger
- * /api/get-filered-issues:
+ * /api/get-filtered-issues:
  *   post:
  *     summary: Get details of certifications issued by Issuers under particular input:filter as name, course, grantDate, expirationDate, certificationNumber with filter code.
  *     description: API to fetch details of certifications issued by Issuers under particular input:filter as name, course, grantDate, expirationDate, certificationNumber as filter code.
@@ -292,6 +299,14 @@ router.post('/get-issuers-details', validationRoute.fetchIssuers ,adminControlle
  *               limit:
  *                 type: number
  *                 description: Provide Student/Candidate target name
+ *               flag:
+ *                 type: number
+ *                 description: Provide flag value 
+ *             required:
+ *               - email
+ *               - input
+ *               - filter
+ *               - flag
  *     responses:
  *       '200':
  *         description: All issues details fetched successfully
@@ -352,7 +367,7 @@ router.post('/get-issuers-details', validationRoute.fetchIssuers ,adminControlle
  *                   example: An error occurred while fetching issues details
  */
 
-router.post('/get-filered-issues', validationRoute.filterIssues, adminController.getIssuesWithFilter);
+router.post('/get-filtered-issues', validationRoute.filterIssues, adminController.getIssuesWithFilter);
 
 /**
  * @swagger
@@ -1472,6 +1487,96 @@ router.post('/get-single-certificates', adminController.getSingleCertificates);
  */
 
 router.post('/get-batch-certificates', adminController.getBatchCertificates);
+
+/**
+ * @swagger
+ * /api/get-batch-certificate-dates:
+ *   post:
+ *     summary: Get batch certificates based on issuerId
+ *     description: API to fetch all batch certificates for a given issuerId. The response will group the certificates by their issueDate.
+ *     tags: [Fetch/Upload]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               issuerId:
+ *                 type: string
+ *                 description: Issuer's ID
+ *             required:
+ *               - issuerId
+ *     responses:
+ *       '200':
+ *         description: Batch certificates fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: SUCCESS
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       issueDate:
+ *                         type: string
+ *                         format: date
+ *                       certificates:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             batchId:
+ *                               type: number
+ *                             issueDate:
+ *                               type: string
+ *                             issuerId:
+ *                               type: string
+ *                   example:
+ *                       data:
+ *                         - batchId: "12"
+ *                           issueDate: "2024-01-01"
+ *                           issuerId: "issuer123"
+ *                 message:
+ *                   type: string
+ *                   example: Batch certificates fetched successfully
+ *       '400':
+ *         description: Bad request or invalid input
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: issuerId is required
+ *       '500':
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred while fetching the batch certificates
+ *                 details:
+ *                   type: string
+ *                   example: Error details
+ */
 
 router.post('/get-batch-certificate-dates', adminController.getBatchCertificateDates);
 

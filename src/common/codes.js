@@ -62,6 +62,7 @@ module.exports = {
     msgVlidCertNoDb: "Certification is valid perhaps Details unavailable",
     msgInvalidOrganization: "Entered invalid organization / not exist.",
     msgInvalidParams: "Dynamic QR details not found, Please set QR position and try again",
+    msgInvalidFlag: "Provide valid flag value",
 
     // API response codes in Issues (Controller)
     msgAuthMissing: "Authorization token is missing",

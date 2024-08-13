@@ -54,7 +54,7 @@ const validationRoutes = {
         body("certStatus").notEmpty().trim().isNumeric().withMessage(messageCode.msgNonEmpty).isIn([3, 4]).withMessage(messageCode.msgProvideValidCertStatus),
     ],
     fetchGraph: [
-        body("value").notEmpty().trim().isNumeric().withMessage(messageCode.msgNonEmpty).isIn({min: 1, max: 9999}).withMessage(messageCode.msgInvalidGraphInput),
+        body("value").notEmpty().trim().isNumeric().withMessage(messageCode.msgNonEmpty).isIn({ min: 1, max: 9999 }).withMessage(messageCode.msgInvalidGraphInput),
     ],
     courseCheck: [
         body("email").notEmpty().trim().isEmail().withMessage(messageCode.msgInvalidEmail).not().equals("string").withMessage(messageCode.msgInvalidEmail),
@@ -107,20 +107,22 @@ const validationRoutes = {
         body("type").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isNumeric().isIn([1, 2, 3]).withMessage(messageCode.msgProvideValidType),
     ],
     fetchIssuers: [
-        body("key").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isString().not().equals("string").withMessage(messageCode.msgProvideValidFilter),
-        body("value").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isString().not().equals("string").withMessage(messageCode.msgProvideValidValue),
+        body("filter").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isString().not().equals("string").withMessage(messageCode.msgProvideValidFilter),
+        body("input").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isString().not().equals("string").withMessage(messageCode.msgInputProvide),
+        body("flag").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isNumeric().isIn([1, 2]).withMessage(messageCode.msgInvalidFlag),
     ],
     filterIssues: [
         body("email").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isEmail().withMessage(messageCode.msgInvalidEmail),
         body("filter").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isString().not().equals("string").withMessage(messageCode.msgProvideValidFilter),
         body("input").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isString().withMessage(messageCode.msgInputProvide),
-        body(["page", "limit"]).optional().notEmpty().withMessage(messageCode.msgNonEmpty).trim().isNumeric().withMessage(messageCode.msgInputProvide).custom((value) => {
-            const intValue = parseInt(value);
-            if (intValue <= 0) {
-                throw new Error(messageCode.msgNonZero);
-            }
-            return true;
-        })
+        body("flag").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isNumeric().isIn([1, 2]).withMessage(messageCode.msgInvalidFlag),
+        // body(["page", "limit"]).optional().notEmpty().withMessage(messageCode.msgNonEmpty).trim().isNumeric().withMessage(messageCode.msgInputProvide).custom((value) => {
+        //     const intValue = parseInt(value);
+        //     if (intValue <= 0) {
+        //         throw new Error(messageCode.msgNonZero);
+        //     }
+        //     return true;
+        // }),
     ],
     checkAddress: [
         body("address").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isString().not().equals("string").withMessage(messageCode.msgInputProvide).isLength(42).withMessage(messageCode.msgInvalidEthereum)

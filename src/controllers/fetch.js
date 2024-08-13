@@ -29,6 +29,8 @@ const netcomAddress = process.env.NETCOM_CONTRACT || null;
 const lmsAddress = process.env.LMS_CONTRACT || null;
 const MAX_RETRY_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 1000; // 1 second delay between retries (adjust as needed)
+const bucketName = process.env.BUCKET_NAME || 'certs365-live';
+const searchLimit = process.env.SEARCH_LIMIT || 20;
 
 var messageCode = require("../common/codes");
 app.use("../../uploads", express.static(path.join(__dirname, "uploads")));
@@ -353,17 +355,42 @@ const getIssuersWithFilter = async (req, res) => {
     return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
   try {
-    const value = req.body.value;
-    const key = req.body.key;
-    // const { key, value } = req.body; 
-    if (!key || !value) {
+    const input = req.body.input;
+    const filter = req.body.filter;
+    const flag = parseInt(req.body.flag);
+    if (!filter || !input || !flag) {
       return res.status(400).send({ status: "FAILED", message: messageCode.msgInputProvide });
     }
 
-    const query = {};
-    query[key] = { $regex: `^${value}`, $options: 'i' };
-
-    const fetchResult = await User.find(query);
+    var fetchResult;
+    if (flag == 1) {
+      const query = {};
+      const projection = {};
+      query[filter] = { $regex: `^${input}`, $options: 'i' };
+      // Construct the projection object dynamically
+      projection[filter] = 1; // Include the field specified by `key`
+      projection['_id'] = 0; // Exclude the `_id` field
+      fetchResponse = await User.find(query, projection);
+      // Extract the key match from the results
+      const responseItems = fetchResponse.map(item => item[filter]);
+      // Remove duplicates using a Set
+      // const uniqueItems = Array.from(new Set(responseItems));
+      const uniqueItems = [...new Set(responseItems.map(item => item.toLowerCase()))];
+      // Sort the values alphabetically
+      // fetchResult = uniqueItems.sort((a, b) => a.localeCompare(b));
+      fetchResult = uniqueItems.map(lowerCaseItem =>
+        responseItems.find(item => item.toLowerCase() === lowerCaseItem)
+      );
+    } else {
+      let filterCriteria = `$${filter}`;
+      fetchResult = await User.find({
+        $expr: {
+          $and: [
+            { $eq: [{ $toLower: filterCriteria }, input.toLowerCase()] }
+          ]
+        }
+      }).select(['-password']);
+    }
 
     if (fetchResult.length == 0) {
       return res.status(400).json({ status: "FAILED", message: messageCode.msgNoMatchFound });
@@ -393,14 +420,12 @@ const getIssuesWithFilter = async (req, res) => {
     const input = req.body.input;
     const filter = req.body.filter;
     const email = req.body.email;
+    const flag = parseInt(req.body.flag);
     // Get page and limit from query parameters, with defaults
-    const page = parseInt(req.body.page) || 1;
-    const limit = parseInt(req.body.limit);
-
-    // Validate page and limit
-    if (page < 1 || limit < 1) {
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgNonZero });
-    }
+    var page = parseInt(req.body.page) || null;
+    var limit = parseInt(req.body.limit) || null;
+    var startIndex;
+    var endIndex;
 
     await isDBConnected();
     const isEmailExist = await User.findOne({ email: email });
@@ -408,78 +433,136 @@ const getIssuesWithFilter = async (req, res) => {
       return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidEmail, details: email });
     }
     if (input && filter) {
-      let filterCriteria = `$${filter}`;
-
-      // Query 1
-      var query1Promise = Issues.find({
-        issuerId: isEmailExist.issuerId,
-        $expr: {
-          $and: [
-            { $regexMatch: { input: { $toLower: filterCriteria }, regex: new RegExp(`^${input.toLowerCase()}`, 'i') } }
-          ]
-        },
-        url: { $exists: true, $ne: null, $ne: "", $regex: /certs365-live/ } // Filter to include documents where `url` exists
-      });
-
-      // Query 2
-      var query2Promise = BatchIssues.find({
-        issuerId: isEmailExist.issuerId,
-        $expr: {
-          $and: [
-            { $regexMatch: { input: { $toLower: filterCriteria }, regex: new RegExp(`^${input.toLowerCase()}`, 'i') } }
-          ]
-        },
-        url: { $exists: true, $ne: null, $ne: "", $regex: /certs365-live/ } // Filter to include documents where `url` exists
-      });
-
-      // Await both promises
-      var [query1Result, query2Result] = await Promise.all([query1Promise, query2Promise]);
-      // Check if results are non-empty and push to finalResults
-      if (query1Result.length > 0) {
-        // fetchedIssues.push(query1Result);
-        fetchedIssues = fetchedIssues.concat(query1Result);
-      }
-      if (query2Result.length > 0) {
-        // fetchedIssues.push(query2Result);
-        fetchedIssues = fetchedIssues.concat(query2Result);
-      }
-      // Calculate the start and end indices for the slice
-      const startIndex = (page - 1) * limit;
-      const endIndex = startIndex + limit;
-
-      // Slice the array to get the current page of results
-      const paginatedData = fetchedIssues.slice(startIndex, endIndex);
-
-      // Calculate total number of pages
-      const totalItems = fetchedIssues.length;
-      const totalPages = Math.ceil(totalItems / limit);
-
-      const paginationDetails = {
-        total: totalItems,
-        page: page,
-        limit: limit,
-        totalPages: totalPages
-      }
-
-      if (fetchedIssues.length == 0) {
-        return res.status(400).json({ status: "FAILED", message: messageCode.msgNoMatchFound });
-      }
-      // Check if the requested page is beyond the total pages
-      if (page > totalPages && totalPages > 0) {
-        return res.status(404).json({
-          message: messageCode.msgPageNotFound,
-          data: [],
-          pagination: paginationDetails
+      var filterCriteria = `$${filter}`;
+      if (flag == 1) {
+        // Query 1
+        var query1Promise = Issues.find({
+          issuerId: isEmailExist.issuerId,
+          $expr: {
+            $and: [
+              { $regexMatch: { input: { $toLower: filterCriteria }, regex: new RegExp(`^${input.toLowerCase()}`, 'i') } }
+            ]
+          },
+          url: { $exists: true, $ne: null, $ne: "", $regex: bucketName } // Filter to include documents where `url` exists
         });
+
+        // Query 2
+        var query2Promise = BatchIssues.find({
+          issuerId: isEmailExist.issuerId,
+          $expr: {
+            $and: [
+              { $regexMatch: { input: { $toLower: filterCriteria }, regex: new RegExp(`^${input.toLowerCase()}`, 'i') } }
+            ]
+          },
+          url: { $exists: true, $ne: null, $ne: "", $regex: bucketName } // Filter to include documents where `url` exists
+        });
+
+        // Await both promises
+        var [query1Result, query2Result] = await Promise.all([query1Promise, query2Promise]);
+        // Check if results are non-empty and push to finalResults
+        if (query1Result.length > 0) {
+          fetchedIssues = fetchedIssues.concat(query1Result);
+        }
+        if (query2Result.length > 0) {
+          fetchedIssues = fetchedIssues.concat(query2Result);
+        }
+
+        // Extract the key match from the results
+        const responseItems = fetchedIssues.map(item => item[filter]);
+        // Remove duplicates using a Set
+        // const uniqueItems = Array.from(new Set(responseItems));
+        const uniqueItems = [...new Set(responseItems.map(item => item.toLowerCase()))];
+        // Sort the values alphabetically
+        // fetchResult = uniqueItems.sort((a, b) => a.localeCompare(b));
+        const fetchResult = uniqueItems.map(lowerCaseItem =>
+          responseItems.find(item => item.toLowerCase() === lowerCaseItem)
+        );
+        // Map and limit to specific number of items
+        // const fetchResult = uniqueItems
+        //   .map(lowerCaseItem => responseItems.find(item => item.toLowerCase() === lowerCaseItem))
+        //   .slice(0, searchLimit);
+
+        return res.status(200).json({ status: "SUCCESS", message: messageCode.msgIssueFound, details: fetchResult });
+
+      } else {
+
+        // Query 1
+        var query1Promise = Issues.find({
+          issuerId: isEmailExist.issuerId,
+          $expr: {
+            $and: [
+              { $eq: [{ $toLower: filterCriteria }, input.toLowerCase()] }
+            ]
+          },
+          url: { $exists: true, $ne: null, $ne: "", $regex: bucketName } // Filter to include documents where `url` exists
+        });
+
+        // Query 2
+        var query2Promise = BatchIssues.find({
+          issuerId: isEmailExist.issuerId,
+          $expr: {
+            $and: [
+              { $eq: [{ $toLower: filterCriteria }, input.toLowerCase()] }
+            ]
+          },
+          url: { $exists: true, $ne: null, $ne: "", $regex: bucketName } // Filter to include documents where `url` exists
+        });
+
+        // Await both promises
+        var [query1Result, query2Result] = await Promise.all([query1Promise, query2Promise]);
+        // Check if results are non-empty and push to finalResults
+        if (query1Result.length > 0) {
+          fetchedIssues = fetchedIssues.concat(query1Result);
+        }
+        if (query2Result.length > 0) {
+          fetchedIssues = fetchedIssues.concat(query2Result);
+        }
+
+        if (!page || !limit) {
+          page = 1;
+          limit = fetchedIssues.length;
+          // Calculate the start and end indices for the slice
+          startIndex = (page - 1) * limit;
+          endIndex = startIndex + limit;
+        } else {
+          // Calculate the start and end indices for the slice
+          startIndex = (page - 1) * limit;
+          endIndex = startIndex + limit;
+        }
+
+        // Calculate total number of pages
+        const totalItems = fetchedIssues.length;
+        const totalPages = Math.ceil(totalItems / limit);
+
+        // Slice the array to get the current page of results
+        const paginatedData = fetchedIssues.slice(startIndex, endIndex);
+
+        const paginationDetails = {
+          total: totalItems,
+          page: page,
+          limit: limit,
+          totalPages: totalPages
+        }
+
+        if (fetchedIssues.length == 0) {
+          return res.status(400).json({ status: "FAILED", message: messageCode.msgNoMatchFound });
+        }
+        // Check if the requested page is beyond the total pages
+        if (page > totalPages && totalPages > 0) {
+          return res.status(404).json({
+            message: messageCode.msgPageNotFound,
+            data: [],
+            pagination: paginationDetails
+          });
+        }
+
+        const matchPages = {
+          data: paginatedData,
+          ...paginationDetails
+        }
+
+        return res.status(200).json({ status: "SUCCESS", message: messageCode.msgIssueFound, details: matchPages });
       }
-
-      const matchPages = {
-        data: paginatedData,
-        ...paginationDetails
-      }
-
-      return res.status(200).json({ status: "SUCCESS", message: messageCode.msgIssueFound, details: matchPages });
-
     } else {
       return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidInput, detail: input });
     }
@@ -1207,7 +1290,7 @@ const uploadCertificateToS3 = async (req, res) => {
 
   const bucketName = process.env.BUCKET_NAME;
   const timestamp = Date.now(); // Get the current timestamp in milliseconds
-  const keyName = `${file.originalname}_${timestamp}`;
+  const keyName = `${file.originalname}_${timestamp}.png`;
   const s3 = new AWS.S3();
   const fileStream = fs.createReadStream(filePath);
   const acl = process.env.ACL_NAME;
@@ -1299,7 +1382,11 @@ const getSingleCertificates = async (req, res) => {
     }
 
     // Fetch certificates based on issuerId and type
-    const certificates = await Issues.find({ issuerId, type: typeField });
+    const certificates = await Issues.find({
+      issuerId: issuerId,
+      type: typeField,
+      url: { $exists: true, $ne: null, $ne: "", $regex: bucketName } // Filter to include documents where `url` exists
+    });
 
     // Respond with success and the certificates
     res.json({
@@ -1517,7 +1604,7 @@ const getIssuesInOrganizationWithName = async (req, res) => {
             { $eq: [{ $toLower: "$name" }, targetName.toLowerCase()] }
           ]
         },
-        url: { $exists: true, $ne: null, $ne: "", $regex: /certs365-live/ } // Filter to include documents where `url` exists
+        url: { $exists: true, $ne: null, $ne: "", $regex: bucketName } // Filter to include documents where `url` exists
       });
 
       // Query 2
@@ -1528,7 +1615,7 @@ const getIssuesInOrganizationWithName = async (req, res) => {
             { $eq: [{ $toLower: "$name" }, targetName.toLowerCase()] }
           ]
         },
-        url: { $exists: true, $ne: null, $ne: "", $regex: /certs365-live/ } // Filter to include documents where `url` exists
+        url: { $exists: true, $ne: null, $ne: "", $regex: bucketName } // Filter to include documents where `url` exists
       });
 
       // Await both promises
@@ -1547,42 +1634,6 @@ const getIssuesInOrganizationWithName = async (req, res) => {
     if (fetchedIssues.length == 0) {
       return res.status(400).json({ status: "FAILED", message: messageCode.msgNoMatchFound });
     }
-
-    // if (fetchedIssues.length > 0) {
-
-    //   const s3 = new AWS.S3();
-    //   const bucketName = process.env.BUCKET_NAME || 'certs365';
-    //   var getUrl = [];
-
-    //   // Extracting urls from each item in the data array
-    //   const _urls = fetchedIssues.map(item => item.url);
-    //   let bucketUrl = `https://${bucketName}.s3.amazonaws.com/`;
-    //   // Extract codes from each URL
-    //   const urls = _urls.map(url => url.replace(bucketUrl, ''));
-
-    //   for (let count = 0; count < urls.length; count++) {
-    //     let fileKey = urls[count];
-    //     let downloadParams = {
-    //       Bucket: bucketName,
-    //       Key: fileKey,
-    //       Expires: 600000,
-    //     };
-
-    //     try {
-    //       const url = await s3.getSignedUrlPromise('getObject', downloadParams);
-    //       getUrl.push(url);
-    //     } catch (error) {
-    //       console.error(messageCode.msgErrorInUrl, error);
-    //       res.status(400).send({ status: "FAILED", message: messageCode.msgErrorInUrl, details: error });
-    //     }
-
-    //   }
-    // }
-
-    // Iterate through data and update the url property
-    // fetchedIssues.forEach((item, index) => {
-    //   item.url = getUrl[index];
-    // });
 
     return res.status(200).json({ status: "SUCCESS", message: messageCode.msgAllQueryFetched, response: fetchedIssues });
 
