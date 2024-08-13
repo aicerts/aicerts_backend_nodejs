@@ -1548,15 +1548,14 @@ const _uploadImageToS3 = async (certNumber, imagePath) => {
 };
 
 module.exports = {
+  // Function to issue a certification
+  handleIssueCertification,
   // Function to issue a PDF certificate
   handleIssuePdfCertification,
-
+  // Function to issue a Dynamic QR certification (single)
   handleIssueDynamicPdfCertification,
-
+  // Function to issue a Dynamic QR Bulk certification (single)
   bulkIssueSingleCertificates,
-
-  bulkIssueBatchCertificates,
-
-  // Function to issue a certification
-  handleIssueCertification
+  // Function to issue a Dynamic QR Bulk certification (batch)
+  bulkIssueBatchCertificates
 };
