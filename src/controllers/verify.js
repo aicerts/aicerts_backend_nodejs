@@ -25,6 +25,7 @@ const {
   extractCertificateInfo,
   verificationLogEntry,
   isCertificationIdExisted,
+  isBulkCertificationIdExisted,
   holdExecution
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
@@ -111,6 +112,9 @@ console.log("file path", req.file.path);
         try {
           await isDBConnected();
           var isIdExist = await isCertificationIdExisted(certificationNumber);
+          if(!isIdExist){
+            isIdExist = await isBulkCertificationIdExisted(certificationNumber);
+          }
           if (isIdExist) {
             var blockchainResponse = 0;
             if (isIdExist.batchId == undefined) {
@@ -235,6 +239,9 @@ console.log("file path", req.file.path);
           var dbStatus = await isDBConnected();
           if (dbStatus) {
             var getCertificationInfo = await isCertificationIdExisted(extractQRData['Certificate Number']);
+            if(!getCertificationInfo){
+              getCertificationInfo = await isBulkCertificationIdExisted(extractQRData['Certificate Number']);
+            }
             certificateS3Url = null;
             if (getCertificationInfo) {
               certificateS3Url = getCertificationInfo.url != null ? getCertificationInfo.url : null;
@@ -353,11 +360,16 @@ const decodeQRScan = async (req, res) => {
         // Parse the URL
         const parsedUrl = new URL(receivedCode);
         // Extract the query parameter
-        const certificationNumber = parsedUrl.searchParams.get('');
-
+        var certificationNumber = parsedUrl.searchParams.get('');
+        if(!certificationNumber){
+          certificationNumber = parsedUrl.searchParams.get('q');
+        }
         try {
           await isDBConnected();
           var isIdExist = await isCertificationIdExisted(certificationNumber);
+          if(!isIdExist){
+            isIdExist = await isBulkCertificationIdExisted(certificationNumber);
+          }
           if (isIdExist) {
             var blockchainResponse = 0;
             if (isIdExist.batchId == undefined) {
@@ -432,6 +444,9 @@ const decodeQRScan = async (req, res) => {
           var dbStatus = await isDBConnected();
           if (dbStatus) {
             var getCertificationInfo = await isCertificationIdExisted(extractQRData['Certificate Number']);
+            if(!getCertificationInfo){
+              getCertificationInfo = await isBulkCertificationIdExisted(extractQRData['Certificate Number']);
+            }
             certificateS3Url = null;
             if (getCertificationInfo) {
               certificateS3Url = getCertificationInfo.url != null ? getCertificationInfo.url : null;
@@ -511,6 +526,9 @@ const decodeCertificate = async (req, res) => {
       };
 
       var getCertificationInfo = await isCertificationIdExisted(parsedData['Certificate Number']);
+      if(!getCertificationInfo){
+        getCertificationInfo = await isBulkCertificationIdExisted(parsedData['Certificate Number']);
+      }
 
       var verifyLog = {
         issuerId: "default",
@@ -520,6 +538,9 @@ const decodeCertificate = async (req, res) => {
       var dbStatus = await isDBConnected();
       if (dbStatus) {
         var getValidCertificatioInfo = await isCertificationIdExisted(originalData.Certificate_Number);
+        if(!getValidCertificatioInfo){
+          getValidCertificatioInfo = await isBulkCertificationIdExisted(originalData.Certificate_Number);
+        }
         if (getValidCertificatioInfo) {
           certificateS3Url = getValidCertificatioInfo.url != null ? getValidCertificatioInfo.url : null;
           verifyLog.issuerId = getValidCertificatioInfo.issuerId;
@@ -574,6 +595,9 @@ const verifyCertificationId = async (req, res) => {
     try {
       await isDBConnected();
       var isIdExist = await isCertificationIdExisted(inputId);
+      if(!isIdExist){
+        isIdExist = await isBulkCertificationIdExisted(inputId);
+      }
       if (isIdExist) {
         var blockchainResponse = 0;
         if (isIdExist.batchId == undefined) {
