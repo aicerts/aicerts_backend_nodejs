@@ -34,6 +34,15 @@ const { User } = require("../config/schema");
 
 var existIssuerId;
 
+// Define the headers
+const excelReportHeaders = [
+    'Certs',
+    'certificationID',
+    'name',
+    'certificationName',
+    'grantDate',
+    'expirationDate'
+];
 
 /**
  * API call to renew a certification (single / in batch).
@@ -329,6 +338,62 @@ const convertIntoExcel = async (req, res) => {
 
 };
 
+/**
+ * API call to fetch DB file and generate reports into excel file format.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
+const generateExcelReport = async (req, res) => {
+
+    try {
+        const email = req.body.email;
+        const value = req.body.value;
+        let dbStatus = isDBConnected();
+        if (dbStatus) {
+            let isEmailExist = await User.findOne({ email: email });
+            if (!isEmailExist) {
+                res.status(400).json({ status: "FAILED", message: messageCode.msgUserEmailNotFound, details: email });
+                return;
+            }
+
+            // Create a new workbook and worksheet
+            const workbook = new ExcelJS.Workbook();
+            const worksheet = workbook.addWorksheet('Report');
+
+            // Add headers to the first row
+            worksheet.addRow(excelReportHeaders);
+
+            // Generate the Excel file buffer
+            const targetFileBuffer = await workbook.xlsx.writeBuffer();
+
+            // const targetFileBuffer = await convertToExcel(uploadDir, getExtension);
+            console.log("The response", targetFileBuffer);
+
+            if (!targetFileBuffer) {
+                res.status(400).json({ status: "FAILED", message: messageCode.msgUnableToConvert });
+                return;
+            }
+
+            const resultExcel = `converted.xlsx`;
+
+            res.set({
+                'Content-Type': "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                'Content-Disposition': `attachment; filename="${resultExcel}"`, // Change filename as needed
+            });
+
+            // Send excel file
+            res.send(targetFileBuffer);
+            return;
+        }
+    } catch (error) {
+        await cleanUploadFolder();
+        res.status(400).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+        return;
+    }
+
+};
+
 module.exports = {
     // Function to renew a certification (single / in batch)
     renewCert,
@@ -342,6 +407,10 @@ module.exports = {
     // Function to revoke/reactivate a Batch of certifications
     updateBatchStatus,
 
+    // Function to convert xml, json and csv files into excel file format
     convertIntoExcel,
+
+    // Function to fetch DB file and generate reports into excel file format
+    generateExcelReport,
 
 };

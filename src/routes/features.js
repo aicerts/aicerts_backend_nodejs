@@ -559,4 +559,90 @@ router.post('/update-batch-status', validationRoute.updateBatch, ensureAuthentic
  */
 router.post('/convert-excel', upload.single("file"), adminController.convertIntoExcel);
 
+/**
+ * @swagger
+ * /api/generate-excel-report:
+ *   post:
+ *     summary: Get excel file report
+ *     description: API to fetch details from DB and generate excel file as response.
+ *     tags: [Dynamic Template]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: Provide email 
+ *               value:
+ *                 type: number
+ *                 description: Provide the value 
+ *             required:
+ *               - email
+ *               - value
+ *     responses:
+ *       '200':
+ *         description: All details fetched into the excel file successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: SUCCESS
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     [Issuers Log Details]
+ *                 message:
+ *                   type: string
+ *                   example: All details fetched into the excel successfully
+ *       '400':
+ *         description: Bad request or Invalid code
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: Issues details not found (or) Bad request!
+ *       '422':
+ *         description: User given invalid input (Unprocessable Entity)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Error message for invalid input.
+ *       '500':
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred while fetching issues details
+ */
+router.post('/generate-excel-report', adminController.generateExcelReport);
+
 module.exports=router;
