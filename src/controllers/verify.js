@@ -2,12 +2,7 @@
 require('dotenv').config();
 
 // Import required modules
-const express = require("express");
-const app = express(); // Create an instance of the Express application
-const path = require("path");
 const fs = require("fs");
-const axios = require('axios');
-const moment = require('moment');
 const { ethers } = require("ethers"); // Ethereum JavaScript library
 const { validationResult } = require("express-validator");
 // Import custom cryptoFunction module for encryption and decryption

@@ -9,7 +9,6 @@ const fs = require("fs");
 const AWS = require('../config/aws-config');
 const { validationResult } = require("express-validator");
 const moment = require('moment');
-const axios = require('axios');
 
 // Import MongoDB models
 const { User, Issues, BatchIssues, IssueStatus, VerificationLog, ServiceAccountQuotas } = require("../config/schema");
@@ -1736,18 +1735,23 @@ const fetchTransactionCount = async (contractAddress, startDate, endDate) => {
 
   const url = `${apiUrl}?module=${module}&action=${action}&address=${contractAddress}&startblock=${fromBlock}&endblock=${toBlock}&sort=asc&apikey=${apiKey}`;
 
+
   try {
-    const response = await axios.get(url);
-    if (response.data.status === '1') {
+    // Dynamically import fetch
+    const { default: fetch } = await import('node-fetch');
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (data.status === '1') {
       if (startDate != 0) {
-        const transactions = response.data.result.filter(tx => tx.timeStamp >= startTimestamp && tx.timeStamp <= endTimestamp);
+        const transactions = data.result.filter(tx => tx.timeStamp >= startTimestamp && tx.timeStamp <= endTimestamp);
         return transactions.length;
       } else {
-        let _transactions = response.data.result;
+        let _transactions = data.result;
         return _transactions.length;
       }
     } else {
-      console.error(`Error fetching data for contract ${contractAddress}: ${response.data.message}`);
+      console.error(`Error fetching data for contract ${contractAddress}: ${data.message}`);
       return 0;
     }
   } catch (error) {
