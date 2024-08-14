@@ -11,7 +11,7 @@ module.exports = {
 
     // Response code messages
     msgPageNotFound: "Page not found",
-    msgInternalError: "Internal server error",
+    msgInternalError: "Unable to reach the server, Please try again...",
     msgWorkInProgress: "🚧 !⚠! Work In Porgress !⚠! 🚧",
 
     // Handle Excel File messages

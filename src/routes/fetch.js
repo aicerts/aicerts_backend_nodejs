@@ -181,8 +181,8 @@ router.post('/get-organization-issues', validationRoute.organizationIssues, admi
  * @swagger
  * /api/get-filtered-issuers:
  *   post:
- *     summary: Get details of all Issuers with the filter (organization, name, email) with Flag 1 or 2.
- *     description: API to fetch details of all Issuers with the filter (organization, name, email) with Flag 1 or 2.
+ *     summary: Get details of all Issuers with the filter (organization, name, email).
+ *     description: API to fetch details of all Issuers with the filter (organization, name, email).
  *     tags: [Fetch/Upload]
  *     security:
  *       - BearerAuth: []
@@ -199,13 +199,9 @@ router.post('/get-organization-issues', validationRoute.organizationIssues, admi
  *               filter:
  *                 type: string
  *                 description: Provide key 
- *               flag:
- *                 type: number
- *                 description: Provide flag value 1 or 2
  *             required:
  *               - input
  *               - filter
- *               - flag
  *     responses:
  *       '200':
  *         description: All issues details fetched successfully

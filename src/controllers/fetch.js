@@ -356,6 +356,33 @@ const getIssuersWithFilter = async (req, res) => {
   try {
     const input = req.body.input;
     const filter = req.body.filter;
+    if (!filter || !input) {
+      return res.status(400).send({ status: "FAILED", message: messageCode.msgInputProvide });
+    }
+
+    var fetchResult;
+      const query = {};
+      query[filter] = { $regex: `^${input}`, $options: 'i' };
+      fetchResult = await User.find(query).select(['-password']);
+
+    if (fetchResult.length == 0) {
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgNoMatchFound });
+    }
+
+    return res.status(200).json({ status: "SUCCESS", message: messageCode.msgAllIssuersFetched, details: fetchResult });
+  } catch (error) {
+    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
+  }
+};
+
+const _getIssuersWithFilter = async (req, res) => {
+  let validResult = validationResult(req);
+  if (!validResult.isEmpty()) {
+    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+  }
+  try {
+    const input = req.body.input;
+    const filter = req.body.filter;
     const flag = parseInt(req.body.flag);
     if (!filter || !input || !flag) {
       return res.status(400).send({ status: "FAILED", message: messageCode.msgInputProvide });
@@ -469,17 +496,21 @@ const getIssuesWithFilter = async (req, res) => {
         // Extract the key match from the results
         const responseItems = fetchedIssues.map(item => item[filter]);
         // Remove duplicates using a Set
-        // const uniqueItems = Array.from(new Set(responseItems));
-        const uniqueItems = [...new Set(responseItems.map(item => item.toLowerCase()))];
+        const uniqueItems = Array.from(new Set(responseItems));
+        // const uniqueItems = [...new Set(responseItems.map(item => item.toLowerCase()))];
         // Sort the values alphabetically
-        // fetchResult = uniqueItems.sort((a, b) => a.localeCompare(b));
-        const fetchResult = uniqueItems.map(lowerCaseItem =>
-          responseItems.find(item => item.toLowerCase() === lowerCaseItem)
-        );
+        fetchResult = uniqueItems.sort((a, b) => a.localeCompare(b));
+        // const fetchResult = uniqueItems.map(lowerCaseItem =>
+        //   responseItems.find(item => item.toLowerCase() === lowerCaseItem)
+        // );
         // Map and limit to specific number of items
         // const fetchResult = uniqueItems
         //   .map(lowerCaseItem => responseItems.find(item => item.toLowerCase() === lowerCaseItem))
         //   .slice(0, searchLimit);
+
+        if (fetchResult.length == 0) {
+          return res.status(400).json({ status: "FAILED", message: messageCode.msgNoMatchFound });
+        }
 
         return res.status(200).json({ status: "SUCCESS", message: messageCode.msgIssueFound, details: fetchResult });
 
@@ -769,13 +800,13 @@ const fetchIssuesLogDetails = async (req, res) => {
           var query1Promise = Issues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: { $in: [1, 2, 4] },
-            url: { $exists: true, $ne: null, $ne: "", $regex: bucketName } // Filter to include documents where `url` exists
+            url: { $exists: true, $ne: null, $ne: "" } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           var query2Promise = BatchIssues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: { $in: [1, 2, 4] },
-            url: { $exists: true, $ne: null, $ne: "", $regex: bucketName } // Filter to include documents where `url` exists
+            url: { $exists: true, $ne: null, $ne: "" } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           // Wait for both queries to resolve
@@ -806,13 +837,13 @@ const fetchIssuesLogDetails = async (req, res) => {
           var query1Promise = Issues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: 3,
-            url: { $exists: true, $ne: null, $ne: "", $regex: bucketName } // Filter to include documents where `url` exists
+            url: { $exists: true, $ne: null, $ne: "" } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           var query2Promise = BatchIssues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: 3,
-            url: { $exists: true, $ne: null, $ne: "", $regex: bucketName } // Filter to include documents where `url` exists
+            url: { $exists: true, $ne: null, $ne: "" } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           // Wait for both queries to resolve
@@ -832,14 +863,14 @@ const fetchIssuesLogDetails = async (req, res) => {
             issuerId: issuerExist.issuerId,
             certificateStatus: { $in: [1, 2, 4] },
             expirationDate: { $ne: "1" },
-            url: { $exists: true, $ne: null, $ne: "", $regex: bucketName } // Filter to include documents where `url` exists
+            url: { $exists: true, $ne: null, $ne: "" } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           var query2Promise = BatchIssues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: { $in: [1, 2, 4] },
             expirationDate: { $ne: "1" },
-            url: { $exists: true, $ne: null, $ne: "", $regex: bucketName } // Filter to include documents where `url` exists
+            url: { $exists: true, $ne: null, $ne: "" } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           // Wait for both queries to resolve
@@ -1603,7 +1634,7 @@ const getIssuesInOrganizationWithName = async (req, res) => {
             { $eq: [{ $toLower: "$name" }, targetName.toLowerCase()] }
           ]
         },
-        url: { $exists: true, $ne: null, $ne: "", $regex: bucketName } // Filter to include documents where `url` exists
+        url: { $exists: true, $ne: null, $ne: "" } // Filter to include documents where `url` exists
       });
 
       // Query 2
@@ -1614,7 +1645,7 @@ const getIssuesInOrganizationWithName = async (req, res) => {
             { $eq: [{ $toLower: "$name" }, targetName.toLowerCase()] }
           ]
         },
-        url: { $exists: true, $ne: null, $ne: "", $regex: bucketName } // Filter to include documents where `url` exists
+        url: { $exists: true, $ne: null, $ne: "" } // Filter to include documents where `url` exists
       });
 
       // Await both promises
@@ -1641,7 +1672,6 @@ const getIssuesInOrganizationWithName = async (req, res) => {
   }
 
 };
-
 
 /**
  * Api to fetch Daily and Monthly issues (by LMS and Netcom).
