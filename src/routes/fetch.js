@@ -181,8 +181,8 @@ router.post('/get-organization-issues', validationRoute.organizationIssues, admi
  * @swagger
  * /api/get-filtered-issuers:
  *   post:
- *     summary: Get details of all certifications issued by Issuers in an organization under particular name/id (filter)
- *     description: API to fetch details of all certifications issued by Issuers in an organization under particular name/id (filter).
+ *     summary: Get details of all Issuers with the filter (organization, name, email) with Flag 1 or 2.
+ *     description: API to fetch details of all Issuers with the filter (organization, name, email) with Flag 1 or 2.
  *     tags: [Fetch/Upload]
  *     security:
  *       - BearerAuth: []
@@ -201,7 +201,7 @@ router.post('/get-organization-issues', validationRoute.organizationIssues, admi
  *                 description: Provide key 
  *               flag:
  *                 type: number
- *                 description: Provide flag value 
+ *                 description: Provide flag value 1 or 2
  *             required:
  *               - input
  *               - filter
@@ -270,13 +270,26 @@ router.post('/get-filtered-issuers', validationRoute.fetchIssuers ,adminControll
 
 /**
  * @swagger
- * /api/get-filtered-issues:
+ * /api/get-filtered-issues/{page}/{limit}:
  *   post:
  *     summary: Get details of certifications issued by Issuers under particular input:filter as name, course, grantDate, expirationDate, certificationNumber with filter code.
  *     description: API to fetch details of certifications issued by Issuers under particular input:filter as name, course, grantDate, expirationDate, certificationNumber as filter code.
  *     tags: [Fetch/Upload]
  *     security:
  *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: page
+ *         description: The page count (number).
+ *         required: false
+ *         schema:
+ *           type: number
+ *       - in: path
+ *         name: limit
+ *         description: The response limit count (number).
+ *         required: false
+ *         schema:
+ *           type: number
  *     requestBody:
  *       required: true
  *       content:
@@ -292,12 +305,6 @@ router.post('/get-filtered-issuers', validationRoute.fetchIssuers ,adminControll
  *                 description: Provide organization name
  *               filter:
  *                 type: string
- *                 description: Provide Student/Candidate target name
- *               page:
- *                 type: number
- *                 description: Provide organization name
- *               limit:
- *                 type: number
  *                 description: Provide Student/Candidate target name
  *               flag:
  *                 type: number
@@ -367,7 +374,7 @@ router.post('/get-filtered-issuers', validationRoute.fetchIssuers ,adminControll
  *                   example: An error occurred while fetching issues details
  */
 
-router.post('/get-filtered-issues', validationRoute.filterIssues, adminController.getIssuesWithFilter);
+router.post('/get-filtered-issues/:page/:limit', validationRoute.filterIssues, adminController.getIssuesWithFilter);
 
 /**
  * @swagger

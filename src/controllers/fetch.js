@@ -395,7 +395,7 @@ const getIssuersWithFilter = async (req, res) => {
       return res.status(400).json({ status: "FAILED", message: messageCode.msgNoMatchFound });
     }
 
-    return res.status(200).json({ status: "SUCCESS", message: messageCode.msgIssueFound, details: fetchResult });
+    return res.status(200).json({ status: "SUCCESS", message: messageCode.msgAllIssuersFetched, details: fetchResult });
   } catch (error) {
     return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
   }
@@ -421,8 +421,8 @@ const getIssuesWithFilter = async (req, res) => {
     const email = req.body.email;
     const flag = parseInt(req.body.flag);
     // Get page and limit from query parameters, with defaults
-    var page = parseInt(req.body.page) || null;
-    var limit = parseInt(req.body.limit) || null;
+    var page = parseInt(req.params.page) || null;
+    var limit = parseInt(req.params.limit) || null;
     var startIndex;
     var endIndex;
 
@@ -517,7 +517,7 @@ const getIssuesWithFilter = async (req, res) => {
           fetchedIssues = fetchedIssues.concat(query2Result);
         }
 
-        if (!page || !limit) {
+        if (!page || !limit || page == 0 || limit == 0) {
           page = 1;
           limit = fetchedIssues.length;
           // Calculate the start and end indices for the slice
