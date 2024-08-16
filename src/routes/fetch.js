@@ -5,7 +5,7 @@ const adminController = require('../controllers/fetch');
 const { ensureAuthenticated } = require("../config/auth"); // Import authentication middleware
 const validationRoute = require("../common/validationRoutes");
 
-const __upload = multer({dest: "../../uploads/"});
+const __upload = multer({dest: "./uploads/"});
 
 /**
  * @swagger

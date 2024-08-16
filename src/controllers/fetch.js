@@ -18,6 +18,7 @@ const {
   holdExecution,
   validateSearchDateFormat,
   convertDateFormat,
+  cleanUploadFolder,
   isDBConnected // Function to check if the database connection is established
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
@@ -631,8 +632,10 @@ const uploadFileToS3 = async (req, res) => {
     const data = await s3.upload(uploadParams).promise();
     console.log('File uploaded successfully to', data.Location);
     res.status(200).send({ status: "SUCCESS", message: 'File uploaded successfully', fileUrl: data.Location });
+    await cleanUploadFolder();
   } catch (error) {
     console.error('Error uploading file:', error);
+    await cleanUploadFolder();
     res.status(500).send({ status: "FAILED", error: 'An error occurred while uploading the file', details: error });
   }
 };
@@ -1281,9 +1284,8 @@ const getAggregatedCoreDetails = async (data) => {
 const uploadCertificateToS3 = async (req, res) => {
   const file = req?.file;
   const filePath = file?.path;
-  const certificateNumber = req?.body?.certificateNumber;
+  const certificateNumber = req?.body?.certificateId;
   const type = parseInt(req?.body?.type, 10); // Parse type to integer
-
   // Validate request parameters
   if (!file || !certificateNumber || !type) {
     return res.status(400).send({ status: "FAILED", message: "file, certificateId, and type are required" });
@@ -1340,7 +1342,7 @@ const uploadCertificateToS3 = async (req, res) => {
         console.error('Invalid type:', type);
         return res.status(400).send({ status: "FAILED", message: 'Invalid type' });
     }
-
+    await cleanUploadFolder();
     res.status(200).send({ status: "SUCCESS", message: 'File uploaded successfully', fileUrl: data.Location });
   } catch (error) {
     console.error('Error uploading file:', error);
