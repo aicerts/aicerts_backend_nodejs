@@ -744,6 +744,7 @@ module.exports = {
   // Function to Approve or Reject the Issuer
   validateIssuer,
 
+  // Function to Validate / allocate credits and default parameters to the issuer upon login
   createAndValidateIssuerIdUponLogin,
 
   // Function to allocate Credits to Issuer

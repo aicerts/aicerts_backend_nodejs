@@ -1462,52 +1462,67 @@ const getCertificationStatus = async (certStatus) => {
 };
 
 module.exports = {
-  // Connect to Polygon 
+  // Function to Connect to Polygon 
   connectToPolygon,
 
+  // Function to validate standard date format MM/DD/YYYY.
   validateSearchDateFormat,
 
   // Verify Certification ID from both collections (single / batch)
   isCertificationIdExisted,
 
+  // Verify Certification ID from both dynamic bulk collections (single / batch)
   isBulkCertificationIdExisted,
 
-  // Function to insert certificate data into MongoDB
+  // Function to insert single certificate data into MongoDB
   insertCertificateData,
 
-  insertBulkSingleIssueData,
+  // Function to insert Batch certificate data into Database
+  insertBatchCertificateData,
 
+  // Function to insert single dynamic certificate data into MongoDB
   insertDynamicCertificateData,
 
-  insertBulkBatchIssueData,
+  // Function to insert dynamic bulk (single) certificate data into MongoDB
+  insertBulkSingleIssueData,
 
-  // Insert Batch certificate data into Database
-  insertBatchCertificateData,
+  // Function to insert dynamic bulk (batch) certificate data into MongoDB
+  insertBulkBatchIssueData,
 
   // Function to extract certificate information from a QR code text
   extractCertificateInfo,
 
+  // Function to allocate the short URL for the QR generation
   insertUrlData,
 
   // Function to convert the Date format MM/DD/YYYY
   convertDateFormat,
 
+  // Function to convert the Date format during the verification
   convertDateOnVerification,
 
+  // Function to convert the Date format from standard format into epoch format
   convertDateToEpoch,
 
+  // Function to convert the Date format from epoch into the standard format
   convertEpochToDate,
 
+  // Function to insert the certification issue status 
   insertIssueStatus,
 
+  // Function to fetch certification status
   getCertificationStatus,
 
+  // Function to get Verification log entry as per the course
   verificationLogEntry,
 
+  // Function to update credit limit based on schedule (7/14/21/28) days accordingly
   scheduledUpdateLimits,
 
+  // Function to get Issuer service credits (categorised by the service issue/renew/revoke/reactivate)
   getIssuerServiceCredits,
 
+  // Function to update specific service credits for an issuer
   updateIssuerServiceCredits,
 
   // Function to extract QR code data from a PDF file
@@ -1516,15 +1531,19 @@ module.exports = {
   // Function to add a link and QR code to a PDF file
   addLinkToPdf,
 
+  // Function to add QR on the dynamic positional issue
   addDynamicLinkToPdf,
 
-  //Verify the uploading pdf template dimensions
+  // Function to verify the uploading pdf template dimensions
   verifyPDFDimensions,
 
+  // Function to validate PDF dimensions
   validatePDFDimensions,
 
+  // Function to validate dynamic single pdf dimensions 
   verifyDynamicPDFDimensions,
 
+  // Function to validate dynamic bulk pdf dimensions 
   verifyBulkDynamicPDFDimensions,
 
   // Function to calculate the hash of data using SHA-256 algorithm
@@ -1536,15 +1555,19 @@ module.exports = {
   // Function for filtering file uploads based on MIME type Pdf
   fileFilter,
 
-  // Function to clean up the upload folder
+  // Function to clean up the data in upload folder
   cleanUploadFolder,
 
+  // Function to flush files in upload folder
   flushUploadFolder,
 
+  // Function to wipout folders in upload folder
   wipeUploadFolder,
 
+  // Function to check png files existence in the path provided
   checkForPngFiles,
 
+  // Function to wipe png files existence in the path provided
   deletePngFiles,
 
   // Function to check if MongoDB is connected

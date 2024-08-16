@@ -751,32 +751,20 @@ const fetchIssuesLogDetails = async (req, res) => {
           queryResponse = { issued: issueCount, renewed: renewCount, revoked: revokedCount.length, reactivated: reactivatedCount.length };
           break;
         case 2:
-          var __queryResponse = await IssueStatus.find({
+          queryResponse = await IssueStatus.find({
             email: req.body.email,
             $and: [
-              { certStatus: { $eq: 1 } },
+              { certStatus: { $eq: [1, 2] } },
               { expirationDate: { $gt: formattedDate } }]
           });
-          var _queryResponse = await IssueStatus.find({
-            email: req.body.email,
-            $and: [
-              { certStatus: { $eq: 2 } },
-              { expirationDate: { $gt: formattedDate } }]
-          });
-          queryResponse = { __queryResponse, _queryResponse };
           // Sort the data based on the 'lastUpdate' date in descending order
           // queryResponse.sort((b, a) => new Date(b.expirationDate) - new Date(a.expirationDate));
           break;
         case 3:
-          var _queryResponse = await IssueStatus.find({
+          queryResponse = await IssueStatus.find({
             email: req.body.email,
-            $and: [{ certStatus: { $eq: 1 }, expirationDate: { $ne: "1" } }]
+            $and: [{ certStatus: { $eq: [1, 2] }, expirationDate: { $ne: "1" } }]
           });
-          var __queryResponse = await IssueStatus.find({
-            email: req.body.email,
-            $and: [{ certStatus: { $eq: 2 }, expirationDate: { $ne: "1" } }]
-          });
-          queryResponse = { _queryResponse, __queryResponse };
           // Sort the data based on the 'lastUpdate' date in descending order
           // queryResponse.sort((b, a) => new Date(b.expirationDate) - new Date(a.expirationDate));
           break;
@@ -1935,20 +1923,40 @@ module.exports = {
   // Function to fetch details for Graph from Issuer log
   fetchGraphDetails,
 
-  // Function to fetch 
+  // Function to fetch Core features count based response on monthly/yearly for the Graph
   fetchGraphStatusDetails,
 
+  // Function to fetch Core features count based response for the Graph
   fetchStatusCoreFeatureIssues,
 
+  // Function to upload media file into the S3 bucket provided
   uploadCertificateToS3,
+
+  // Function to get single issued certifications from the DB (with / without pdf)
   getSingleCertificates,
+
+  // Function to get batch issued certifications from the DB
   getBatchCertificates,
+
+  // Function to get batch issued certifications from the DB based on Dates
   getBatchCertificateDates,
+
+  // Function to fetch only organization details provided in issuers/users collection
   getOrganizationDetails,
+
+  // Function to fetch only organization based issues 
   getIssuesInOrganizationWithName,
+
+  // Function to fetch Netcom & LMS based issues count
   fetchCustomIssuedCertificates,
+
+  // Function to fetch bulk backup files from S3 bucket based on the date
   getBulkBackupFiles,
+
+  // Function to fetch only issuers based on the filter (name/email/organization)
   getIssuersWithFilter,
+
+  // Function to fetch issues/Gallery certs based on the flag based filter (certificationId, name, course, grantDate, expirationDate)
   getIssuesWithFilter
 
 };

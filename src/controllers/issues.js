@@ -1499,6 +1499,7 @@ module.exports = {
   // Function to issue a PDF certificate
   issuePdf,
 
+  // Function to issue a Dynamic QR with PDF certification
   issueDynamicPdf,
 
   // Function to issue a certification
@@ -1507,11 +1508,15 @@ module.exports = {
   // Function to issue a Batch of certifications
   batchIssueCertificate,
 
+  // Function to issue a Dynamic Bulk issues (single) of certifications
   bulkSingleIssueCertificates,
 
+  // Function to issue a Dynamic Bulk issues (batch) of certifications
   bulkBatchIssueCertificates,
 
+  // Function to accept pdf & qr dimensions  Batch of certifications
   acceptDynamicInputs,
 
+  // Function to validate dynamic bulk issue provided zip template files with excel data and dimensions 
   validateDynamicBulkIssueDocuments
 };

@@ -357,34 +357,70 @@ const generateExcelReport = async (req, res) => {
                 return;
             }
 
-            // Create a new workbook and worksheet
-            const workbook = new ExcelJS.Workbook();
-            const worksheet = workbook.addWorksheet('Report');
+            if (value == 1) {
+                // Sample raw data
+                const rawData = [
+                    { certs: 'CertTitle', certificationID: 'CertID1', name: 'Name1', certificationName: 'SampleName', grantDate: '12/12/2024', expirationDate: '12/12/2024' }
+                ];
 
-            // Add headers to the first row
-            worksheet.addRow(excelReportHeaders);
+                // Ensure each object has keys that match the headers
+                const formattedData = rawData.map(item => {
+                    return {
+                        Certs: item.certs,
+                        certificationID: item.certificationID,
+                        name: item.name,
+                        certificationName: item.certificationName,
+                        grantDate: item.grantDate,
+                        expirationDate: item.expirationDate
+                    };
+                });
 
-            // Generate the Excel file buffer
-            const targetFileBuffer = await workbook.xlsx.writeBuffer();
+                // Create JSON response
+                const jsonResponse = JSON.stringify(formattedData, null, 2);
 
-            // const targetFileBuffer = await convertToExcel(uploadDir, getExtension);
-            console.log("The response", targetFileBuffer);
+                if (!jsonResponse) {
+                    res.status(400).json({ status: "FAILED", message: messageCode.msgUnableToConvert });
+                    return;
+                }
 
-            if (!targetFileBuffer) {
-                res.status(400).json({ status: "FAILED", message: messageCode.msgUnableToConvert });
+                // In an Express.js app, you could send this as a response:
+                res.json(formattedData);
+                return;
+
+            } else if (value == 2) {
+                // Create a new workbook and worksheet
+                const workbook = new ExcelJS.Workbook();
+                const worksheet = workbook.addWorksheet('Report');
+
+                // Add headers to the first row
+                worksheet.addRow(excelReportHeaders);
+
+                // Generate the Excel file buffer
+                const targetFileBuffer = await workbook.xlsx.writeBuffer();
+
+                // const targetFileBuffer = await convertToExcel(uploadDir, getExtension);
+                // console.log("The response", targetFileBuffer);
+
+                if (!targetFileBuffer) {
+                    res.status(400).json({ status: "FAILED", message: messageCode.msgUnableToConvert });
+                    return;
+                }
+
+                const resultExcel = `converted.xlsx`;
+
+                res.set({
+                    'Content-Type': "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    'Content-Disposition': `attachment; filename="${resultExcel}"`, // Change filename as needed
+                });
+
+                // Send excel file
+                res.send(targetFileBuffer);
+                return;
+            } else {
+                res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidFlag });
                 return;
             }
 
-            const resultExcel = `converted.xlsx`;
-
-            res.set({
-                'Content-Type': "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                'Content-Disposition': `attachment; filename="${resultExcel}"`, // Change filename as needed
-            });
-
-            // Send excel file
-            res.send(targetFileBuffer);
-            return;
         }
     } catch (error) {
         await cleanUploadFolder();
