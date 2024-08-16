@@ -141,7 +141,8 @@ const getServiceLimitsByEmail = async (req, res) => {
     // Transform the original response
     let transformedResponse = fetchServiceQuota.map(item => ({
       serviceId: item.serviceId,
-      limit: item.limit
+      limit: item.limit,
+      status: item.status
     }));
 
     return res.status(200).json({ status: "SUCCESS", message: messageCode.msgMatchLimitsFound, details: transformedResponse });
