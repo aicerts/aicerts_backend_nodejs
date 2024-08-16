@@ -660,6 +660,9 @@ const allocateCredits = async (req, res) => {
       if (!fetchServiceQuota) {
         return res.status(400).json({ status: "FAILED", message: messageCode.msgFetchQuotaFailed });
       }
+      if(fetchServiceQuota.status == false && credits > 0){
+        return res.status(400).json({ status: "FAILED", message: messageCode.msgNoCreditsForService });
+      }
 
       const newLimit = fetchServiceQuota.limit > 0 ? fetchServiceQuota.limit + credits : credits;
       fetchServiceQuota.limit = newLimit;

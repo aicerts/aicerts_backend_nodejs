@@ -201,6 +201,7 @@ module.exports = {
     msgMatchLimitsNotFound: "No Match Credits limit results found",
     msgIssuerQuotaStatus: "Issuer restricted to perform service",
     msgFailedToUpdateQuotas: "Failed to update credit limits quota for Issuers",
+    msgNoCreditsForService: "Unable to provide credits to issuer for locked service",
     msgInvalidIssuerId: "Invalid Issuer (or) Issuer ID not found, Please check",
     msgIssuerQuotaExceeded: "Your account has insufficient credits to perform this operation",
 
