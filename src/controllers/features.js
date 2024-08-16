@@ -348,7 +348,7 @@ const generateExcelReport = async (req, res) => {
 
     try {
         const email = req.body.email;
-        const value = req.body.value;
+        const value = parseInt(req.body.value);
         let dbStatus = isDBConnected();
         if (dbStatus) {
             let isEmailExist = await User.findOne({ email: email });
