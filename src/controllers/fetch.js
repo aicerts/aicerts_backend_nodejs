@@ -637,6 +637,7 @@ const uploadFileToS3 = async (req, res) => {
     console.error('Error uploading file:', error);
     await cleanUploadFolder();
     res.status(500).send({ status: "FAILED", error: 'An error occurred while uploading the file', details: error });
+    return;
   }
 };
 
@@ -1340,10 +1341,12 @@ const uploadCertificateToS3 = async (req, res) => {
         break;
       default:
         console.error('Invalid type:', type);
+        await cleanUploadFolder();
         return res.status(400).send({ status: "FAILED", message: 'Invalid type' });
     }
     await cleanUploadFolder();
     res.status(200).send({ status: "SUCCESS", message: 'File uploaded successfully', fileUrl: data.Location });
+    return;
   } catch (error) {
     console.error('Error uploading file:', error);
     res.status(500).send({ status: "FAILED", message: 'An error occurred while uploading the file', details: error.message });
