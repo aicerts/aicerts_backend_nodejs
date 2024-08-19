@@ -23,6 +23,7 @@ const {
   cleanUploadFolder, // Function to clean up the upload folder
   isDBConnected, // Function to check if the database connection is established
   extractCertificateInfo,
+  extractCertificateInformation,
   verificationLogEntry,
   isCertificationIdExisted,
   isBulkCertificationIdExisted,
@@ -466,8 +467,11 @@ const decodeQRScan = async (req, res) => {
       return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
 
     } else if (receivedCode.startsWith(process.env.START_LMS)) {
-
       var [extractQRData, decodedUrl] = await extractCertificateInfo(receivedCode);
+      if(!extractQRData["Certification Number"]){
+        extractQRData = await extractCertificateInformation(receivedCode);
+      }
+      console.log("reached", extractQRData);
       if (extractQRData) {
         var verifyLog = {
           issuerId: 'default',
@@ -624,10 +628,8 @@ const verifyCertificationId = async (req, res) => {
       var isDynamicCertificateExist = await DynamicIssues.findOne({ certificateNumber: inputId });
       
       if (isIdExist) {
-
         if (isIdExist.certificateStatus == 6) {
           let _polygonLink = `https://${process.env.NETWORK}/tx/${isIdExist.transactionHash}`;
-
           var completeResponse = {
             'Certificate Number': isIdExist.certificateNumber,
             'Name': isIdExist.name,
@@ -637,8 +639,8 @@ const verifyCertificationId = async (req, res) => {
             'Polygon URL': _polygonLink
           };
 
-          if (urlIssueExist) {
-            completeResponse.url = urlIssueExist.url;
+          if (isUrlExisted) {
+            completeResponse.url = isUrlExisted.url;
           } else {
             completeResponse.url = null;
           }

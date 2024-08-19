@@ -794,17 +794,18 @@ const extractCertificateInfo = async (qrCodeText) => {
       "Grant Date": "",
       "Expiration Date": ""
     };
+    console.log("Reached here", lines);
     // Loop through each line of the text
     for (const line of lines) {
       const parts = line.trim().split(/:\s+/); // Use a regular expression to split by colon followed by optional whitespace
       // If there are two parts (a key-value pair), extract the key and value
+      console.log("the part", parts);
       if (parts.length === 2) {
         const key = parts[0].trim();
         let value = parts[1].trim();
-
         // Remove commas from the value (if any)
         value = value.replace(/,/g, "");
-
+        console.log("the value", value);
         // Map the key-value pairs to corresponding fields in the certificateInfo object
         if (key === "Verify On Blockchain") {
           certificateInfo["Polygon URL"] = value;
@@ -832,6 +833,41 @@ const extractCertificateInfo = async (qrCodeText) => {
     return [convertedCertData, urlData];
   }
 };
+
+const extractCertificateInformation = async (qrCodeText) => {
+  // Define regex patterns for extraction
+  const regexPatterns = {
+    url: /Verify On Blockchain:\s*(https:\/\/[^\s,]+)/,
+    certNumber: /Certification Number:\s*(\S+)/,
+    name: /Name:\s*(\S+)/,
+    courseName: /Certification Name:\s*([^,]+)/,
+    grantDate: /Grant Date:\s*(\d{2}\/\d{2}\/\d{4})/,
+    expirationDate: /Expiration Date:\s*(\d{2}\/\d{2}\/\d{4})/
+  };
+
+  // Object to hold extracted values
+  const extractedDetails = {};
+
+  // Loop through regex patterns and extract values
+  for (const [key, pattern] of Object.entries(regexPatterns)) {
+    const match = qrCodeText.match(pattern);
+    if (match) {
+      extractedDetails[key] = match[1];
+    }
+  }
+
+  // Convert extracted details to desired format
+  const formattedDetails = {
+    "Certificate Number": extractedDetails.certNumber || "",
+    "Name": extractedDetails.name || "",
+    "Course Name": extractedDetails.courseName || "",
+    "Grant Date": extractedDetails.grantDate || "",
+    "Expiration Date": extractedDetails.expirationDate || "",
+    "Polygon URL": extractedDetails.url || ""
+  };
+
+  return formattedDetails;
+}
 
 const holdExecution = (delay) => {
   return new Promise(resolve => {
@@ -1491,6 +1527,8 @@ module.exports = {
 
   // Function to extract certificate information from a QR code text
   extractCertificateInfo,
+
+  extractCertificateInformation,
 
   // Function to allocate the short URL for the QR generation
   insertUrlData,
