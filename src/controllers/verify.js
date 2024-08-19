@@ -235,6 +235,9 @@ console.log("file path", req.file.path);
 
       responseUrl = certificateData;
       var [extractQRData, encodedUrl] = await extractCertificateInfo(responseUrl);
+      if(!extractQRData["Certification Number"]){
+        extractQRData = await extractCertificateInformation(responseUrl);
+      }
       if (extractQRData) {
         try {
           var dbStatus = await isDBConnected();
@@ -284,6 +287,9 @@ console.log("file path", req.file.path);
       return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
     } else if (certificateData.startsWith(process.env.START_LMS)) {
       var [extractQRData, encodedUrl] = await extractCertificateInfo(certificateData);
+      if(!extractQRData["Certification Number"]){
+        extractQRData = await extractCertificateInformation(certificateData);
+      }
       if (extractQRData["Polygon URL"] == undefined) {
         if (fs.existsSync(file)) {
           fs.unlinkSync(file);

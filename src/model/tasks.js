@@ -794,18 +794,15 @@ const extractCertificateInfo = async (qrCodeText) => {
       "Grant Date": "",
       "Expiration Date": ""
     };
-    console.log("Reached here", lines);
     // Loop through each line of the text
     for (const line of lines) {
       const parts = line.trim().split(/:\s+/); // Use a regular expression to split by colon followed by optional whitespace
       // If there are two parts (a key-value pair), extract the key and value
-      console.log("the part", parts);
       if (parts.length === 2) {
         const key = parts[0].trim();
         let value = parts[1].trim();
         // Remove commas from the value (if any)
         value = value.replace(/,/g, "");
-        console.log("the value", value);
         // Map the key-value pairs to corresponding fields in the certificateInfo object
         if (key === "Verify On Blockchain") {
           certificateInfo["Polygon URL"] = value;
