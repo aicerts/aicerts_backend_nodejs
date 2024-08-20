@@ -30,6 +30,7 @@ const abi = require("../config/abi.json");
 
 const extractionPath = './uploads';
 
+const bulkIssueStatus = process.env.BULK_ISSUE_STATUS || null;
 
 // Importing functions from a custom module
 const {

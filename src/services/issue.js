@@ -20,6 +20,8 @@ const { User, DynamicIssues, DynamicParameters } = require("../config/schema");
 // Import ABI (Application Binary Interface) from the JSON file located at "../config/abi.json"
 const abi = require("../config/abi.json");
 
+const bulkIssueStatus = process.env.BULK_ISSUE_STATUS || null;
+
 // Importing functions from a custom module
 const {
   convertDateFormat,
@@ -1103,7 +1105,7 @@ const bulkIssueBatchCertificates = async (email, issuerId, _pdfReponse, _excelRe
         if (!getContractStatus) {
           return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: messageCode.msgRpcFailed });
         }
-        
+
         var batchNumber = await newContract.getRootLength();
         var allocateBatchId = parseInt(batchNumber) + 1;
 
