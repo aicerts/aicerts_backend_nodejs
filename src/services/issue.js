@@ -539,7 +539,7 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
 
 
       // Define the directory where you want to save the file
-      const uploadDir = path.join(__dirname, '..', '..', 'uploads'); // Go up two directories from __dirname
+      // const uploadDir = path.join(__dirname, '../../uploads'); // Go up two directories from __dirname
       let _generatedImage = `${fields.Certificate_Number}.png`;
       var generatedImage = path.join(rootDirectory, _generatedImage);
       console.log("Image path", generatedImage);
@@ -880,7 +880,7 @@ const bulkIssueSingleCertificates = async (email, issuerId, _pdfReponse, _excelR
       // Write the content to the destination file
       fs.writeFileSync(destinationFilePath, fileContent);
     }
-    
+
     try {
       await isDBConnected();
       console.log("working directory", __dirname);
@@ -983,22 +983,26 @@ const bulkIssueSingleCertificates = async (email, issuerId, _pdfReponse, _excelR
 
         var outputPath = path.join(__dirname, '../../uploads', 'completed', `${pdfFileName}`);
 
-        // var generatedImage = `${fields.Certificate_Number}.png`;
-        let _generatedImage = `${fields.Certificate_Number}.png`;
-        var generatedImage = path.join(rootDirectory, _generatedImage);
-        console.log("Image path", generatedImage);
+        if (bulkIssueStatus == 'ZIP_STORE') {
+            imageUrl = '';
+            generatedImage = null;
+          } else {
+            let _generatedImage = `${fields.Certificate_Number}.png`;
+            generatedImage = path.join(rootDirectory, _generatedImage);
+            console.log("Image path", generatedImage);
 
-        var imageBuffer = await _convertPdfBufferToPngWithRetry(generatedImage, fileBuffer, pdfWidth, pdfHeight);
+            var imageBuffer = await _convertPdfBufferToPngWithRetry(generatedImage, fileBuffer, pdfWidth, pdfHeight);
 
-        if (imageBuffer) {
-          var imageUrl = await _uploadImageToS3(fields.Certificate_Number, generatedImage);
-          if (!imageUrl) {
-            return ({ code: 400, status: "FAILED", message: messageCode.msgUploadError });
+            if (imageBuffer) {
+              imageUrl = await _uploadImageToS3(fields.Certificate_Number, generatedImage);
+              if (!imageUrl) {
+                return ({ code: 400, status: "FAILED", message: messageCode.msgUploadError });
+              }
+              insertUrl.push(imageUrl);
+            } else {
+              return ({ code: 400, status: "FAILED", message: messageCode.msgImageError });
+            }
           }
-          insertUrl.push(imageUrl);
-        } else {
-          return ({ code: 400, status: "FAILED", message: messageCode.msgImageError });
-        }
 
         try {
           await isDBConnected();
@@ -1038,15 +1042,19 @@ const bulkIssueSingleCertificates = async (email, issuerId, _pdfReponse, _excelR
           fs.unlinkSync(outputPdf);
         }
 
-        // fs.writeFileSync(outputPath, fileBuffer);
-
-        // console.log('File saved successfully at:', outputPath);
+        if (bulkIssueStatus == 'ZIP_STORE') {
+          fs.writeFileSync(outputPath, fileBuffer);
+          console.log('File saved successfully at:', outputPath);
+        }
 
       }
 
       // Wait for all insert promises to resolve
       await Promise.all(insertPromises);
-      return ({ code: 200, status: true, Details: insertUrl });
+      if (bulkIssueStatus == 'ZIP_STORE') {
+        return ({ code: 200, status: true });
+      }
+      return ({ code: 200, status: true, message: messageCode.msgBatchIssuedSuccess, Details: insertUrl });
 
     } catch (error) {
       return ({ code: 500, status: false, message: messageCode.msgDBFailed, Details: error });
