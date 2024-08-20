@@ -30,7 +30,7 @@ const abi = require("../config/abi.json");
 
 const extractionPath = './uploads';
 
-const bulkIssueStatus = process.env.BULK_ISSUE_STATUS || null;
+const bulkIssueStatus = process.env.BULK_ISSUE_STATUS || 'DEFAULT';
 
 // Importing functions from a custom module
 const {
@@ -54,7 +54,6 @@ const { handleIssueCertification, handleIssuePdfCertification, handleIssueDynami
 
 // Retrieve contract address from environment variable
 const contractAddress = process.env.CONTRACT_ADDRESS;
-const bulkFlag = process.env.BULK_STATUS;
 
 // Define an array of providers to use as fallbacks
 const providers = [
@@ -893,6 +892,7 @@ const bulkBatchIssueCertificates = async (req, res) => {
   // Initialize an empty array to store the file(s) ending with ".pdf"
   var pdfFiles = [];
   var certsExist = [];
+  var destDirectory = path.join(__dirname, '../../uploads/completed');
 
   var today = new Date();
   var options = {
@@ -940,6 +940,10 @@ const bulkBatchIssueCertificates = async (req, res) => {
     // Create a readable stream from the zip file
     const readStream = fs.createReadStream(filePath);
 
+    if (fs.existsSync(destDirectory)) {
+      // Delete the existing directory recursively
+      fs.rmSync(destDirectory, { recursive: true });
+    }
     // Pipe the read stream to the unzipper module for extraction
     await new Promise((resolve, reject) => {
       readStream.pipe(unzipper.Extract({ path: extractionPath }))
@@ -1060,6 +1064,82 @@ const bulkBatchIssueCertificates = async (req, res) => {
 
     var bulkIssueResponse = await bulkIssueBatchCertificates(emailExist.email, emailExist.issuerId, pdfFiles, excelData.message, excelFilePath, paramsExist.positionX, paramsExist.positionY, paramsExist.qrSide, paramsExist.pdfWidth, paramsExist.pdfHeight);
 
+    if (bulkIssueStatus == 'ZIP_STORE') {
+      if (bulkIssueResponse.code == 200) {
+        const zipFileName = `${formattedDateTime}.zip`;
+        const resultFilePath = path.join(__dirname, '../../uploads/completed', zipFileName);
+
+        // Check if the directory exists, if not, create it
+        const uploadDir = path.join(__dirname, './uploads');
+        if (!fs.existsSync(uploadDir)) {
+          fs.mkdirSync(uploadDir, { recursive: true });
+        }
+
+        // Create a new zip archive
+        const archive = archiver('zip', {
+          zlib: { level: 9 } // Sets the compression level
+        });
+
+        // Create a write stream for the zip file
+        const output = fs.createWriteStream(resultFilePath);
+        // var fetchResultZipFile = path.basename(resultFilePath);
+
+        // Listen for close event of the archive
+        output.on('close', async () => {
+          console.log(archive.pointer() + ' total bytes');
+          // const fileBackup = await backupFileToCloud(fetchResultZipFile, resultFilePath, 2);
+          // if (fileBackup.response == false) {
+          //   console.log("The S3 backup failed", fileBackup.details);
+          // }
+          console.log('Zip file created successfully');
+          // Send the zip file as a download
+          res.download(resultFilePath, zipFileName, (err) => {
+            if (err) {
+              console.error('Error downloading zip file:', err);
+            }
+            // Delete the zip file after download
+            // fs.unlinkSync(resultFilePath);
+            fs.unlink(resultFilePath, (err) => {
+              if (err) {
+                console.error('Error deleting zip file:', err);
+              }
+              console.log('Zip file deleted');
+            });
+          });
+        });
+
+        // Pipe the output stream to the zip archive
+        archive.pipe(output);
+        var excelFileName = path.basename(excelFilePath);
+        // Append the file to the list
+        pdfFiles.push(excelFileName);
+
+        // Add PDF files to the zip archive
+        pdfFiles.forEach(file => {
+          const filePath = path.join(__dirname, '../../uploads/completed', file);
+          archive.file(filePath, { name: file });
+        });
+
+        // Finalize the zip archive
+        archive.finalize();
+
+        // Always delete the excel files (if it exists)
+        if (fs.existsSync(excelFilePath)) {
+          fs.unlinkSync(excelFilePath);
+        }
+        await flushUploadFolder();
+        return;
+      } else {
+        var statusCode = bulkIssueResponse.code || 400;
+        var statusMessage = bulkIssueResponse.message || messageCode.msgFailedToIssueBulkCerts;
+        var statusDetails = bulkIssueResponse.Details || "";
+        res.status(statusCode).json({ status: "FAILED", message: statusMessage, details: statusDetails });
+        await wipeUploadFolder();
+        // await flushUploadFolder();
+        return;
+      }
+    }
+
     if (bulkIssueResponse.code == 200) {
       let bulkResponse = {
         email: emailExist.email,
@@ -1079,74 +1159,6 @@ const bulkBatchIssueCertificates = async (req, res) => {
       // await flushUploadFolder();
       return;
     }
-
-    // else {
-    //   const zipFileName = `${formattedDateTime}.zip`;
-    //   const resultFilePath = path.join(__dirname, '../../uploads/completed', zipFileName);
-
-    //   // Check if the directory exists, if not, create it
-    //   const uploadDir = path.join(__dirname, './uploads');
-    //   if (!fs.existsSync(uploadDir)) {
-    //     fs.mkdirSync(uploadDir, { recursive: true });
-    //   }
-
-    //   // Create a new zip archive
-    //   const archive = archiver('zip', {
-    //     zlib: { level: 9 } // Sets the compression level
-    //   });
-
-    //   // Create a write stream for the zip file
-    //   const output = fs.createWriteStream(resultFilePath);
-    //   var fetchResultZipFile = path.basename(resultFilePath);
-
-    //   // Listen for close event of the archive
-    //   output.on('close', async () => {
-    //     console.log(archive.pointer() + ' total bytes');
-    //     const fileBackup = await backupFileToCloud(fetchResultZipFile, resultFilePath, 2);
-    //     if (fileBackup.response == false) {
-    //       console.log("The S3 backup failed", fileBackup.details);
-    //     }
-    //     console.log('Zip file created successfully');
-    //     // Send the zip file as a download
-    //     res.download(resultFilePath, zipFileName, (err) => {
-    //       if (err) {
-    //         console.error('Error downloading zip file:', err);
-    //       }
-    //       // Delete the zip file after download
-    //       // fs.unlinkSync(resultFilePath);
-    //       fs.unlink(resultFilePath, (err) => {
-    //         if (err) {
-    //           console.error('Error deleting zip file:', err);
-    //         }
-    //         console.log('Zip file deleted');
-    //       });
-    //     });
-    //   });
-
-    //   // Pipe the output stream to the zip archive
-    //   archive.pipe(output);
-    //   var excelFileName = path.basename(excelFilePath);
-    //   // Append the file to the list
-    //   pdfFiles.push(excelFileName);
-
-    //   // Add PDF files to the zip archive
-    //   pdfFiles.forEach(file => {
-    //     const filePath = path.join(__dirname, '../../uploads/completed', file);
-    //     archive.file(filePath, { name: file });
-    //   });
-
-    //   // Finalize the zip archive
-    //   archive.finalize();
-
-
-    //   // Always delete the excel files (if it exists)
-    //   if (fs.existsSync(excelFilePath)) {
-    //     fs.unlinkSync(excelFilePath);
-    //   }
-
-    //   await flushUploadFolder();
-    //   return;
-    // }
 
   } catch (error) {
     res.status(400).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });

@@ -450,11 +450,10 @@ const getIssuesWithFilter = async (req, res) => {
     const email = req.body.email;
     const flag = parseInt(req.body.flag);
     // Get page and limit from query parameters, with defaults
-    var page = parseInt(req.params.page) || null;
-    var limit = parseInt(req.params.limit) || null;
+    var page = parseInt(req.query.page) || null;
+    var limit = parseInt(req.query.limit) || null;
     var startIndex;
     var endIndex;
-
     await isDBConnected();
     const isEmailExist = await User.findOne({ email: email });
     if (!isEmailExist) {

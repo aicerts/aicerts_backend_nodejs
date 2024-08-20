@@ -531,7 +531,7 @@ const handleUpdateCertificationStatus = async (email, certificateNumber, certSta
     const today = new Date().toLocaleString("en-US", { timeZone: "America/New_York" }); // Adjust timeZone as per the US Standard Time zone
     // Convert today's date to epoch time (in milliseconds)
     const todayEpoch = new Date(today).getTime() / 1000; // Convert milliseconds to seconds
-
+console.log("Reached");
     try {
         // Check mongoose connection
         const dbStatus = await isDBConnected();

@@ -266,7 +266,7 @@ router.post('/get-filtered-issuers', validationRoute.fetchIssuers ,adminControll
 
 /**
  * @swagger
- * /api/get-filtered-issues/{page}/{limit}:
+ * /api/get-filtered-issues:
  *   post:
  *     summary: Get details of certifications issued by Issuers under particular input:filter as name, course, grantDate, expirationDate, certificationNumber with filter code.
  *     description: API to fetch details of certifications issued by Issuers under particular input:filter as name, course, grantDate, expirationDate, certificationNumber as filter code.
@@ -274,14 +274,14 @@ router.post('/get-filtered-issuers', validationRoute.fetchIssuers ,adminControll
  *     security:
  *       - BearerAuth: []
  *     parameters:
- *       - in: path
- *         name: page
+ *       - name: page
+ *         in: query
  *         description: The page count (number).
  *         required: false
  *         schema:
  *           type: number
- *       - in: path
- *         name: limit
+ *       - name: limit
+ *         in: query
  *         description: The response limit count (number).
  *         required: false
  *         schema:
@@ -370,7 +370,7 @@ router.post('/get-filtered-issuers', validationRoute.fetchIssuers ,adminControll
  *                   example: An error occurred while fetching issues details
  */
 
-router.post('/get-filtered-issues/:page/:limit', validationRoute.filterIssues, adminController.getIssuesWithFilter);
+router.post('/get-filtered-issues', validationRoute.filterIssues, adminController.getIssuesWithFilter);
 
 /**
  * @swagger

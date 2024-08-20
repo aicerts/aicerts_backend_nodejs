@@ -20,7 +20,7 @@ const { User, DynamicIssues, DynamicParameters } = require("../config/schema");
 // Import ABI (Application Binary Interface) from the JSON file located at "../config/abi.json"
 const abi = require("../config/abi.json");
 
-const bulkIssueStatus = process.env.BULK_ISSUE_STATUS || null;
+const bulkIssueStatus = process.env.BULK_ISSUE_STATUS || 'DEFAULT';
 
 // Importing functions from a custom module
 const {
@@ -852,6 +852,9 @@ const bulkIssueSingleCertificates = async (email, issuerId, _pdfReponse, _excelR
   var insertPromises = []; // Array to hold all insert promises
   var insertUrl = [];
   var shortUrlStatus = false;
+  var modifiedUrl;
+  var imageUrl;
+  var generatedImage;
 
   if (!pdfResponse || pdfResponse.length == 0) {
     return ({ code: 400, status: false, message: messageCode.msgUnableToFindPdfFiles });
@@ -859,21 +862,25 @@ const bulkIssueSingleCertificates = async (email, issuerId, _pdfReponse, _excelR
 
   try {
     // Check if the directory exists, if not, create it
-    // const destDirectory = path.join(__dirname, '../../uploads/completed');
-    // console.log("Present working directory", __dirname, destDirectory);
-    // if (fs.existsSync(destDirectory)) {
-    //   // Delete the existing directory recursively
-    //   fs.rmSync(destDirectory, { recursive: true });
-    // }
-    // // Recreate the directory
-    // fs.mkdirSync(destDirectory, { recursive: true });
-    // const excelFileName = path.basename(excelFilePath);
-    // // Destination file path
-    // const destinationFilePath = path.join(destDirectory, excelFileName);
-    // // Read the content of the source file
-    // const fileContent = fs.readFileSync(excelFilePath);
-    // // Write the content to the destination file
-    // fs.writeFileSync(destinationFilePath, fileContent);
+    const destDirectory = path.join(__dirname, '../../uploads/completed');
+    console.log("Present working directory", __dirname, destDirectory);
+
+    if (bulkIssueStatus == 'ZIP_STORE') {
+      if (fs.existsSync(destDirectory)) {
+        // Delete the existing directory recursively
+        fs.rmSync(destDirectory, { recursive: true });
+      }
+      // Recreate the directory
+      fs.mkdirSync(destDirectory, { recursive: true });
+      const excelFileName = path.basename(excelFilePath);
+      // Destination file path
+      const destinationFilePath = path.join(destDirectory, excelFileName);
+      // Read the content of the source file
+      const fileContent = fs.readFileSync(excelFilePath);
+      // Write the content to the destination file
+      fs.writeFileSync(destinationFilePath, fileContent);
+    }
+    
     try {
       await isDBConnected();
       console.log("working directory", __dirname);
@@ -1058,6 +1065,8 @@ const bulkIssueBatchCertificates = async (email, issuerId, _pdfReponse, _excelRe
   var insertUrl = [];
   var shortUrlStatus = false;
   var modifiedUrl;
+  var imageUrl;
+  var generatedImage;
 
   if (!pdfResponse || pdfResponse.length == 0) {
     return ({ code: 400, status: false, message: messageCode.msgUnableToFindPdfFiles });
@@ -1067,19 +1076,22 @@ const bulkIssueBatchCertificates = async (email, issuerId, _pdfReponse, _excelRe
     // Check if the directory exists, if not, create it
     const destDirectory = path.join(__dirname, '../../uploads/completed');
     console.log("Present working directory", __dirname, destDirectory);
-    // if (fs.existsSync(destDirectory)) {
-    //   // Delete the existing directory recursively
-    //   fs.rmSync(destDirectory, { recursive: true });
-    // }
-    // // Recreate the directory
-    // fs.mkdirSync(destDirectory, { recursive: true });
-    // const excelFileName = path.basename(excelFilePath);
-    // // Destination file path
-    // const destinationFilePath = path.join(destDirectory, excelFileName);
-    // // Read the content of the source file
-    // const fileContent = fs.readFileSync(excelFilePath);
-    // // Write the content to the destination file
-    // fs.writeFileSync(destinationFilePath, fileContent);
+
+    if (bulkIssueStatus == 'ZIP_STORE') {
+      if (fs.existsSync(destDirectory)) {
+        // Delete the existing directory recursively
+        fs.rmSync(destDirectory, { recursive: true });
+      }
+      // Recreate the directory
+      fs.mkdirSync(destDirectory, { recursive: true });
+      const excelFileName = path.basename(excelFilePath);
+      // Destination file path
+      const destinationFilePath = path.join(destDirectory, excelFileName);
+      // Read the content of the source file
+      const fileContent = fs.readFileSync(excelFilePath);
+      // Write the content to the destination file
+      fs.writeFileSync(destinationFilePath, fileContent);
+    }
 
     var transformedResponse = _excelResponse[2];
     // return ({ code: 400, status: false, message: messageCode.msgUnderConstruction, Details: `${transformedResponse}, ${pdfResponse}`});
@@ -1209,20 +1221,26 @@ const bulkIssueBatchCertificates = async (email, issuerId, _pdfReponse, _excelRe
 
           // Assuming fileBuffer is available after the code you provided
           var outputPath = path.join(__dirname, '../../uploads', 'completed', `${pdfFileName}`);
-          let _generatedImage = `${fields.Certificate_Number}.png`;
-          var generatedImage = path.join(rootDirectory, _generatedImage);
-          console.log("Image path", generatedImage);
-
-          var imageBuffer = await _convertPdfBufferToPngWithRetry(generatedImage, fileBuffer, pdfWidth, pdfHeight);
-
-          if (imageBuffer) {
-            var imageUrl = await _uploadImageToS3(fields.Certificate_Number, generatedImage);
-            if (!imageUrl) {
-              return ({ code: 400, status: "FAILED", message: messageCode.msgUploadError });
-            }
-            insertUrl.push(imageUrl);
+          
+          if (bulkIssueStatus == 'ZIP_STORE') {
+            imageUrl = '';
+            generatedImage = null;
           } else {
-            return ({ code: 400, status: "FAILED", message: messageCode.msgImageError });
+            let _generatedImage = `${fields.Certificate_Number}.png`;
+            generatedImage = path.join(rootDirectory, _generatedImage);
+            console.log("Image path", generatedImage);
+
+            var imageBuffer = await _convertPdfBufferToPngWithRetry(generatedImage, fileBuffer, pdfWidth, pdfHeight);
+
+            if (imageBuffer) {
+              imageUrl = await _uploadImageToS3(fields.Certificate_Number, generatedImage);
+              if (!imageUrl) {
+                return ({ code: 400, status: "FAILED", message: messageCode.msgUploadError });
+              }
+              insertUrl.push(imageUrl);
+            } else {
+              return ({ code: 400, status: "FAILED", message: messageCode.msgImageError });
+            }
           }
 
           try {
@@ -1265,13 +1283,17 @@ const bulkIssueBatchCertificates = async (email, issuerId, _pdfReponse, _excelRe
             fs.unlinkSync(outputPdf);
           }
 
-          // fs.writeFileSync(outputPath, fileBuffer);
-
-          // console.log('File saved successfully at:', outputPath);
+          if (bulkIssueStatus == 'ZIP_STORE') {
+            fs.writeFileSync(outputPath, fileBuffer);
+            console.log('File saved successfully at:', outputPath);
+          }
 
         }
         // Wait for all insert promises to resolve
         await Promise.all(insertPromises);
+        if (bulkIssueStatus == 'ZIP_STORE') {
+          return ({ code: 200, status: true });
+        }
         return ({ code: 200, status: true, message: messageCode.msgBatchIssuedSuccess, Details: insertUrl });
       } else {
         return ({ code: 400, status: false, message: messageCode.msgInputRecordsNotMatched, Details: error });

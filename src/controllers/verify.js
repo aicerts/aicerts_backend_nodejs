@@ -235,7 +235,7 @@ console.log("file path", req.file.path);
 
       responseUrl = certificateData;
       var [extractQRData, encodedUrl] = await extractCertificateInfo(responseUrl);
-      if(!extractQRData["Certification Number"]){
+      if(!extractQRData["Certificate Number"]){
         extractQRData = await extractCertificateInformation(responseUrl);
       }
       if (extractQRData) {
@@ -287,7 +287,7 @@ console.log("file path", req.file.path);
       return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
     } else if (certificateData.startsWith(process.env.START_LMS)) {
       var [extractQRData, encodedUrl] = await extractCertificateInfo(certificateData);
-      if(!extractQRData["Certification Number"]){
+      if(!extractQRData["Certificate Number"]){
         extractQRData = await extractCertificateInformation(certificateData);
       }
       if (extractQRData["Polygon URL"] == undefined) {
@@ -474,7 +474,7 @@ const decodeQRScan = async (req, res) => {
 
     } else if (receivedCode.startsWith(process.env.START_LMS)) {
       var [extractQRData, decodedUrl] = await extractCertificateInfo(receivedCode);
-      if(!extractQRData["Certification Number"]){
+      if(!extractQRData["Certificate Number"]){
         extractQRData = await extractCertificateInformation(receivedCode);
       }
       console.log("reached", extractQRData);
