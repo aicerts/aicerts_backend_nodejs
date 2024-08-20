@@ -936,7 +936,6 @@ const bulkBatchIssueCertificates = async (req, res) => {
       await wipeUploadFolder();
       return;
     }
-
     // Create a readable stream from the zip file
     const readStream = fs.createReadStream(filePath);
 
@@ -1438,6 +1437,17 @@ const issueBatchCertificateWithRetry = async (root, expirationEpoch, retryCount 
 
     let txHash = tx.hash;
 
+    if (!txHash) {
+      if (retryCount > 0) {
+        console.log(`Unable to process the transaction. Retrying... Attempts left: ${retryCount}`);
+        // Retry after a delay (e.g., 1.5 seconds)
+        await holdExecution(1500);
+        return issueBatchCertificateWithRetry(root, expirationEpoch, retryCount - 1);
+      } else {
+        return null;
+      }
+    }
+
     let polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
 
     return { txHash, polygonLink };
@@ -1447,7 +1457,7 @@ const issueBatchCertificateWithRetry = async (root, expirationEpoch, retryCount 
       console.log(`Connection timed out. Retrying... Attempts left: ${retryCount}`);
       // Retry after a delay (e.g., 2 seconds)
       await holdExecution(2000);
-      return issueCertificateWithRetry(root, expirationEpoch, retryCount - 1);
+      return issueBatchCertificateWithRetry(root, expirationEpoch, retryCount - 1);
     } else if (error.code === 'NONCE_EXPIRED') {
       // Extract and handle the error reason
       // console.log("Error reason:", error.reason);

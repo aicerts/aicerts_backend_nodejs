@@ -16,8 +16,8 @@ module.exports = {
 
     // Handle Excel File messages
     msgInvalidExcel: "Invalid Excel file, Please try again",
-    msgExcelLimit: "Application can support upto 250 (Excel file should have 250 certifications maximum)",
-    msgInvalidCertIds: "Excel file has invalid certification IDs length (each: min 12 - max 20)",
+    msgExcelLimit: "Application can support upto 250 (input file should have 250 certifications maximum)",
+    msgInvalidCertIds: "Excel file has invalid certification IDs length (each: min 12 - max 25)",
     msgExcelRepetetionIds: "Excel file has repetition in certification IDs",
     msgInvalidDateFormat: "File has invalid Date format, Recommended MM/DD/YYYY format ",
     msgInvalidDates: "File has invalid Dates",
@@ -204,5 +204,6 @@ module.exports = {
     msgNoCreditsForService: "Unable to provide credits to issuer for locked service",
     msgInvalidIssuerId: "Invalid Issuer (or) Issuer ID not found, Please check",
     msgIssuerQuotaExceeded: "Your account has insufficient credits to perform this operation",
+    msgRpcFailed: "Invalid Address / RPC provider endpoint failed",
 
 };

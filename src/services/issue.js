@@ -42,6 +42,7 @@ const {
   isCertificationIdExisted,
   checkForPngFiles,
   deletePngFiles,
+  getContractAddress,
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
 // const { convertPdfBufferToPng, _convertPdfBufferToPng } = require('../utils/generateImage');
@@ -168,6 +169,10 @@ const handleIssueCertification = async (email, certificateNumber, name, courseNa
         const combinedHash = calculateHash(JSON.stringify(hashedFields));
 
         try {
+          let getContractStatus = await getContractAddress();
+          if (!getContractStatus) {
+            return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: messageCode.msgRpcFailed });
+          }
           // Verify certificate on blockchain
           const isPaused = await newContract.paused();
           // Check if the Issuer wallet address is a valid Ethereum address
@@ -417,6 +422,10 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
       const combinedHash = calculateHash(JSON.stringify(hashedFields));
 
       try {
+        let getContractStatus = await getContractAddress();
+        if (!getContractStatus) {
+          return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: messageCode.msgRpcFailed });
+        }
         // Verify certificate on blockchain
         let isPaused = await newContract.paused();
         // Check if the Issuer wallet address is a valid Ethereum address
@@ -506,7 +515,7 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
         var file = pdfPath;
         var outputPdf = `${fields.Certificate_Number}${name}.pdf`;
 
-        if (!fs.existsSync(pdfPath)){
+        if (!fs.existsSync(pdfPath)) {
           return ({ code: 400, status: "FAILED", message: messageCode.msgInvalidPdfUploaded });
         }
 
@@ -671,6 +680,10 @@ const handleIssueDynamicPdfCertification = async (email, certificateNumber, name
       const combinedHash = calculateHash(JSON.stringify(hashedFields));
 
       try {
+        let getContractStatus = await getContractAddress();
+        if (!getContractStatus) {
+          return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: messageCode.msgRpcFailed });
+        }
         // Verify certificate on blockchain
         let isPaused = await newContract.paused();
         // Check if the Issuer wallet address is a valid Ethereum address
@@ -897,6 +910,11 @@ const bulkIssueSingleCertificates = async (email, issuerId, _pdfReponse, _excelR
 
         console.log("Source Cert", pdfFilePath);
 
+        let getContractStatus = await getContractAddress();
+        if (!getContractStatus) {
+          return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: messageCode.msgRpcFailed });
+        }
+
         var { txHash, polygonLink } = await issueCertificateWithRetry(foundEntry.certificationID, combinedHash, epochExpiration);
         var linkUrl = polygonLink;
         if (!linkUrl) {
@@ -935,7 +953,7 @@ const bulkIssueSingleCertificates = async (email, issuerId, _pdfReponse, _excelR
         file = pdfFilePath;
         var outputPdf = `${pdfFileName}`;
 
-        if (!fs.existsSync(pdfFilePath)){
+        if (!fs.existsSync(pdfFilePath)) {
           return ({ code: 400, status: "FAILED", message: messageCode.msgInvalidPdfUploaded });
         }
 
@@ -1081,6 +1099,11 @@ const bulkIssueBatchCertificates = async (email, issuerId, _pdfReponse, _excelRe
       let tree = StandardMerkleTree.of(values, ['string']);
       let batchExpiration = 1;
       try {
+        let getContractStatus = await getContractAddress();
+        if (!getContractStatus) {
+          return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: messageCode.msgRpcFailed });
+        }
+        
         var batchNumber = await newContract.getRootLength();
         var allocateBatchId = parseInt(batchNumber) + 1;
 
@@ -1163,7 +1186,7 @@ const bulkIssueBatchCertificates = async (email, issuerId, _pdfReponse, _excelRe
           file = pdfFilePath;
           var outputPdf = `${pdfFileName}`;
 
-          if (!fs.existsSync(pdfFilePath)){
+          if (!fs.existsSync(pdfFilePath)) {
             return ({ code: 400, status: "FAILED", message: messageCode.msgInvalidPdfUploaded });
           }
           // Add link and QR code to the PDF file
@@ -1176,7 +1199,7 @@ const bulkIssueBatchCertificates = async (email, issuerId, _pdfReponse, _excelRe
             posx,
             posy
           );
-          if (!fs.existsSync(outputPdf)){
+          if (!fs.existsSync(outputPdf)) {
             return ({ code: 400, status: "FAILED", message: messageCode.msgInvalidFilePath });
           }
           // Read the generated PDF file
@@ -1272,11 +1295,17 @@ const issueCertificateWithRetry = async (certificateNumber, certificateHash, exp
     );
     let txHash = tx.hash;
 
+    if (!txHash) {
+      if (retryCount > 0) {
+        console.log(`Unable to process the transaction. Retrying... Attempts left: ${retryCount}`);
+        // Retry after a delay (e.g., 1.5 seconds)
+        await holdExecution(1500);
+        return issueCertificateWithRetry(certificateNumber, certificateHash, expirationEpoch, retryCount - 1);
+      }
+    }
+
     let polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
 
-    if (!txHash) {
-      return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain });
-    }
     return { txHash, polygonLink };
 
   } catch (error) {
@@ -1312,6 +1341,15 @@ const issueBatchCertificateWithRetry = async (root, expirationEpoch, retryCount 
 
     let txHash = tx.hash;
 
+    if (!txHash) {
+      if (retryCount > 0) {
+        console.log(`Unable to process the transaction. Retrying... Attempts left: ${retryCount}`);
+        // Retry after a delay (e.g., 1.5 seconds)
+        await holdExecution(1500);
+        return issueCertificateWithRetry(root, expirationEpoch, retryCount - 1);
+      }
+    }
+
     let polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
 
     return { txHash, polygonLink };
@@ -1338,9 +1376,9 @@ const issueBatchCertificateWithRetry = async (root, expirationEpoch, retryCount 
   }
 };
 
-const convertPdfBufferToPngWithRetry = async(imagePath, pdfBuffer, retryCount = 3) => {
+const convertPdfBufferToPngWithRetry = async (imagePath, pdfBuffer, retryCount = 3) => {
 
-  try{
+  try {
     const imageResponse = await convertPdfBufferToPng(imagePath, pdfBuffer);
     if (!imageResponse) {
       if (retryCount > 0) {
@@ -1348,7 +1386,7 @@ const convertPdfBufferToPngWithRetry = async(imagePath, pdfBuffer, retryCount = 
         // Retry after a delay (e.g., 1 second)
         await holdExecution(1000);
         let pngExist = await checkForPngFiles(rootDirectory);
-        if(pngExist){
+        if (pngExist) {
           await deletePngFiles(rootDirectory);
         }
         return convertPdfBufferToPngWithRetry(imagePath, pdfBuffer, retryCount - 1);
@@ -1358,8 +1396,8 @@ const convertPdfBufferToPngWithRetry = async(imagePath, pdfBuffer, retryCount = 
       }
     }
     return imageResponse;
-  } catch(error){
-    if(retryCount > 0 && error.code === 'ETIMEDOUT'){
+  } catch (error) {
+    if (retryCount > 0 && error.code === 'ETIMEDOUT') {
       console.log(`Connection timed out. Retrying... Attempts left: ${retryCount}`);
       // Retry after a delay (e.g., 2 seconds)
       await holdExecution(2000);
@@ -1441,9 +1479,9 @@ const uploadImageToS3 = async (certNumber, imagePath) => {
   }
 };
 
-const _convertPdfBufferToPngWithRetry = async(imagePath, pdfBuffer, _width, _height, retryCount = 3) => {
+const _convertPdfBufferToPngWithRetry = async (imagePath, pdfBuffer, _width, _height, retryCount = 3) => {
 
-  try{
+  try {
     const imageResponse = await _convertPdfBufferToPng(imagePath, pdfBuffer, _width, _height);
     if (!imageResponse) {
       if (retryCount > 0) {
@@ -1451,7 +1489,7 @@ const _convertPdfBufferToPngWithRetry = async(imagePath, pdfBuffer, _width, _hei
         // Retry after a delay (e.g., 2 seconds)
         await holdExecution(2000);
         let pngExist = await checkForPngFiles(rootDirectory);
-        if(pngExist){
+        if (pngExist) {
           await deletePngFiles(rootDirectory);
         }
         return _convertPdfBufferToPngWithRetry(imagePath, pdfBuffer, _width, _height, retryCount - 1);
@@ -1461,8 +1499,8 @@ const _convertPdfBufferToPngWithRetry = async(imagePath, pdfBuffer, _width, _hei
       }
     }
     return imageResponse;
-  } catch(error){
-    if(retryCount > 0 && error.code === 'ETIMEDOUT'){
+  } catch (error) {
+    if (retryCount > 0 && error.code === 'ETIMEDOUT') {
       console.log(`Connection timed out. Retrying... Attempts left: ${retryCount}`);
       // Retry after a delay (e.g., 2 seconds)
       await holdExecution(2000);

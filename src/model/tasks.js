@@ -21,6 +21,19 @@ const retryDelay = parseInt(process.env.TIME_DELAY);
 const maxRetries = 3; // Maximum number of retries
 const urlLimit = parseInt(process.env.MAX_URL_SIZE) || parseInt(50);
 
+// Retrieve contract address from environment variable
+const contractAddress = process.env.CONTRACT_ADDRESS;
+
+// Define an array of providers to use as fallbacks
+const providers = [
+  new ethers.AlchemyProvider(process.env.RPC_NETWORK, process.env.ALCHEMY_API_KEY),
+  new ethers.InfuraProvider(process.env.RPC_NETWORK, process.env.INFURA_API_KEY)
+  // Add more providers as needed
+];
+
+// Create a new FallbackProvider instance
+const fallbackProvider = new ethers.FallbackProvider(providers);
+
 // Regular expression to match MM/DD/YY format
 const regex = /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{4}$/;
 const excludeUrlContent = "/verify-documents";
@@ -1236,26 +1249,6 @@ const calculateHash = (data) => {
   return crypto.createHash('sha256').update(data).digest('hex').toString();
 };
 
-// Function to create a new instance of Web3 and connect to a specified RPC endpoint
-const web3i = async () => {
-  var provider = new ethers.providers.getDefaultProvider(process.env.RPC_ENDPOINT);
-  await provider.getNetwork(); // Attempt to detect the network
-
-  if (provider) {
-
-    // Get contract ABI from configuration
-    const contractABI = abi;
-    var signer = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
-    // Create a new contract instance using the ABI and contract address
-    const contract = new ethers.Contract(contractAddress, contractABI, signer);
-    return contract; // Return the contract instance
-
-  } else {
-    // console.log("Invalid Endpoint");
-    return false;
-  }
-};
-
 const fileFilter = (req, file, cb) => {
   // Check if the file MIME type is a PDF
   if (file.mimetype === "application/pdf") {
@@ -1494,7 +1487,27 @@ const getCertificationStatus = async (certStatus) => {
   };
 };
 
+const getContractAddress = async() => {
+  try {
+    const code = await fallbackProvider.getCode(contractAddress);
+    if (code === '0x') {
+      console.log('RPC provider is not responding');
+      return false;
+    } else {
+      console.log('RPC provider responding');
+      return true;
+    }
+  } catch (error) {
+    console.error('Error checking contract address:', error);
+    return false;
+  }
+};
+
 module.exports = {
+  
+  // Function to test contract response
+  getContractAddress,
+
   // Function to Connect to Polygon 
   connectToPolygon,
 
@@ -1583,9 +1596,6 @@ module.exports = {
 
   // Function to calculate the hash of data using SHA-256 algorithm
   calculateHash,
-
-  // Function to initialize and return a web3 instance
-  web3i,
 
   // Function for filtering file uploads based on MIME type Pdf
   fileFilter,

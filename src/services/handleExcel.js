@@ -13,9 +13,10 @@ const {
 const { Issues, BatchIssues } = require("../config/schema");
 
 // Parse environment variables for password length constraints
-const min_length = (parseInt(process.env.MIN_LENGTH) || 12);
-const max_length = (parseInt(process.env.MAX_LENGTH) || 20);
-const cert_limit = (parseInt(process.env.BATCH_LIMIT) || 250);
+const min_length = parseInt(process.env.MIN_LENGTH) || 12;
+const max_length = parseInt(process.env.MAX_LENGTH) || 25;
+const cert_limit = parseInt(process.env.BATCH_LIMIT) || 250;
+const sheetName = process.env.SHEET_NAME || 'Batch';
 
 // Regular expression to match MM/DD/YY format
 const regex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/\d{4}$/;
@@ -40,7 +41,6 @@ const expectedBulkHeadersSchema = [
     'expirationDate'
 ];
 
-
 const messageCode = require("../common/codes");
 
 const handleExcelFile = async (_path) => {
@@ -50,6 +50,9 @@ const handleExcelFile = async (_path) => {
     // api to fetch excel data into json
     const newPath = path.join(..._path.split("\\"));
     const sheetNames = await readXlsxFile.readSheetNames(newPath);
+    if (sheetNames[0] != sheetName || sheetNames.length != 1) {
+        return { status: "FAILED", response: false, message: messageCode.msgInvalidExcel, Details: sheetNames };
+    }
     try {
         if (sheetNames == "Batch" || sheetNames.includes("Batch")) {
             // api to fetch excel data into json
@@ -174,6 +177,9 @@ const handleBulkExcelFile = async (_path) => {
     // api to fetch excel data into json
     const newPath = path.join(..._path.split("\\"));
     const sheetNames = await readXlsxFile.readSheetNames(newPath);
+    if (sheetNames[0] != sheetName || sheetNames.length != 1) {
+        return { status: "FAILED", response: false, message: messageCode.msgInvalidExcel, Details: sheetNames };
+    }
     try {
         if (sheetNames == "Batch" || sheetNames.includes("Batch")) {
             // api to fetch excel data into json
@@ -191,9 +197,9 @@ const handleBulkExcelFile = async (_path) => {
                 });
 
                 // Limit Records to certain limit in the Batch
-                // if (rows && rows.length > cert_limit && cert_limit != 0) {
-                //     return { status: "FAILED", response: false, message: messageCode.msgExcelLimit, Details: `Total Records : ${rows.length}` };
-                // }
+                if (rows && rows.length > cert_limit && cert_limit != 0) {
+                    return { status: "FAILED", response: false, message: messageCode.msgExcelLimit, Details: `Total Records : ${rows.length}` };
+                }
 
                 // Batch Certification Formated Details
                 var rawBatchData = targetData;

@@ -203,7 +203,7 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                                 }
                             }
                         }
-                        
+
                         if (shortUrlStatus) {
                             modifiedUrl = process.env.SHORT_URL + certificateNumber;
                         }
@@ -860,31 +860,6 @@ const handleUpdateBatchCertificationStatus = async (email, batchId, certStatus) 
                     return ({ code: 400, status: false, message: messageCode.msgFailedToUpdateStatusRetry, details: _certStatus });
                 }
 
-                // try {
-                //     // Perform Expiration extension
-                //     const tx = await newContract.updateBatchCertificateStatus(
-                //         _rootIndex,
-                //         certStatus
-                //     );
-
-                //     // await tx.wait();
-                //     var txHash = tx.hash;
-
-                //     // Generate link URL for the certificate on blockchain
-                //     var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
-
-                // } catch (error) {
-                //     if (error.reason) {
-                //         // Extract and handle the error reason
-                //         console.log("Error reason:", error.reason);
-                //         return ({ code: 400, status: "FAILED", message: error.reason });
-                //     } else {
-                //         // If there's no specific reason provided, handle the error generally
-                //         console.error(messageCode.msgFailedOpsAtBlockchain, error);
-                //         return ({ code: 400, status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain, details: error });
-                //     }
-                // }
-
                 var statusDetails = { batchId: batchId, updatedBatchStatus: _certStatus, polygonLink: polygonLink };
                 return ({ code: 200, status: "SUCCESS", message: messageCode.msgBatchStatusUpdated, details: statusDetails });
 
@@ -939,6 +914,15 @@ const renewSingleCertificateExpirationWithRetry = async (certificateNumber, comb
 
         var txHash = tx.hash;
 
+        if (!txHash) {
+            if (retryCount > 0) {
+                console.log(`Unable to process the transaction. Retrying... Attempts left: ${retryCount}`);
+                // Retry after a delay (e.g., 1.5 seconds)
+                await holdExecution(1500);
+                return renewSingleCertificateExpirationWithRetry(certificateNumber, combinedHash, epochExpiration, retryCount - 1);
+            } 
+        }
+
         var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
 
         return { txHash, polygonLink };
@@ -979,6 +963,15 @@ const renewCertificateExpirationInBatchWithRetry = async (fetchIndex, hashedProo
 
         let txHash = tx.hash;
 
+        if (!txHash) {
+            if (retryCount > 0) {
+                console.log(`Unable to process the transaction. Retrying... Attempts left: ${retryCount}`);
+                // Retry after a delay (e.g., 1.5 seconds)
+                await holdExecution(1500);
+                return renewCertificateExpirationInBatchWithRetry(fetchIndex, hashedProof, epochExpiration, retryCount - 1);
+            }
+        }
+
         let polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
 
         return { txHash, polygonLink };
@@ -1017,6 +1010,15 @@ const updateSingleCertificateStatusWithRetry = async (certificateNumber, certSta
 
         let txHash = tx.hash;
 
+        if (!txHash) {
+            if (retryCount > 0) {
+                console.log(`Unable to process the transaction. Retrying... Attempts left: ${retryCount}`);
+                // Retry after a delay (e.g., 1.5 seconds)
+                await holdExecution(1500);
+                return updateSingleCertificateStatusWithRetry(certificateNumber, certStatus, retryCount - 1);
+            } 
+        }
+
         let polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
 
         return { txHash, polygonLink };
@@ -1053,6 +1055,15 @@ const updateCertificateStatusInBatchWithRetry = async (hashedProof, certStatus, 
         );
 
         let txHash = tx.hash;
+
+        if (!txHash) {
+            if (retryCount > 0) {
+                console.log(`Unable to process the transaction. Retrying... Attempts left: ${retryCount}`);
+                // Retry after a delay (e.g., 1.5 seconds)
+                await holdExecution(1500);
+                return updateCertificateStatusInBatchWithRetry(certificateNumber, certificateHash, expirationEpoch, retryCount - 1);
+            } 
+        }
 
         let polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
 
@@ -1092,6 +1103,15 @@ const updateBatchCertificateExpirationWithRetry = async (rootIndex, expirationEp
 
         let txHash = tx.hash;
 
+        if (!txHash) {
+            if (retryCount > 0) {
+                console.log(`Unable to process the transaction. Retrying... Attempts left: ${retryCount}`);
+                // Retry after a delay (e.g., 1.5 seconds)
+                await holdExecution(1500);
+                return updateBatchCertificateExpirationWithRetry(rootIndex, expirationEpoch, retryCount - 1);
+            } 
+        }
+
         let polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
 
         return { txHash, polygonLink };
@@ -1130,6 +1150,15 @@ const updateBatchCertificateStatusWithRetry = async (rootIndex, certStatus, retr
 
         let txHash = tx.hash;
 
+        if (!txHash) {
+            if (retryCount > 0) {
+                console.log(`Unable to process the transaction. Retrying... Attempts left: ${retryCount}`);
+                // Retry after a delay (e.g., 1.5 seconds)
+                await holdExecution(1500);
+                return updateBatchCertificateStatusWithRetry(rootIndex, certStatus, retryCount - 1);
+            }
+        }
+
         let polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
 
         return { txHash, polygonLink };
@@ -1156,14 +1185,16 @@ const updateBatchCertificateStatusWithRetry = async (rootIndex, certStatus, retr
     }
 };
 
-
 module.exports = {
-    // Function to renew a certification
+    // Function to renew (extend expiration) a single certification
     handleRenewCertification,
 
+    // Function to update status revoke/reactivation single certification
     handleUpdateCertificationStatus,
 
+    // Function to renew (extend expiration) to a batch certification
     handleRenewBatchOfCertifications,
 
+    // Function to update status revoke/reactivation to a Batch certification
     handleUpdateBatchCertificationStatus
 };
