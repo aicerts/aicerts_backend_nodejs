@@ -1322,7 +1322,7 @@ const getAggregatedCoreDetails = async (data) => {
 const uploadCertificateToS3 = async (req, res) => {
   const file = req?.file;
   const filePath = file?.path;
-  const certificateNumber = req?.body?.certificateId;
+  const certificateNumber = req?.body?.certificateNumber;
   const type = parseInt(req?.body?.type, 10); // Parse type to integer
   // Validate request parameters
   if (!file || !certificateNumber || !type) {
@@ -1349,7 +1349,7 @@ const uploadCertificateToS3 = async (req, res) => {
 
   const bucketName = process.env.BUCKET_NAME;
   const timestamp = Date.now(); // Get the current timestamp in milliseconds
-  const keyName = `${file.originalname}_${timestamp}.png`;
+  const keyName = `${certificateNumber}.png`;
   const s3 = new AWS.S3();
   const fileStream = fs.createReadStream(filePath);
   const acl = process.env.ACL_NAME;

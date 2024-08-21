@@ -1237,7 +1237,7 @@ router.post('/upload',__upload.single('file'),(req, res)=>  adminController.uplo
  *               file:
  *                 type: string
  *                 format: binary
- *               certificateId:
+ *               certificateNumber:
  *                 type: string
  *                 description: The ID of the certificate
  *               type:
