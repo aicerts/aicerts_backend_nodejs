@@ -742,7 +742,45 @@ const fetchIssuesLogDetails = async (req, res) => {
       switch (inputQuery) {
         case 1:  // Get the all issued certs count
           var issueCount = issuerExist.certificatesIssued;
+
+          // var query1Promise = Issues.find({
+          //   issuerId: issuerExist.issuerId,
+          //   url: { $exists: true, $ne: null, $ne: "" } // Filter to include documents where `url` exists
+          // }).lean(); // Use lean() to convert documents to plain JavaScript objects
+
+          // var query2Promise = BatchIssues.find({
+          //   issuerId: issuerExist.issuerId,
+          //   url: { $exists: true, $ne: null, $ne: "" } // Filter to include documents where `url` exists
+          // }).lean(); // Use lean() to convert documents to plain JavaScript objects
+
+          // // Wait for both queries to resolve
+          // var [queryResponse1, queryResponse2] = await Promise.all([query1Promise, query2Promise]);
+
+          // // Merge the results into a single array
+          // var _queryResponse = [...queryResponse1, ...queryResponse2];
+          // let issueCount = _queryResponse.length;
+
           var renewCount = issuerExist.certificatesRenewed;
+
+          // var query11Promise = Issues.find({
+          //   issuerId: issuerExist.issuerId,
+          //   certificateStatus: { $in: [2] },
+          //   url: { $exists: true, $ne: null, $ne: "" } // Filter to include documents where `url` exists
+          // }).lean(); // Use lean() to convert documents to plain JavaScript objects
+
+          // var query21Promise = BatchIssues.find({
+          //   issuerId: issuerExist.issuerId,
+          //   certificateStatus: { $in: [2] },
+          //   url: { $exists: true, $ne: null, $ne: "" } // Filter to include documents where `url` exists
+          // }).lean(); // Use lean() to convert documents to plain JavaScript objects
+
+          // // Wait for both queries to resolve
+          // var [queryResponse11, queryResponse21] = await Promise.all([query11Promise, query21Promise]);
+
+          // // Merge the results into a single array
+          // var _queryResponse1 = [...queryResponse11, ...queryResponse21];
+          // var renewCount = _queryResponse1.length;
+
           var revokedCount = await IssueStatus.find({
             email: req.body.email,
             certStatus: 3

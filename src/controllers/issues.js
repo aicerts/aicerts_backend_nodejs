@@ -657,7 +657,6 @@ const bulkSingleIssueCertificates = async (req, res) => {
 
     // Create a readable stream from the zip file
     const readStream = fs.createReadStream(filePath);
-    // await cleanUploadFolder();
     if (fs.existsSync(destDirectory)) {
       // Delete the existing directory recursively
       fs.rmSync(destDirectory, { recursive: true });

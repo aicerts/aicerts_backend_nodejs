@@ -979,8 +979,7 @@ const bulkIssueSingleCertificates = async (email, issuerId, _pdfReponse, _excelR
         // Read the generated PDF file
         var fileBuffer = fs.readFileSync(outputPdf);
 
-        // Assuming fileBuffer is available after the code you provided
-
+        // Assuming fileBuffer is available
         var outputPath = path.join(__dirname, '../../uploads', 'completed', `${pdfFileName}`);
 
         if (bulkIssueStatus == 'ZIP_STORE') {
@@ -1227,7 +1226,7 @@ const bulkIssueBatchCertificates = async (email, issuerId, _pdfReponse, _excelRe
           // Read the generated PDF file
           var fileBuffer = fs.readFileSync(outputPdf);
 
-          // Assuming fileBuffer is available after the code you provided
+          // Assuming fileBuffer is available
           var outputPath = path.join(__dirname, '../../uploads', 'completed', `${pdfFileName}`);
           
           if (bulkIssueStatus == 'ZIP_STORE') {
