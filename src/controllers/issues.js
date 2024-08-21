@@ -819,7 +819,13 @@ const bulkSingleIssueCertificates = async (req, res) => {
               console.error('Error downloading zip file:', err);
             }
             // Delete the zip file after download
-            fs.unlinkSync(resultFilePath);
+            // fs.unlinkSync(resultFilePath);
+            fs.unlinkSync(resultFilePath, (err) => {
+              if (err) {
+                console.error('Error deleting zip file:', err);
+              }
+              console.log('Zip file deleted');
+            });
           });
         });
 
@@ -842,6 +848,9 @@ const bulkSingleIssueCertificates = async (req, res) => {
         if (fs.existsSync(excelFilePath)) {
           fs.unlinkSync(excelFilePath);
         }
+        let uploadPath = path.join(__dirname, '../../uploads');
+        let files = fs.readdirSync(uploadPath);
+        console.log("Files remain", files);
         await flushUploadFolder();
         return;
       } else {
@@ -1112,7 +1121,13 @@ const bulkBatchIssueCertificates = async (req, res) => {
               console.error('Error downloading zip file:', err);
             }
             // Delete the zip file after download
-            fs.unlinkSync(resultFilePath);
+            // fs.unlinkSync(resultFilePath);
+            fs.unlinkSync(resultFilePath, (err) => {
+              if (err) {
+                console.error('Error deleting zip file:', err);
+              }
+              console.log('Zip file deleted');
+            });
           });
         });
 
@@ -1135,6 +1150,9 @@ const bulkBatchIssueCertificates = async (req, res) => {
         if (fs.existsSync(excelFilePath)) {
           fs.unlinkSync(excelFilePath);
         }
+        let uploadPath = path.join(__dirname, '../../uploads');
+        let files = fs.readdirSync(uploadPath);
+        console.log("Files remain", files);
         await flushUploadFolder();
         return;
       } else {
