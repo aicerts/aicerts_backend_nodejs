@@ -477,7 +477,7 @@ const decodeQRScan = async (req, res) => {
       if(!extractQRData["Certificate Number"]){
         extractQRData = await extractCertificateInformation(receivedCode);
       }
-      console.log("reached", extractQRData);
+      // console.log("reached", extractQRData);
       if (extractQRData) {
         var verifyLog = {
           issuerId: 'default',
@@ -486,7 +486,7 @@ const decodeQRScan = async (req, res) => {
         await verificationLogEntry(verifyLog);
 
         extractQRData.url = null;
-        res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, Details: extractQRData });
+        res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, details: extractQRData });
         return;
       }
       return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
