@@ -20,7 +20,8 @@ const {
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
 const MONGODB_OPTIONS = {
-  connectTimeoutMS: 6000000
+  connectTimeoutMS: 6000000,
+  serverSelectionTimeoutMS: 30000 // Increase timeout to 30 seconds
   // Add more MongoDB connection options as needed
 };
 

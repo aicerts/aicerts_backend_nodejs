@@ -1379,23 +1379,22 @@ const checkForPngFiles = async (dirPath) => {
 };
 
 
-const isDBConnected = async () => {
-  let retryCount = 0; // Initialize retry count
+const isDBConnected = async (maxRetries = 5, retryDelay = 1500) => {
+  let retryCount = 0;
+
   while (retryCount < maxRetries) {
     try {
-      // Attempt to establish a connection to the MongoDB database using the provided URI
       await mongoose.connect(process.env.MONGODB_URI);
-      // console.log('Connected to MongoDB successfully!');
-      return true; // Return true if the connection is successful
+      return true;
     } catch (error) {
-      console.error('Error connecting to MongoDB:', error.message);
-      retryCount++; // Increment retry count
-      console.log(`Retrying connection (${retryCount}/${maxRetries}) in 1.5 seconds...`);
-      await new Promise(resolve => setTimeout(resolve, retryDelay)); // Wait for 1.5 seconds before retrying
+      console.error(`Error connecting to MongoDB: ${error.message}`);
+      retryCount++;
+      console.log(`Retrying connection (${retryCount}/${maxRetries}) in ${retryDelay} milliseconds...`);
+      await new Promise(resolve => setTimeout(resolve, retryDelay));
     }
   }
   console.error('Failed to connect to MongoDB after maximum retries.');
-  return false; // Return false if unable to connect after maximum retries
+  return false;
 };
 
 // Email Approved Notfication function
