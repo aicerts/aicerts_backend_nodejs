@@ -475,7 +475,7 @@ router.post('/batch-certificate-issue', __upload.single("excelFile"), ensureAuth
  * @swagger
  * /api/bulk-single-issue:
  *   post:
- *     summary: upload ZIP contain Excel & Pdfs with bulk issue with single approach with issuer email.
+ *     summary: upload ZIP contain Excel & Pdfs with bulk issue with single approach with issuer email and download response flag (optional).
  *     description: API extract zip file contents into uploads folder for Dynamic Bulk issue.
  *     tags: [Dynamic Bulk Issue]
  *     requestBody:
@@ -494,7 +494,7 @@ router.post('/batch-certificate-issue', __upload.single("excelFile"), ensureAuth
  *                 description: ZIP file containing the PDF certificates & Excel to be issued.
  *               flag:
  *                 type: number
- *                 description: Provide flag for download option 0:S3 Response, 1:Zip response.
+ *                 description: Provide flag for download option 0:S3 JSON Response, 1:Zip response.
  *             required:
  *                - email
  *                - zipFile
@@ -550,7 +550,7 @@ router.post('/bulk-single-issue', upload.single("zipFile"), adminController.bulk
  * @swagger
  * /api/bulk-batch-issue:
  *   post:
- *     summary: upload ZIP contain Excel & Pdfs with bulk issue with batch approach with issuer email.
+ *     summary: upload ZIP contain Excel & Pdfs with bulk issue with batch approach with issuer email and download response flag (optional).
  *     description: API extract zip file contents into uploads folder for Dynamic Bulk issue.
  *     tags: [Dynamic Bulk Issue]
  *     requestBody:
@@ -569,7 +569,7 @@ router.post('/bulk-single-issue', upload.single("zipFile"), adminController.bulk
  *                 description: ZIP file containing the PDF certificates & Excel to be issued.
  *               flag:
  *                 type: number
- *                 description: Provide flag for download option 0:S3 Response, 1:Zip response.
+ *                 description: Provide flag for download option 0:S3 JSON Response, 1:Zip response.
  *             required:
  *                - email
  *                - zipFile
