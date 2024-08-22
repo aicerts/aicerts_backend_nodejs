@@ -632,6 +632,7 @@ const bulkSingleIssueCertificates = async (req, res) => {
 
     var filePath = req.file.path;
     const email = req.body.email;
+    const flag = parseInt(req.body.flag);
 
     const emailExist = await User.findOne({ email: email });
     const paramsExist = await DynamicParameters.findOne({ email: email });
@@ -781,9 +782,9 @@ const bulkSingleIssueCertificates = async (req, res) => {
       await wipeUploadFolder();
       return;
     }
-    var bulkIssueResponse = await bulkIssueSingleCertificates(emailExist.email, emailExist.issuerId, pdfFiles, excelDataResponse, excelFilePath, paramsExist.positionX, paramsExist.positionY, paramsExist.qrSide, paramsExist.pdfWidth, paramsExist.pdfHeight);
+    var bulkIssueResponse = await bulkIssueSingleCertificates(emailExist.email, emailExist.issuerId, pdfFiles, excelDataResponse, excelFilePath, paramsExist.positionX, paramsExist.positionY, paramsExist.qrSide, paramsExist.pdfWidth, paramsExist.pdfHeight, flag);
 
-    if (bulkIssueStatus == 'ZIP_STORE') {
+    if (bulkIssueStatus == 'ZIP_STORE' || flag == 1) {
       if (bulkIssueResponse.code == 200) {
         const zipFileName = `${formattedDateTime}.zip`;
         const resultFilePath = path.join(__dirname, '../../uploads', zipFileName);
@@ -936,6 +937,7 @@ const bulkBatchIssueCertificates = async (req, res) => {
 
     var filePath = req.file.path;
     const email = req.body.email;
+    const flag = parseInt(req.body.flag);
 
     const emailExist = await User.findOne({ email: email });
     const paramsExist = await DynamicParameters.findOne({ email: email });
@@ -1083,9 +1085,9 @@ const bulkBatchIssueCertificates = async (req, res) => {
       return;
     }
 
-    var bulkIssueResponse = await bulkIssueBatchCertificates(emailExist.email, emailExist.issuerId, pdfFiles, excelData.message, excelFilePath, paramsExist.positionX, paramsExist.positionY, paramsExist.qrSide, paramsExist.pdfWidth, paramsExist.pdfHeight);
+    var bulkIssueResponse = await bulkIssueBatchCertificates(emailExist.email, emailExist.issuerId, pdfFiles, excelData.message, excelFilePath, paramsExist.positionX, paramsExist.positionY, paramsExist.qrSide, paramsExist.pdfWidth, paramsExist.pdfHeight, flag);
 
-    if (bulkIssueStatus == 'ZIP_STORE') {
+    if (bulkIssueStatus == 'ZIP_STORE' || flag == 1) {
       if (bulkIssueResponse.code == 200) {
         const zipFileName = `${formattedDateTime}.zip`;
         const resultFilePath = path.join(__dirname, '../../uploads', zipFileName);

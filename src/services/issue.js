@@ -845,7 +845,7 @@ const handleIssueDynamicPdfCertification = async (email, certificateNumber, name
   }
 };
 
-const bulkIssueSingleCertificates = async (email, issuerId, _pdfReponse, _excelResponse, excelFilePath, posx, posy, qrside, pdfWidth, pdfHeight) => {
+const bulkIssueSingleCertificates = async (email, issuerId, _pdfReponse, _excelResponse, excelFilePath, posx, posy, qrside, pdfWidth, pdfHeight, flag) => {
   // console.log("single inputs", _pdfReponse, _excelResponse[0], excelFilePath);
   const pdfResponse = _pdfReponse;
   const excelResponse = _excelResponse;
@@ -865,7 +865,7 @@ const bulkIssueSingleCertificates = async (email, issuerId, _pdfReponse, _excelR
     const destDirectory = path.join(__dirname, '../../uploads/completed');
     console.log("Present working directory", __dirname, destDirectory);
 
-    if (bulkIssueStatus == 'ZIP_STORE') {
+    if (bulkIssueStatus == 'ZIP_STORE' || flag == 1) {
       if (fs.existsSync(destDirectory)) {
         // Delete the existing directory recursively
         fs.rmSync(destDirectory, { recursive: true });
@@ -982,7 +982,7 @@ const bulkIssueSingleCertificates = async (email, issuerId, _pdfReponse, _excelR
         // Assuming fileBuffer is available
         var outputPath = path.join(__dirname, '../../uploads', 'completed', `${pdfFileName}`);
 
-        if (bulkIssueStatus == 'ZIP_STORE') {
+        if (bulkIssueStatus == 'ZIP_STORE' || flag == 1) {
             imageUrl = '';
             generatedImage = null;
           } else {
@@ -1041,7 +1041,7 @@ const bulkIssueSingleCertificates = async (email, issuerId, _pdfReponse, _excelR
           fs.unlinkSync(outputPdf);
         }
 
-        if (bulkIssueStatus == 'ZIP_STORE') {
+        if (bulkIssueStatus == 'ZIP_STORE' || flag == 1) {
           fs.writeFileSync(outputPath, fileBuffer);
           console.log('File saved successfully at:', outputPath);
         }
@@ -1050,7 +1050,7 @@ const bulkIssueSingleCertificates = async (email, issuerId, _pdfReponse, _excelR
 
       // Wait for all insert promises to resolve
       await Promise.all(insertPromises);
-      if (bulkIssueStatus == 'ZIP_STORE') {
+      if (bulkIssueStatus == 'ZIP_STORE' || flag == 1) {
         return ({ code: 200, status: true });
       }
       return ({ code: 200, status: true, message: messageCode.msgBatchIssuedSuccess, Details: insertUrl });
@@ -1064,7 +1064,7 @@ const bulkIssueSingleCertificates = async (email, issuerId, _pdfReponse, _excelR
   }
 };
 
-const bulkIssueBatchCertificates = async (email, issuerId, _pdfReponse, _excelResponse, excelFilePath, posx, posy, qrside, pdfWidth, pdfHeight) => {
+const bulkIssueBatchCertificates = async (email, issuerId, _pdfReponse, _excelResponse, excelFilePath, posx, posy, qrside, pdfWidth, pdfHeight, flag) => {
   // console.log("Batch inputs", _pdfReponse, excelFilePath);
   const pdfResponse = _pdfReponse;
   const excelResponse = _excelResponse[0];
@@ -1084,7 +1084,7 @@ const bulkIssueBatchCertificates = async (email, issuerId, _pdfReponse, _excelRe
     const destDirectory = path.join(__dirname, '../../uploads/completed');
     console.log("Present working directory", __dirname, destDirectory);
 
-    if (bulkIssueStatus == 'ZIP_STORE') {
+    if (bulkIssueStatus == 'ZIP_STORE' || flag == 1) {
       if (fs.existsSync(destDirectory)) {
         // Delete the existing directory recursively
         fs.rmSync(destDirectory, { recursive: true });
@@ -1229,7 +1229,7 @@ const bulkIssueBatchCertificates = async (email, issuerId, _pdfReponse, _excelRe
           // Assuming fileBuffer is available
           var outputPath = path.join(__dirname, '../../uploads', 'completed', `${pdfFileName}`);
           
-          if (bulkIssueStatus == 'ZIP_STORE') {
+          if (bulkIssueStatus == 'ZIP_STORE' || flag == 1) {
             imageUrl = '';
             generatedImage = null;
           } else {
@@ -1290,7 +1290,7 @@ const bulkIssueBatchCertificates = async (email, issuerId, _pdfReponse, _excelRe
             fs.unlinkSync(outputPdf);
           }
 
-          if (bulkIssueStatus == 'ZIP_STORE') {
+          if (bulkIssueStatus == 'ZIP_STORE' || flag == 1) {
             fs.writeFileSync(outputPath, fileBuffer);
             console.log('File saved successfully at:', outputPath);
           }
@@ -1298,7 +1298,7 @@ const bulkIssueBatchCertificates = async (email, issuerId, _pdfReponse, _excelRe
         }
         // Wait for all insert promises to resolve
         await Promise.all(insertPromises);
-        if (bulkIssueStatus == 'ZIP_STORE') {
+        if (bulkIssueStatus == 'ZIP_STORE' || flag == 1) {
           return ({ code: 200, status: true });
         }
         return ({ code: 200, status: true, message: messageCode.msgBatchIssuedSuccess, Details: insertUrl });

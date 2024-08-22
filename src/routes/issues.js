@@ -492,6 +492,9 @@ router.post('/batch-certificate-issue', __upload.single("excelFile"), ensureAuth
  *                 type: string
  *                 format: binary
  *                 description: ZIP file containing the PDF certificates & Excel to be issued.
+ *               flag:
+ *                 type: number
+ *                 description: Provide flag for download option 0:S3 Response, 1:Zip response.
  *             required:
  *                - email
  *                - zipFile
@@ -564,6 +567,9 @@ router.post('/bulk-single-issue', upload.single("zipFile"), adminController.bulk
  *                 type: string
  *                 format: binary
  *                 description: ZIP file containing the PDF certificates & Excel to be issued.
+ *               flag:
+ *                 type: number
+ *                 description: Provide flag for download option 0:S3 Response, 1:Zip response.
  *             required:
  *                - email
  *                - zipFile
