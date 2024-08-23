@@ -1330,7 +1330,7 @@ const uploadCertificateToS3 = async (req, res) => {
   }
 
   // Check if the certificate exists with the specified type
-  let certificate;
+  var certificate;
   try {
     if (type === 1 || type === 2) {
       const typeField = type === 1 ? 'withpdf' : 'withoutpdf';
