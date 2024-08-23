@@ -12,7 +12,6 @@ const { User } = require("./schema");
 
 // Parse environment variables for days to be deleted
 const schedule_days = parseInt(process.env.SCHEDULE_DAYS);
-const environment = process.env.TYPE || 'PROD';
 
 // Importing functions from a custom module
 const {
@@ -22,7 +21,6 @@ const {
 const MONGODB_OPTIONS = {
   connectTimeoutMS: 6000000,
   serverSelectionTimeoutMS: 30000 // Increase timeout to 30 seconds
-  // Add more MongoDB connection options as needed
 };
 
 // Function to connect to MongoDB with retry logic
@@ -103,13 +101,6 @@ const createUploadsFolder = async () => {
     } else {
       console.log("Uploads folder already exists.");
     }      
-    // Determine the drive root based on the operating system
-    const driveRoot = (environment) == 'DEV' ? 'D:\\' : '/';
-    const uploadsFolderPath = path.join(driveRoot, 'uploads');
-
-    if (fs.existsSync(uploadsFolderPath)) {
-      fs.rmSync(uploadsFolderPath, { recursive: true });
-    }
   } catch (error) {
     console.error("Error creating uploads folder:", error);
   }
