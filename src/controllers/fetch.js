@@ -1446,7 +1446,7 @@ const getSingleCertificates = async (req, res) => {
     const certificates = await Issues.find({
       issuerId: issuerId,
       type: typeField,
-      url: { $exists: true, $ne: null, $ne: "", $regex: bucketName } // Filter to include documents where `url` exists
+      url: { $exists: true, $ne: null, $ne: "" } // Filter to include documents where `url` exists
     });
 
     // Respond with success and the certificates
