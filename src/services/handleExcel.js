@@ -15,7 +15,7 @@ const { Issues, BatchIssues } = require("../config/schema");
 // Parse environment variables for password length constraints
 const min_length = parseInt(process.env.MIN_LENGTH) || 12;
 const max_length = parseInt(process.env.MAX_LENGTH) || 25;
-const cert_limit = parseInt(process.env.BATCH_LIMIT) || 250;
+const cert_limit = parseInt(process.env.BATCH_LIMIT);
 const sheetName = process.env.SHEET_NAME || 'Batch';
 
 // Regular expression to match MM/DD/YY format
@@ -71,7 +71,7 @@ const handleExcelFile = async (_path) => {
 
                 // Limit Records to certain limit in the Batch
                 if (rows && rows.length > cert_limit && cert_limit != 0) {
-                    return { status: "FAILED", response: false, message: messageCode.msgExcelLimit, Details: `Total Records : ${rows.length}` };
+                    return { status: "FAILED", response: false, message: `${messageCode.msgExcelLimit}: ${cert_limit}`, Details: `Input Records : ${rows.length}` };
                 }
 
                 // Batch Certification Formated Details
@@ -198,7 +198,7 @@ const handleBulkExcelFile = async (_path) => {
 
                 // Limit Records to certain limit in the Batch
                 if (rows && rows.length > cert_limit && cert_limit != 0) {
-                    return { status: "FAILED", response: false, message: messageCode.msgExcelLimit, Details: `Total Records : ${rows.length}` };
+                    return { status: "FAILED", response: false, message: `${messageCode.msgExcelLimit}: ${cert_limit}`, Details: `Input Records : ${rows.length}` };
                 }
 
                 // Batch Certification Formated Details

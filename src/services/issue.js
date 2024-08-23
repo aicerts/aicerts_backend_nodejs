@@ -1591,7 +1591,7 @@ const _uploadImageToS3 = async (certNumber, imagePath) => {
 
   const bucketName = process.env.BUCKET_NAME;
   const timestamp = Date.now(); // Get the current timestamp in milliseconds
-  const _keyName = `${timestamp}_${certNumber}.png`;
+  const _keyName = `${certNumber}.png`;
   const s3 = new AWS.S3();
   const fileStream = fs.createReadStream(imagePath);
   const acl = process.env.ACL_NAME;
