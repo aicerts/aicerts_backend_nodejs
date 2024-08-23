@@ -477,7 +477,6 @@ const decodeQRScan = async (req, res) => {
       if(!extractQRData["Certificate Number"]){
         extractQRData = await extractCertificateInformation(receivedCode);
       }
-      // console.log("reached", extractQRData);
       if (extractQRData) {
         var verifyLog = {
           issuerId: 'default',
