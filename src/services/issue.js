@@ -1488,7 +1488,6 @@ const convertPdfBufferToPng = async (imagePath, pdfBuffer) => {
 const uploadImageToS3 = async (certNumber, imagePath) => {
 
   const bucketName = process.env.BUCKET_NAME;
-  const timestamp = Date.now(); // Get the current timestamp in milliseconds
   const keyName = `${certNumber}.png`;
   const s3 = new AWS.S3();
   const fileStream = fs.createReadStream(imagePath);
