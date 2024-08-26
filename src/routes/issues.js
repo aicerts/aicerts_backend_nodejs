@@ -714,6 +714,8 @@ router.post('/provide-inputs', _upload.single("pdfFile"), adminController.accept
  *     summary: upload ZIP contain Excel & Pdfs to perform validation for dynamic bulk issue approach.
  *     description: API extract zip file contents into uploads folder and validate each document dimension, unique certification ID, QR existance etc.
  *     tags: [Dynamic Template]
+ *     security:
+ *       - BearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
