@@ -1403,9 +1403,17 @@ const sendEmail = async (name, email) => {
   try {
     // Update the mailOptions object with the recipient's email address and email body
     mailOptions.to = email;
-    mailOptions.text = `Hi ${name}, 
-Congratulations! You've been approved by the admin. 
-You can now log in to your profile. With username ${email}`;
+    mailOptions.subject = `Your AICerts Account is Approved!`;
+    mailOptions.text = `Hi ${name},
+
+Congratulations! Your account has been successfully approved by our admin team.
+
+You can now log in to your profile using your username ${email}. We are excited to have you on board!
+
+If you have any questions or need assistance, feel free to reach out.
+
+Best regards,
+The AICerts Team.`;
 
     // Send the email using the configured transporter
     transporter.sendMail(mailOptions);
@@ -1427,10 +1435,15 @@ const rejectEmail = async (name, email) => {
   try {
     // Update the mailOptions object with the recipient's email address and email body
     mailOptions.to = email;
-    mailOptions.text = `Hi ${name}, 
-    We regret to inform you that your account registration has been declined by the admin. 
-    If you have any questions or concerns, please feel free to contact us. 
-    Thank you for your interest.`;
+    mailOptions.subject = `Your AICerts Account Registration Status`;
+    mailOptions.text = `Hi ${name},
+    
+We regret to inform you that your account registration has been declined by our admin team.
+
+If you have any questions or need further clarification, please do not hesitate to contact us. Thank you for your interest in AICerts.
+
+Best regards,
+The AICerts Team.`;
 
     // Send the email using the configured transporter
     transporter.sendMail(mailOptions);

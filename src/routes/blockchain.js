@@ -8,7 +8,7 @@ const validationRoute = require("../common/validationRoutes");
  * @swagger
  * /api/validate-issuer:
  *   post:
- *     summary: Approve or Reject an Issuer
+ *     summary: Approve or Reject an Issuer with email and status approval (1) or rejection (2).
  *     description: API to approve or reject Issuer status (to perform the Issuing Certification over the Blockchain)
  *     tags: [Blockchain]
  *     requestBody:
@@ -86,7 +86,7 @@ const validationRoute = require("../common/validationRoutes");
  *                   description: Error message indicating an error during the validation process.
  */
 
-router.post('/validate-issuer', validationRoute.validateIssuer, ensureAuthenticated, adminController.validateIssuer);
+router.post('/validate-issuer', validationRoute.validateIssuer, adminController.validateIssuer);
 
 /**
  * @swagger
