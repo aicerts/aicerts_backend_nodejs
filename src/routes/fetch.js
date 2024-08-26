@@ -268,8 +268,8 @@ router.post('/get-filtered-issuers', validationRoute.fetchIssuers ,adminControll
  * @swagger
  * /api/get-filtered-issues:
  *   post:
- *     summary: Get details of certifications issued by Issuers under particular input:filter as name, course, grantDate, expirationDate, certificationNumber with filter code.
- *     description: API to fetch details of certifications issued by Issuers under particular input:filter as name, course, grantDate, expirationDate, certificationNumber as filter code.
+ *     summary: Get details of certifications issued by Issuers under particular input:filter as name, course, grantDate, expirationDate, certificateNumber with filter code.
+ *     description: API to fetch details of certifications issued by Issuers under particular input:filter as name, course, grantDate, expirationDate, certificateNumber as filter code.
  *     tags: [Fetch/Upload]
  *     security:
  *       - BearerAuth: []
