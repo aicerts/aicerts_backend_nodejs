@@ -394,9 +394,10 @@ const getIssuesWithFilter = async (req, res) => {
 
   try {
     const input = req.body.input;
-    const filter = req.body.filter;
+    const _filter = req.body.filter;
     const email = req.body.email;
     const flag = parseInt(req.body.flag);
+    const filter = (_filter == 'certificationNumber') ? 'certificateNumber' : _filter;
     // Get page and limit from query parameters, with defaults
     var page = parseInt(req.query.page) || null;
     var limit = parseInt(req.query.limit) || null;
