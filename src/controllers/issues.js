@@ -34,6 +34,7 @@ const bulkIssueStatus = process.env.BULK_ISSUE_STATUS || 'DEFAULT';
 const cloudStore = process.env.CLOUD_STORE || 'DEFAULT';
 
 const destDirectory = path.join(__dirname, '../../uploads/completed');
+const uploadPath = path.join(__dirname, '../../uploads');
 
 // Importing functions from a custom module
 const {
@@ -679,6 +680,11 @@ const bulkSingleIssueCertificates = async (req, res) => {
 
     filesList = await fs.promises.readdir(extractionPath);
 
+    let zipExist = await findDirectories(filesList);
+    if(zipExist){
+      filesList = zipExist;
+    }
+
     if (filesList.length == 0 || filesList.length == 1) {
       res.status(400).json({ status: "FAILED", message: messageCode.msgUnableToFindFiles });
       // await cleanUploadFolder();
@@ -981,6 +987,12 @@ const bulkBatchIssueCertificates = async (req, res) => {
         });
     });
     filesList = await fs.promises.readdir(extractionPath);
+
+    let zipExist = await findDirectories(filesList);
+    if(zipExist){
+      filesList = zipExist;
+    }
+
     if (filesList.length == 0 || filesList.length == 1) {
       res.status(400).json({ status: "FAILED", message: messageCode.msgUnableToFindFiles });
       // await cleanUploadFolder();
@@ -1327,8 +1339,8 @@ const validateDynamicBulkIssueDocuments = async (req, res) => {
     var zipFileSize = parseInt(stats.size);
     if (zipFileSize <= 100) {
       res.status(400).json({ status: "FAILED", message: messageCode.msgUnableToFindFiles });
-      // await cleanUploadFolder();
-      await wipeUploadFolder();
+      await cleanUploadFolder();
+      // await wipeUploadFolder();
       return;
     }
 
@@ -1351,6 +1363,11 @@ const validateDynamicBulkIssueDocuments = async (req, res) => {
 
     filesList = await fs.promises.readdir(extractionPath);
 
+    let zipExist = await findDirectories(filesList);
+    if(zipExist){
+      filesList = zipExist;
+    }
+    // return res.status(200).json({ status: "FAILED", message: messageCode.msgWorkInProgress });
     if (filesList.length == 0 || filesList.length == 1) {
       res.status(400).json({ status: "FAILED", message: messageCode.msgUnableToFindFiles });
       // await cleanUploadFolder();
@@ -1544,6 +1561,67 @@ const backupFileToCloud = async (file, filePath, type) => {
     console.error('Error uploading file:', error);
     return ({ response: false, status: "FAILED", message: 'An error occurred while uploading the file', details: error });
   }
+};
+
+// Function to check if a path is a directory
+const findDirectories = async (items) => {
+  const results = [];
+  const movedFiles = [];
+
+  for (const item of items) {
+      const fullPath = path.join(uploadPath, item);
+      try {
+          const stats = fs.statSync(fullPath);
+          if (stats.isDirectory()) {
+              results.push(fullPath);
+          }
+      } catch (err) {
+          // Ignore errors (e.g., file not found)
+      }
+  }
+
+  if (results.length > 0) {
+    // console.log('Directories found:', results);
+    
+    for (const dir of results) {
+      // console.log(`Files in directory ${dir}:`);
+      try {
+        const files = fs.readdirSync(dir);
+        
+        files.forEach(file => {
+          const oldPath = path.join(dir, file);
+          const newPath = path.join(uploadPath, file);
+          
+          // Move file
+          try {
+            fs.renameSync(oldPath, newPath);
+            movedFiles.push(file); // Add moved file to the list
+            // console.log(`Moved ${file} to ${uploadPath}`);
+          } catch (err) {
+            console.error(`Error moving file ${file}:`, err);
+          }
+        });
+
+        // Remove the directory if it's empty
+        try {
+          const remainingFiles = fs.readdirSync(dir);
+          if (remainingFiles.length === 0) {
+            fs.rmdirSync(dir);
+            // console.log(`Removed empty directory ${dir}`);
+          }
+        } catch (err) {
+          console.error(`Error removing directory ${dir}:`, err);
+        }
+      } catch (err) {
+        console.error(`Error reading directory ${dir}:`, err);
+      }
+    }
+  } else {
+    console.log('No additional directories found');
+    return false;
+  }
+  // Return the list of moved files
+  return movedFiles;
 };
 
 module.exports = {

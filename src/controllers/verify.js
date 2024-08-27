@@ -310,6 +310,7 @@ console.log("file path", req.file.path);
         }
         // Clean up the upload folder
         await cleanUploadFolder();
+        extractQRData["Polygon URL"] = await modifyPolygonURL(extractQRData["Polygon URL"]);
         res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, details: extractQRData });
         return;
       }
@@ -531,7 +532,7 @@ const decodeCertificate = async (req, res) => {
         "Expiration Date": originalData.Expiration_Date || "",
         "Grant Date": originalData.Grant_Date || "",
         "Name": originalData.name || "",
-        "Polygon URL": originalData.polygonLink || ""
+        "Polygon URL": await modifyPolygonURL(originalData.polygonLink) || ""
       };
 
       var getCertificationInfo = await isCertificationIdExisted(parsedData['Certificate Number']);
@@ -782,6 +783,15 @@ const verifyBatchCertificationWithRetry = async (batchNumber, dataHash, proof, h
       return 0;
     }
   }
+};
+
+// Function to conditionally replace the URL if the unwanted substring is found
+const modifyPolygonURL = (url) => {
+  const unwantedSubstring = "https://https://";
+  if (url.includes(unwantedSubstring)) {
+    return url.replace(unwantedSubstring, "https://");
+  }
+  return url;
 };
 
 module.exports = {
