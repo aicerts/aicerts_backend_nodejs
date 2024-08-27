@@ -40,7 +40,7 @@ module.exports = {
     msgMustZip: "Must upload Zip file format",
     msgUnableToFindFiles: "Unable to find valid files in the uploaded zip.",
     msgUnableToFindPdfFiles: "Unable to find Certification pdf files.",
-    msgUnableToFindExcelFiles: "Unable to find Excel files.",
+    msgUnableToFindExcelFiles: "Unable to find Excel file in the upload.",
     msgAbleToFindFiles: "Able to find files.",
     msgInputRecordsNotMatched: "Bulk input Certifications (pdf) are not matched with Excel records",
     msgFailedToIssueBulkCerts: "Failed to issue Bulk certifications, Please try again",
