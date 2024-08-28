@@ -530,6 +530,15 @@ const insertBulkSingleIssueData = async (data) => {
     const result = await newIssue.save();
     // Logging confirmation message
     // console.log("Certificate data inserted");
+    const idExist = await User.findOne({ issuerId: data.issuerId });
+    if (idExist.certificatesIssued == undefined) {
+      idExist.certificatesIssued = 0;
+    }
+    // If user with given id exists, update certificatesIssued count
+    const previousCount = idExist.certificatesIssued || 0; // Initialize to 0 if certificatesIssued field doesn't exist
+    idExist.certificatesIssued = previousCount + data.count;
+    await idExist.save(); // Save the changes to the existing user
+
   } catch (error) {
     // Handle errors related to database connection or insertion
     console.error("Error connecting to MongoDB:", error);
@@ -1138,7 +1147,7 @@ const verifyDynamicPDFDimensions = async (pdfPath, qrSide) => {
     (certificateData == false)) {
     // console.log("The certificate width x height (in mm):", widthMillimeters, heightMillimeters);
     return false;
-  } else if(certificateData != false){
+  } else if (certificateData != false) {
     // throw new Error('PDF dimensions must be within 240-260 mm width and 340-360 mm height');
     return 1;
   } else {
@@ -1330,57 +1339,6 @@ const wipeUploadFolder = async () => {
   }
 };
 
-// Function to delete PNG files
-const deletePngFiles = async (dirPath) => {
-  try {
-    // Read the directory contents
-    const files = await fs.promises.readdir(dirPath);
-
-    // Filter PNG files
-    const pngFiles = files.filter(file => path.extname(file).toLowerCase() === '.png');
-
-    if (pngFiles.length === 0) {
-      console.log('No PNG files found.');
-      return;
-    }
-
-    // Delete each PNG file
-    for (const file of pngFiles) {
-      const filePath = path.join(dirPath, file);
-      await fs.promises.unlink(filePath);
-      console.log(`Deleted: ${filePath}`);
-    }
-
-    console.log('All unused PNG files have been deleted.');
-
-  } catch (error) {
-    console.error('Error occurred while deleting PNG files:', error);
-  }
-};
-
-// Function to check for PNG files
-const checkForPngFiles = async (dirPath) => {
-  try {
-    // Read the directory contents
-    const files = await fs.promises.readdir(dirPath);
-
-    // Filter PNG files
-    const pngFiles = files.filter(file => path.extname(file).toLowerCase() === '.png');
-
-    if (pngFiles.length > 0) {
-      console.log('PNG files found:', pngFiles);
-      return true;
-    } else {
-      console.log('No PNG files found.');
-      return false;
-    }
-  } catch (error) {
-    console.error('Error occurred while checking for PNG files:', error);
-    throw error;
-  }
-};
-
-
 const isDBConnected = async (maxRetries = 5, retryDelay = 1500) => {
   let retryCount = 0;
 
@@ -1501,7 +1459,7 @@ const getCertificationStatus = async (certStatus) => {
   };
 };
 
-const getContractAddress = async() => {
+const getContractAddress = async () => {
   try {
     const code = await fallbackProvider.getCode(contractAddress);
     if (code === '0x') {
@@ -1518,7 +1476,7 @@ const getContractAddress = async() => {
 };
 
 module.exports = {
-  
+
   // Function to test contract response
   getContractAddress,
 
@@ -1622,12 +1580,6 @@ module.exports = {
 
   // Function to wipout folders in upload folder
   wipeUploadFolder,
-
-  // Function to check png files existence in the path provided
-  checkForPngFiles,
-
-  // Function to wipe png files existence in the path provided
-  deletePngFiles,
 
   // Function to check if MongoDB is connected
   isDBConnected,

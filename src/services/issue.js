@@ -42,8 +42,6 @@ const {
   insertUrlData,
   getCertificationStatus,
   isCertificationIdExisted,
-  checkForPngFiles,
-  deletePngFiles,
   getContractAddress,
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
@@ -1018,7 +1016,8 @@ const bulkIssueSingleCertificates = async (email, issuerId, _pdfReponse, _excelR
             course: fields.courseName,
             grantDate: fields.Grant_Date,
             expirationDate: fields.Expiration_Date,
-            url: imageUrl
+            url: imageUrl,
+            count: 1
           };
           // await insertCertificateData(certificateData);
           insertPromises.push(insertBulkSingleIssueData(certificateData));
@@ -1302,6 +1301,16 @@ const bulkIssueBatchCertificates = async (email, issuerId, _pdfReponse, _excelRe
         }
         // Wait for all insert promises to resolve
         await Promise.all(insertPromises);
+
+        const idExist = await User.findOne({ email : email });
+        if (idExist.certificatesIssued == undefined) {
+          idExist.certificatesIssued = 0;
+        }
+        // If user with given id exists, update certificatesIssued count
+        const previousCount = idExist.certificatesIssued || 0; // Initialize to 0 if certificatesIssued field doesn't exist
+        idExist.certificatesIssued = previousCount + 1;
+        await idExist.save(); // Save the changes to the existing user
+
         if (bulkIssueStatus == 'ZIP_STORE' || flag == 1) {
           return ({ code: 200, status: true });
         }
@@ -1340,14 +1349,13 @@ const issueCertificateWithRetry = async (certificateNumber, certificateHash, exp
     }
 
     let polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
-
     return { txHash, polygonLink };
 
   } catch (error) {
     if (retryCount > 0 && error.code === 'ETIMEDOUT') {
       console.log(`Connection timed out. Retrying... Attempts left: ${retryCount}`);
-      // Retry after a delay (e.g., 2 seconds)
-      await holdExecution(2000);
+      // Retry after a delay (e.g., 1.5 seconds)
+      await holdExecution(1500);
       return issueCertificateWithRetry(certificateNumber, certificateHash, expirationEpoch, retryCount - 1);
     } else if (error.code === 'NONCE_EXPIRED') {
       // Extract and handle the error reason
@@ -1392,8 +1400,8 @@ const issueBatchCertificateWithRetry = async (root, expirationEpoch, retryCount 
   } catch (error) {
     if (retryCount > 0 && error.code === 'ETIMEDOUT') {
       console.log(`Connection timed out. Retrying... Attempts left: ${retryCount}`);
-      // Retry after a delay (e.g., 2 seconds)
-      await holdExecution(2000);
+      // Retry after a delay (e.g., 1.5 seconds)
+      await holdExecution(1500);
       return issueCertificateWithRetry(root, expirationEpoch, retryCount - 1);
     } else if (error.code === 'NONCE_EXPIRED') {
       // Extract and handle the error reason
@@ -1418,12 +1426,6 @@ const convertPdfBufferToPngWithRetry = async (imagePath, pdfBuffer, retryCount =
     if (!imageResponse) {
       if (retryCount > 0) {
         console.log(`Image conversion failed. Retrying... Attempts left: ${retryCount}`);
-        // Retry after a delay (e.g., 1 second)
-        await holdExecution(1000);
-        let pngExist = await checkForPngFiles(rootDirectory);
-        if (pngExist) {
-          await deletePngFiles(rootDirectory);
-        }
         return convertPdfBufferToPngWithRetry(imagePath, pdfBuffer, retryCount - 1);
       } else {
         // throw new Error('Image conversion failed after multiple attempts');
@@ -1525,10 +1527,6 @@ const _convertPdfBufferToPngWithRetry = async (imagePath, pdfBuffer, _width, _he
         console.log(`Image conversion failed. Retrying... Attempts left: ${retryCount}`);
         // Retry after a delay (e.g., 2 seconds)
         await holdExecution(2000);
-        let pngExist = await checkForPngFiles(rootDirectory);
-        if (pngExist) {
-          await deletePngFiles(rootDirectory);
-        }
         return _convertPdfBufferToPngWithRetry(imagePath, pdfBuffer, _width, _height, retryCount - 1);
       } else {
         // throw new Error('Image conversion failed after multiple attempts');
