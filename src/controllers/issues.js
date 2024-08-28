@@ -681,7 +681,7 @@ const bulkSingleIssueCertificates = async (req, res) => {
     filesList = await fs.promises.readdir(extractionPath);
 
     let zipExist = await findDirectories(filesList);
-    if(zipExist){
+    if (zipExist) {
       filesList = zipExist;
     }
 
@@ -761,6 +761,7 @@ const bulkSingleIssueCertificates = async (req, res) => {
       return;
     }
 
+    var pdfPagesValidation = [];
     var pdfTemplateValidation = [];
     for (let index = 0; index < pdfFiles.length; index++) {
       try {
@@ -769,6 +770,13 @@ const bulkSingleIssueCertificates = async (req, res) => {
 
         // Construct the PDF file path
         let pdfFilePath = path.join(__dirname, '../../uploads', targetDocument);
+
+        let templateBuffer = fs.readFileSync(pdfFilePath);
+        let pdfDoc = await PDFDocument.load(templateBuffer);
+        let pageCount = pdfDoc.getPageCount();
+        if (pageCount > 1) {
+          pdfPagesValidation.push(targetDocument);
+        }
 
         // Validate PDF dimensions
         let validityCheck = await validatePDFDimensions(pdfFilePath, paramsExist.pdfWidth, paramsExist.pdfHeight);
@@ -782,12 +790,22 @@ const bulkSingleIssueCertificates = async (req, res) => {
       }
     }
 
-    if (pdfTemplateValidation.length > 0) {
-      res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidPdfTemplate, details: pdfTemplateValidation });
+    if (pdfTemplateValidation.length > 0 || pdfPagesValidation.length > 0) {
+      let errorMessage = '';
+      let errorDetails = '';
+      if (pdfPagesValidation.length > 0) {
+        errorMessage = messageCode.msgMultipagePdfError;
+        errorDetails = pdfPagesValidation;
+      } else {
+        errorMessage = messageCode.msgInvalidPdfDimensions;
+        errorDetails = pdfTemplateValidation;
+      }
+      res.status(400).json({ status: "FAILED", message: errorMessage, details: errorDetails });
       // await cleanUploadFolder();
       await wipeUploadFolder();
       return;
     }
+
     var bulkIssueResponse = await bulkIssueSingleCertificates(emailExist.email, emailExist.issuerId, pdfFiles, excelDataResponse, excelFilePath, paramsExist.positionX, paramsExist.positionY, paramsExist.qrSide, paramsExist.pdfWidth, paramsExist.pdfHeight, flag);
 
     if (bulkIssueStatus == 'ZIP_STORE' || flag == 1) {
@@ -989,7 +1007,7 @@ const bulkBatchIssueCertificates = async (req, res) => {
     filesList = await fs.promises.readdir(extractionPath);
 
     let zipExist = await findDirectories(filesList);
-    if(zipExist){
+    if (zipExist) {
       filesList = zipExist;
     }
 
@@ -1069,6 +1087,7 @@ const bulkBatchIssueCertificates = async (req, res) => {
       return;
     }
 
+    var pdfPagesValidation = [];
     var pdfTemplateValidation = [];
     for (let index = 0; index < pdfFiles.length; index++) {
       try {
@@ -1077,6 +1096,13 @@ const bulkBatchIssueCertificates = async (req, res) => {
 
         // Construct the PDF file path
         let pdfFilePath = path.join(__dirname, '../../uploads', targetDocument);
+
+        let templateBuffer = fs.readFileSync(pdfFilePath);
+        let pdfDoc = await PDFDocument.load(templateBuffer);
+        let pageCount = pdfDoc.getPageCount();
+        if (pageCount > 1) {
+          pdfPagesValidation.push(targetDocument);
+        }
 
         // Validate PDF dimensions
         let validityCheck = await validatePDFDimensions(pdfFilePath, paramsExist.pdfWidth, paramsExist.pdfHeight);
@@ -1090,8 +1116,17 @@ const bulkBatchIssueCertificates = async (req, res) => {
       }
     }
 
-    if (pdfTemplateValidation.length > 0) {
-      res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidPdfTemplate, details: pdfTemplateValidation });
+    if (pdfTemplateValidation.length > 0 || pdfPagesValidation.length > 0) {
+      let errorMessage = '';
+      let errorDetails = '';
+      if (pdfPagesValidation.length > 0) {
+        errorMessage = messageCode.msgMultipagePdfError;
+        errorDetails = pdfPagesValidation;
+      } else {
+        errorMessage = messageCode.msgInvalidPdfDimensions;
+        errorDetails = pdfTemplateValidation;
+      }
+      res.status(400).json({ status: "FAILED", message: errorMessage, details: errorDetails });
       // await cleanUploadFolder();
       await wipeUploadFolder();
       return;
@@ -1364,7 +1399,7 @@ const validateDynamicBulkIssueDocuments = async (req, res) => {
     filesList = await fs.promises.readdir(extractionPath);
 
     let zipExist = await findDirectories(filesList);
-    if(zipExist){
+    if (zipExist) {
       filesList = zipExist;
     }
     // return res.status(200).json({ status: "FAILED", message: messageCode.msgWorkInProgress });
@@ -1444,6 +1479,7 @@ const validateDynamicBulkIssueDocuments = async (req, res) => {
       return;
     }
 
+    var pdfPagesValidation = [];
     var pdfTemplateValidation = [];
     for (let index = 0; index < pdfFiles.length; index++) {
       try {
@@ -1452,6 +1488,13 @@ const validateDynamicBulkIssueDocuments = async (req, res) => {
 
         // Construct the PDF file path
         let pdfFilePath = path.join(__dirname, '../../uploads', targetDocument);
+
+        let templateBuffer = fs.readFileSync(pdfFilePath);
+        let pdfDoc = await PDFDocument.load(templateBuffer);
+        let pageCount = pdfDoc.getPageCount();
+        if (pageCount > 1) {
+          pdfPagesValidation.push(targetDocument);
+        }
 
         // Validate PDF dimensions
         let validityCheck = await validatePDFDimensions(pdfFilePath, paramsExist.pdfWidth, paramsExist.pdfHeight);
@@ -1465,8 +1508,17 @@ const validateDynamicBulkIssueDocuments = async (req, res) => {
       }
     }
 
-    if (pdfTemplateValidation.length > 0) {
-      res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidPdfTemplate, details: pdfTemplateValidation });
+    if (pdfTemplateValidation.length > 0 || pdfPagesValidation.length > 0) {
+      let errorMessage = '';
+      let errorDetails = '';
+      if (pdfPagesValidation.length > 0) {
+        errorMessage = messageCode.msgMultipagePdfError;
+        errorDetails = pdfPagesValidation;
+      } else {
+        errorMessage = messageCode.msgInvalidPdfDimensions;
+        errorDetails = pdfTemplateValidation;
+      }
+      res.status(400).json({ status: "FAILED", message: errorMessage, details: errorDetails });
       // await cleanUploadFolder();
       await wipeUploadFolder();
       return;
@@ -1569,29 +1621,29 @@ const findDirectories = async (items) => {
   const movedFiles = [];
 
   for (const item of items) {
-      const fullPath = path.join(uploadPath, item);
-      try {
-          const stats = fs.statSync(fullPath);
-          if (stats.isDirectory()) {
-              results.push(fullPath);
-          }
-      } catch (err) {
-          // Ignore errors (e.g., file not found)
+    const fullPath = path.join(uploadPath, item);
+    try {
+      const stats = fs.statSync(fullPath);
+      if (stats.isDirectory()) {
+        results.push(fullPath);
       }
+    } catch (err) {
+      // Ignore errors (e.g., file not found)
+    }
   }
 
   if (results.length > 0) {
     // console.log('Directories found:', results);
-    
+
     for (const dir of results) {
       // console.log(`Files in directory ${dir}:`);
       try {
         const files = fs.readdirSync(dir);
-        
+
         files.forEach(file => {
           const oldPath = path.join(dir, file);
           const newPath = path.join(uploadPath, file);
-          
+
           // Move file
           try {
             fs.renameSync(oldPath, newPath);

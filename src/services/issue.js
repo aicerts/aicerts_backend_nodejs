@@ -662,8 +662,12 @@ const handleIssueDynamicPdfCertification = async (email, certificateNumber, name
       if (idExist.status != 1) {
         errorMessage = messageCode.msgUnauthIssuer;
       } else if (_result != false) {
+        if (_result == 1) {
+          errorMessage = messageCode.msgInvalidQrTemplate;
+        } else {
+          errorMessage = messageCode.msgInvalidPdfQr;
+        }
         await cleanUploadFolder();
-        errorMessage = messageCode.msgInvalidPdfQr;
       }
 
       // Respond with error message
@@ -983,25 +987,25 @@ const bulkIssueSingleCertificates = async (email, issuerId, _pdfReponse, _excelR
         var outputPath = path.join(__dirname, '../../uploads', 'completed', `${pdfFileName}`);
 
         if (bulkIssueStatus == 'ZIP_STORE' || flag == 1) {
-            imageUrl = '';
-            generatedImage = null;
-          } else {
-            let _generatedImage = `${fields.Certificate_Number}.png`;
-            generatedImage = path.join(rootDirectory, _generatedImage);
-            console.log("Image path", generatedImage);
+          imageUrl = '';
+          generatedImage = null;
+        } else {
+          let _generatedImage = `${fields.Certificate_Number}.png`;
+          generatedImage = path.join(rootDirectory, _generatedImage);
+          console.log("Image path", generatedImage);
 
-            var imageBuffer = await _convertPdfBufferToPngWithRetry(generatedImage, fileBuffer, pdfWidth, pdfHeight);
+          var imageBuffer = await _convertPdfBufferToPngWithRetry(generatedImage, fileBuffer, pdfWidth, pdfHeight);
 
-            if (imageBuffer) {
-              imageUrl = await _uploadImageToS3(fields.Certificate_Number, generatedImage);
-              if (!imageUrl) {
-                return ({ code: 400, status: "FAILED", message: messageCode.msgUploadError });
-              }
-              insertUrl.push(imageUrl);
-            } else {
-              return ({ code: 400, status: "FAILED", message: messageCode.msgImageError });
+          if (imageBuffer) {
+            imageUrl = await _uploadImageToS3(fields.Certificate_Number, generatedImage);
+            if (!imageUrl) {
+              return ({ code: 400, status: "FAILED", message: messageCode.msgUploadError });
             }
+            insertUrl.push(imageUrl);
+          } else {
+            return ({ code: 400, status: "FAILED", message: messageCode.msgImageError });
           }
+        }
 
         try {
           await isDBConnected();
@@ -1228,7 +1232,7 @@ const bulkIssueBatchCertificates = async (email, issuerId, _pdfReponse, _excelRe
 
           // Assuming fileBuffer is available
           var outputPath = path.join(__dirname, '../../uploads', 'completed', `${pdfFileName}`);
-          
+
           if (bulkIssueStatus == 'ZIP_STORE' || flag == 1) {
             imageUrl = '';
             generatedImage = null;
@@ -1595,7 +1599,7 @@ const _uploadImageToS3 = async (certNumber, imagePath) => {
   const s3 = new AWS.S3();
   const fileStream = fs.createReadStream(imagePath);
   const acl = process.env.ACL_NAME;
-  const keyPrefix = 'dynamic_bulk_issues/';
+  const keyPrefix = 'dynamic_qr_bulk_issues/';
 
   const keyName = keyPrefix + _keyName;
 

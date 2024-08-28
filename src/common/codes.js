@@ -48,6 +48,8 @@ module.exports = {
     msgFaileToIssueAfterRetry: "Failed to issue certificate after retries.",
     msgValidDocumentsUploaded: "Uploaded valid documents and excel file",
     msgUnableToConvert: "Unable to convert the file, please check file format data and upload again...",
+    msgMultipagePdfError: "Multiple-page PDF documents are not allowed. Please try again with a valid single-page PDF",
+
 
     // Validation Error codes Issues (Route)
     msgInvalidFile: "Invalid file uploaded / Please Try again ...",
@@ -86,9 +88,11 @@ module.exports = {
     msgIssuerUnauthrized: "Unauthorized Issuer to perform operation on Blockchain",
     msgFailedAtBlockchain: "Failed to interact with Blockchain / Please Try again ...",
     msgFailedOpsAtBlockchain: "Failed to perform opertaion at Blockchain / Please Try again ...",
-    msgMultiPagePdf: "Multiple Pages PDF document is not allowed, Please try again with valid single page PDF...",
+    msgMultiPagePdf: "Multiple-page PDF documents are not allowed. Please try again with a valid single-page PDF",
     msgProvideValidDates : "Please provide valid dates (MM/DD/YYYY)",
     msgInvalidPdfTemplate : "Invalid PDF (Certification Template / QR Position) dimensions",
+    msgInvalidPdfDimensions : "Invalid PDF Template / dimensions are not matching with provided documents",
+    msgInvalidQrTemplate: "Trying to imprint QR on existed deatails, Please provide pdf(s) without QR details",
 
     // Admin controller messages
     msgAdminMailExist: "Admin with the provided email already exists",

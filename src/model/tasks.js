@@ -1138,9 +1138,11 @@ const verifyDynamicPDFDimensions = async (pdfPath, qrSide) => {
     (certificateData == false)) {
     // console.log("The certificate width x height (in mm):", widthMillimeters, heightMillimeters);
     return false;
-  } else {
+  } else if(certificateData != false){
     // throw new Error('PDF dimensions must be within 240-260 mm width and 340-360 mm height');
-    return true;
+    return 1;
+  } else {
+    return true
   }
 
 };
@@ -1437,7 +1439,7 @@ const rejectEmail = async (name, email) => {
     mailOptions.to = email;
     mailOptions.subject = `Your AICerts Account Registration Status`;
     mailOptions.text = `Hi ${name},
-    
+
 We regret to inform you that your account registration has been declined by our admin team.
 
 If you have any questions or need further clarification, please do not hesitate to contact us. Thank you for your interest in AICerts.

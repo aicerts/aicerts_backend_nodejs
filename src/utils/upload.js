@@ -35,7 +35,7 @@ const _uploadImageToS3 = async (certNumber, imagePath) => {
   const s3 = new AWS.S3();
   const fileStream = fs.createReadStream(imagePath);
   const acl = process.env.ACL_NAME;
-  const keyPrefix = 'dynamic_bulk_issues/';
+  const keyPrefix = 'dynamic_qr_bulk_issues/';
 
   const keyName = keyPrefix + _keyName;
 
