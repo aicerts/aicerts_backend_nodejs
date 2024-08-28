@@ -1492,10 +1492,13 @@ const convertPdfBufferToPng = async (imagePath, pdfBuffer) => {
 const uploadImageToS3 = async (certNumber, imagePath) => {
 
   const bucketName = process.env.BUCKET_NAME;
-  const keyName = `${certNumber}.png`;
+  const _keyName = `${certNumber}.png`;
   const s3 = new AWS.S3();
   const fileStream = fs.createReadStream(imagePath);
   const acl = process.env.ACL_NAME;
+
+  const keyPrefix = 'issues/';
+  const keyName = keyPrefix + _keyName;
 
   let uploadParams = {
     Bucket: bucketName,
