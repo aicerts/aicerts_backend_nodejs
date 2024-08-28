@@ -194,22 +194,14 @@ const getIssueDetails = async (req, res) => {
         // check if the input is Existed cert ID or name for Renew
         var isIssueSingleName = Issues.find({
           issuerId: issuerExist.issuerId,
-          $expr: {
-            $and: [
-              { $eq: [{ $toLower: "$name" }, input.toLowerCase()] }
-            ]
-          },
+          name: input,
           certificateStatus: { $in: [1, 2, 4] },
           expirationDate: { $ne: "1" }
         }).lean();
 
         var isIssueBatchName = BatchIssues.find({
           issuerId: issuerExist.issuerId,
-          $expr: {
-            $and: [
-              { $eq: [{ $toLower: "$name" }, input.toLowerCase()] }
-            ]
-          },
+          name: input,
           certificateStatus: { $in: [1, 2, 4] },
           expirationDate: { $ne: "1" }
         }).lean();
@@ -218,21 +210,13 @@ const getIssueDetails = async (req, res) => {
         // check if the input is Existed cert ID or name for Reactivate
         var isIssueSingleName = Issues.find({
           issuerId: issuerExist.issuerId,
-          $expr: {
-            $and: [
-              { $eq: [{ $toLower: "$name" }, input.toLowerCase()] }
-            ]
-          },
+          name: input,
           certificateStatus: 3
         }).lean();
 
         var isIssueBatchName = BatchIssues.find({
           issuerId: issuerExist.issuerId,
-          $expr: {
-            $and: [
-              { $eq: [{ $toLower: "$name" }, input.toLowerCase()] }
-            ]
-          },
+          name: input,
           certificateStatus: 3
         }).lean();
 
@@ -240,21 +224,13 @@ const getIssueDetails = async (req, res) => {
         // check if the input is Existed cert ID or name for Revoke
         var isIssueSingleName = Issues.find({
           issuerId: issuerExist.issuerId,
-          $expr: {
-            $and: [
-              { $eq: [{ $toLower: "$name" }, input.toLowerCase()] }
-            ]
-          },
+          name: input,
           certificateStatus: { $in: [1, 2, 4] }
         }).lean();
 
         var isIssueBatchName = BatchIssues.find({
           issuerId: issuerExist.issuerId,
-          $expr: {
-            $and: [
-              { $eq: [{ $toLower: "$name" }, input.toLowerCase()] }
-            ]
-          },
+          name: input,
           certificateStatus: { $in: [1, 2, 4] }
         }).lean();
       }
@@ -384,7 +360,6 @@ const fetchIssuesLogDetails = async (req, res) => {
     var today = new Date();
     // Formatting the parsed date into ISO 8601 format with timezone
     var formattedDate = today.toISOString();
-    var queryResponse;
 
     // Get today's date
     const getTodayDate = async () => {
@@ -424,7 +399,7 @@ const fetchIssuesLogDetails = async (req, res) => {
             email: req.body.email,
             certStatus: 4
           });
-          queryResponse = { issued: issueCount, renewed: renewCount, revoked: revokedCount.length, reactivated: reactivatedCount.length };
+          var queryResponse = { issued: issueCount, renewed: renewCount, revoked: revokedCount.length, reactivated: reactivatedCount.length };
           break;
         case 2:
           var __queryResponse = await IssueStatus.find({
@@ -439,7 +414,7 @@ const fetchIssuesLogDetails = async (req, res) => {
               { certStatus: { $eq: 2 } },
               { expirationDate: { $gt: formattedDate } }]
           });
-          queryResponse = { __queryResponse, _queryResponse };
+          var queryResponse = { __queryResponse, _queryResponse };
           // Sort the data based on the 'lastUpdate' date in descending order
           // queryResponse.sort((b, a) => new Date(b.expirationDate) - new Date(a.expirationDate));
           break;
@@ -452,12 +427,12 @@ const fetchIssuesLogDetails = async (req, res) => {
             email: req.body.email,
             $and: [{ certStatus: { $eq: 2 }, expirationDate: { $ne: "1" } }]
           });
-          queryResponse = { _queryResponse, __queryResponse };
+          var queryResponse = { _queryResponse, __queryResponse };
           // Sort the data based on the 'lastUpdate' date in descending order
           // queryResponse.sort((b, a) => new Date(b.expirationDate) - new Date(a.expirationDate));
           break;
         case 4:
-          queryResponse = await IssueStatus.find({
+          var queryResponse = await IssueStatus.find({
             email: req.body.email,
             $and: [{ certStatus: { $eq: 3 }, expirationDate: { $gt: formattedDate } }]
           });
@@ -465,7 +440,7 @@ const fetchIssuesLogDetails = async (req, res) => {
           queryResponse.sort((b, a) => new Date(b.expirationDate) - new Date(a.expirationDate));
           break;
         case 5:
-          queryResponse = await IssueStatus.find({
+          var queryResponse = await IssueStatus.find({
             email: req.body.email,
             $and: [{ expirationDate: { $lt: formattedDate } }]
           });
@@ -477,13 +452,13 @@ const fetchIssuesLogDetails = async (req, res) => {
           var query1Promise = Issues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: { $in: [1, 2, 4] },
-            url: { $exists: true, $ne: null, $ne: "" } // Filter to include documents where `url` exists
+            url: { $exists: true, $ne: null } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           var query2Promise = BatchIssues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: { $in: [1, 2, 4] },
-            url: { $exists: true, $ne: null, $ne: "" } // Filter to include documents where `url` exists
+            url: { $exists: true, $ne: null } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           // Wait for both queries to resolve
@@ -508,19 +483,19 @@ const fetchIssuesLogDetails = async (req, res) => {
           }
           // Take only the first 30 records
           // var queryResponse = _queryResponse.slice(0, Math.min(_queryResponse.length, 30));
-          queryResponse = filteredResponse6;
+          var queryResponse = filteredResponse6;
           break;
         case 7://To fetch Revoked certifications and count
           var query1Promise = Issues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: 3,
-            url: { $exists: true, $ne: null, $ne: "" } // Filter to include documents where `url` exists
+            url: { $exists: true, $ne: null } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           var query2Promise = BatchIssues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: 3,
-            url: { $exists: true, $ne: null, $ne: "" } // Filter to include documents where `url` exists
+            url: { $exists: true, $ne: null } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           // Wait for both queries to resolve
@@ -532,7 +507,7 @@ const fetchIssuesLogDetails = async (req, res) => {
           _queryResponse.sort((a, b) => new Date(b.issueDate) - new Date(a.issueDate));
 
           // Take only the first 30 records
-          queryResponse = _queryResponse.slice(0, Math.min(_queryResponse.length, 30));
+          var queryResponse = _queryResponse.slice(0, Math.min(_queryResponse.length, 30));
           break;
         case 8:
           var filteredResponse8 = [];
@@ -540,21 +515,21 @@ const fetchIssuesLogDetails = async (req, res) => {
             issuerId: issuerExist.issuerId,
             certificateStatus: { $in: [1, 2, 4] },
             expirationDate: { $ne: "1" },
-            url: { $exists: true, $ne: null, $ne: "" } // Filter to include documents where `url` exists
+            url: { $exists: true, $ne: null } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           var query2Promise = BatchIssues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: { $in: [1, 2, 4] },
             expirationDate: { $ne: "1" },
-            url: { $exists: true, $ne: null, $ne: "" } // Filter to include documents where `url` exists
+            url: { $exists: true, $ne: null } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           // Wait for both queries to resolve
           var [queryResponse1, queryResponse2] = await Promise.all([query1Promise, query2Promise]);
 
           // Merge the results into a single array
-          queryResponse = [...queryResponse1, ...queryResponse2];
+          var queryResponse = [...queryResponse1, ...queryResponse2];
 
           // Filter the data to show only expiration dates on or after today
           queryResponse = queryResponse.filter(item => new Date(item.expirationDate) >= new Date(todayDate));
@@ -579,21 +554,21 @@ const fetchIssuesLogDetails = async (req, res) => {
           }
           // Take only the first 30 records
           // var queryResponse = queryResponse.slice(0, Math.min(queryResponse.length, 30));
-          queryResponse = filteredResponse8;
+          var queryResponse = filteredResponse8;
           break;
         case 9:
-          queryResponse = await Issues.find({
+          var queryResponse = await Issues.find({
             issuerId: issuerExist.issuerId,
             $and: [{ certificateStatus: { $eq: 4 } }]
           });
           break;
         default:
-          queryResponse = 0;
+          var queryResponse = 0;
           var totalResponses = 0;
           var responseMessage = messageCode.msgNoMatchFound;
       };
     } else {
-      queryResponse = 0;
+      var queryResponse = 0;
       var totalResponses = 0;
       var responseMessage = messageCode.msgNoMatchFound;
     }
@@ -1177,13 +1152,18 @@ const getIssuesInOrganizationWithName = async (req, res) => {
       return res.status(400).json({ status: "FAILED", message: messageCode.msgDbNotReady });
     }
 
-    const getIssuers = await User.find({
+    let organizationUppercase = organization.toUpperCase();
+    let organizationLowercase = organization.toLowerCase();
 
-      $expr: {
-        $and: [
-          { $eq: [{ $toLower: "$organization" }, organization.toLowerCase()] }
-        ]
-      },
+    let organizationCapitalize = organizationLowercase.charAt(0).toUpperCase() + organizationLowercase.slice(1);
+
+    let nameUppercase = targetName.toUpperCase();
+    let nameLowercase = targetName.toLowerCase();
+
+    let nameCapitalize = nameLowercase.charAt(0).toUpperCase() + nameLowercase.slice(1);
+
+    const getIssuers = await User.find({
+      organization: { $in: [organization, organizationUppercase, organizationLowercase, organizationCapitalize] }
     });
 
     if (getIssuers && getIssuers.length > 0) {
@@ -1193,30 +1173,24 @@ const getIssuesInOrganizationWithName = async (req, res) => {
       return res.status(400).json({ status: "FAILED", message: messageCode.msgNoMatchFound });
     }
 
+    console.log("The total list", getIssuerIds);
     for (let i = 0; i < getIssuerIds.length; i++) {
       const currentIssuerId = getIssuerIds[i];
 
       // Query 1
       var query1Promise = Issues.find({
         issuerId: currentIssuerId,
-        $expr: {
-          $and: [
-            { $eq: [{ $toLower: "$name" }, targetName.toLowerCase()] }
-          ]
-        },
-        url: { $exists: true, $ne: null, $ne: "" } // Filter to include documents where `url` exists
+        name: { $in: [targetName] },
+        url: { $exists: true, $ne: null } // Filter to include documents where `url` exists
       });
 
       // Query 2
       var query2Promise = BatchIssues.find({
         issuerId: currentIssuerId,
-        $expr: {
-          $and: [
-            { $eq: [{ $toLower: "$name" }, targetName.toLowerCase()] }
-          ]
-        },
-        url: { $exists: true, $ne: null, $ne: "" } // Filter to include documents where `url` exists
+        name: { $in: [targetName] },
+        url: { $exists: true, $ne: null } // Filter to include documents where `url` exists
       });
+
 
       // Await both promises
       var [query1Result, query2Result] = await Promise.all([query1Promise, query2Promise]);
@@ -1234,6 +1208,7 @@ const getIssuesInOrganizationWithName = async (req, res) => {
     if (fetchedIssues.length == 0) {
       return res.status(400).json({ status: "FAILED", message: messageCode.msgNoMatchFound });
     }
+
 
     if (fetchedIssues.length > 0) {
 
