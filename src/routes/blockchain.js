@@ -415,7 +415,7 @@ router.post('/remove-trusted-owner', validationRoute.checkAddress, ensureAuthent
  *                   description: Error message for internal server error
  */
 
-router.get('/check-balance', ensureAuthenticated, ensureAuthenticated, adminController.checkBalance);
+router.get('/check-balance', ensureAuthenticated, adminController.checkBalance);
 
 /**
  * @swagger
