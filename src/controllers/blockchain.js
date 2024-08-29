@@ -649,7 +649,7 @@ const allocateCredits = async (req, res) => {
       const issuerExist = await User.findOne({ email: email }).select('-password');
 
       if (!issuerExist || !issuerExist.issuerId) {
-        return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidIssuer, details: email });
+        return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidIssuer });
       }
 
       var fetchServiceQuota = await ServiceAccountQuotas.findOne({

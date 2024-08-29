@@ -70,14 +70,14 @@ const renewCert = async (req, res) => {
                     existIssuerId = issuerExist.issuerId;
                     let fetchCredits = await getIssuerServiceCredits(existIssuerId, 'renew');
                     if (fetchCredits === true) {
-                        return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaStatus, details: email });
+                        return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaStatus });
                     }
                     if (fetchCredits) {
                     } else {
-                        return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaExceeded, details: email });
+                        return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaExceeded });
                     }
                 } else {
-                    return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidIssuerId, details: email });
+                    return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidIssuerId });
                 }
             }
         }
@@ -135,14 +135,14 @@ const updateCertStatus = async (req, res) => {
                     existIssuerId = issuerExist.issuerId;
                     let fetchCredits = await getIssuerServiceCredits(existIssuerId, serviceStatus);
                     if (fetchCredits === true) {
-                        return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaStatus, details: email });
+                        return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaStatus });
                     }
                     if (fetchCredits) {
                     } else {
-                        return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaExceeded, details: email });
+                        return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaExceeded });
                     }
                 } else {
-                    return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidIssuerId, details: email });
+                    return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidIssuerId });
                 }
             }
         }
@@ -190,14 +190,14 @@ const renewBatchCertificate = async (req, res) => {
                     existIssuerId = issuerExist.issuerId;
                     let fetchCredits = await getIssuerServiceCredits(existIssuerId, 'renew');
                     if (fetchCredits === true) {
-                        return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaStatus, details: email });
+                        return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaStatus });
                     }
                     if (fetchCredits) {
                     } else {
-                        return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaExceeded, details: email });
+                        return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaExceeded });
                     }
                 } else {
-                    return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidIssuerId, details: email });
+                    return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidIssuerId });
                 }
             }
         }
@@ -248,14 +248,14 @@ const updateBatchStatus = async (req, res) => {
                     existIssuerId = issuerExist.issuerId;
                     let fetchCredits = await getIssuerServiceCredits(existIssuerId, serviceStatus);
                     if (fetchCredits === true) {
-                        return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaStatus, details: email });
+                        return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaStatus });
                     }
                     if (fetchCredits) {
                     } else {
-                        return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaExceeded, details: email });
+                        return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaExceeded });
                     }
                 } else {
-                    return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidIssuerId, details: email });
+                    return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidIssuerId });
                 }
             }
         }
