@@ -508,44 +508,6 @@ const insertCertificateData = async (data) => {
 };
 
 // Function to insert certification data into MongoDB
-const insertBulkSingleIssueData = async (data) => {
-  try {
-    // Create a new Issues document with the provided data
-    const newIssue = new BulkIssues({
-      issuerId: data.issuerId,
-      transactionHash: data.transactionHash,
-      certificateHash: data.certificateHash,
-      certificateNumber: data.certificateNumber,
-      name: data.name,
-      course: data.course,
-      grantDate: data.grantDate,
-      expirationDate: data.expirationDate,
-      url: data.url || '',
-      type: data.type || 'dynamic',
-      certificateStatus: 1,
-      issueDate: Date.now() // Set the issue date to the current timestamp
-    });
-
-    // Save the new Issues document to the database
-    const result = await newIssue.save();
-    // Logging confirmation message
-    // console.log("Certificate data inserted");
-    const idExist = await User.findOne({ issuerId: data.issuerId });
-    if (idExist.certificatesIssued == undefined) {
-      idExist.certificatesIssued = 0;
-    }
-    // If user with given id exists, update certificatesIssued count
-    const previousCount = idExist.certificatesIssued || 0; // Initialize to 0 if certificatesIssued field doesn't exist
-    idExist.certificatesIssued = previousCount + data.count;
-    await idExist.save(); // Save the changes to the existing user
-
-  } catch (error) {
-    // Handle errors related to database connection or insertion
-    console.error("Error connecting to MongoDB:", error);
-  }
-};
-
-// Function to insert certification data into MongoDB
 const insertBulkBatchIssueData = async (data) => {
   try {
 
@@ -1500,9 +1462,6 @@ module.exports = {
 
   // Function to insert single dynamic certificate data into MongoDB
   insertDynamicCertificateData,
-
-  // Function to insert dynamic bulk (single) certificate data into MongoDB
-  insertBulkSingleIssueData,
 
   // Function to insert dynamic bulk (batch) certificate data into MongoDB
   insertBulkBatchIssueData,
