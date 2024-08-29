@@ -126,6 +126,20 @@ const storage = multer.diskStorage({
  *             example:
  *               status: "FAILED"
  *               message: Error message for invalid input.
+ *       '422':
+ *         description: User given invalid input (Unprocessable Entity)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Error message for invalid input.
  *       '500':
  *         description: Internal Server Error
  *         content:
@@ -473,86 +487,11 @@ router.post('/batch-certificate-issue', __upload.single("excelFile"), ensureAuth
 
 /**
  * @swagger
- * /api/bulk-single-issue:
- *   post:
- *     summary: upload ZIP contain Excel & Pdfs with bulk issue with single approach with issuer email and download response flag (optional).
- *     description: API extract zip file contents into uploads folder for Dynamic Bulk issue.
- *     tags: [Dynamic Bulk Issue]
- *     requestBody:
- *       required: true
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             properties:
- *               email:
- *                 type: string
- *                 description: Issuer email id to be validated
- *               zipFile:
- *                 type: string
- *                 format: binary
- *                 description: ZIP file containing the PDF certificates & Excel to be issued.
- *               flag:
- *                 type: number
- *                 description: Provide flag for download option 0:S3 JSON Response, 1:Zip response.
- *             required:
- *                - email
- *                - zipFile
- *           example:
- *             status: "FAILED"
- *             error: Internal Server Error
- *     responses:
- *       '200':
- *         description: Dynamic Bulk issued successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *                 details:
- *                   type: string
- *             example:
- *               status: "SUCCESS"
- *               message: Dynamic Bulk issued successfully.
- *       '400':
- *         description: Dynamic Bulk not issued successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 message:
- *                   type: string
- *             example:
- *               status: "FAILED"
- *               message: Dynamic Bulk not issued successfully
- *       '500':
- *         description: Internal Server Error
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                 message:
- *                   type: string
- *             example:
- *               status: "FAILED"
- *               message: Internal Server Error.
- */
-
-router.post('/bulk-single-issue', upload.single("zipFile"), adminController.bulkSingleIssueCertificates);
-
-/**
- * @swagger
- * /api/bulk-batch-issue:
+ * /api/dynamic-batch-issue:
  *   post:
  *     summary: upload ZIP contain Excel & Pdfs with bulk issue with batch approach with issuer email and download response flag (optional).
  *     description: API extract zip file contents into uploads folder for Dynamic Bulk issue.
- *     tags: [Dynamic Bulk Issue]
+ *     tags: [Dynamic Batch Issue]
  *     requestBody:
  *       required: true
  *       content:
@@ -619,7 +558,7 @@ router.post('/bulk-single-issue', upload.single("zipFile"), adminController.bulk
  *               message: Internal Server Error.
  */
 
-router.post('/bulk-batch-issue', upload.single("zipFile"), adminController.bulkBatchIssueCertificates);
+router.post('/dynamic-batch-issue', upload.single("zipFile"), adminController.dynamicBatchIssueCertificates);
 
 /**
  * @swagger
