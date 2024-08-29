@@ -31,7 +31,6 @@ const {
   insertCertificateData, // Function to insert certificate data into the database
   insertDynamicCertificateData,
   addDynamicLinkToPdf,
-  insertBulkSingleIssueData,
   insertBulkBatchIssueData,
   addLinkToPdf, // Function to add a link to a PDF file
   verifyPDFDimensions, //Verify the uploading pdf template dimensions
