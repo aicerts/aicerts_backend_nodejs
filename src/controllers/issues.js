@@ -184,6 +184,7 @@ const issueDynamicPdf = async (req, res) => {
 
   const fileBuffer = fs.readFileSync(req.file.path);
   const pdfDoc = await PDFDocument.load(fileBuffer);
+  let _expirationDate;
 
   if (pdfDoc.getPageCount() > 1) {
     // Respond with success status and certificate details
@@ -209,9 +210,32 @@ const issueDynamicPdf = async (req, res) => {
       return;
     }
 
+    // Verify with existing credits limit of an issuer to perform the operation
+    if (email) {
+      let dbStatus = await isDBConnected();
+      if (dbStatus) {
+        var issuerExist = await User.findOne({ email: email });
+        if (issuerExist && issuerExist.issuerId) {
+          existIssuerId = issuerExist.issuerId;
+          let fetchCredits = await getIssuerServiceCredits(existIssuerId, 'issue');
+          if (fetchCredits === true) {
+            return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaStatus });
+          }
+          if (fetchCredits) {
+          } else {
+            return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaExceeded });
+          }
+        } else {
+          return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidIssuerId });
+        }
+      }
+    }
+
     const issueResponse = await handleIssueDynamicPdfCertification(email, certificateNumber, certificateName, customFields, req.file.path, _positionX, _positionY, _qrsize);
     const responseDetails = issueResponse.details ? issueResponse.details : '';
     if (issueResponse.code == 200) {
+      // Update Issuer credits limit (decrease by 1)
+      await updateIssuerServiceCredits(existIssuerId, 'issue');
 
       // Set response headers for PDF to download
       const certificateName = `${certificateNumber}_certificate.pdf`;
@@ -613,6 +637,7 @@ const dynamicBatchIssueCertificates = async (req, res) => {
   // Initialize an empty array to store the file(s) ending with ".pdf"
   var pdfFiles = [];
   var certsExist = [];
+  var existIssuerId;
 
 
   var today = new Date();
@@ -637,6 +662,27 @@ const dynamicBatchIssueCertificates = async (req, res) => {
     var filePath = req.file.path;
     const email = req.body.email;
     const flag = parseInt(req.body.flag);
+
+    // Verify with existing credits limit of an issuer to perform the operation
+    if (email) {
+      let dbStatus = await isDBConnected();
+      if (dbStatus) {
+        var issuerExist = await User.findOne({ email: email });
+        if (issuerExist && issuerExist.issuerId) {
+          existIssuerId = issuerExist.issuerId;
+          let fetchCredits = await getIssuerServiceCredits(existIssuerId, 'issue');
+          if (fetchCredits === true) {
+            return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaStatus });
+          }
+          if (fetchCredits) {
+          } else {
+            return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaExceeded });
+          }
+        } else {
+          return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidIssuerId });
+        }
+      }
+    }
 
     const emailExist = await User.findOne({ email: email });
     const paramsExist = await DynamicParameters.findOne({ email: email });
@@ -811,6 +857,9 @@ const dynamicBatchIssueCertificates = async (req, res) => {
 
     if (bulkIssueStatus == 'ZIP_STORE' || flag == 1) {
       if (bulkIssueResponse.code == 200) {
+        // Update Issuer credits limit (decrease by 1)
+        await updateIssuerServiceCredits(existIssuerId, 'issue');
+
         const zipFileName = `${formattedDateTime}.zip`;
         const resultFilePath = path.join(__dirname, '../../uploads', zipFileName);
 
@@ -891,6 +940,8 @@ const dynamicBatchIssueCertificates = async (req, res) => {
     }
 
     if (bulkIssueResponse.code == 200) {
+      // Update Issuer credits limit (decrease by 1)
+      await updateIssuerServiceCredits(existIssuerId, 'issue');
       let bulkResponse = {
         email: emailExist.email,
         issuerId: emailExist.issuerId,
