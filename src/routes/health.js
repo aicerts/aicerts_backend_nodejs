@@ -4,7 +4,7 @@ const adminController = require('../controllers/health');
 
 /**
  * @swagger
- * /api/health-check:
+ * /api/health:
  *   get:
  *     summary: API to do Health Check
  *     description: API to do Perform checks on the API, such as database connectivity and response times
@@ -40,6 +40,6 @@ const adminController = require('../controllers/health');
  *                   example: Health check failed
  */
 
-router.get('/health-check', adminController.healthCheck);
+router.get('/health', adminController.healthCheck);
 
 module.exports=router;

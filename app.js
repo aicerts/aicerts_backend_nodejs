@@ -46,7 +46,7 @@ app.use('/api', tasksRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  setTimeout(function () { next(); }, 120000); // 120 seconds
+  setTimeout(function () { next(); }, 12000000); // 120 seconds
   console.error(err.stack);
   if (err instanceof multer.MulterError) {
     // Multer error occurred (e.g., file size limit exceeded)

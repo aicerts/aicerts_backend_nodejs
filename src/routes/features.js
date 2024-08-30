@@ -1,8 +1,11 @@
 const express = require('express');
 const router = express.Router();
+const multer = require('multer');
 const { ensureAuthenticated } = require("../config/auth"); // Import authentication middleware
 const adminController = require('../controllers/features');
 const validationRoute = require("../common/validationRoutes");
+
+const upload = multer({ dest: "./uploads/" });
 
 /**
  * @swagger
@@ -67,6 +70,19 @@ const validationRoute = require("../common/validationRoutes");
  *             example:
  *               status: "FAILED"
  *               message: Error message for certificate already issued or invalid input.
+ *       '401':
+ *         description: Unauthorized Aceess / No token provided.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the operation (FAILED).
+ *                 message:
+ *                   type: string
+ *                   description: Unauthorized access. No token provided.
  *       '422':
  *         description: User given invalid input (Unprocessable Entity)
  *         content:
@@ -95,6 +111,20 @@ const validationRoute = require("../common/validationRoutes");
  *             example:
  *               status: "FAILED"
  *               message: Internal server error.
+ *       '503':
+ *         description: Service Unavailable temporarily unavailable due to inactive/insufficient credits limit.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: The service is temporarily unavailable due to inactive/insufficient credits. Please try again later.
  */
 
 router.post('/renew-cert', validationRoute.renewIssue, ensureAuthenticated, adminController.renewCert);
@@ -159,6 +189,19 @@ router.post('/renew-cert', validationRoute.renewIssue, ensureAuthenticated, admi
  *             example:
  *               status: "FAILED"
  *               message: Error message for certificate status update input.
+ *       '401':
+ *         description: Unauthorized Aceess / No token provided.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the operation (FAILED).
+ *                 message:
+ *                   type: string
+ *                   description: Unauthorized access. No token provided.
  *       '422':
  *         description: User given invalid input (Unprocessable Entity)
  *         content:
@@ -187,6 +230,20 @@ router.post('/renew-cert', validationRoute.renewIssue, ensureAuthenticated, admi
  *             example:
  *               status: "FAILED"
  *               message: Internal server error.
+ *       '503':
+ *         description: Service Unavailable temporarily unavailable due to inactive/insufficient credits limit.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: The service is temporarily unavailable due to inactive/insufficient credits. Please try again later.
  */
 
 router.post('/update-cert-status', validationRoute.updateStatus, ensureAuthenticated, adminController.updateCertStatus);
@@ -251,6 +308,19 @@ router.post('/update-cert-status', validationRoute.updateStatus, ensureAuthentic
  *             example:
  *               status: "FAILED"
  *               message: Error message for batch expiration date update.
+ *       '401':
+ *         description: Unauthorized Aceess / No token provided.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the operation (FAILED).
+ *                 message:
+ *                   type: string
+ *                   description: Unauthorized access. No token provided.
  *       '422':
  *         description: User given invalid input (Unprocessable Entity)
  *         content:
@@ -279,6 +349,20 @@ router.post('/update-cert-status', validationRoute.updateStatus, ensureAuthentic
  *             example:
  *               status: "FAILED"
  *               message: Internal server error.
+ *       '503':
+ *         description: Service Unavailable temporarily unavailable due to inactive/insufficient credits limit.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: The service is temporarily unavailable due to inactive/insufficient credits. Please try again later.
  */
 
 router.post('/renew-batch', validationRoute.renewBatch, ensureAuthenticated, adminController.renewBatchCertificate);
@@ -343,6 +427,19 @@ router.post('/renew-batch', validationRoute.renewBatch, ensureAuthenticated, adm
  *             example:
  *               status: "FAILED"
  *               message: Error message for Batch certification status update input.
+ *       '401':
+ *         description: Unauthorized Aceess / No token provided.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the operation (FAILED).
+ *                 message:
+ *                   type: string
+ *                   description: Unauthorized access. No token provided.
  *       '422':
  *         description: User given invalid input (Unprocessable Entity)
  *         content:
@@ -371,9 +468,181 @@ router.post('/renew-batch', validationRoute.renewBatch, ensureAuthenticated, adm
  *             example:
  *               status: "FAILED"
  *               message: Internal server error.
+ *       '503':
+ *         description: Service Unavailable temporarily unavailable due to inactive/insufficient credits limit.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: The service is temporarily unavailable due to inactive/insufficient credits. Please try again later.
  */
 
 router.post('/update-batch-status', validationRoute.updateBatch, ensureAuthenticated, adminController.updateBatchStatus);
 
+/**
+ * @swagger
+ * /api/convert-excel:
+ *   post:
+ *     summary: Input json/csv/xml file containing the data to be converted into excel
+ *     description: Provided json/csv/xml file containing the data to be validated and converted into excel.
+ *     tags: [Dynamic Template]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: Issuer email id to be validated
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: json/csv/xml file containing the data to be converted into excel.
+ *             required:
+ *                - email
+ *                - file
+ *     responses:
+ *       '200':
+ *         description: Successful response
+ *         content:
+ *           application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                status:
+ *                  type: string
+ *                  example: "SUCCESS"
+ *                message:
+ *                  type: string
+ *                  example: "Valid Inputs"
+ *                details:
+ *                  type: object
+ *                  properties:
+ *                    // Define properties of dynamic QR details object here
+ *       '400':
+ *         description: Invalid input values
+ *         content:
+ *           application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                status:
+ *                  type: string
+ *                  example: "FAILED"
+ *                message:
+ *                  type: string
+ *                  example: "Invalid input provided"
+ *       '500':
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *            schema:
+ *              type: object
+ *              properties:
+ *                status:
+ *                  type: string
+ *                  example: "FAILED"
+ *                message:
+ *                  type: string
+ *                  example: "Internal Server error"
+ */
+router.post('/convert-excel', upload.single("file"), adminController.convertIntoExcel);
+
+/**
+ * @swagger
+ * /api/generate-excel-report:
+ *   post:
+ *     summary: Get excel file report
+ *     description: API to fetch details from DB and generate excel file as response.
+ *     tags: [Dynamic Template]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: Provide email 
+ *               value:
+ *                 type: number
+ *                 description: Provide the value 
+ *             required:
+ *               - email
+ *               - value
+ *     responses:
+ *       '200':
+ *         description: All details fetched into the excel file successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: SUCCESS
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     [Issuers Log Details]
+ *                 message:
+ *                   type: string
+ *                   example: All details fetched into the excel successfully
+ *       '400':
+ *         description: Bad request or Invalid code
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: Issues details not found (or) Bad request!
+ *       '422':
+ *         description: User given invalid input (Unprocessable Entity)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Error message for invalid input.
+ *       '500':
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred while fetching issues details
+ */
+router.post('/generate-excel-report', adminController.generateExcelReport);
 
 module.exports=router;

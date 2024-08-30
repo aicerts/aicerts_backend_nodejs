@@ -8,7 +8,7 @@ const validationRoute = require("../common/validationRoutes");
  * @swagger
  * /api/validate-issuer:
  *   post:
- *     summary: Approve or Reject an Issuer
+ *     summary: Approve or Reject an Issuer with email and status approval (1) or rejection (2).
  *     description: API to approve or reject Issuer status (to perform the Issuing Certification over the Blockchain)
  *     tags: [Blockchain]
  *     requestBody:
@@ -86,7 +86,112 @@ const validationRoute = require("../common/validationRoutes");
  *                   description: Error message indicating an error during the validation process.
  */
 
-router.post('/validate-issuer', validationRoute.validateIssuer, ensureAuthenticated, adminController.validateIssuer);
+router.post('/validate-issuer', validationRoute.validateIssuer, adminController.validateIssuer);
+
+/**
+ * @swagger
+ * /api/allocate-credits:
+ *   post:
+ *     summary: API to allocate/update credits to Issuer based on the email(Issuer) and Service ID.
+ *     description: API to allocate/update credits with respective service code Issue(1), renew(2), revoke(3) and reactivate(4), Active status (True/False) Issuer to perform operations over the Blockchain.
+ *     tags: [Blockchain]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: Email of the issuer to be allocated/update credits
+ *               status:
+ *                 type: boolean
+ *                 description: Respective active status (true/false) with particular issuer.
+ *               service:
+ *                 type: number
+ *                 description: Respective service Code with particular issuer.
+ *               credits:
+ *                 type: number
+ *                 description: credits to be added/updated with particular issuer.
+ *             example:
+ *               email: issuer@example.com
+ *               status: true
+ *               service: 1
+ *               credits: 0
+ *     responses:
+ *       '200':
+ *         description: Successfully allocted / updated credits.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the allocation/updation credits (SUCCESS).
+ *                 email:
+ *                   type: string
+ *                   description: Status of the email (sent or NA).
+ *                 message:
+ *                   type: string
+ *                   description: Allocate/update credits to the issuer successfully.
+ *       '400':
+ *         description: Invalid input parameter or issuer status. Returns a failure message.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the operation (FAILED).
+ *                 message:
+ *                   type: string
+ *                   description: Error message detailing the issue.
+ *       '401':
+ *         description: Unauthorized Aceess / No token provided.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the operation (FAILED).
+ *                 message:
+ *                   type: string
+ *                   description: Unauthorized access. No token provided.
+ *       '422':
+ *         description: User given invalid input (Unprocessable Entity)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Error message for invalid input.
+ *       '500':
+ *         description: Internal server error. Returns a failure message.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the operation (FAILED).
+ *                 message:
+ *                   type: string
+ *                   description: Error message indicating an error during the allocation process.
+ */
+
+router.post('/allocate-credits', validationRoute.validateCredits, ensureAuthenticated, adminController.allocateCredits);
 
 /**
  * @swagger
@@ -310,7 +415,7 @@ router.post('/remove-trusted-owner', validationRoute.checkAddress, ensureAuthent
  *                   description: Error message for internal server error
  */
 
-router.get('/check-balance', ensureAuthenticated, ensureAuthenticated, adminController.checkBalance);
+router.get('/check-balance', ensureAuthenticated, adminController.checkBalance);
 
 /**
  * @swagger

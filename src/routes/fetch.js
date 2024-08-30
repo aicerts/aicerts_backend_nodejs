@@ -5,7 +5,7 @@ const adminController = require('../controllers/fetch');
 const { ensureAuthenticated } = require("../config/auth"); // Import authentication middleware
 const validationRoute = require("../common/validationRoutes");
 
-const __upload = multer({dest: "../../uploads/"});
+const __upload = multer({dest: "./uploads/"});
 
 /**
  * @swagger
@@ -56,6 +56,8 @@ router.get('/get-all-issuers', ensureAuthenticated, adminController.getAllIssuer
  *     summary: Get Organtization details of all issuers
  *     description: API to fetch Organtization details of all issuers
  *     tags: [Fetch/Upload]
+ *     security:
+ *       - BearerAuth: []
  *     responses:
  *       200:
  *         description: All Organizations details fetched successfully
@@ -174,6 +176,201 @@ router.get('/get-organization-details', adminController.getOrganizationDetails);
  */
 
 router.post('/get-organization-issues', validationRoute.organizationIssues, adminController. getIssuesInOrganizationWithName);
+
+/**
+ * @swagger
+ * /api/get-filtered-issuers:
+ *   post:
+ *     summary: Get details of all Issuers with the filter (organization, name, email).
+ *     description: API to fetch details of all Issuers with the filter (organization, name, email).
+ *     tags: [Fetch/Upload]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               input:
+ *                 type: string
+ *                 description: Provide input value organization name/ issuer name/email
+ *               filter:
+ *                 type: string
+ *                 description: Provide key 
+ *             required:
+ *               - input
+ *               - filter
+ *     responses:
+ *       '200':
+ *         description: All issues details fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: SUCCESS
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     [Issuers Log Details]
+ *                 message:
+ *                   type: string
+ *                   example: All issues details fetched successfully
+ *       '400':
+ *         description: Bad request or Invalid code
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: Issues details not found (or) Bad request!
+ *       '422':
+ *         description: User given invalid input (Unprocessable Entity)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Error message for invalid input.
+ *       '500':
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred while fetching issues details
+ */
+
+router.post('/get-filtered-issuers', validationRoute.fetchIssuers ,adminController. getIssuersWithFilter);
+
+/**
+ * @swagger
+ * /api/get-filtered-issues:
+ *   post:
+ *     summary: Get details of certifications issued by Issuers under particular input:filter as name, course, grantDate, expirationDate, certificateNumber with filter code 1:partial match, 2:complete match).
+ *     description: API to fetch details of certifications issued by Issuers under particular input:filter as name, course, grantDate, expirationDate, certificateNumber as filter code.
+ *     tags: [Fetch/Upload]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - name: page
+ *         in: query
+ *         description: The page count (number).
+ *         required: false
+ *         schema:
+ *           type: number
+ *       - name: limit
+ *         in: query
+ *         description: The response limit count (number).
+ *         required: false
+ *         schema:
+ *           type: number
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: Provide issuer email
+ *               input:
+ *                 type: string
+ *                 description: Provide organization name
+ *               filter:
+ *                 type: string
+ *                 description: Provide Student/Candidate target name
+ *               flag:
+ *                 type: number
+ *                 description: Provide flag value 
+ *             required:
+ *               - email
+ *               - input
+ *               - filter
+ *               - flag
+ *     responses:
+ *       '200':
+ *         description: All issues details fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: SUCCESS
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     [Issuers Log Details]
+ *                 message:
+ *                   type: string
+ *                   example: All issues details fetched successfully
+ *       '400':
+ *         description: Bad request or Invalid code
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: Issues details not found (or) Bad request!
+ *       '422':
+ *         description: User given invalid input (Unprocessable Entity)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Error message for invalid input.
+ *       '500':
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred while fetching issues details
+ */
+
+router.post('/get-filtered-issues', validationRoute.filterIssues, adminController.getIssuesWithFilter);
 
 /**
  * @swagger
@@ -563,6 +760,254 @@ router.post('/get-issuer-by-email', validationRoute.emailCheck, adminController.
 
 /**
  * @swagger
+ * /api/get-credits-by-email:
+ *   post:
+ *     summary: Get issuer sevice credit limits by email
+ *     description: API to Fetch Issuer service credit limits details on email request.
+ *     tags: [Fetch/Upload]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: Issuer's email address
+ *     responses:
+ *       '200':
+ *         description: Issuer fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: SUCCESS
+ *                 data:
+ *                   type: object
+ *                   description: Issuer details
+ *                 message:
+ *                   type: string
+ *                   example: Issuer fetched successfully
+ *       '400':
+ *         description: Bad request or issuer not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: Issuer not found (or) Bad request!
+ *       '422':
+ *         description: User given invalid input (Unprocessable Entity)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Error message for invalid input.
+ *       '500':
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred during the process!
+ */
+
+router.post('/get-credits-by-email', validationRoute.emailCheck, adminController.getServiceLimitsByEmail);
+
+/**
+ * @swagger
+ * /api/get-custom-issues:
+ *   post:
+ *     summary: Fetch issues (by Netcom & LMS) data based on a day/week/month of an issuer with an Email(optional)
+ *     description: Retrieve issues data based on the range (Day/Week/Month).
+ *     tags: [Fetch/Upload]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: Input valid email address (any)
+ *     responses:
+ *       '200':
+ *         description: Successfully fetched issues data (Netcom & LMS).
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: number
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Indicates if the request was successful.
+ *                 message:
+ *                   type: string
+ *                   description: A message indicating the result of the operation.
+ *                 details:
+ *                   type: object
+ *                   description: The fetched issues data.
+ *             example:
+ *               status: "SUCCESS"
+ *               message: Issues data fetched successfully.
+ *               details: []
+ *       '400':
+ *         description: Invalid request due to missing or invalid parameters.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Invalid request due to missing or invalid parameters.
+ *       '422':
+ *         description: User given invalid input (Unprocessable Entity)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Error message for invalid input.
+ *       '500':
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Internal Server Error.
+ */
+
+router.post('/get-custom-issues', validationRoute.emailCheck, adminController.fetchCustomIssuedCertificates);
+
+/**
+ * @swagger
+ * /api/get-core-issues:
+ *   post:
+ *     summary: Fetch issues (Core & Feature) data based on a week/month/annual of an issuer with an Email
+ *     description: Retrieve issues data based on the range (Week/Month/Annual).
+ *     tags: [Fetch/Upload]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: Input valid email address (any)
+ *     responses:
+ *       '200':
+ *         description: Successfully fetched issues data (Core & Feature).
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: number
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Indicates if the request was successful.
+ *                 message:
+ *                   type: string
+ *                   description: A message indicating the result of the operation.
+ *                 details:
+ *                   type: object
+ *                   description: The fetched issues data.
+ *             example:
+ *               status: "SUCCESS"
+ *               message: Issues data fetched successfully.
+ *               details: []
+ *       '400':
+ *         description: Invalid request due to missing or invalid parameters.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Invalid request due to missing or invalid parameters.
+ *       '422':
+ *         description: User given invalid input (Unprocessable Entity)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Error message for invalid input.
+ *       '500':
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Internal Server Error.
+ */
+
+router.post('/get-core-issues', validationRoute.emailCheck, adminController.fetchStatusCoreFeatureIssues);
+
+/**
+ * @swagger
  * /api/get-verification-details:
  *   post:
  *     summary: Get Verification details with Issuer email input
@@ -643,6 +1088,92 @@ router.post('/get-verification-details', validationRoute.emailCheck, adminContro
 
 /**
  * @swagger
+ * /api/get-bulk-files:
+ *   post:
+ *     summary: Get Bulk issued Certifications backup file on input search date
+ *     description: API to Fetch Bulk Issued details on Date (MM-DD-YYYY) input, Category would be single:1, Batch:2.
+ *     tags: [Fetch/Upload]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               search:
+ *                 type: string
+ *                 description: search with date.
+ *               category:
+ *                 type: number
+ *                 description: The certificate number.
+ *             required:
+ *               - search
+ *               - category
+ *     responses:
+ *       200:
+ *         description: Files fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: SUCCESS
+ *                 data:
+ *                   type: object
+ *                   description: Issuer details
+ *                 message:
+ *                   type: string
+ *                   example: Files fetched successfully
+ *       400:
+ *         description: Bad request or issuer not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: Files not found (or) Bad request!
+ *       '422':
+ *         description: User given invalid input (Unprocessable Entity)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Error message for invalid input.
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred during the process!
+ */
+
+router.post('/get-bulk-files', adminController.getBulkBackupFiles);
+
+/**
+ * @swagger
  * /api/upload:
  *   post:
  *     summary: Upload a file to AWS S3 bucket1
@@ -706,7 +1237,7 @@ router.post('/upload',__upload.single('file'),(req, res)=>  adminController.uplo
  *               file:
  *                 type: string
  *                 format: binary
- *               certificateId:
+ *               certificateNumber:
  *                 type: string
  *                 description: The ID of the certificate
  *               type:
@@ -959,6 +1490,96 @@ router.post('/get-single-certificates', adminController.getSingleCertificates);
  */
 
 router.post('/get-batch-certificates', adminController.getBatchCertificates);
+
+/**
+ * @swagger
+ * /api/get-batch-certificate-dates:
+ *   post:
+ *     summary: Get batch certificates based on issuerId
+ *     description: API to fetch all batch certificates for a given issuerId. The response will group the certificates by their issueDate.
+ *     tags: [Fetch/Upload]
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               issuerId:
+ *                 type: string
+ *                 description: Issuer's ID
+ *             required:
+ *               - issuerId
+ *     responses:
+ *       '200':
+ *         description: Batch certificates fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: SUCCESS
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       issueDate:
+ *                         type: string
+ *                         format: date
+ *                       certificates:
+ *                         type: array
+ *                         items:
+ *                           type: object
+ *                           properties:
+ *                             batchId:
+ *                               type: number
+ *                             issueDate:
+ *                               type: string
+ *                             issuerId:
+ *                               type: string
+ *                   example:
+ *                       data:
+ *                         - batchId: "12"
+ *                           issueDate: "2024-01-01"
+ *                           issuerId: "issuer123"
+ *                 message:
+ *                   type: string
+ *                   example: Batch certificates fetched successfully
+ *       '400':
+ *         description: Bad request or invalid input
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: issuerId is required
+ *       '500':
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred while fetching the batch certificates
+ *                 details:
+ *                   type: string
+ *                   example: Error details
+ */
 
 router.post('/get-batch-certificate-dates', adminController.getBatchCertificateDates);
 

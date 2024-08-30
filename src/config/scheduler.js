@@ -13,9 +13,14 @@ const { User } = require("./schema");
 // Parse environment variables for days to be deleted
 const schedule_days = parseInt(process.env.SCHEDULE_DAYS);
 
+// Importing functions from a custom module
+const {
+  scheduledUpdateLimits
+} = require('../model/tasks'); // Importing functions from the '../model/tasks' module
+
 const MONGODB_OPTIONS = {
-  connectTimeoutMS: 6000000
-  // Add more MongoDB connection options as needed
+  connectTimeoutMS: 6000000,
+  serverSelectionTimeoutMS: 30000 // Increase timeout to 30 seconds
 };
 
 // Function to connect to MongoDB with retry logic
@@ -47,7 +52,7 @@ try {
       createUploadsFolder();
       // Schedule the task to run every day at midnight
       cron.schedule('0 0 * * *', async () => {
-
+        await scheduledUpdateLimits();
         try {
           // Calculate the date scheduled days ago
           const scheduledDaysAgo = new Date();
@@ -95,7 +100,7 @@ const createUploadsFolder = async () => {
       console.log("Uploads folder created successfully.");
     } else {
       console.log("Uploads folder already exists.");
-    }
+    }      
   } catch (error) {
     console.error("Error creating uploads folder:", error);
   }

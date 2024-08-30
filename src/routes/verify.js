@@ -1,14 +1,16 @@
 const express = require('express');
 const router = express.Router();
+const path = require("path");
 const adminController = require('../controllers/verify');
 const multer = require('multer');
 const { fileFilter, excelFilter } = require('../model/tasks'); // Import file filter function
 const validationRoute = require("../common/validationRoutes");
 
+let folderPath = path.join(__dirname, "../../uploads/");
 // Configure multer storage options
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-      cb(null, "./uploads"); // Set the destination where files will be saved
+      cb(null, folderPath); // Set the destination where files will be saved
     },
     filename: (req, file, cb) => {
       // Set the filename based on the Certificate_Number from the request body
