@@ -380,7 +380,7 @@ router.post('/issue-pdf', _upload.single("file"), ensureAuthenticated, adminCont
  *               message: Internal Server Error.
  */
 
-router.post('/issue-dynamic-pdf', _upload.single("file"), adminController.issueDynamicPdf);
+router.post('/issue-dynamic-pdf', _upload.single("file"), ensureAuthenticated, adminController.issueDynamicPdf);
 
 /**
  * @swagger
@@ -558,7 +558,7 @@ router.post('/batch-certificate-issue', __upload.single("excelFile"), ensureAuth
  *               message: Internal Server Error.
  */
 
-router.post('/dynamic-batch-issue', upload.single("zipFile"), adminController.dynamicBatchIssueCertificates);
+router.post('/dynamic-batch-issue', upload.single("zipFile"), ensureAuthenticated, adminController.dynamicBatchIssueCertificates);
 
 /**
  * @swagger
