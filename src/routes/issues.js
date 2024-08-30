@@ -160,7 +160,7 @@ router.post('/issue', validationRoute.issue, ensureAuthenticated, adminControlle
 
 /**
  * @swagger
- * /api/custom-issue:
+ * /api/issuance:
  *   post:
  *     summary: API call for issuing a LMS certification (Details) Optional Expiration Date.
  *     description: API call for issuing a LMS certificate with Request Data Extraction, Validation Checks, Blockchain Processing, Certificate Issuance, Response Handling, Blockchain Interaction, Data Encryption, QR Code Generation, Database Interaction, Error Handling and Asynchronous Operation.
@@ -288,7 +288,7 @@ router.post('/issue', validationRoute.issue, ensureAuthenticated, adminControlle
  *               message: Internal server error.
  */
 
-router.post('/custom-issue', validationRoute.customIssue, adminController.customIssue);
+router.post('/issuance', validationRoute.customIssue, adminController.customIssue);
 
 /**
  * @swagger
