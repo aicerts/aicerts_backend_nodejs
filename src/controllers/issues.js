@@ -54,7 +54,7 @@ const {
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
 const { handleExcelFile, handleBulkExcelFile } = require('../services/handleExcel');
-const { handleIssueCertification, handleIssuePdfCertification, handleIssueDynamicPdfCertification, dynamicBatchCertificates } = require('../services/issue');
+const { handleIssueCertification, handleIssuePdfCertification, handleIssueDynamicPdfCertification, dynamicBatchCertificates, handleCustomIssue } = require('../services/issue');
 
 // Retrieve contract address from environment variable
 const contractAddress = process.env.CONTRACT_ADDRESS;
@@ -177,6 +177,12 @@ const issuePdf = async (req, res) => {
   }
 };
 
+/**
+ * API call for Certificate issue with dynamic QR on the pdf template.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
 const issueDynamicPdf = async (req, res) => {
   if (!req.file.path) {
     return res.status(400).json({ status: "FAILED", message: messageCode.msgMustPdf });
@@ -330,6 +336,64 @@ const issue = async (req, res) => {
     return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
   }
 };
+
+/**
+ * API call for Certificate custom issue without pdf template.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
+const customIssue = async (req, res) => {
+  var validResult = validationResult(req);
+  if (!validResult.isEmpty()) {
+    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+  }
+
+  try {
+    // Extracting required data from the request body
+    const email = req.body.email;
+    const certificateNumber = req.body.certificateNumber;
+    const name = req.body.name;
+    const courseName = req.body.course;
+    const flag = req.body.flag || false;
+    var _grantDate = req.body.grantDate;
+    var _expirationDate;
+
+    // Validate Expiration date
+    if (req.body.expirationDate == "" || req.body.expirationDate == "1" || req.body.expirationDate == 1 || req.body.expirationDate == null || req.body.expirationDate == "string") {
+      _expirationDate = 1;
+    } else {
+      _expirationDate = req.body.expirationDate;
+    }
+    if (!_expirationDate) {
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidExpirationDate, details: req.body.expirationDate });
+    }
+
+    if (specialCharsRegex.test(certificateNumber)) {
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgNoSpecialCharacters });
+    }
+
+    if (_grantDate == "" || _grantDate == "1" || _grantDate == 1 || _grantDate == null || _grantDate == "string") {
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidGrantDate, details: req.body.grantDate });
+    }
+    var _grantDate = await convertDateFormat(req.body.grantDate);
+    if (!_grantDate) {
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidGrantDate, details: req.body.grantDate });
+    }
+    console.log("Request Enduser name: ", name);
+    const issueResponse = await handleCustomIssue(email, certificateNumber, name, courseName, _grantDate, _expirationDate, flag);
+    var responseDetails = issueResponse.details ? issueResponse.details : '';
+    if (issueResponse.code == 200) {
+      return res.status(issueResponse.code).json({ status: issueResponse.status, message: issueResponse.message, qrCodeImage: issueResponse.qrCodeImage, polygonLink: issueResponse.polygonLink, details: responseDetails });
+    }
+
+    res.status(issueResponse.code).json({ status: issueResponse.status, message: issueResponse.message, details: responseDetails });
+  } catch (error) {
+    // Handle any errors that occur during token verification or validation
+    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
+  }
+};
+
 
 /**
  * API call for Batch Certificates issue.
@@ -1054,7 +1118,7 @@ const acceptDynamicInputs = async (req, res) => {
 };
 
 /**
- * API call for validate Certificates for dynamic QR poisioning.
+ * API call for validate Certificates (zip) for dynamic QR poisioning.
  *
  * @param {Object} req - Express request object.
  * @param {Object} res - Express response object.
@@ -1405,6 +1469,9 @@ const findDirectories = async (items) => {
 module.exports = {
   // Function to issue a PDF certificate
   issuePdf,
+
+  // Function to custom issue a PDF certificate
+  customIssue,
 
   // Function to issue a Dynamic QR with PDF certification
   issueDynamicPdf,

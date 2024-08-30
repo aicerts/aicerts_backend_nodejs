@@ -15,10 +15,11 @@ const { StandardMerkleTree } = require("@openzeppelin/merkle-tree");
 const { generateEncryptedUrl } = require("../common/cryptoFunction");
 
 // Import MongoDB models
-const { User, DynamicIssues, DynamicParameters } = require("../config/schema");
+const { User, Issues, DynamicIssues } = require("../config/schema");
 
 // Import ABI (Application Binary Interface) from the JSON file located at "../config/abi.json"
 const abi = require("../config/abi.json");
+const abiCustom = require("../config/abiCustom.json");
 
 const bulkIssueStatus = process.env.BULK_ISSUE_STATUS || 'DEFAULT';
 
@@ -48,6 +49,7 @@ const {
 
 // Retrieve contract address from environment variable
 const contractAddress = process.env.CONTRACT_ADDRESS;
+const customContractAddress = process.env.CUSTOM_CONTRACT_ADDRESS;
 
 // Define an array of providers to use as fallbacks
 const providers = [
@@ -56,14 +58,23 @@ const providers = [
   // Add more providers as needed
 ];
 
+const customProviders = [
+  new ethers.AlchemyProvider(process.env.RPC_NETWORK, process.env.ALCHEMY_API_KEY),
+  new ethers.InfuraProvider(process.env.RPC_NETWORK, process.env.INFURA_API_KEY)
+  // Add more providers as needed
+];
+
 // Create a new FallbackProvider instance
 const fallbackProvider = new ethers.FallbackProvider(providers);
+const customFallbackProvider = new ethers.FallbackProvider(customProviders);
 
 // Create a new ethers signer instance using the private key from environment variable and the provider(Fallback)
 const signer = new ethers.Wallet(process.env.PRIVATE_KEY, fallbackProvider);
+const customSigner = new ethers.Wallet(process.env.PRIVATE_KEY, customFallbackProvider);
 
 // Create a new ethers contract instance with a signing capability (using the contract Address, ABI and signer)
 const newContract = new ethers.Contract(contractAddress, abi, signer);
+const customContract = new ethers.Contract(customContractAddress, abiCustom, customSigner);
 
 // Parse environment variables for password length constraints
 const min_length = parseInt(process.env.MIN_LENGTH);
@@ -168,7 +179,8 @@ const handleIssueCertification = async (email, certificateNumber, name, courseNa
         const combinedHash = calculateHash(JSON.stringify(hashedFields));
 
         try {
-          let getContractStatus = await getContractAddress();
+const contractAddress = process.env.CONTRACT_ADDRESS;
+          let getContractStatus = await getContractAddress(contractAddress);
           if (!getContractStatus) {
             return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: messageCode.msgRpcFailed });
           }
@@ -312,6 +324,275 @@ const handleIssueCertification = async (email, certificateNumber, name, courseNa
 
 };
 
+const handleCustomIssue = async (email, certificateNumber, name, courseName, _grantDate, _expirationDate, flag) => {
+  const issueFlag = flag;
+  var getTxHash = null;
+  // console.log("the flag", issueFlag);
+  try {
+    var [grantDate, expirationDate] = await Promise.all([
+      convertDateFormat(_grantDate),
+      _expirationDate != 1 ? convertDateFormat(_expirationDate) : "1"
+    ]);
+
+    if (!grantDate || !expirationDate) {
+      return createErrorResponse(400, "FAILED", `${messageCode.msgInvalidDateFormat} : Grant date: ${_grantDate}, Expiration date: ${_expirationDate}`);
+    }
+
+    // Further logic...
+  } catch (error) {
+    console.error(error);
+    return createErrorResponse(500, "FAILED", messageCode.msgInternalError, error);
+  }
+
+  // Extracting required data from the request body
+  // const grantDate = await convertDateFormat(_grantDate);
+  // const expirationDate = _expirationDate != 1 ? await convertDateFormat(_expirationDate) : "1";
+  // if (!grantDate || !expirationDate) {
+  //   return ({ code: 400, status: "FAILED", message: `${messageCode.msgInvalidDateFormat} : Grant date: ${_grantDate}, Expiration date: ${_expirationDate}` });
+  // }
+  try {
+    if (grantDate && expirationDate && _expirationDate != 1) {
+      // check copmare dates are valid
+      var compareResult = await compareInputDates(grantDate, expirationDate);
+      if (compareResult != 1) {
+        return ({ code: 400, status: "FAILED", message: `${messageCode.msgProvideValidDates} : Grant date: ${grantDate}, Expiration date: ${expirationDate}` });
+      }
+    }
+
+    await isDBConnected();
+    // Check if user with provided email exists
+    const idExist = await User.findOne({ email });
+
+    // Check if certificate number already exists
+    const isCertificationExist = await Issues.findOne(
+      { certificateNumber: certificateNumber }
+    ).select('-issueDate -certificateStatus -_id -__v');
+    var shortUrlStatus = false;
+    // Validation checks for request data
+    if (
+      (!idExist || idExist.status !== 1) || // User does not exist
+      // !idExist || // User does not exist
+      isCertificationExist || // Certificate number already exists 
+      !name || // Missing name
+      !courseName || // Missing course name
+      !grantDate ||  // Missing grant date
+      !expirationDate || // Missing expiration date
+      [certificateNumber, name, courseName, grantDate].some(value => typeof value !== 'string' || value == 'string') // Some values are not strings
+    ) {
+      // Prepare error message
+      let errorMessage = messageCode.msgPlsEnterValid;
+      var moreDetails = '';
+      var txHash = null;
+
+      // Check for specific error conditions and update the error message accordingly
+      if (isCertificationExist) {
+        if (isCertificationExist.name == name) {
+          const getQrCodeData = await generateQrDetails(isCertificationExist.certificateNumber);
+          let polygonHash = `https://${process.env.NETWORK}/tx/${isCertificationExist.transactionHash}`;
+
+          // Respond with success message and certificate details
+          return ({
+            code: 200,
+            status: "SUCCESS",
+            message: messageCode.msgCertIssued,
+            qrCodeImage: getQrCodeData,
+            polygonLink: polygonHash,
+            details: isCertificationExist,
+          });
+        } else {
+          return ({ code: 400, status: "FAILED", message: messageCode.msgCertificateRepeated });
+        }
+      } else if (!grantDate || !expirationDate) {
+        errorMessage = messageCode.msgProvideValidDates;
+      } else if (!certificateNumber) {
+        errorMessage = messageCode.msgCertIdRequired;
+      } else if (!idExist) {
+        errorMessage = messageCode.msgInvalidIssuer;
+      } else if (idExist.status !== 1) {
+        errorMessage = messageCode.msgUnauthIssuer;
+      }
+
+      // Respond with error message
+      return ({ code: 400, status: "FAILED", message: errorMessage, details: moreDetails });
+    } else {
+      try {
+        // Prepare fields for the certificate
+        const fields = {
+          Certificate_Number: certificateNumber,
+          name: name,
+          courseName: courseName,
+          Grant_Date: grantDate,
+          Expiration_Date: expirationDate,
+        };
+        // Hash sensitive fields
+        const hashedFields = {};
+        for (const field in fields) {
+          hashedFields[field] = calculateHash(fields[field]);
+        }
+        const combinedHash = calculateHash(JSON.stringify(hashedFields));
+
+        try {
+          // Check if the Issuer wallet address is a valid Ethereum address
+          if (!ethers.isAddress(idExist.issuerId)) {
+            return ({ code: 400, status: "FAILED", message: messageCode.msgInvalidEthereum });
+          }
+          let getContractStatus = await getContractAddress(customContractAddress);
+          if (!getContractStatus) {
+            return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: messageCode.msgRpcFailed });
+          }
+          // const val = await customContract.verifyCertificate(combinedHash);
+          // if (
+          //   val[0] === true
+          // ) {
+          //   // Certificate already issued
+          //   let messageContent = messageCode.msgCertIssued;
+          //   return ({ code: 400, status: "FAILED", message: messageContent });
+
+          // } 
+          var transactionResponse = await issueCertificateWithRetry(fields.Certificate_Number, combinedHash);
+
+          if (transactionResponse.code == 200) {
+            if (transactionResponse.message == "issued") {
+              let isDataExist = await Issues.findOne({ certificateNumber: fields.Certificate_Number }).select('-issueDate -certificateStatus -_id -__v');
+              if (isDataExist) {
+                let getQrData = await generateQrDetails(isDataExist.certificateNumber);
+                let polygonHash = `https://${process.env.NETWORK}/tx/${isDataExist.transactionHash}`;
+
+                // Respond with success message and certificate details
+                return ({
+                  code: 200,
+                  status: "SUCCESS",
+                  message: messageCode.msgCertIssued,
+                  qrCodeImage: getQrData,
+                  polygonLink: polygonHash,
+                  details: isDataExist,
+                });
+              }
+              else {
+                const filter = customContract.filters.CertificateIssued(combinedHash);
+                const events = await customContract.queryFilter(filter);
+                events.forEach(event => {
+                  // console.log("Event Data:", event.transactionHash);
+                  getTxHash = event.transactionHash;
+                });
+                if (getTxHash) {
+                  txHash = getTxHash;
+                  console.log("Event Data hash:", txHash);
+                }
+              }
+            } else {
+              txHash = transactionResponse.message;
+            }
+
+          } else {
+            if (transactionResponse.code == 429) {
+              if (issueFlag == true) {
+                await holdExecution(60000);
+                if (transactionResponse.details) {
+                  let retryAfter = transactionResponse.details.headers['retry-after'];
+                  console.log(`Rate limit exceeded. Retrying after ${retryAfter} seconds.`);
+                  await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+                }
+                transactionResponse = await issueCustomCertificateWithRetry(fields.Certificate_Number, combinedHash);
+              }
+              return ({ code: 429, status: "FAILED", message: transactionResponse.message });
+            } else if (transactionResponse.code == 400) {
+              return ({ code: 400, status: "FAILED", message: transactionResponse.message, details: transactionResponse.details });
+            }
+          }
+
+          if (!txHash) {
+            console.error("Failed to issue certificate after retries.");
+            return ({ code: 400, status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain });
+          }
+          const polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
+          console.log("Response Enduser ID: ", fields.Certificate_Number);
+          console.log("Response Enduser name: ", fields.name);
+          // Generate encrypted URL with certificate data
+          const dataWithLink = { ...fields, polygonLink: polygonLink }
+          const urlLink = generateEncryptedUrl(dataWithLink);
+
+          if (urlLink) {
+            let dbStatus = await isDBConnected();
+            if (dbStatus) {
+              let urlData = {
+                email: email,
+                certificateNumber: certificateNumber,
+                url: urlLink
+              }
+              await insertUrlData(urlData);
+              shortUrlStatus = true;
+            }
+          }
+
+          if (shortUrlStatus == true) {
+            var modifiedUrl = process.env.SHORT_URL + certificateNumber;
+          }
+
+          let _qrCodeData = modifiedUrl != false ? modifiedUrl : urlLink;
+
+          const qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
+            errorCorrectionLevel: "H",
+            width: 450, // Adjust the width as needed
+            height: 450, // Adjust the height as needed
+          });
+          try {
+            // Check mongoose connection
+            const dbStatus = await isDBConnected();
+            const dbStatusMessage = (dbStatus == true) ? messageCode.msgDbReady : messageCode.msgDbNotReady;
+            console.log(dbStatusMessage);
+
+            const issuerId = idExist.issuerId;
+
+            var certificateData = {
+              issuerId,
+              transactionHash: txHash,
+              certificateHash: combinedHash,
+              certificateNumber: fields.Certificate_Number,
+              name: fields.name,
+              course: fields.courseName,
+              grantDate: fields.Grant_Date,
+              expirationDate: fields.Expiration_Date
+            };
+
+            // Insert certificate data into database
+            await insertCertificateData(certificateData);
+
+          } catch (error) {
+            // Handle mongoose connection error (log it, response an error, etc.)
+            console.error(messageCode.msgInternalError, error);
+            return ({ code: 500, status: "FAILED", message: messageCode.msgInternalError, details: error });
+          }
+
+          // Respond with success message and certificate details
+          return ({
+            code: 200,
+            status: "SUCCESS",
+            message: messageCode.msgCertIssuedSuccess,
+            qrCodeImage: qrCodeImage,
+            polygonLink: polygonLink,
+            details: certificateData,
+          });
+          // }
+
+        } catch (error) {
+          // Internal server error
+          console.error(error);
+          return ({ code: 400, status: "FAILED", message: messageCode.msgInternalError, details: error });
+        }
+      } catch (error) {
+        // Internal server error
+        console.error(error);
+        return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
+      }
+    }
+  } catch (error) {
+    // Internal server error
+    console.error(error);
+    return ({ code: 400, status: "FAILED", message: messageCode.msgInternalError, details: error });
+  }
+};
+
 const handleIssuePdfCertification = async (email, certificateNumber, name, courseName, _grantDate, _expirationDate, _pdfPath) => {
   const pdfPath = _pdfPath;
   const grantDate = await convertDateFormat(_grantDate);
@@ -421,7 +702,7 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
       const combinedHash = calculateHash(JSON.stringify(hashedFields));
 
       try {
-        let getContractStatus = await getContractAddress();
+        let getContractStatus = await getContractAddress(contractAddress);
         if (!getContractStatus) {
           return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: messageCode.msgRpcFailed });
         }
@@ -683,7 +964,7 @@ const handleIssueDynamicPdfCertification = async (email, certificateNumber, name
       const combinedHash = calculateHash(JSON.stringify(hashedFields));
 
       try {
-        let getContractStatus = await getContractAddress();
+        let getContractStatus = await getContractAddress(contractAddress);
         if (!getContractStatus) {
           return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: messageCode.msgRpcFailed });
         }
@@ -902,7 +1183,7 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
       let tree = StandardMerkleTree.of(values, ['string']);
       let batchExpiration = 1;
       try {
-        let getContractStatus = await getContractAddress();
+        let getContractStatus = await getContractAddress(contractAddress);
         if (!getContractStatus) {
           return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: messageCode.msgRpcFailed });
         }
@@ -1081,7 +1362,7 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
         // Wait for all insert promises to resolve
         await Promise.all(insertPromises);
 
-        const idExist = await User.findOne({ email : email });
+        const idExist = await User.findOne({ email: email });
         if (idExist.certificatesIssued == undefined) {
           idExist.certificatesIssued = 0;
         }
@@ -1106,6 +1387,94 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
     return ({ code: 500, status: false, message: messageCode.msgInternalError, Details: error });
   }
 
+};
+
+const issueCustomCertificateWithRetry = async (certificateNumber, certificateHash, retryCount = 3, gasPrice = null) => {
+  try {
+    // Fetch the current gas price if not already provided
+    if (!gasPrice) {
+      const feeData = await customFallbackProvider.getFeeData();
+      gasPrice = feeData.gasPrice.toString(); // Convert to string if needed
+    }
+
+    console.log("Gas Price:", gasPrice.toString());
+
+    // Ensure gasPrice is a BigInt
+    if (typeof gasPrice === 'string') {
+      gasPrice = BigInt(gasPrice);
+    } else if (!gasPrice) {
+      throw new Error('Gas price is not available');
+    }
+
+    // Increase gas price by 10%
+    const factor = 150n; // 1.15 in BigInt notation
+    const divisor = 100n; // 100 in BigInt notation
+    const increasedGasPrice = gasPrice * factor / divisor;
+
+    console.log("Adjusted Gas Price:", increasedGasPrice.toString());
+
+    // Issue Single Certification on Blockchain
+    const tx = await customContract.issueCertificate(
+      certificateNumber,
+      certificateHash,
+      {
+        gasPrice: increasedGasPrice, // Pass the adjusted gas price
+      }
+    );
+
+    const txHash = tx.hash;
+
+    if (!txHash) {
+      throw new Error('Transaction hash is null');
+    }
+    return ({ code: 200, message: txHash });
+
+  } catch (error) {
+    if (error.reason == 'Certificate already issued') {
+      return ({ code: 200, message: "issued" });
+    }
+    if (error.code == 'INVALID_ARGUMENT' || error.code == 'REPLACEMENT_ERROR') {
+      return ({ code: 400, message: messageCode.msgInvalidArguments, details: error.reason });
+    }
+    if (error.code == 'INSUFFICIENT_FUNDS') {
+      return ({ code: 400, message: messageCode.msgInsufficientFunds, details: error.reason });
+    }
+    if (error.code === 'NONCE_EXPIRED') {
+      return ({ code: 429, message: messageCode.msgNonceExpired, details: error.reason });
+    }
+    if (retryCount > 0) {
+      if (error.code === 'ETIMEDOUT') {
+        console.log(`Connection timed out. Retrying... Attempts left: ${retryCount}`);
+        await holdExecution(2000);
+        return issueCustomCertificateWithRetry(certificateNumber, certificateHash, retryCount - 1, gasPrice);
+      } else if (error.code === 'REPLACEMENT_UNDERPRICED' || error.code === 'UNPREDICTABLE_GAS_LIMIT' || error.code === 'TRANSACTION_REPLACEMENT_ERROR') {
+        console.log(`Replacement fee too low. Retrying with a higher gas price... Attempts left: ${retryCount}`);
+        // Increase the gas price by 10%
+        const increasedGasPrice = gasPrice.mul(110).div(100);
+        console.log("increasedGasPrice", increasedGasPrice);
+        await holdExecution(2000);
+        return issueCustomCertificateWithRetry(certificateNumber, certificateHash, retryCount - 1, increasedGasPrice);
+      } else if (error.code === 'CALL_EXCEPTION') {
+        console.log(error.reason);
+        // if (error.reason == 'Only the trusted issuer can perform this operation') {
+        //   // Issue Single Certification on Blockchain
+        //   let tx = await customContract.addTrustedOwner(
+        //     process.env.ACCOUNT_ADDRESS,
+        //     {
+        //       gasPrice: gasPrice, // Pass the gas price
+        //     }
+        //   );
+        //   let txHash = tx.hash;
+        //   if(txHash){
+        //     return issueCustomCertificateWithRetry(certificateNumber, certificateHash, retryCount - 1, gasPrice = null);
+        //   }
+        // }
+        return ({ code: 400, message: error.reason });
+      }
+    }
+    console.error("Request rate limit exceeded. Please try again later.", error);
+    return ({ code: 429, message: messageCode.msgLimitExceeded, details: error.response });
+  }
 };
 
 const issueCertificateWithRetry = async (certificateNumber, certificateHash, expirationEpoch, retryCount = 3) => {
@@ -1399,9 +1768,49 @@ const _uploadImageToS3 = async (certNumber, imagePath) => {
   }
 };
 
+// Function to regenerate the QR code with DB information
+const generateQrDetails = async (certificateNumber) => {
+  try {
+    let qrCodeData = process.env.SHORT_URL + certificateNumber;
+    let qrCodeImage = await QRCode.toDataURL(qrCodeData, {
+      errorCorrectionLevel: "H",
+      width: 450, // Adjust the width as needed
+      height: 450, // Adjust the height as needed
+    });
+
+    return qrCodeImage;
+  } catch (error) {
+    console.error("The error occured while generating qr", error);
+    return null;
+  }
+};
+
+// Function to parse MM/DD/YYYY date string into a Date object
+const parseDate = async (dateString) => {
+  const [month, day, year] = dateString.split('/');
+  return new Date(`${month}/${day}/${year}`);
+};
+
+const compareInputDates = async (_grantDate, _expirationDate) => {
+  // Parse the date strings into Date objects
+  const grantDate = await parseDate(_grantDate);
+  const expirationDate = await parseDate(_expirationDate);
+  console.log(`Dates provided: Grant Date: ${grantDate} | Expiration Date: ${expirationDate}`);
+  // Compare the dates
+  if (grantDate < expirationDate) {
+    return 1;
+  } else if (grantDate > expirationDate) {
+    return 2;
+  } else if ((grantDate == expirationDate)) {
+    return 0;
+  }
+};
+
 module.exports = {
   // Function to issue a certification
   handleIssueCertification,
+  // Function to issue a custom certification
+  handleCustomIssue,
   // Function to issue a PDF certificate
   handleIssuePdfCertification,
   // Function to issue a Dynamic QR certification (single)

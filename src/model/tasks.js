@@ -1421,7 +1421,7 @@ const getCertificationStatus = async (certStatus) => {
   };
 };
 
-const getContractAddress = async () => {
+const getContractAddress = async (contractAddress) => {
   try {
     const code = await fallbackProvider.getCode(contractAddress);
     if (code === '0x') {

@@ -65,6 +65,8 @@ module.exports = {
     msgInvalidOrganization: "Entered invalid organization / not exist.",
     msgInvalidParams: "Dynamic QR details not found, Please set QR position and try again",
     msgInvalidFlag: "Provide valid flag value",
+    msgCertificateRepeated: "Provided certificate number already allocated for existed issue",
+
 
     // API response codes in Issues (Controller)
     msgAuthMissing: "Authorization token is missing",
@@ -142,6 +144,12 @@ module.exports = {
     msgIssuerRoleRevoke: "Issuer Role Revoked",
     msgBalanceCheck: "Balance check successful",
     msgNonZero: "Input must not zero or Negative",
+    msgLimitExceeded: "Request rate limit exceeded. Please try again later.",
+    msgNonceExpired: "Transaction Nonce expired. Cannot retry.",
+    msgDbEntryNotFound: "Transaction found in blockchain, unable to find more details",
+    msgInvalidArguments: "Please provide valid arguments to the blockchain",
+    msgInsufficientFunds: "Insufficient fund to perform blockchain operation",
+    msgPreviosTxInProgress: "Previous transaction still in progress at blockchain, Please wait for the response",
     
 
     // Dates Messages

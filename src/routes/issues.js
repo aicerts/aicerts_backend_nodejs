@@ -126,20 +126,6 @@ const storage = multer.diskStorage({
  *             example:
  *               status: "FAILED"
  *               message: Error message for invalid input.
- *       '422':
- *         description: User given invalid input (Unprocessable Entity)
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                 message:
- *                   type: string
- *             example:
- *               status: "FAILED"
- *               message: Error message for invalid input.
  *       '500':
  *         description: Internal Server Error
  *         content:
@@ -171,6 +157,138 @@ const storage = multer.diskStorage({
  */
 
 router.post('/issue', validationRoute.issue, ensureAuthenticated, adminController.issue);
+
+/**
+ * @swagger
+ * /api/custom-issue:
+ *   post:
+ *     summary: API call for issuing a LMS certification (Details) Optional Expiration Date.
+ *     description: API call for issuing a LMS certificate with Request Data Extraction, Validation Checks, Blockchain Processing, Certificate Issuance, Response Handling, Blockchain Interaction, Data Encryption, QR Code Generation, Database Interaction, Error Handling and Asynchronous Operation.
+ *     tags:
+ *       - Issue Certification (Details)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: The issuer email.
+ *               certificateNumber:
+ *                 type: string
+ *                 description: The certificate number.
+ *               name:
+ *                 type: string
+ *                 description: The name associated with the certificate.
+ *               course:
+ *                 type: string
+ *                 description: The course name associated with the certificate.
+ *               grantDate:
+ *                 type: string
+ *                 description: The grant date of the certificate.
+ *               expirationDate:
+ *                 type: string
+ *                 description: The expiration date of the certificate (optional), can provide "1" / null / "".
+ *               flag:
+ *                 type: boolean
+ *                 description: The Flag for false:'REGENERATE', true:'REISSUE', default will be 'REGENERATE'.
+ *                 default: false
+ *             required:
+ *               - email
+ *               - certificateNumber
+ *               - name
+ *               - course
+ *               - grantDate
+ *               - expirationDate
+ *     responses:
+ *       '200':
+ *         description: Successful certificate issuance
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 qrCodeImage:
+ *                   type: string
+ *                 polygonLink:
+ *                   type: string
+ *                 details:
+ *                   type: object
+ *             example:
+ *               message: Certificate issued successfully.
+ *               qrCodeImage: Base64-encoded QR code image.
+ *               polygonLink: Link to the transaction on the Polygon network.
+ *               details: Certificate details.
+ *       '400':
+ *         description: Certificate already issued or invalid input
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Error message for certificate already issued or invalid input.
+ *       '422':
+ *         description: User given invalid input (Unprocessable Entity)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Error message for invalid input.
+ *       '429':
+ *         description: Rate limit exceeded (Too Many Requests)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "FAILED"
+ *                 message:
+ *                   type: string
+ *                   example: "Rate limit exceeded. Please try again later."
+ *                 retryAfter:
+ *                   type: integer
+ *                   example: 60
+ *                   description: The number of seconds to wait before making another request.
+ *             example:
+ *               status: "FAILED"
+ *               message: "Rate limit exceeded. Please try again later."
+ *               retryAfter: 60
+ *       '500':
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Internal server error.
+ */
+
+router.post('/custom-issue', validationRoute.customIssue, adminController.customIssue);
 
 /**
  * @swagger
