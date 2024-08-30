@@ -126,20 +126,6 @@ const storage = multer.diskStorage({
  *             example:
  *               status: "FAILED"
  *               message: Error message for invalid input.
- *       '422':
- *         description: User given invalid input (Unprocessable Entity)
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                 message:
- *                   type: string
- *             example:
- *               status: "FAILED"
- *               message: Error message for invalid input.
  *       '500':
  *         description: Internal Server Error
  *         content:
