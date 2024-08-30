@@ -19,7 +19,6 @@ const { User, Issues, DynamicIssues } = require("../config/schema");
 
 // Import ABI (Application Binary Interface) from the JSON file located at "../config/abi.json"
 const abi = require("../config/abi.json");
-const abiCustom = require("../config/abiCustom.json");
 
 const bulkIssueStatus = process.env.BULK_ISSUE_STATUS || 'DEFAULT';
 
@@ -30,6 +29,7 @@ const {
   convertEpochToDate,
   holdExecution,
   insertCertificateData, // Function to insert certificate data into the database
+  insertIssuanceCertificateData,
   insertDynamicCertificateData,
   addDynamicLinkToPdf,
   insertBulkBatchIssueData,
@@ -49,7 +49,6 @@ const {
 
 // Retrieve contract address from environment variable
 const contractAddress = process.env.CONTRACT_ADDRESS;
-const customContractAddress = process.env.CUSTOM_CONTRACT_ADDRESS;
 
 // Define an array of providers to use as fallbacks
 const providers = [
@@ -58,23 +57,14 @@ const providers = [
   // Add more providers as needed
 ];
 
-const customProviders = [
-  new ethers.AlchemyProvider(process.env.RPC_NETWORK, process.env.ALCHEMY_API_KEY),
-  new ethers.InfuraProvider(process.env.RPC_NETWORK, process.env.INFURA_API_KEY)
-  // Add more providers as needed
-];
-
 // Create a new FallbackProvider instance
 const fallbackProvider = new ethers.FallbackProvider(providers);
-const customFallbackProvider = new ethers.FallbackProvider(customProviders);
 
 // Create a new ethers signer instance using the private key from environment variable and the provider(Fallback)
 const signer = new ethers.Wallet(process.env.PRIVATE_KEY, fallbackProvider);
-const customSigner = new ethers.Wallet(process.env.PRIVATE_KEY, customFallbackProvider);
 
 // Create a new ethers contract instance with a signing capability (using the contract Address, ABI and signer)
 const newContract = new ethers.Contract(contractAddress, abi, signer);
-const customContract = new ethers.Contract(customContractAddress, abiCustom, customSigner);
 
 // Parse environment variables for password length constraints
 const min_length = parseInt(process.env.MIN_LENGTH);
@@ -179,7 +169,7 @@ const handleIssueCertification = async (email, certificateNumber, name, courseNa
         const combinedHash = calculateHash(JSON.stringify(hashedFields));
 
         try {
-const contractAddress = process.env.CONTRACT_ADDRESS;
+          const contractAddress = process.env.CONTRACT_ADDRESS;
           let getContractStatus = await getContractAddress(contractAddress);
           if (!getContractStatus) {
             return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: messageCode.msgRpcFailed });
@@ -324,7 +314,7 @@ const contractAddress = process.env.CONTRACT_ADDRESS;
 
 };
 
-const handleCustomIssue = async (email, certificateNumber, name, courseName, _grantDate, _expirationDate, flag) => {
+const handleIssuance = async (email, certificateNumber, name, courseName, _grantDate, _expirationDate, flag) => {
   const issueFlag = flag;
   var getTxHash = null;
   // console.log("the flag", issueFlag);
@@ -436,7 +426,7 @@ const handleCustomIssue = async (email, certificateNumber, name, courseName, _gr
           if (!ethers.isAddress(idExist.issuerId)) {
             return ({ code: 400, status: "FAILED", message: messageCode.msgInvalidEthereum });
           }
-          let getContractStatus = await getContractAddress(customContractAddress);
+          let getContractStatus = await getContractAddress(contractAddress);
           if (!getContractStatus) {
             return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: messageCode.msgRpcFailed });
           }
@@ -449,9 +439,9 @@ const handleCustomIssue = async (email, certificateNumber, name, courseName, _gr
           //   return ({ code: 400, status: "FAILED", message: messageContent });
 
           // } 
-          var transactionResponse = await issueCertificateWithRetry(fields.Certificate_Number, combinedHash);
-
-          if (transactionResponse.code == 200) {
+          var epochExpiration = expirationDate != 1 ? await convertDateToEpoch(expirationDate) : 1;
+          var transactionResponse = await issueCustomCertificateWithRetry(fields.Certificate_Number, combinedHash, epochExpiration);
+          if (transactionResponse && transactionResponse.code == 200) {
             if (transactionResponse.message == "issued") {
               let isDataExist = await Issues.findOne({ certificateNumber: fields.Certificate_Number }).select('-issueDate -certificateStatus -_id -__v');
               if (isDataExist) {
@@ -469,8 +459,8 @@ const handleCustomIssue = async (email, certificateNumber, name, courseName, _gr
                 });
               }
               else {
-                const filter = customContract.filters.CertificateIssued(combinedHash);
-                const events = await customContract.queryFilter(filter);
+                const filter = newContract.filters.CertificateIssued(combinedHash);
+                const events = await newContract.queryFilter(filter);
                 events.forEach(event => {
                   // console.log("Event Data:", event.transactionHash);
                   getTxHash = event.transactionHash;
@@ -485,7 +475,7 @@ const handleCustomIssue = async (email, certificateNumber, name, courseName, _gr
             }
 
           } else {
-            if (transactionResponse.code == 429) {
+            if (transactionResponse && transactionResponse.code == 429) {
               if (issueFlag == true) {
                 await holdExecution(60000);
                 if (transactionResponse.details) {
@@ -493,10 +483,10 @@ const handleCustomIssue = async (email, certificateNumber, name, courseName, _gr
                   console.log(`Rate limit exceeded. Retrying after ${retryAfter} seconds.`);
                   await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
                 }
-                transactionResponse = await issueCustomCertificateWithRetry(fields.Certificate_Number, combinedHash);
+                transactionResponse = await issueCustomCertificateWithRetry(fields.Certificate_Number, combinedHash, epochExpiration);
               }
               return ({ code: 429, status: "FAILED", message: transactionResponse.message });
-            } else if (transactionResponse.code == 400) {
+            } else if (transactionResponse && transactionResponse.code == 400) {
               return ({ code: 400, status: "FAILED", message: transactionResponse.message, details: transactionResponse.details });
             }
           }
@@ -556,14 +546,15 @@ const handleCustomIssue = async (email, certificateNumber, name, courseName, _gr
             };
 
             // Insert certificate data into database
-            await insertCertificateData(certificateData);
+            await insertIssuanceCertificateData(certificateData);
 
           } catch (error) {
             // Handle mongoose connection error (log it, response an error, etc.)
             console.error(messageCode.msgInternalError, error);
             return ({ code: 500, status: "FAILED", message: messageCode.msgInternalError, details: error });
           }
-
+          console.log("Response Enduser name: ", fields.name);
+          console.log("Response Enduser ID: ", fields.Certificate_Number);
           // Respond with success message and certificate details
           return ({
             code: 200,
@@ -1389,11 +1380,12 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
 
 };
 
-const issueCustomCertificateWithRetry = async (certificateNumber, certificateHash, retryCount = 3, gasPrice = null) => {
+const issueCustomCertificateWithRetry = async (certificateNumber, certificateHash, expirationEpoch, retryCount = 3, gasPrice = null) => {
+  console.log("Inputs", certificateNumber, certificateHash, expirationEpoch);
   try {
     // Fetch the current gas price if not already provided
     if (!gasPrice) {
-      const feeData = await customFallbackProvider.getFeeData();
+      const feeData = await fallbackProvider.getFeeData();
       gasPrice = feeData.gasPrice.toString(); // Convert to string if needed
     }
 
@@ -1414,9 +1406,10 @@ const issueCustomCertificateWithRetry = async (certificateNumber, certificateHas
     console.log("Adjusted Gas Price:", increasedGasPrice.toString());
 
     // Issue Single Certification on Blockchain
-    const tx = await customContract.issueCertificate(
+    const tx = await newContract.issueCertificate(
       certificateNumber,
       certificateHash,
+      expirationEpoch,
       {
         gasPrice: increasedGasPrice, // Pass the adjusted gas price
       }
@@ -1446,14 +1439,14 @@ const issueCustomCertificateWithRetry = async (certificateNumber, certificateHas
       if (error.code === 'ETIMEDOUT') {
         console.log(`Connection timed out. Retrying... Attempts left: ${retryCount}`);
         await holdExecution(2000);
-        return issueCustomCertificateWithRetry(certificateNumber, certificateHash, retryCount - 1, gasPrice);
+        return issueCustomCertificateWithRetry(certificateNumber, certificateHash, expirationEpoch, retryCount - 1, gasPrice);
       } else if (error.code === 'REPLACEMENT_UNDERPRICED' || error.code === 'UNPREDICTABLE_GAS_LIMIT' || error.code === 'TRANSACTION_REPLACEMENT_ERROR') {
         console.log(`Replacement fee too low. Retrying with a higher gas price... Attempts left: ${retryCount}`);
         // Increase the gas price by 10%
         const increasedGasPrice = gasPrice.mul(110).div(100);
         console.log("increasedGasPrice", increasedGasPrice);
         await holdExecution(2000);
-        return issueCustomCertificateWithRetry(certificateNumber, certificateHash, retryCount - 1, increasedGasPrice);
+        return issueCustomCertificateWithRetry(certificateNumber, certificateHash, expirationEpoch, retryCount - 1, increasedGasPrice);
       } else if (error.code === 'CALL_EXCEPTION') {
         console.log(error.reason);
         // if (error.reason == 'Only the trusted issuer can perform this operation') {
@@ -1810,7 +1803,7 @@ module.exports = {
   // Function to issue a certification
   handleIssueCertification,
   // Function to issue a custom certification
-  handleCustomIssue,
+  handleIssuance,
   // Function to issue a PDF certificate
   handleIssuePdfCertification,
   // Function to issue a Dynamic QR certification (single)

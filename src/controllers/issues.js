@@ -54,7 +54,7 @@ const {
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
 const { handleExcelFile, handleBulkExcelFile } = require('../services/handleExcel');
-const { handleIssueCertification, handleIssuePdfCertification, handleIssueDynamicPdfCertification, dynamicBatchCertificates, handleCustomIssue } = require('../services/issue');
+const { handleIssueCertification, handleIssuePdfCertification, handleIssueDynamicPdfCertification, dynamicBatchCertificates, handleIssuance } = require('../services/issue');
 
 // Retrieve contract address from environment variable
 const contractAddress = process.env.CONTRACT_ADDRESS;
@@ -343,12 +343,11 @@ const issue = async (req, res) => {
  * @param {Object} req - Express request object.
  * @param {Object} res - Express response object.
  */
-const customIssue = async (req, res) => {
+const Issuance = async (req, res) => {
   var validResult = validationResult(req);
   if (!validResult.isEmpty()) {
     return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
-
   try {
     // Extracting required data from the request body
     const email = req.body.email;
@@ -369,10 +368,6 @@ const customIssue = async (req, res) => {
       return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidExpirationDate, details: req.body.expirationDate });
     }
 
-    if (specialCharsRegex.test(certificateNumber)) {
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgNoSpecialCharacters });
-    }
-
     if (_grantDate == "" || _grantDate == "1" || _grantDate == 1 || _grantDate == null || _grantDate == "string") {
       return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidGrantDate, details: req.body.grantDate });
     }
@@ -381,7 +376,7 @@ const customIssue = async (req, res) => {
       return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidGrantDate, details: req.body.grantDate });
     }
     console.log("Request Enduser name: ", name);
-    const issueResponse = await handleCustomIssue(email, certificateNumber, name, courseName, _grantDate, _expirationDate, flag);
+    const issueResponse = await handleIssuance(email, certificateNumber, name, courseName, _grantDate, _expirationDate, flag);
     var responseDetails = issueResponse.details ? issueResponse.details : '';
     if (issueResponse.code == 200) {
       return res.status(issueResponse.code).json({ status: issueResponse.status, message: issueResponse.message, qrCodeImage: issueResponse.qrCodeImage, polygonLink: issueResponse.polygonLink, details: responseDetails });
@@ -1471,7 +1466,7 @@ module.exports = {
   issuePdf,
 
   // Function to custom issue a PDF certificate
-  customIssue,
+  Issuance,
 
   // Function to issue a Dynamic QR with PDF certification
   issueDynamicPdf,

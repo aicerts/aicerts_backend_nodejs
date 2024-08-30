@@ -466,6 +466,45 @@ const insertUrlData = async (data) => {
 };
 
 // Function to insert certification data into MongoDB
+const insertIssuanceCertificateData = async (data) => {
+  try {
+    // Create a new Issues document with the provided data
+    const newIssue = new Issues({
+      issuerId: data.issuerId,
+      transactionHash: data.transactionHash,
+      certificateHash: data.certificateHash,
+      certificateNumber: data.certificateNumber,
+      name: data.name,
+      course: data.course,
+      grantDate: data.grantDate,
+      expirationDate: data.expirationDate,
+      certificateStatus: 6,
+      issueDate: Date.now() // Set the issue date to the current timestamp
+    });
+
+    // Save the new Issues document to the database
+    const result = await newIssue.save();
+
+    const idExist = await User.findOne({ issuerId: data.issuerId });
+    if (idExist.certificatesIssued == undefined) {
+      idExist.certificatesIssued = 0;
+    }
+
+    if (idExist) {
+      // If user with given id exists, update certificatesIssued count
+      const previousCount = idExist.certificatesIssued || 0; // Initialize to 0 if certificatesIssued field doesn't exist
+      idExist.certificatesIssued = previousCount + 1;
+      await idExist.save(); // Save the changes to the existing user
+    } 
+    // Logging confirmation message
+    console.log("Certificate data inserted");
+  } catch (error) {
+    // Handle errors related to database connection or insertion
+    console.error("Error connecting to MongoDB:", error);
+  }
+};
+
+// Function to insert certification data into MongoDB
 const insertCertificateData = async (data) => {
   try {
     // Create a new Issues document with the provided data
@@ -1456,6 +1495,8 @@ module.exports = {
 
   // Function to insert single certificate data into MongoDB
   insertCertificateData,
+
+  insertIssuanceCertificateData,
 
   // Function to insert Batch certificate data into Database
   insertBatchCertificateData,

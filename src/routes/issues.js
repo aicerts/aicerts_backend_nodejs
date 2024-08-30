@@ -64,6 +64,7 @@ const storage = multer.diskStorage({
  *               - name
  *               - course
  *               - grantDate
+ *               - expirationDate
  *     responses:
  *       '200':
  *         description: Successful certificate issuance
@@ -288,7 +289,7 @@ router.post('/issue', validationRoute.issue, ensureAuthenticated, adminControlle
  *               message: Internal server error.
  */
 
-router.post('/issuance', validationRoute.customIssue, adminController.customIssue);
+router.post('/issuance', validationRoute.issuance, adminController.Issuance);
 
 /**
  * @swagger
