@@ -3,6 +3,7 @@ require('dotenv').config();
 
 // Import required modules
 const fs = require("fs");
+const path = require("path"); // Module for working with file paths
 const { ethers } = require("ethers"); // Ethereum JavaScript library
 const { validationResult } = require("express-validator");
 // Import custom cryptoFunction module for encryption and decryption
@@ -51,6 +52,7 @@ const newContract = new ethers.Contract(contractAddress, abi, signer);
 
 var messageCode = require("../common/codes");
 const e = require('express');
+const uploadsPath = path.join(__dirname, '../../uploads');
 
 const urlLimit = process.env.MAX_URL_SIZE || 50;
 
@@ -62,8 +64,8 @@ const urlLimit = process.env.MAX_URL_SIZE || 50;
  */
 const verify = async (req, res) => {
   // Extracting file path from the request
-  file = req.file.path;
-console.log("file path", req.file.path);
+  const file = req?.file.path;
+  console.log("file path", req.file.path);
   var fileBuffer = fs.readFileSync(file);
   var pdfDoc = await PDFDocument.load(fileBuffer);
   var certificateS3Url;
@@ -85,7 +87,7 @@ console.log("file path", req.file.path);
       fs.unlinkSync(file);
     }
     // Clean up the upload folder
-    await cleanUploadFolder();
+    // await cleanUploadFolder();
     return res.status(400).json({ status: "FAILED", message: messageCode.msgMultiPagePdf });
   }
 
@@ -98,7 +100,7 @@ console.log("file path", req.file.path);
         fs.unlinkSync(file);
       }
       // Clean up the upload folder
-      await cleanUploadFolder();
+      // await cleanUploadFolder();
       return res.status(400).json({ status: "FAILED", message: messageCode.msgCertNotValid });
     }
 
@@ -113,7 +115,7 @@ console.log("file path", req.file.path);
         try {
           await isDBConnected();
           var isIdExist = await isCertificationIdExisted(certificationNumber);
-          if(!isIdExist){
+          if (!isIdExist) {
             isIdExist = await isBulkCertificationIdExisted(certificationNumber);
           }
           if (isIdExist) {
@@ -160,7 +162,7 @@ console.log("file path", req.file.path);
                 fs.unlinkSync(file);
               }
               // Clean up the upload folder
-              await cleanUploadFolder();
+              // await cleanUploadFolder();
 
               res.status(200).json({
                 status: "SUCCESS",
@@ -187,7 +189,7 @@ console.log("file path", req.file.path);
                 fs.unlinkSync(file);
               }
               // Clean up the upload folder
-              await cleanUploadFolder();
+              // await cleanUploadFolder();
               return res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
             }
 
@@ -202,7 +204,7 @@ console.log("file path", req.file.path);
               fs.unlinkSync(file);
             }
             // Clean up the upload folder
-            await cleanUploadFolder();
+            // await cleanUploadFolder();
             return res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, details: formattedResponse });
 
           } else if (isDynamicCertificateExist) {
@@ -222,7 +224,7 @@ console.log("file path", req.file.path);
               fs.unlinkSync(file);
             }
             // Clean up the upload folder
-            await cleanUploadFolder();
+            // await cleanUploadFolder();
             return res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, details: formattedDynamicResponse });
           } else {
             return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
@@ -235,7 +237,7 @@ console.log("file path", req.file.path);
 
       responseUrl = certificateData;
       var [extractQRData, encodedUrl] = await extractCertificateInfo(responseUrl);
-      if(!extractQRData["Certificate Number"]){
+      if (!extractQRData["Certificate Number"]) {
         extractQRData = await extractCertificateInformation(responseUrl);
       }
       if (extractQRData) {
@@ -243,7 +245,7 @@ console.log("file path", req.file.path);
           var dbStatus = await isDBConnected();
           if (dbStatus) {
             var getCertificationInfo = await isCertificationIdExisted(extractQRData['Certificate Number']);
-            if(!getCertificationInfo){
+            if (!getCertificationInfo) {
               getCertificationInfo = await isBulkCertificationIdExisted(extractQRData['Certificate Number']);
             }
             certificateS3Url = null;
@@ -255,7 +257,7 @@ console.log("file path", req.file.path);
                   fs.unlinkSync(file);
                 }
                 // Clean up the upload folder
-                await cleanUploadFolder();
+                // await cleanUploadFolder();
                 return res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
               }
             }
@@ -265,7 +267,7 @@ console.log("file path", req.file.path);
             fs.unlinkSync(file);
           }
           // Clean up the upload folder
-          await cleanUploadFolder();
+          // await cleanUploadFolder();
           return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
         }
         extractQRData.url = !encodedUrl ? null : process.env.SHORT_URL + extractQRData['Certificate Number'];
@@ -273,7 +275,7 @@ console.log("file path", req.file.path);
           fs.unlinkSync(file);
         }
         // Clean up the upload folder
-        await cleanUploadFolder();
+        // await cleanUploadFolder();
 
         extractQRData.certificateUrl = certificateS3Url;
         res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, details: extractQRData });
@@ -283,11 +285,11 @@ console.log("file path", req.file.path);
         fs.unlinkSync(file);
       }
       // Clean up the upload folder
-      await cleanUploadFolder();
+      // await cleanUploadFolder();
       return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
     } else if (certificateData.startsWith(process.env.START_LMS)) {
       var [extractQRData, encodedUrl] = await extractCertificateInfo(certificateData);
-      if(!extractQRData["Certificate Number"]){
+      if (!extractQRData["Certificate Number"]) {
         extractQRData = await extractCertificateInformation(certificateData);
       }
       if (extractQRData["Polygon URL"] == undefined) {
@@ -295,7 +297,7 @@ console.log("file path", req.file.path);
           fs.unlinkSync(file);
         }
         // Clean up the upload folder
-        await cleanUploadFolder();
+        // await cleanUploadFolder();
         return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
       }
       if (extractQRData) {
@@ -309,18 +311,22 @@ console.log("file path", req.file.path);
           fs.unlinkSync(file);
         }
         // Clean up the upload folder
-        await cleanUploadFolder();
+        // await cleanUploadFolder();
         extractQRData["Polygon URL"] = await modifyPolygonURL(extractQRData["Polygon URL"]);
         res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, details: extractQRData });
         return;
       }
       // Clean up the upload folder
-      await cleanUploadFolder();
+      // await cleanUploadFolder();
       return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
 
     } else {
       // Clean up the upload folder
-      await cleanUploadFolder();
+      // await cleanUploadFolder();
+      // Clean up the upload file
+      if (fs.existsSync(file)) {
+        fs.unlinkSync(file);
+      }
       return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
     }
 
@@ -332,12 +338,12 @@ console.log("file path", req.file.path);
     };
 
     res.status(400).json(verificationResponse);
-    // Clean up the upload folder
+    // Clean up the upload file
     if (fs.existsSync(file)) {
       fs.unlinkSync(file);
     }
     // Clean up the upload folder
-    await cleanUploadFolder();
+    // await cleanUploadFolder();
     return;
   }
 };
@@ -369,13 +375,13 @@ const decodeQRScan = async (req, res) => {
         const parsedUrl = new URL(receivedCode);
         // Extract the query parameter
         var certificationNumber = parsedUrl.searchParams.get('');
-        if(!certificationNumber){
+        if (!certificationNumber) {
           certificationNumber = parsedUrl.searchParams.get('q');
         }
         try {
           await isDBConnected();
           var isIdExist = await isCertificationIdExisted(certificationNumber);
-          if(!isIdExist){
+          if (!isIdExist) {
             isIdExist = await isBulkCertificationIdExisted(certificationNumber);
           }
           if (isIdExist) {
@@ -452,7 +458,7 @@ const decodeQRScan = async (req, res) => {
           var dbStatus = await isDBConnected();
           if (dbStatus) {
             var getCertificationInfo = await isCertificationIdExisted(extractQRData['Certificate Number']);
-            if(!getCertificationInfo){
+            if (!getCertificationInfo) {
               getCertificationInfo = await isBulkCertificationIdExisted(extractQRData['Certificate Number']);
             }
             certificateS3Url = null;
@@ -475,7 +481,7 @@ const decodeQRScan = async (req, res) => {
 
     } else if (receivedCode.startsWith(process.env.START_LMS)) {
       var [extractQRData, decodedUrl] = await extractCertificateInfo(receivedCode);
-      if(!extractQRData["Certificate Number"]){
+      if (!extractQRData["Certificate Number"]) {
         extractQRData = await extractCertificateInformation(receivedCode);
       }
       if (extractQRData) {
@@ -536,7 +542,7 @@ const decodeCertificate = async (req, res) => {
       };
 
       var getCertificationInfo = await isCertificationIdExisted(parsedData['Certificate Number']);
-      if(!getCertificationInfo){
+      if (!getCertificationInfo) {
         getCertificationInfo = await isBulkCertificationIdExisted(parsedData['Certificate Number']);
       }
 
@@ -548,7 +554,7 @@ const decodeCertificate = async (req, res) => {
       var dbStatus = await isDBConnected();
       if (dbStatus) {
         var getValidCertificatioInfo = await isCertificationIdExisted(originalData.Certificate_Number);
-        if(!getValidCertificatioInfo){
+        if (!getValidCertificatioInfo) {
           getValidCertificatioInfo = await isBulkCertificationIdExisted(originalData.Certificate_Number);
         }
         if (getValidCertificatioInfo) {
@@ -605,7 +611,7 @@ const verifyCertificationId = async (req, res) => {
     try {
       await isDBConnected();
       var isIdExist = await isCertificationIdExisted(inputId);
-      if(!isIdExist){
+      if (!isIdExist) {
         isIdExist = await isBulkCertificationIdExisted(inputId);
       }
       if (isIdExist) {
@@ -632,7 +638,7 @@ const verifyCertificationId = async (req, res) => {
 
       var isUrlExisted = await ShortUrl.findOne({ certificateNumber: inputId });
       var isDynamicCertificateExist = await DynamicIssues.findOne({ certificateNumber: inputId });
-      
+
       if (isIdExist) {
         if (isIdExist.certificateStatus == 6) {
           let _polygonLink = `https://${process.env.NETWORK}/tx/${isIdExist.transactionHash}`;
@@ -650,8 +656,12 @@ const verifyCertificationId = async (req, res) => {
           } else {
             completeResponse.url = null;
           }
-          // Clean up the upload folder
-          await cleanUploadFolder();
+
+          let inputFileExist = await hasFilesInDirectory(uploadsPath);
+          if (inputFileExist) {
+            // Clean up the upload folder
+            await cleanUploadFolder();
+          }
 
           res.status(200).json({
             status: "SUCCESS",
@@ -682,6 +692,11 @@ const verifyCertificationId = async (req, res) => {
           course: isIdExist.course,
         };
         await verificationLogEntry(verifyLog);
+        let inputFileExist = await hasFilesInDirectory(uploadsPath);
+        if (inputFileExist) {
+          // Clean up the upload folder
+          await cleanUploadFolder();
+        }
         return res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, details: formattedResponse });
 
       } else if (isDynamicCertificateExist) {
@@ -695,7 +710,11 @@ const verifyCertificationId = async (req, res) => {
           "type": isDynamicCertificateExist.type,
           "url": originalUrl
         }
-
+        let inputFileExist = await hasFilesInDirectory(uploadsPath);
+        if (inputFileExist) {
+          // Clean up the upload folder
+          await cleanUploadFolder();
+        }
         return res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, details: formattedDynamicResponse });
       } else {
         return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
@@ -793,6 +812,17 @@ const modifyPolygonURL = (url) => {
   }
   return url;
 };
+
+const hasFilesInDirectory = async (directoryPath) => {
+  try {
+    return fs.readdirSync(directoryPath).some(file =>
+      fs.statSync(path.join(directoryPath, file)).isFile()
+    );
+  } catch (error) {
+    console.error(`Error checking directory: ${error.message}`);
+    return false;
+  }
+}
 
 module.exports = {
   // Function to verify a certificate with a PDF QR code

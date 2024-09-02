@@ -364,9 +364,9 @@ const getIssuersWithFilter = async (req, res) => {
     }
 
     var fetchResult;
-      const query = {};
-      query[filter] = { $regex: `^${input}`, $options: 'i' };
-      fetchResult = await User.find(query).select(['-password']);
+    const query = {};
+    query[filter] = { $regex: `^${input}`, $options: 'i' };
+    fetchResult = await User.find(query).select(['-password']);
 
     if (fetchResult.length == 0) {
       return res.status(400).json({ status: "FAILED", message: messageCode.msgNoMatchFound });
@@ -580,10 +580,18 @@ const uploadFileToS3 = async (req, res) => {
     const data = await s3.upload(uploadParams).promise();
     console.log('File uploaded successfully to', data.Location);
     res.status(200).send({ status: "SUCCESS", message: 'File uploaded successfully', fileUrl: data.Location });
-    await cleanUploadFolder();
+    // await cleanUploadFolder();
+    // Clean up the upload file
+    if (fs.existsSync(file)) {
+      fs.unlinkSync(file);
+    }
   } catch (error) {
     console.error('Error uploading file:', error);
-    await cleanUploadFolder();
+    // await cleanUploadFolder();
+    // Clean up the upload file
+    if (fs.existsSync(file)) {
+      fs.unlinkSync(file);
+    }
     res.status(500).send({ status: "FAILED", error: 'An error occurred while uploading the file', details: error });
     return;
   }
@@ -1330,10 +1338,18 @@ const uploadCertificateToS3 = async (req, res) => {
         break;
       default:
         console.error('Invalid type:', type);
-        await cleanUploadFolder();
+        // await cleanUploadFolder();
+        // Clean up the upload file
+        if (fs.existsSync(file)) {
+          fs.unlinkSync(file);
+        }
         return res.status(400).send({ status: "FAILED", message: 'Invalid type' });
     }
-    await cleanUploadFolder();
+    // await cleanUploadFolder();
+    // Clean up the upload file
+    if (fs.existsSync(file)) {
+      fs.unlinkSync(file);
+    }
     res.status(200).send({ status: "SUCCESS", message: 'File uploaded successfully', fileUrl: data.Location });
     return;
   } catch (error) {
@@ -1571,7 +1587,7 @@ const getIssuesInOrganizationWithName = async (req, res) => {
             { $eq: [{ $toLower: "$name" }, targetName.toLowerCase()] }
           ]
         },
-        url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket  } // Filter to include documents where `url` exists
+        url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
       });
 
       // Query 2
@@ -1582,7 +1598,7 @@ const getIssuesInOrganizationWithName = async (req, res) => {
             { $eq: [{ $toLower: "$name" }, targetName.toLowerCase()] }
           ]
         },
-        url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket  } // Filter to include documents where `url` exists
+        url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
       });
 
       // Await both promises

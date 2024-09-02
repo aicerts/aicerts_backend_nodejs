@@ -96,13 +96,17 @@ const issuePdf = async (req, res) => {
     return res.status(400).json({ status: "FAILED", message: messageCode.msgMustPdf });
   }
 
+  var file = req?.file;
   const fileBuffer = fs.readFileSync(req.file.path);
   const pdfDoc = await PDFDocument.load(fileBuffer);
   let _expirationDate;
 
   if (pdfDoc.getPageCount() > 1) {
     // Respond with success status and certificate details
-    await cleanUploadFolder();
+    // await cleanUploadFolder();
+    if (fs.existsSync(file)) {
+      fs.unlinkSync(file);
+    }
     return res.status(400).json({ status: "FAILED", message: messageCode.msgMultiPagePdf });
   }
   try {
@@ -188,13 +192,17 @@ const issueDynamicPdf = async (req, res) => {
     return res.status(400).json({ status: "FAILED", message: messageCode.msgMustPdf });
   }
 
+  var file = req?.file;
   const fileBuffer = fs.readFileSync(req.file.path);
   const pdfDoc = await PDFDocument.load(fileBuffer);
   let _expirationDate;
 
   if (pdfDoc.getPageCount() > 1) {
     // Respond with success status and certificate details
-    await cleanUploadFolder();
+    // await cleanUploadFolder();
+    if (fs.existsSync(file)) {
+      fs.unlinkSync(file);
+    }
     return res.status(400).json({ status: "FAILED", message: messageCode.msgMultiPagePdf });
   }
   try {
@@ -398,11 +406,15 @@ const Issuance = async (req, res) => {
  */
 const batchIssueCertificate = async (req, res) => {
   const email = req.body.email;
+  var file = req?.file;
   // Check if the file path matches the pattern
   if (req.file.mimetype != fileType) {
     // File path does not match the pattern
     const errorMessage = messageCode.msgMustExcel;
-    await cleanUploadFolder();
+    // await cleanUploadFolder();
+    if (fs.existsSync(file)) {
+      fs.unlinkSync(file);
+    }
     res.status(400).json({ status: "FAILED", message: errorMessage });
     return;
   }
@@ -651,7 +663,10 @@ const batchIssueCertificate = async (req, res) => {
               details: batchDetailsWithQR,
             });
 
-            await cleanUploadFolder();
+            // await cleanUploadFolder();
+            if (fs.existsSync(file)) {
+              fs.unlinkSync(file);
+            }
 
           } catch (error) {
             // Handle mongoose connection error (log it, response an error, etc.)
@@ -681,12 +696,16 @@ const batchIssueCertificate = async (req, res) => {
  * @param {Object} res - Express response object.
  */
 const dynamicBatchIssueCertificates = async (req, res) => {
+  var file = req?.file;
   // Check if the file path matches the pattern
   if (!req.file || !req.file.originalname.endsWith('.zip')) {
     // File path does not match the pattern
     const errorMessage = messageCode.msgMustZip;
     res.status(400).json({ status: "FAILED", message: errorMessage });
-    await cleanUploadFolder();
+    // await cleanUploadFolder();
+    if (fs.existsSync(file)) {
+      fs.unlinkSync(file);
+    }
     return;
   }
 
@@ -1035,17 +1054,21 @@ const dynamicBatchIssueCertificates = async (req, res) => {
  * @param {Object} res - Express response object.
  */
 const acceptDynamicInputs = async (req, res) => {
+  var file = req?.file;
   // Check if the file path matches the pattern
   if (!req.file || !req.file.originalname.endsWith('.pdf')) {
     // File path does not match the pattern
     const errorMessage = messageCode.msgMustPdf;
-    await cleanUploadFolder();
+    if (fs.existsSync(file)) {
+      fs.unlinkSync(file);
+    }
+    // await cleanUploadFolder();
     res.status(400).json({ status: "FAILED", message: errorMessage, details: req.file });
     return;
   }
 
   // Extracting file path from the request
-  const file = req.file.path;
+  file = req.file.path;
   const email = req.body.email;
   const positionx = parseInt(req.body.posx);
   const positiony = parseInt(req.body.posy);
@@ -1069,7 +1092,10 @@ const acceptDynamicInputs = async (req, res) => {
     if (pdfResponse.morePages == 1) {
       messageContent = messageCode.msgMultiPagePdf
     }
-    await cleanUploadFolder();
+    // await cleanUploadFolder();
+    if (fs.existsSync(file)) {
+      fs.unlinkSync(file);
+    }
     res.status(400).json({ status: "FAILED", message: messageContent, details: email });
     return;
   }
@@ -1104,7 +1130,10 @@ const acceptDynamicInputs = async (req, res) => {
         await isParamsExist.save();
 
       }
-      await cleanUploadFolder();
+      // await cleanUploadFolder();
+      if (fs.existsSync(file)) {
+        fs.unlinkSync(file);
+      }
       res.status(200).json({ status: "SUCCESS", message: messageCode.msgUnderConstruction, details: isParamsExist });
       return;
     }
@@ -1121,12 +1150,16 @@ const acceptDynamicInputs = async (req, res) => {
  * @param {Object} res - Express response object.
  */
 const validateDynamicBulkIssueDocuments = async (req, res) => {
+  var file = req?.file;
   // Check if the file path matches the pattern
   if (!req.file || !req.file.originalname.endsWith('.zip')) {
     // File path does not match the pattern
     const errorMessage = messageCode.msgMustZip;
     res.status(400).json({ status: "FAILED", message: errorMessage });
-    await cleanUploadFolder();
+    // await cleanUploadFolder();
+    if (fs.existsSync(file)) {
+      fs.unlinkSync(file);
+    }
     return;
   }
 
@@ -1161,8 +1194,11 @@ const validateDynamicBulkIssueDocuments = async (req, res) => {
     var zipFileSize = parseInt(stats.size);
     if (zipFileSize <= 100) {
       res.status(400).json({ status: "FAILED", message: messageCode.msgUnableToFindFiles });
-      await cleanUploadFolder();
-      // await wipeUploadFolder();
+      // if (fs.existsSync(file)) {
+      //   fs.unlinkSync(file);
+      // }
+      // await cleanUploadFolder();
+      await wipeUploadFolder();
       return;
     }
 
