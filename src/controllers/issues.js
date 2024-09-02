@@ -1054,7 +1054,7 @@ const dynamicBatchIssueCertificates = async (req, res) => {
  * @param {Object} res - Express response object.
  */
 const acceptDynamicInputs = async (req, res) => {
-  var file = req?.file;
+  var file = req?.file.path;
   // Check if the file path matches the pattern
   if (!req.file || !req.file.originalname.endsWith('.pdf')) {
     // File path does not match the pattern
@@ -1068,7 +1068,6 @@ const acceptDynamicInputs = async (req, res) => {
   }
 
   // Extracting file path from the request
-  file = req.file.path;
   const email = req.body.email;
   const positionx = parseInt(req.body.posx);
   const positiony = parseInt(req.body.posy);
@@ -1150,19 +1149,21 @@ const acceptDynamicInputs = async (req, res) => {
  * @param {Object} res - Express response object.
  */
 const validateDynamicBulkIssueDocuments = async (req, res) => {
-  var file = req?.file;
   // Check if the file path matches the pattern
   if (!req.file || !req.file.originalname.endsWith('.zip')) {
     // File path does not match the pattern
     const errorMessage = messageCode.msgMustZip;
     res.status(400).json({ status: "FAILED", message: errorMessage });
     // await cleanUploadFolder();
-    if (fs.existsSync(file)) {
-      fs.unlinkSync(file);
+    if (req.file) {
+      if (fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
     }
     return;
   }
 
+  var filePath = req?.file.path;
   var filesList = [];
   // Initialize an empty array to store the file(s) ending with ".xlsx"
   var xlsxFiles = [];
@@ -1174,7 +1175,6 @@ const validateDynamicBulkIssueDocuments = async (req, res) => {
   try {
     await isDBConnected();
 
-    var filePath = req.file.path;
     const email = req.body.email;
 
     const emailExist = await User.findOne({ email: email });
@@ -1188,7 +1188,6 @@ const validateDynamicBulkIssueDocuments = async (req, res) => {
       res.status(400).json({ status: "FAILED", message: messageContent, details: email });
       return;
     }
-
     // Function to check if a file is empty
     const stats = fs.statSync(filePath);
     var zipFileSize = parseInt(stats.size);
@@ -1220,19 +1219,18 @@ const validateDynamicBulkIssueDocuments = async (req, res) => {
     });
 
     filesList = await fs.promises.readdir(extractionPath);
-
     let zipExist = await findDirectories(filesList);
     if (zipExist) {
       filesList = zipExist;
     }
+    console.log("response3", filesList, filesList.length);
     // return res.status(200).json({ status: "FAILED", message: messageCode.msgWorkInProgress });
-    if (filesList.length == 0 || filesList.length == 1) {
+    if (filesList.length < 2) {
       res.status(400).json({ status: "FAILED", message: messageCode.msgUnableToFindFiles });
       // await cleanUploadFolder();
       await wipeUploadFolder();
       return;
     }
-
     filesList.forEach(file => {
       if (file.endsWith('.xlsx')) {
         xlsxFiles.push(file);
@@ -1268,6 +1266,13 @@ const validateDynamicBulkIssueDocuments = async (req, res) => {
     if (excelData.response == false) {
       var errorDetails = (excelData.Details).length > 0 ? excelData.Details : "";
       res.status(400).json({ status: "FAILED", message: excelData.message, details: errorDetails });
+      // await cleanUploadFolder();
+      await wipeUploadFolder();
+      return;
+    } 
+    
+    if (excelData.message[1] != (filesList.length - 1)){
+      res.status(400).json({ status: "FAILED", message: messageCode.msgInputRecordsNotMatched });
       // await cleanUploadFolder();
       await wipeUploadFolder();
       return;
@@ -1443,6 +1448,17 @@ const findDirectories = async (items) => {
   const results = [];
   const movedFiles = [];
 
+  // Ensure uploadPath exists
+  try {
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
+      console.log(`Created uploadPath: ${uploadPath}`);
+    }
+  } catch (err) {
+    console.error(`Error ensuring uploadPath exists:`, err);
+    return false; // Return empty array if there's an error
+  }
+
   for (const item of items) {
     const fullPath = path.join(uploadPath, item);
     try {
@@ -1457,12 +1473,10 @@ const findDirectories = async (items) => {
 
   if (results.length > 0) {
     // console.log('Directories found:', results);
-
     for (const dir of results) {
       // console.log(`Files in directory ${dir}:`);
       try {
         const files = fs.readdirSync(dir);
-
         files.forEach(file => {
           const oldPath = path.join(dir, file);
           const newPath = path.join(uploadPath, file);
@@ -1479,10 +1493,15 @@ const findDirectories = async (items) => {
 
         // Remove the directory if it's empty
         try {
-          const remainingFiles = fs.readdirSync(dir);
-          if (remainingFiles.length === 0) {
-            fs.rmdirSync(dir);
-            // console.log(`Removed empty directory ${dir}`);
+          // Check if the directory still exists before trying to read it
+          if (fs.existsSync(dir)) {
+            const remainingFiles = fs.readdirSync(dir);
+            if (remainingFiles.length === 0) {
+              fs.rmdirSync(dir);
+              console.log(`Removed empty directory ${dir}`);
+            }
+          } else {
+            console.warn(`Directory ${dir} does not exist anymore`);
           }
         } catch (err) {
           console.error(`Error removing directory ${dir}:`, err);
@@ -1496,6 +1515,7 @@ const findDirectories = async (items) => {
     return false;
   }
   // Return the list of moved files
+  console.log("Moved files.", movedFiles)
   return movedFiles;
 };
 
