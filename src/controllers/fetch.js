@@ -1419,52 +1419,6 @@ const getSingleCertificates = async (req, res) => {
   }
 };
 
-// const getBatchCertificates = async (req, res) => {
-//   try {
-//     const { issuerId } = req.body;
-
-//     // Validate issuerId
-//     if (!issuerId) {
-//       return res.status(400).json({ status: "FAILED", message: "issuerId is required" });
-//     }
-
-//     // Fetch all batch certificates for the given issuerId
-//     const batchCertificates = await BatchIssues.find({ issuerId });
-
-//     // Group certificates by issueDate
-//     const groupedCertificates = batchCertificates.reduce((acc, certificate) => {
-//       const issueDate = certificate.issueDate.toISOString().split('T')[0]; // Format date as YYYY-MM-DD
-//       if (!acc[issueDate]) {
-//         acc[issueDate] = [];
-//       }
-//       acc[issueDate].push(certificate);
-//       return acc;
-//     }, {});
-
-//     // Transform grouped certificates into an array of objects
-//     const result = Object.keys(groupedCertificates).map(issueDate => ({
-//       issueDate,
-//       certificates: groupedCertificates[issueDate]
-//     }));
-
-//     // Respond with success and the grouped certificates
-//     res.json({
-//       status: 'SUCCESS',
-//       data: result,
-//       message: 'Batch certificates fetched successfully'
-//     });
-//   } catch (error) {
-//     console.error('Error fetching batch certificates:', error);
-
-//     // Respond with failure message
-//     res.status(500).json({
-//       status: 'FAILED',
-//       message: 'An error occurred while fetching the batch certificates',
-//       details: error.message
-//     });
-//   }
-// };
-
 const getBatchCertificateDates = async (req, res) => {
   try {
     const { issuerId } = req.body;

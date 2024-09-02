@@ -1004,6 +1004,8 @@ const dynamicBatchIssueCertificates = async (req, res) => {
       let bulkResponse = {
         email: emailExist.email,
         issuerId: emailExist.issuerId,
+        height: paramsExist.pdfHeight,
+        width: paramsExist.pdfWidth,
         urls: bulkIssueResponse.Details
       }
       res.status(bulkIssueResponse.code).json({ status: "SUCCESS", message: messageCode.msgBatchIssuedSuccess, details: bulkResponse });
