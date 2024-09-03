@@ -1271,13 +1271,6 @@ const validateDynamicBulkIssueDocuments = async (req, res) => {
       return;
     } 
     
-    if (excelData.message[1] != (filesList.length - 1)){
-      res.status(400).json({ status: "FAILED", message: messageCode.msgInputRecordsNotMatched });
-      // await cleanUploadFolder();
-      await wipeUploadFolder();
-      return;
-    }
-
     var excelDataResponse = excelData.message[0];
 
     // Extract Certs values from data and append ".pdf"
