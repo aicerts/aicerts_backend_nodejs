@@ -135,6 +135,9 @@ const verify = async (req, res) => {
               } else if (blockchainResponse == 3) {
                 verificationResponse = messageCode.msgCertRevoked;
               }
+              if (fs.existsSync(file)) {
+                fs.unlinkSync(file);
+              }
               return res.status(400).json({ status: "FAILED", message: verificationResponse });
             }
           }
@@ -227,10 +230,16 @@ const verify = async (req, res) => {
             // await cleanUploadFolder();
             return res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, details: formattedDynamicResponse });
           } else {
+            if (fs.existsSync(file)) {
+              fs.unlinkSync(file);
+            }
             return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
           }
 
         } catch (error) {
+          if (fs.existsSync(file)) {
+            fs.unlinkSync(file);
+          }
           return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert, details: error });
         }
       }
@@ -318,6 +327,9 @@ const verify = async (req, res) => {
       }
       // Clean up the upload folder
       // await cleanUploadFolder();
+      if (fs.existsSync(file)) {
+        fs.unlinkSync(file);
+      }
       return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
 
     } else {
