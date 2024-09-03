@@ -1269,8 +1269,8 @@ const validateDynamicBulkIssueDocuments = async (req, res) => {
       // await cleanUploadFolder();
       await wipeUploadFolder();
       return;
-    } 
-    
+    }
+
     var excelDataResponse = excelData.message[0];
 
     // Extract Certs values from data and append ".pdf"
@@ -1508,7 +1508,6 @@ const findDirectories = async (items) => {
     return false;
   }
   // Return the list of moved files
-  console.log("Moved files.", movedFiles)
   return movedFiles;
 };
 

@@ -1706,8 +1706,7 @@ const _convertPdfBufferToPng = async (imagePath, pdfBuffer, _width, _height) => 
     responseType: 'buffer', // Ensure binary output (PNG buffer)
     width: _width, // Optional width for the image
     height: _height, // Optional height for the image
-    density: 100, // Optional DPI (dots per inch)
-    // Other options (refer to pdf2pic documentation for details)
+    density: 300, // Optional DPI (dots per inch)
   };
 
   try {
