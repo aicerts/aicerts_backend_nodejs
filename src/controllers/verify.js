@@ -3,6 +3,7 @@ require('dotenv').config();
 
 // Import required modules
 const fs = require("fs");
+const path = require("path"); // Module for working with file paths
 const { ethers } = require("ethers"); // Ethereum JavaScript library
 const { validationResult } = require("express-validator");
 // Import custom cryptoFunction module for encryption and decryption
@@ -27,7 +28,8 @@ const {
   verificationLogEntry,
   isCertificationIdExisted,
   isBulkCertificationIdExisted,
-  holdExecution
+  holdExecution,
+  checkTransactionStatus
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
 // Retrieve contract address from environment variable
@@ -51,6 +53,7 @@ const newContract = new ethers.Contract(contractAddress, abi, signer);
 
 var messageCode = require("../common/codes");
 const e = require('express');
+const uploadsPath = path.join(__dirname, '../../uploads');
 
 const urlLimit = process.env.MAX_URL_SIZE || 50;
 
@@ -62,8 +65,8 @@ const urlLimit = process.env.MAX_URL_SIZE || 50;
  */
 const verify = async (req, res) => {
   // Extracting file path from the request
-  file = req.file.path;
-console.log("file path", req.file.path);
+  const file = req?.file.path;
+  console.log("file path", req.file.path);
   var fileBuffer = fs.readFileSync(file);
   var pdfDoc = await PDFDocument.load(fileBuffer);
   var certificateS3Url;
@@ -85,8 +88,8 @@ console.log("file path", req.file.path);
       fs.unlinkSync(file);
     }
     // Clean up the upload folder
-    await cleanUploadFolder();
-    return res.status(400).json({ status: "FAILED", message: messageCode.msgMultiPagePdf });
+    // await cleanUploadFolder();
+    return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgMultiPagePdf });
   }
 
   try {
@@ -98,8 +101,8 @@ console.log("file path", req.file.path);
         fs.unlinkSync(file);
       }
       // Clean up the upload folder
-      await cleanUploadFolder();
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgCertNotValid });
+      // await cleanUploadFolder();
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgCertNotValid });
     }
 
     if (certificateData.startsWith(process.env.START_URL) || certificateData.startsWith(process.env.START_VERIFY_URL)) {
@@ -113,7 +116,7 @@ console.log("file path", req.file.path);
         try {
           await isDBConnected();
           var isIdExist = await isCertificationIdExisted(certificationNumber);
-          if(!isIdExist){
+          if (!isIdExist) {
             isIdExist = await isBulkCertificationIdExisted(certificationNumber);
           }
           if (isIdExist) {
@@ -133,7 +136,10 @@ console.log("file path", req.file.path);
               } else if (blockchainResponse == 3) {
                 verificationResponse = messageCode.msgCertRevoked;
               }
-              return res.status(400).json({ status: "FAILED", message: verificationResponse });
+              if (fs.existsSync(file)) {
+                fs.unlinkSync(file);
+              }
+              return res.status(400).json({ code: 400, status: "FAILED", message: verificationResponse });
             }
           }
           var isUrlExisted = await ShortUrl.findOne({ certificateNumber: certificationNumber });
@@ -151,6 +157,9 @@ console.log("file path", req.file.path);
                 'Polygon URL': _polygonLink
               };
 
+              let txStatus = await checkTransactionStatus(isIdExist.transactionHash);
+              completeResponse.blockchainStatus = txStatus;
+
               if (urlIssueExist) {
                 completeResponse.url = process.env.SHORT_URL + certificationNumber;
               } else {
@@ -160,9 +169,10 @@ console.log("file path", req.file.path);
                 fs.unlinkSync(file);
               }
               // Clean up the upload folder
-              await cleanUploadFolder();
+              // await cleanUploadFolder();
 
               res.status(200).json({
+                code: 200, 
                 status: "SUCCESS",
                 message: "Certification is valid",
                 details: completeResponse
@@ -187,9 +197,12 @@ console.log("file path", req.file.path);
                 fs.unlinkSync(file);
               }
               // Clean up the upload folder
-              await cleanUploadFolder();
-              return res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
+              // await cleanUploadFolder();
+              return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgCertRevoked });
             }
+
+            let txStatus = await checkTransactionStatus(isIdExist.transactionHash);
+            formattedResponse.blockchainStatus = txStatus;
 
             certificateS3Url = isIdExist.url != null ? isIdExist.url : null;
             formattedResponse.certificateUrl = certificateS3Url;
@@ -202,8 +215,8 @@ console.log("file path", req.file.path);
               fs.unlinkSync(file);
             }
             // Clean up the upload folder
-            await cleanUploadFolder();
-            return res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, details: formattedResponse });
+            // await cleanUploadFolder();
+            return res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgCertValid, details: formattedResponse });
 
           } else if (isDynamicCertificateExist) {
             let originalUrl = isUrlExisted != null ? process.env.SHORT_URL + certificationNumber : null;
@@ -222,20 +235,26 @@ console.log("file path", req.file.path);
               fs.unlinkSync(file);
             }
             // Clean up the upload folder
-            await cleanUploadFolder();
-            return res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, details: formattedDynamicResponse });
+            // await cleanUploadFolder();
+            return res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgCertValid, details: formattedDynamicResponse });
           } else {
-            return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
+            if (fs.existsSync(file)) {
+              fs.unlinkSync(file);
+            }
+            return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidCert });
           }
 
         } catch (error) {
-          return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert, details: error });
+          if (fs.existsSync(file)) {
+            fs.unlinkSync(file);
+          }
+          return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidCert, details: error });
         }
       }
 
       responseUrl = certificateData;
       var [extractQRData, encodedUrl] = await extractCertificateInfo(responseUrl);
-      if(!extractQRData["Certificate Number"]){
+      if (!extractQRData["Certificate Number"]) {
         extractQRData = await extractCertificateInformation(responseUrl);
       }
       if (extractQRData) {
@@ -243,7 +262,7 @@ console.log("file path", req.file.path);
           var dbStatus = await isDBConnected();
           if (dbStatus) {
             var getCertificationInfo = await isCertificationIdExisted(extractQRData['Certificate Number']);
-            if(!getCertificationInfo){
+            if (!getCertificationInfo) {
               getCertificationInfo = await isBulkCertificationIdExisted(extractQRData['Certificate Number']);
             }
             certificateS3Url = null;
@@ -255,8 +274,8 @@ console.log("file path", req.file.path);
                   fs.unlinkSync(file);
                 }
                 // Clean up the upload folder
-                await cleanUploadFolder();
-                return res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
+                // await cleanUploadFolder();
+                return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgCertRevoked });
               }
             }
           }
@@ -265,29 +284,35 @@ console.log("file path", req.file.path);
             fs.unlinkSync(file);
           }
           // Clean up the upload folder
-          await cleanUploadFolder();
-          return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+          // await cleanUploadFolder();
+          return res.status(500).json({ code: 500, status: "FAILED", message: messageCode.msgInternalError, details: error });
         }
         extractQRData.url = !encodedUrl ? null : process.env.SHORT_URL + extractQRData['Certificate Number'];
         if (fs.existsSync(file)) {
           fs.unlinkSync(file);
         }
         // Clean up the upload folder
-        await cleanUploadFolder();
+        // await cleanUploadFolder();
+        // Extract the transaction hash from the URL
+        let transactionHash = certificateInfo["Polygon URL"].split('/').pop();
+        if (transactionHash) {
+          let txStatus = await checkTransactionStatus(transactionHash);
+          extractQRData.blockchainStatus = txStatus;
+        }
 
         extractQRData.certificateUrl = certificateS3Url;
-        res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, details: extractQRData });
+        res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgCertValid, details: extractQRData });
         return;
       }
       if (fs.existsSync(file)) {
         fs.unlinkSync(file);
       }
       // Clean up the upload folder
-      await cleanUploadFolder();
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
+      // await cleanUploadFolder();
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidCert });
     } else if (certificateData.startsWith(process.env.START_LMS)) {
       var [extractQRData, encodedUrl] = await extractCertificateInfo(certificateData);
-      if(!extractQRData["Certificate Number"]){
+      if (!extractQRData["Certificate Number"]) {
         extractQRData = await extractCertificateInformation(certificateData);
       }
       if (extractQRData["Polygon URL"] == undefined) {
@@ -295,8 +320,8 @@ console.log("file path", req.file.path);
           fs.unlinkSync(file);
         }
         // Clean up the upload folder
-        await cleanUploadFolder();
-        return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
+        // await cleanUploadFolder();
+        return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidCert });
       }
       if (extractQRData) {
         var verifyLog = {
@@ -309,35 +334,49 @@ console.log("file path", req.file.path);
           fs.unlinkSync(file);
         }
         // Clean up the upload folder
-        await cleanUploadFolder();
+        // await cleanUploadFolder();
         extractQRData["Polygon URL"] = await modifyPolygonURL(extractQRData["Polygon URL"]);
-        res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, details: extractQRData });
+        // Extract the transaction hash from the URL
+        let transactionHash = extractQRData["Polygon URL"].split('/').pop();
+        if (transactionHash) {
+          let txStatus = await checkTransactionStatus(transactionHash);
+          extractQRData.blockchainStatus = txStatus;
+        }
+        res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgCertValid, details: extractQRData });
         return;
       }
       // Clean up the upload folder
-      await cleanUploadFolder();
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
+      // await cleanUploadFolder();
+      if (fs.existsSync(file)) {
+        fs.unlinkSync(file);
+      }
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidCert });
 
     } else {
       // Clean up the upload folder
-      await cleanUploadFolder();
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
+      // await cleanUploadFolder();
+      // Clean up the upload file
+      if (fs.existsSync(file)) {
+        fs.unlinkSync(file);
+      }
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidCert });
     }
 
   } catch (error) {
     // If an error occurs during verification, respond with failure status
     const verificationResponse = {
+      code: 400, 
       status: "FAILED",
       message: messageCode.msgCertNotValid
     };
 
     res.status(400).json(verificationResponse);
-    // Clean up the upload folder
+    // Clean up the upload file
     if (fs.existsSync(file)) {
       fs.unlinkSync(file);
     }
     // Clean up the upload folder
-    await cleanUploadFolder();
+    // await cleanUploadFolder();
     return;
   }
 };
@@ -353,7 +392,7 @@ const decodeQRScan = async (req, res) => {
   const receivedCode = req.body.receivedCode;
   if (!receivedCode) {
     // Respond with error message
-    return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidInput });
+    return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidInput });
   }
   // console.log("Input QR data", receivedCode);
 
@@ -369,13 +408,13 @@ const decodeQRScan = async (req, res) => {
         const parsedUrl = new URL(receivedCode);
         // Extract the query parameter
         var certificationNumber = parsedUrl.searchParams.get('');
-        if(!certificationNumber){
+        if (!certificationNumber) {
           certificationNumber = parsedUrl.searchParams.get('q');
         }
         try {
           await isDBConnected();
           var isIdExist = await isCertificationIdExisted(certificationNumber);
-          if(!isIdExist){
+          if (!isIdExist) {
             isIdExist = await isBulkCertificationIdExisted(certificationNumber);
           }
           if (isIdExist) {
@@ -395,7 +434,7 @@ const decodeQRScan = async (req, res) => {
               } else if (blockchainResponse == 3) {
                 verificationResponse = messageCode.msgCertRevoked;
               }
-              return res.status(400).json({ status: "FAILED", message: verificationResponse });
+              return res.status(400).json({ code: 400, status: "FAILED", message: verificationResponse });
             }
           }
           var isUrlExisted = await ShortUrl.findOne({ certificateNumber: certificationNumber });
@@ -414,15 +453,18 @@ const decodeQRScan = async (req, res) => {
               "certificateUrl": certUrl
             }
             if (isIdExist.certificateStatus == 3) {
-              return res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
+              return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgCertRevoked });
             }
+
+            let txStatus = await checkTransactionStatus(isIdExist.transactionHash);
+            formattedResponse.blockchainStatus = txStatus;
 
             var verifyLog = {
               issuerId: isIdExist.issuerId,
               course: isIdExist.course,
             };
             await verificationLogEntry(verifyLog);
-            return res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, details: formattedResponse });
+            return res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgCertValid, details: formattedResponse });
 
           } else if (isDynamicCertificateExist) {
             let originalUrl = isUrlExisted != null ? process.env.SHORT_URL + isDynamicCertificateExist.certificateNumber : null;
@@ -436,13 +478,16 @@ const decodeQRScan = async (req, res) => {
               "url": originalUrl
             }
 
-            return res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, details: formattedDynamicResponse });
+            let txStatus = await checkTransactionStatus(isDynamicCertificateExist.transactionHash);
+            formattedDynamicResponse.blockchainStatus = txStatus;
+
+            return res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgCertValid, details: formattedDynamicResponse });
           } else {
-            return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
+            return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidCert });
           }
 
         } catch (error) {
-          return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert, details: error });
+          return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidCert, details: error });
         }
       }
       responseUrl = receivedCode;
@@ -452,7 +497,7 @@ const decodeQRScan = async (req, res) => {
           var dbStatus = await isDBConnected();
           if (dbStatus) {
             var getCertificationInfo = await isCertificationIdExisted(extractQRData['Certificate Number']);
-            if(!getCertificationInfo){
+            if (!getCertificationInfo) {
               getCertificationInfo = await isBulkCertificationIdExisted(extractQRData['Certificate Number']);
             }
             certificateS3Url = null;
@@ -460,22 +505,28 @@ const decodeQRScan = async (req, res) => {
               certificateS3Url = getCertificationInfo.url != null ? getCertificationInfo.url : null;
               var formatCertificationStatus = parseInt(getCertificationInfo.certificateStatus);
               if (formatCertificationStatus && formatCertificationStatus == 3) {
-                return res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
+                return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgCertRevoked });
               }
             }
           }
         } catch (error) {
-          return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+          return res.status(500).json({ code: 500, status: "FAILED", message: messageCode.msgInternalError, details: error });
         }
         extractQRData.url = !encodedUrl ? null : process.env.SHORT_URL + extractQRData['Certificate Number'];
-        res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, details: extractQRData });
+        // Extract the transaction hash from the URL
+        let transactionHash = extractQRData["Polygon URL"].split('/').pop();
+        if (transactionHash) {
+          let txStatus = await checkTransactionStatus(transactionHash);
+          extractQRData.blockchainStatus = txStatus;
+        }
+        res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgCertValid, details: extractQRData });
         return;
       }
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidCert });
 
     } else if (receivedCode.startsWith(process.env.START_LMS)) {
       var [extractQRData, decodedUrl] = await extractCertificateInfo(receivedCode);
-      if(!extractQRData["Certificate Number"]){
+      if (!extractQRData["Certificate Number"]) {
         extractQRData = await extractCertificateInformation(receivedCode);
       }
       if (extractQRData) {
@@ -484,20 +535,25 @@ const decodeQRScan = async (req, res) => {
           course: extractQRData["Course Name"],
         };
         await verificationLogEntry(verifyLog);
-
+        // Extract the transaction hash from the URL
+        let transactionHash = extractQRData["Polygon URL"].split('/').pop();
+        if (transactionHash) {
+          let txStatus = await checkTransactionStatus(transactionHash);
+          extractQRData.blockchainStatus = txStatus;
+        }
         extractQRData.url = null;
-        res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, details: extractQRData });
+        res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgCertValid, details: extractQRData });
         return;
       }
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidCert });
 
     } else {
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidCert });
     }
   } catch (error) {
     // Handle errors and send an appropriate response
     console.error(error);
-    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
+    return res.status(500).json({ code: 500, status: "FAILED", message: messageCode.msgInternalError });
   }
 };
 
@@ -536,7 +592,7 @@ const decodeCertificate = async (req, res) => {
       };
 
       var getCertificationInfo = await isCertificationIdExisted(parsedData['Certificate Number']);
-      if(!getCertificationInfo){
+      if (!getCertificationInfo) {
         getCertificationInfo = await isBulkCertificationIdExisted(parsedData['Certificate Number']);
       }
 
@@ -544,11 +600,12 @@ const decodeCertificate = async (req, res) => {
         issuerId: "default",
         course: parsedData["Course Name"]
       };
+
       isValid = true
       var dbStatus = await isDBConnected();
       if (dbStatus) {
         var getValidCertificatioInfo = await isCertificationIdExisted(originalData.Certificate_Number);
-        if(!getValidCertificatioInfo){
+        if (!getValidCertificatioInfo) {
           getValidCertificatioInfo = await isBulkCertificationIdExisted(originalData.Certificate_Number);
         }
         if (getValidCertificatioInfo) {
@@ -566,20 +623,27 @@ const decodeCertificate = async (req, res) => {
       }
     }
 
+    // Extract the transaction hash from the URL
+    let transactionHash = parsedData["Polygon URL"].split('/').pop();
+    if (transactionHash) {
+      let txStatus = await checkTransactionStatus(transactionHash);
+      parsedData.blockchainStatus = txStatus;
+    }
+
     // Respond with the verification status and decrypted data if valid
     if (isValid) {
       if (dbStatus && parsedData["Custom Fields"] == undefined) {
         await verificationLogEntry(verifyLog);
       }
       parsedData.url = originalUrl || null;
-      res.status(200).json({ status: "SUCCESS", message: "Verified", data: parsedData });
+      res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgCertValid, data: parsedData });
     } else {
-      res.status(200).json({ status: "FAILED", message: messageContent });
+      res.status(200).json({ code: 200, status: "FAILED", message: messageContent });
     }
   } catch (error) {
     // Handle errors and send an appropriate response
     console.error(error);
-    res.status(500).json({ message: messageCode.msgInternalError });
+    res.status(500).json({ code: 500, message: messageCode.msgInternalError });
   }
 };
 
@@ -605,7 +669,7 @@ const verifyCertificationId = async (req, res) => {
     try {
       await isDBConnected();
       var isIdExist = await isCertificationIdExisted(inputId);
-      if(!isIdExist){
+      if (!isIdExist) {
         isIdExist = await isBulkCertificationIdExisted(inputId);
       }
       if (isIdExist) {
@@ -626,13 +690,13 @@ const verifyCertificationId = async (req, res) => {
           } else if (blockchainResponse == 3) {
             verificationResponse = messageCode.msgCertRevoked;
           }
-          return res.status(400).json({ status: "FAILED", message: verificationResponse });
+          return res.status(400).json({ code: 400, status: "FAILED", message: verificationResponse });
         }
       }
 
       var isUrlExisted = await ShortUrl.findOne({ certificateNumber: inputId });
       var isDynamicCertificateExist = await DynamicIssues.findOne({ certificateNumber: inputId });
-      
+
       if (isIdExist) {
         if (isIdExist.certificateStatus == 6) {
           let _polygonLink = `https://${process.env.NETWORK}/tx/${isIdExist.transactionHash}`;
@@ -650,10 +714,18 @@ const verifyCertificationId = async (req, res) => {
           } else {
             completeResponse.url = null;
           }
-          // Clean up the upload folder
-          await cleanUploadFolder();
+
+          let inputFileExist = await hasFilesInDirectory(uploadsPath);
+          if (inputFileExist) {
+            // Clean up the upload folder
+            await cleanUploadFolder();
+          }
+
+          let txStatus = await checkTransactionStatus(isIdExist.transactionHash);
+          completeResponse.blockchainStatus = txStatus;
 
           res.status(200).json({
+            code: 200, 
             status: "SUCCESS",
             message: "Certification is valid",
             details: completeResponse
@@ -674,7 +746,7 @@ const verifyCertificationId = async (req, res) => {
           "certificateUrl": certUrl
         }
         if (isIdExist.certificateStatus == 3) {
-          return res.status(400).json({ status: "FAILED", message: messageCode.msgCertRevoked });
+          return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgCertRevoked });
         }
 
         var verifyLog = {
@@ -682,7 +754,16 @@ const verifyCertificationId = async (req, res) => {
           course: isIdExist.course,
         };
         await verificationLogEntry(verifyLog);
-        return res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, details: formattedResponse });
+        let inputFileExist = await hasFilesInDirectory(uploadsPath);
+        if (inputFileExist) {
+          // Clean up the upload folder
+          await cleanUploadFolder();
+        }
+
+        let txStatus = await checkTransactionStatus(isIdExist.transactionHash);
+        formattedResponse.blockchainStatus = txStatus;
+
+        return res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgCertValid, details: formattedResponse });
 
       } else if (isDynamicCertificateExist) {
         let originalUrl = isUrlExisted != null ? process.env.SHORT_URL + isDynamicCertificateExist.certificateNumber : null;
@@ -695,18 +776,26 @@ const verifyCertificationId = async (req, res) => {
           "type": isDynamicCertificateExist.type,
           "url": originalUrl
         }
+        let inputFileExist = await hasFilesInDirectory(uploadsPath);
+        if (inputFileExist) {
+          // Clean up the upload folder
+          await cleanUploadFolder();
+        }
 
-        return res.status(200).json({ status: "SUCCESS", message: messageCode.msgCertValid, details: formattedDynamicResponse });
+        let txStatus = await checkTransactionStatus(isDynamicCertificateExist.transactionHash);
+        formattedDynamicResponse.blockchainStatus = txStatus;
+
+        return res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgCertValid, details: formattedDynamicResponse });
       } else {
-        return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert });
+        return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidCert });
       }
 
     } catch (error) {
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidCert, details: error });
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidCert, details: error });
     }
 
   } catch (error) {
-    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+    return res.status(500).json({ code: 500, status: "FAILED", message: messageCode.msgInternalError, details: error });
   }
 };
 
@@ -793,6 +882,17 @@ const modifyPolygonURL = (url) => {
   }
   return url;
 };
+
+const hasFilesInDirectory = async (directoryPath) => {
+  try {
+    return fs.readdirSync(directoryPath).some(file =>
+      fs.statSync(path.join(directoryPath, file)).isFile()
+    );
+  } catch (error) {
+    console.error(`Error checking directory: ${error.message}`);
+    return false;
+  }
+}
 
 module.exports = {
   // Function to verify a certificate with a PDF QR code

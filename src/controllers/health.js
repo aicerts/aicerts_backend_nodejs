@@ -49,12 +49,12 @@ const healthCheck = async (req, res) => {
   for (const check of checks) {
     const result = await check.check();
     if (!result) {
-      return res.status(500).send({ status: "FAILED", message: `Health check failed: ${check.name}` });
+      return res.status(500).send({ code: 500, status: "FAILED", message: `Health check failed: ${check.name}` });
     }
   }
 
   // If all of the checks pass, return a success response
-  return res.status(200).send({ status: "SUCCESS", message: 'API is healthy' });
+  return res.status(200).send({ code: 200, status: "SUCCESS", message: 'API is healthy' });
 };
 
 module.exports = {

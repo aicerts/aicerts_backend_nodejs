@@ -94,7 +94,7 @@ module.exports = {
     msgProvideValidDates : "Please provide valid dates (MM/DD/YYYY)",
     msgInvalidPdfTemplate : "Invalid PDF (Certification Template / QR Position) dimensions",
     msgInvalidPdfDimensions : "Invalid PDF Template / dimensions are not matching with provided documents",
-    msgInvalidQrTemplate: "Trying to imprint QR on existed deatails, Please provide pdf(s) without QR details",
+    msgInvalidQrTemplate: "To add a QR code to the existing pdf, please provide the PDF(s) without any QR code.",
 
     // Admin controller messages
     msgAdminMailExist: "Admin with the provided email already exists",

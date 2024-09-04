@@ -76,7 +76,7 @@ const getAllIssuers = async (req, res) => {
 const getIssuerByEmail = async (req, res) => {
   var validResult = validationResult(req);
   if (!validResult.isEmpty()) {
-    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+    return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
   try {
     // Check mongoose connection
@@ -90,18 +90,21 @@ const getIssuerByEmail = async (req, res) => {
 
     if (issuer) {
       res.json({
+        code: 200, 
         status: 'SUCCESS',
         data: issuer,
         message: `Issuer with email ${email} fetched successfully`
       });
     } else {
       res.json({
+        code: 400, 
         status: 'FAILED',
         message: `Issuer with email ${email} not found`
       });
     }
   } catch (error) {
     res.json({
+      code: 400, 
       status: 'FAILED',
       message: messageCode.msgErrorOnFetching
     });
@@ -117,7 +120,7 @@ const getIssuerByEmail = async (req, res) => {
 const getServiceLimitsByEmail = async (req, res) => {
   let validResult = validationResult(req);
   if (!validResult.isEmpty()) {
-    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+    return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
   try {
     // Check mongoose connection
@@ -129,7 +132,7 @@ const getServiceLimitsByEmail = async (req, res) => {
 
     const issuerExist = await User.findOne({ email: email }).select('-password');
     if (!issuerExist || !issuerExist.issuerId) {
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidIssuer, details: email });
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidIssuer, details: email });
     }
 
     var fetchServiceQuota = await ServiceAccountQuotas.find({
@@ -137,7 +140,7 @@ const getServiceLimitsByEmail = async (req, res) => {
     });
 
     if (!fetchServiceQuota || fetchServiceQuota.length < 1) {
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgMatchLimitsNotFound, details: email });
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgMatchLimitsNotFound, details: email });
     }
 
     // Transform the original response
@@ -147,10 +150,11 @@ const getServiceLimitsByEmail = async (req, res) => {
       status: item.status
     }));
 
-    return res.status(200).json({ status: "SUCCESS", message: messageCode.msgMatchLimitsFound, details: transformedResponse });
+    return res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgMatchLimitsFound, details: transformedResponse });
 
   } catch (error) {
     res.json({
+      code: 400, 
       status: 'FAILED',
       message: messageCode.msgErrorOnFetching
     });
@@ -166,7 +170,7 @@ const getServiceLimitsByEmail = async (req, res) => {
 const getIssueDetails = async (req, res) => {
   var validResult = validationResult(req);
   if (!validResult.isEmpty()) {
-    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+    return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
 
   const input = req.body.input;
@@ -175,26 +179,26 @@ const getIssueDetails = async (req, res) => {
   var responseData;
 
   if (!input || !email) {
-    return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidInput });
+    return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidInput });
   }
 
   var type = parseInt(_type);
   if (type != 1 && type != 2 && type != 3) {
-    return res.status(400).json({ status: "FAILED", message: messageCode.msgTypeRestricted });
+    return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgTypeRestricted });
   }
 
   try {
     var dbStatus = await isDBConnected();
 
     if (dbStatus == false) {
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgDbNotReady });
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgDbNotReady });
     }
 
     // Check if user with provided email exists
     const issuerExist = await User.findOne({ email: email });
 
     if (!issuerExist) {
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgUserNotFound });
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUserNotFound });
     }
 
     try {
@@ -246,11 +250,11 @@ const getIssueDetails = async (req, res) => {
       if (isIssueSingle || isIssueBatch) {
         responseData = isIssueSingle != null ? isIssueSingle : isIssueBatch;
         responseData = [responseData];
-        return res.status(200).json({ status: "SUCCESS", message: messageCode.msgIssueFound, data: responseData });
+        return res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgIssueFound, data: responseData });
       }
 
     } catch (error) {
-      return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
+      return res.status(500).json({ code: 500, status: "FAILED", message: messageCode.msgInternalError });
     }
 
     try {
@@ -332,16 +336,16 @@ const getIssueDetails = async (req, res) => {
         if (singleNameResponse.length != 0 && batchNameResponse.length != 0) {
           responseData = [...singleNameResponse, ...batchNameResponse];
         }
-        return res.status(200).json({ status: "SUCCESS", message: messageCode.msgIssueFound, data: responseData });
+        return res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgIssueFound, data: responseData });
       }
     } catch (error) {
-      return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
+      return res.status(500).json({ code: 500, status: "FAILED", message: messageCode.msgInternalError });
     }
 
-    return res.status(400).json({ status: "FAILED", message: messageCode.msgIssueNotFound });
+    return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgIssueNotFound });
 
   } catch (error) {
-    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
+    return res.status(500).json({ code: 500, status: "FAILED", message: messageCode.msgInternalError });
   }
 };
 
@@ -354,27 +358,27 @@ const getIssueDetails = async (req, res) => {
 const getIssuersWithFilter = async (req, res) => {
   let validResult = validationResult(req);
   if (!validResult.isEmpty()) {
-    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+    return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
   try {
     const input = req.body.input;
     const filter = req.body.filter;
     if (!filter || !input) {
-      return res.status(400).send({ status: "FAILED", message: messageCode.msgInputProvide });
+      return res.status(400).send({ code: 400, status: "FAILED", message: messageCode.msgInputProvide });
     }
 
     var fetchResult;
-      const query = {};
-      query[filter] = { $regex: `^${input}`, $options: 'i' };
-      fetchResult = await User.find(query).select(['-password']);
+    const query = {};
+    query[filter] = { $regex: `^${input}`, $options: 'i' };
+    fetchResult = await User.find(query).select(['-password']);
 
     if (fetchResult.length == 0) {
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgNoMatchFound });
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgNoMatchFound });
     }
 
-    return res.status(200).json({ status: "SUCCESS", message: messageCode.msgAllIssuersFetched, details: fetchResult });
+    return res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgAllIssuersFetched, details: fetchResult });
   } catch (error) {
-    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
+    return res.status(500).json({ code: 500, status: "FAILED", message: messageCode.msgInternalError });
   }
 };
 
@@ -387,7 +391,7 @@ const getIssuersWithFilter = async (req, res) => {
 const getIssuesWithFilter = async (req, res) => {
   let validResult = validationResult(req);
   if (!validResult.isEmpty()) {
-    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+    return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
 
   var fetchedIssues = [];
@@ -406,7 +410,7 @@ const getIssuesWithFilter = async (req, res) => {
     await isDBConnected();
     const isEmailExist = await User.findOne({ email: email });
     if (!isEmailExist) {
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidEmail, details: email });
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidEmail, details: email });
     }
     if (input && filter) {
       var filterCriteria = `$${filter}`;
@@ -459,10 +463,10 @@ const getIssuesWithFilter = async (req, res) => {
         //   .slice(0, searchLimit);
 
         if (fetchResult.length == 0) {
-          return res.status(400).json({ status: "FAILED", message: messageCode.msgNoMatchFound });
+          return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgNoMatchFound });
         }
 
-        return res.status(200).json({ status: "SUCCESS", message: messageCode.msgIssueFound, details: fetchResult });
+        return res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgIssueFound, details: fetchResult });
 
       } else {
 
@@ -525,11 +529,13 @@ const getIssuesWithFilter = async (req, res) => {
         }
 
         if (fetchedIssues.length == 0) {
-          return res.status(400).json({ status: "FAILED", message: messageCode.msgNoMatchFound });
+          return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgNoMatchFound });
         }
         // Check if the requested page is beyond the total pages
         if (page > totalPages && totalPages > 0) {
           return res.status(404).json({
+            code: 404,
+            status: "SUCCESS", 
             message: messageCode.msgPageNotFound,
             data: [],
             pagination: paginationDetails
@@ -541,14 +547,14 @@ const getIssuesWithFilter = async (req, res) => {
           ...paginationDetails
         }
 
-        return res.status(200).json({ status: "SUCCESS", message: messageCode.msgIssueFound, details: matchPages });
+        return res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgIssueFound, details: matchPages });
       }
     } else {
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidInput, detail: input });
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidInput, detail: input });
     }
 
   } catch (error) {
-    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
+    return res.status(500).json({ code: 500, status: "FAILED", message: messageCode.msgInternalError });
   }
 };
 
@@ -579,12 +585,20 @@ const uploadFileToS3 = async (req, res) => {
   try {
     const data = await s3.upload(uploadParams).promise();
     console.log('File uploaded successfully to', data.Location);
-    res.status(200).send({ status: "SUCCESS", message: 'File uploaded successfully', fileUrl: data.Location });
-    await cleanUploadFolder();
+    res.status(200).send({ code: 200, status: "SUCCESS", message: 'File uploaded successfully', fileUrl: data.Location });
+    // await cleanUploadFolder();
+    // Clean up the upload file
+    if (fs.existsSync(file)) {
+      fs.unlinkSync(file);
+    }
   } catch (error) {
     console.error('Error uploading file:', error);
-    await cleanUploadFolder();
-    res.status(500).send({ status: "FAILED", error: 'An error occurred while uploading the file', details: error });
+    // await cleanUploadFolder();
+    // Clean up the upload file
+    if (fs.existsSync(file)) {
+      fs.unlinkSync(file);
+    }
+    res.status(500).send({ code: 500, status: "FAILED", error: 'An error occurred while uploading the file', details: error });
     return;
   }
 };
@@ -598,7 +612,7 @@ const uploadFileToS3 = async (req, res) => {
 const getVerificationDetailsByCourse = async (req, res) => {
   let validResult = validationResult(req);
   if (!validResult.isEmpty()) {
-    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+    return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
   try {
 
@@ -609,7 +623,7 @@ const getVerificationDetailsByCourse = async (req, res) => {
     const isEmailExist = await User.findOne({ email: email });
 
     if (!isEmailExist) {
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgUserEmailNotFound });
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUserEmailNotFound });
     }
 
     const verificationCommonResponse = await VerificationLog.findOne({ email: email });
@@ -617,6 +631,7 @@ const getVerificationDetailsByCourse = async (req, res) => {
     if (verificationCommonResponse) {
       var responseCount = verificationCommonResponse.courses;
       res.status(200).json({
+        code: 200, 
         status: 'SUCCESS',
         data: responseCount,
         message: `Verification results fetched successfully with searched course`
@@ -624,6 +639,7 @@ const getVerificationDetailsByCourse = async (req, res) => {
       return;
     } else {
       res.status(400).json({
+        code: 400, 
         status: 'FAILED',
         data: 0,
         message: `No verification results found`
@@ -632,6 +648,7 @@ const getVerificationDetailsByCourse = async (req, res) => {
     }
   } catch (error) {
     res.status(500).json({
+      code: 500, 
       status: 'FAILED',
       data: error,
       message: messageCode.msgErrorOnFetching
@@ -648,7 +665,7 @@ const getVerificationDetailsByCourse = async (req, res) => {
 const fetchIssuesLogDetails = async (req, res) => {
   let validResult = validationResult(req);
   if (!validResult.isEmpty()) {
-    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+    return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
   try {
     // Extracting required data from the request body
@@ -683,7 +700,7 @@ const fetchIssuesLogDetails = async (req, res) => {
     const issuerExist = await User.findOne({ email: email });
 
     if (!issuerExist) {
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgUserNotFound });
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUserNotFound });
     }
 
     if (queryCode || queryParams) {
@@ -902,10 +919,12 @@ const fetchIssuesLogDetails = async (req, res) => {
 
     var totalResponses = queryResponse.length || Object.keys(queryResponse).length;
     var responseStatus = totalResponses > 0 ? 'SUCCESS' : 'FAILED';
+    var responseCode = totalResponses > 0 ? 200 : 400;
     var responseMessage = totalResponses > 0 ? messageCode.msgAllQueryFetched : messageCode.msgNoMatchFound;
 
     // Respond with success and all user details
     res.json({
+      code: responseCode, 
       status: responseStatus,
       data: queryResponse,
       responses: totalResponses,
@@ -915,6 +934,7 @@ const fetchIssuesLogDetails = async (req, res) => {
   } catch (error) {
     // Error occurred while fetching user details, respond with failure message
     res.json({
+      code: 400, 
       status: 'FAILED',
       message: messageCode.msgErrorOnFetching
     });
@@ -936,7 +956,7 @@ const fetchGraphDetails = async (req, res) => {
   if ((year !== null && year !== '') && // Check if value is not null or empty
     (year < 2000 || year > 9999)) {
     // Send the fetched graph data as a response
-    return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidGraphInput, details: year });
+    return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidGraphInput, details: year });
   }
 
   // Check mongoose connection
@@ -945,14 +965,14 @@ const fetchGraphDetails = async (req, res) => {
   console.log(dbStatusMessage);
 
   if (dbStatus == false) {
-    return res.status(400).json({ status: "FAILED", message: messageCode.msgDbError });
+    return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgDbError });
   }
 
   // Check if user with provided email exists
   const issuerExist = await User.findOne({ email: email });
 
   if (!issuerExist) {
-    return res.status(400).json({ status: "FAILED", message: messageCode.msgUserEmailNotFound });
+    return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUserEmailNotFound });
   }
 
   try {
@@ -980,13 +1000,14 @@ const fetchGraphDetails = async (req, res) => {
 
     // Send the fetched graph data as a response
     res.json({
+      code: 200, 
       status: "SUCCESS",
       message: messageCode.msgGraphDataFetched,
       data: responseData,
     });
     return;
   } catch (error) {
-    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+    return res.status(500).json({ code: 500, status: "FAILED", message: messageCode.msgInternalError, details: error });
   }
 };
 
@@ -1040,7 +1061,7 @@ const fetchGraphStatusDetails = async (req, res) => {
   if ((value !== null && value !== '') && // Check if value is not null or empty
     ((value < 2000 || value > 2199) && (value < 1 || value > 12))) {
     // Send the fetched graph data as a response
-    return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidGraphInput, details: value });
+    return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidGraphInput, details: value });
   }
 
   // Check mongoose connection
@@ -1049,14 +1070,14 @@ const fetchGraphStatusDetails = async (req, res) => {
   console.log(dbStatusMessage);
 
   if (dbStatus == false) {
-    return res.status(400).json({ status: "FAILED", message: messageCode.msgDbError });
+    return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgDbError });
   }
 
   // Check if user with provided email exists
   const issuerExist = await User.findOne({ email: email });
 
   if (!issuerExist) {
-    return res.status(400).json({ status: "FAILED", message: messageCode.msgUserEmailNotFound });
+    return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUserEmailNotFound });
   }
 
   try {
@@ -1097,6 +1118,7 @@ const fetchGraphStatusDetails = async (req, res) => {
 
       // Send the fetched graph data as a response
       res.json({
+        code: 200, 
         status: "SUCCESS",
         message: messageCode.msgGraphDataFetched,
         data: responseData,
@@ -1118,16 +1140,17 @@ const fetchGraphStatusDetails = async (req, res) => {
 
       // Send the fetched graph data as a response
       res.json({
+        code: 200, 
         status: "SUCCESS",
         message: messageCode.msgGraphDataFetched,
         data: responseData,
       });
 
     } else {
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidGraphInput, details: value });
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidGraphInput, details: value });
     }
   } catch (error) {
-    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+    return res.status(500).json({ code: 400, status: "FAILED", message: messageCode.msgInternalError, details: error });
   }
 };
 
@@ -1179,7 +1202,7 @@ const getMonthAggregatedCertsDetails = async (data, month, year) => {
 const fetchStatusCoreFeatureIssues = async (req, res) => {
   var validResult = validationResult(req);
   if (!validResult.isEmpty()) {
-    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+    return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
   const email = req.body.email;
 
@@ -1188,7 +1211,7 @@ const fetchStatusCoreFeatureIssues = async (req, res) => {
     // Check if user with provided email exists
     const issuerExist = await User.findOne({ email: email });
     if (!issuerExist) {
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgUserEmailNotFound, details: email });
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUserEmailNotFound, details: email });
     }
 
     var fetchAllIssues = await IssueStatus.find({
@@ -1215,7 +1238,7 @@ const fetchStatusCoreFeatureIssues = async (req, res) => {
     var [queryIssues, queryRenews, queryRevokes, queryReactivates] = await Promise.all([fetchAllIssues, fetchAllRenews, fetchAllRevokes, fetchAllReactivates]);
 
     if (queryIssues.length == 0 && queryRenews.length == 0 && queryRevokes.length == 0 && queryReactivates.length == 0) {
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgNoMatchFound });
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgNoMatchFound });
     }
 
     // Process all data concurrently
@@ -1232,10 +1255,10 @@ const fetchStatusCoreFeatureIssues = async (req, res) => {
       revoke: getRevokes,
       reactivate: getReactivates
     }
-    return res.status(200).send({ status: "SUCCESS", message: messageCode.msgAllIssuersFetched, details: getResponse });
+    return res.status(200).send({ code: 200, status: "SUCCESS", message: messageCode.msgAllIssuersFetched, details: getResponse });
 
   } catch (error) {
-    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+    return res.status(500).json({ code: 500, status: "FAILED", message: messageCode.msgInternalError, details: error });
   }
 
 };
@@ -1275,7 +1298,7 @@ const uploadCertificateToS3 = async (req, res) => {
   const type = parseInt(req?.body?.type, 10); // Parse type to integer
   // Validate request parameters
   if (!file || !certificateNumber || !type) {
-    return res.status(400).send({ status: "FAILED", message: "file, certificateId, and type are required" });
+    return res.status(400).send({ code: 400, status: "FAILED", message: "file, certificateId, and type are required" });
   }
 
   // Check if the certificate exists with the specified type
@@ -1289,11 +1312,11 @@ const uploadCertificateToS3 = async (req, res) => {
     }
 
     if (!certificate) {
-      return res.status(404).send({ status: "FAILED", message: "Certificate not found with the specified type" });
+      return res.status(400).send({ code: 400, status: "FAILED", message: "Certificate not found with the specified type" });
     }
   } catch (error) {
     console.error('Error finding certificate:', error);
-    return res.status(500).send({ status: "FAILED", message: 'An error occurred while checking the certificate' });
+    return res.status(500).send({ code: 500, status: "FAILED", message: 'An error occurred while checking the certificate' });
   }
 
   const bucketName = process.env.BUCKET_NAME;
@@ -1330,15 +1353,23 @@ const uploadCertificateToS3 = async (req, res) => {
         break;
       default:
         console.error('Invalid type:', type);
-        await cleanUploadFolder();
-        return res.status(400).send({ status: "FAILED", message: 'Invalid type' });
+        // await cleanUploadFolder();
+        // Clean up the upload file
+        if (fs.existsSync(file)) {
+          fs.unlinkSync(file);
+        }
+        return res.status(400).send({ code: 400, status: "FAILED", message: 'Invalid type' });
     }
-    await cleanUploadFolder();
-    res.status(200).send({ status: "SUCCESS", message: 'File uploaded successfully', fileUrl: data.Location });
+    // await cleanUploadFolder();
+    // Clean up the upload file
+    if (fs.existsSync(file)) {
+      fs.unlinkSync(file);
+    }
+    res.status(200).send({ code: 200, status: "SUCCESS", message: 'File uploaded successfully', fileUrl: data.Location });
     return;
   } catch (error) {
     console.error('Error uploading file:', error);
-    res.status(500).send({ status: "FAILED", message: 'An error occurred while uploading the file', details: error.message });
+    res.status(500).send({ code: 500, status: "FAILED", message: 'An error occurred while uploading the file', details: error.message });
   }
 };
 
@@ -1378,7 +1409,7 @@ const getSingleCertificates = async (req, res) => {
 
     // Validate request body
     if (!issuerId || (type !== 1 && type !== 2)) {
-      return res.status(400).json({ status: "FAILED", message: "issuerId and valid type (1 or 2) are required" });
+      return res.status(400).json({ code: 400, status: "FAILED", message: "issuerId and valid type (1 or 2) are required" });
     }
 
     // Convert type to integer if it is a string
@@ -1391,7 +1422,7 @@ const getSingleCertificates = async (req, res) => {
     } else if (typeInt == 2) {
       typeField = 'withoutpdf';
     } else {
-      return res.status(400).json({ status: "FAILED", message: "Invalid type provided" });
+      return res.status(400).json({ code: 400, status: "FAILED", message: "Invalid type provided" });
     }
 
     // Fetch certificates based on issuerId and type
@@ -1403,6 +1434,7 @@ const getSingleCertificates = async (req, res) => {
 
     // Respond with success and the certificates
     res.json({
+      code: 200, 
       status: 'SUCCESS',
       data: certificates,
       message: 'Certificates fetched successfully'
@@ -1412,6 +1444,7 @@ const getSingleCertificates = async (req, res) => {
 
     // Respond with failure message
     res.status(500).json({
+      code: 500, 
       status: 'FAILED',
       message: 'An error occurred while fetching the certificates',
       details: error.message
@@ -1419,59 +1452,13 @@ const getSingleCertificates = async (req, res) => {
   }
 };
 
-// const getBatchCertificates = async (req, res) => {
-//   try {
-//     const { issuerId } = req.body;
-
-//     // Validate issuerId
-//     if (!issuerId) {
-//       return res.status(400).json({ status: "FAILED", message: "issuerId is required" });
-//     }
-
-//     // Fetch all batch certificates for the given issuerId
-//     const batchCertificates = await BatchIssues.find({ issuerId });
-
-//     // Group certificates by issueDate
-//     const groupedCertificates = batchCertificates.reduce((acc, certificate) => {
-//       const issueDate = certificate.issueDate.toISOString().split('T')[0]; // Format date as YYYY-MM-DD
-//       if (!acc[issueDate]) {
-//         acc[issueDate] = [];
-//       }
-//       acc[issueDate].push(certificate);
-//       return acc;
-//     }, {});
-
-//     // Transform grouped certificates into an array of objects
-//     const result = Object.keys(groupedCertificates).map(issueDate => ({
-//       issueDate,
-//       certificates: groupedCertificates[issueDate]
-//     }));
-
-//     // Respond with success and the grouped certificates
-//     res.json({
-//       status: 'SUCCESS',
-//       data: result,
-//       message: 'Batch certificates fetched successfully'
-//     });
-//   } catch (error) {
-//     console.error('Error fetching batch certificates:', error);
-
-//     // Respond with failure message
-//     res.status(500).json({
-//       status: 'FAILED',
-//       message: 'An error occurred while fetching the batch certificates',
-//       details: error.message
-//     });
-//   }
-// };
-
 const getBatchCertificateDates = async (req, res) => {
   try {
     const { issuerId } = req.body;
 
     // Validate issuerId
     if (!issuerId) {
-      return res.status(400).json({ status: "FAILED", message: "issuerId is required" });
+      return res.status(400).json({ code: 400, status: "FAILED", message: "issuerId is required" });
     }
 
     // Fetch all batch certificates for the given issuerId
@@ -1496,6 +1483,7 @@ const getBatchCertificateDates = async (req, res) => {
 
     // Respond with success and the unique batch dates
     res.json({
+      code: 200, 
       status: 'SUCCESS',
       data: uniqueBatchDates,
       message: 'Unique batch dates fetched successfully'
@@ -1505,6 +1493,7 @@ const getBatchCertificateDates = async (req, res) => {
 
     // Respond with failure message
     res.status(500).json({
+      code: 500, 
       status: 'FAILED',
       message: 'An error occurred while fetching the unique batch dates',
       details: error.message
@@ -1518,7 +1507,7 @@ const getBatchCertificates = async (req, res) => {
 
     // Validate input
     if (!batchId || !issuerId) {
-      return res.status(400).json({ status: "FAILED", message: "batchId and issuerId are required" });
+      return res.status(400).json({ code: 400, status: "FAILED", message: "batchId and issuerId are required" });
     }
 
     // Fetch all certificates for the given batchId and issuerId
@@ -1526,6 +1515,7 @@ const getBatchCertificates = async (req, res) => {
 
     // Respond with success and the certificates
     res.json({
+      code: 200, 
       status: 'SUCCESS',
       data: certificates,
       message: 'Certificates fetched successfully'
@@ -1535,6 +1525,7 @@ const getBatchCertificates = async (req, res) => {
 
     // Respond with failure message
     res.status(500).json({
+      code: 500, 
       status: 'FAILED',
       message: 'An error occurred while fetching the certificates',
       details: error.message
@@ -1558,12 +1549,13 @@ const getOrganizationDetails = async (req, res) => {
     const sortedUniqueResponses = uniqueResponses.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
 
     res.json({
+      code: 200, 
       status: "SUCCESS",
       message: messageCode.msgOrganizationFetched,
       data: sortedUniqueResponses
     });
   } catch (err) {
-    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: err });
+    return res.status(500).json({ code: 500, status: "FAILED", message: messageCode.msgInternalError, details: err });
   }
 };
 
@@ -1576,7 +1568,7 @@ const getOrganizationDetails = async (req, res) => {
 const getIssuesInOrganizationWithName = async (req, res) => {
   var validResult = validationResult(req);
   if (!validResult.isEmpty()) {
-    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+    return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
 
   const organization = req.body.organization;
@@ -1587,7 +1579,7 @@ const getIssuesInOrganizationWithName = async (req, res) => {
     var dbStatus = await isDBConnected();
 
     if (dbStatus == false) {
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgDbNotReady });
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgDbNotReady });
     }
 
     const getIssuers = await User.find({
@@ -1603,7 +1595,7 @@ const getIssuesInOrganizationWithName = async (req, res) => {
       // Extract issuerIds
       var getIssuerIds = getIssuers.map(item => item.issuerId);
     } else {
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgNoMatchFound });
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgNoMatchFound });
     }
 
     for (let i = 0; i < getIssuerIds.length; i++) {
@@ -1617,7 +1609,7 @@ const getIssuesInOrganizationWithName = async (req, res) => {
             { $eq: [{ $toLower: "$name" }, targetName.toLowerCase()] }
           ]
         },
-        url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket  } // Filter to include documents where `url` exists
+        url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
       });
 
       // Query 2
@@ -1628,7 +1620,7 @@ const getIssuesInOrganizationWithName = async (req, res) => {
             { $eq: [{ $toLower: "$name" }, targetName.toLowerCase()] }
           ]
         },
-        url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket  } // Filter to include documents where `url` exists
+        url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
       });
 
       // Await both promises
@@ -1645,13 +1637,13 @@ const getIssuesInOrganizationWithName = async (req, res) => {
     }
 
     if (fetchedIssues.length == 0) {
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgNoMatchFound });
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgNoMatchFound });
     }
 
-    return res.status(200).json({ status: "SUCCESS", message: messageCode.msgAllQueryFetched, response: fetchedIssues });
+    return res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgAllQueryFetched, response: fetchedIssues });
 
   } catch (error) {
-    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, error: error });
+    return res.status(500).json({ code: 500, status: "FAILED", message: messageCode.msgInternalError, error: error });
   }
 
 };
@@ -1665,7 +1657,7 @@ const getIssuesInOrganizationWithName = async (req, res) => {
 const fetchCustomIssuedCertificates = async (req, res) => {
   let validResult = validationResult(req);
   if (!validResult.isEmpty()) {
-    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+    return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
   const email = req.body.email; // Get the email
 
@@ -1674,7 +1666,7 @@ const fetchCustomIssuedCertificates = async (req, res) => {
   try {
 
     if (!apiUrl || !polygonApiKey) {
-      return res.status(400).send({ status: "FAILED", message: msgInvalidPolygonCredentials });
+      return res.status(400).send({ code: 400, status: "FAILED", message: msgInvalidPolygonCredentials });
     }
     const issuesCount = {
       // Day: [],
@@ -1703,7 +1695,7 @@ const fetchCustomIssuedCertificates = async (req, res) => {
       }
     }
 
-    return res.status(200).json({ status: "SUCCESS", message: `${messageCode.msgAllQueryFetched}:[Netcom, LMS]`, details: issuesCount });
+    return res.status(200).json({ code: 200, status: "SUCCESS", message: `${messageCode.msgAllQueryFetched}:[Netcom, LMS]`, details: issuesCount });
 
   } catch (error) {
     res.status(400).json({
@@ -1784,7 +1776,7 @@ const getBulkBackupFiles = async (req, res) => {
   const issueType = req.body.category;
   const searchDate = await validateSearchDateFormat(_searchDate);
   if (searchDate == null || searchDate == "string" || (issueType != 1 && issueType != 2)) {
-    return res.status(400).send({ status: "FAILED", message: 'Invalid input provided', details: _searchDate });
+    return res.status(400).send({ code: 400, status: "FAILED", message: 'Invalid input provided', details: _searchDate });
   }
 
   // Split the input date string into month, day, and year
@@ -1830,17 +1822,17 @@ const getBulkBackupFiles = async (req, res) => {
             fileData.push(url);
           } catch (error) {
             console.error(messageCode.msgErrorInUrl, error);
-            res.status(400).send({ status: "FAILED", message: messageCode.msgErrorInUrl, details: searchDate });
+            res.status(400).send({ code: 400, status: "FAILED", message: messageCode.msgErrorInUrl, details: searchDate });
           }
         }
-        res.status(200).send({ status: "SUCCESS", message: messageCode.msgFilesFetchedSuccess, details: fileData });
+        res.status(200).send({ code: 200, status: "SUCCESS", message: messageCode.msgFilesFetchedSuccess, details: fileData });
         return;
       } catch (error) {
         console.error('Error downloading file:', error);
-        res.status(500).send({ status: "FAILED", message: messageCode.msgErrorInFetching, details: error });
+        res.status(500).send({ code: 500, status: "FAILED", message: messageCode.msgErrorInFetching, details: error });
       }
     } else {
-      res.status(400).send({ status: "FAILED", message: messageCode.msgNoMatchFoundInDates, details: searchDate });
+      res.status(400).send({ code: 400, status: "FAILED", message: messageCode.msgNoMatchFoundInDates, details: searchDate });
     }
   } catch (error) {
     console.error('Error:', error);

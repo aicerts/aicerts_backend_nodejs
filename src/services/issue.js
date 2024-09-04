@@ -496,8 +496,6 @@ const handleIssuance = async (email, certificateNumber, name, courseName, _grant
             return ({ code: 400, status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain });
           }
           const polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
-          console.log("Response Enduser ID: ", fields.Certificate_Number);
-          console.log("Response Enduser name: ", fields.name);
           // Generate encrypted URL with certificate data
           const dataWithLink = { ...fields, polygonLink: polygonLink }
           const urlLink = generateEncryptedUrl(dataWithLink);
@@ -1704,10 +1702,9 @@ const _convertPdfBufferToPng = async (imagePath, pdfBuffer, _width, _height) => 
   const options = {
     format: 'png', // Specify output format (optional, defaults to 'png')
     responseType: 'buffer', // Ensure binary output (PNG buffer)
-    // width: _width, // Optional width for the image
-    // height: _height, // Optional height for the image
-    density: 100, // Optional DPI (dots per inch)
-    // Other options (refer to pdf2pic documentation for details)
+    width: _width, // Optional width for the image
+    height: _height, // Optional height for the image
+    density: 300, // Optional DPI (dots per inch)
   };
 
   try {
