@@ -282,7 +282,7 @@ const issueDynamicPdf = async (req, res) => {
 const issue = async (req, res) => {
   let validResult = validationResult(req);
   if (!validResult.isEmpty()) {
-    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+    return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
   try {
     // Extracting required data from the request body
@@ -301,20 +301,20 @@ const issue = async (req, res) => {
           existIssuerId = issuerExist.issuerId;
           let fetchCredits = await getIssuerServiceCredits(existIssuerId, 'issue');
           if (fetchCredits === true) {
-            return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaStatus });
+            return res.status(503).json({ code: 503, status: "FAILED", message: messageCode.msgIssuerQuotaStatus });
           }
           if (fetchCredits) {
           } else {
-            return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaExceeded });
+            return res.status(503).json({ code: 503, status: "FAILED", message: messageCode.msgIssuerQuotaExceeded });
           }
         } else {
-          return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidIssuerId });
+          return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidIssuerId });
         }
       }
     }
 
     if (_grantDate == "1" || _grantDate == null || _grantDate == "string") {
-      res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidGrantDate, details: req.body.grantDate });
+      res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidGrantDate, details: req.body.grantDate });
       return;
     }
     if (req.body.expirationDate == 1 || req.body.expirationDate == null || req.body.expirationDate == "string") {
@@ -324,7 +324,7 @@ const issue = async (req, res) => {
     }
 
     if (_expirationDate == null) {
-      res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidExpirationDate, details: req.body.expirationDate });
+      res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidExpirationDate, details: req.body.expirationDate });
       return;
     }
 
@@ -335,13 +335,13 @@ const issue = async (req, res) => {
       // Update Issuer credits limit (decrease by 1)
       await updateIssuerServiceCredits(existIssuerId, 'issue');
 
-      return res.status(issueResponse.code).json({ status: issueResponse.status, message: issueResponse.message, qrCodeImage: issueResponse.qrCodeImage, polygonLink: issueResponse.polygonLink, details: responseDetails });
+      return res.status(issueResponse.code).json({ code: issueResponse.code, status: issueResponse.status, message: issueResponse.message, qrCodeImage: issueResponse.qrCodeImage, polygonLink: issueResponse.polygonLink, details: responseDetails });
     }
 
-    res.status(issueResponse.code).json({ status: issueResponse.status, message: issueResponse.message, details: responseDetails });
+    res.status(issueResponse.code).json({ code: issueResponse.code, status: issueResponse.status, message: issueResponse.message, details: responseDetails });
   } catch (error) {
     // Handle any errors that occur during token verification or validation
-    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
+    return res.status(500).json({ code: 500, status: "FAILED", message: messageCode.msgInternalError });
   }
 };
 
@@ -354,7 +354,7 @@ const issue = async (req, res) => {
 const Issuance = async (req, res) => {
   var validResult = validationResult(req);
   if (!validResult.isEmpty()) {
-    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+    return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
   try {
     // Extracting required data from the request body
@@ -373,24 +373,25 @@ const Issuance = async (req, res) => {
       _expirationDate = req.body.expirationDate;
     }
     if (!_expirationDate) {
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidExpirationDate, details: req.body.expirationDate });
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidExpirationDate, details: req.body.expirationDate });
     }
 
     if (_grantDate == "" || _grantDate == "1" || _grantDate == 1 || _grantDate == null || _grantDate == "string") {
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidGrantDate, details: req.body.grantDate });
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidGrantDate, details: req.body.grantDate });
     }
     var _grantDate = await convertDateFormat(req.body.grantDate);
     if (!_grantDate) {
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidGrantDate, details: req.body.grantDate });
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidGrantDate, details: req.body.grantDate });
     }
-    console.log("Request Enduser name: ", name);
+    console.log(`email: ${email}, certificateId: ${certificateNumber}, name: ${name}, course: ${courseName}, grantDate: ${_grantDate}, expirationDate: ${_expirationDate}, flag: ${flag}`)
+    // console.log("Request Enduser name: ", name);
     const issueResponse = await handleIssuance(email, certificateNumber, name, courseName, _grantDate, _expirationDate, flag);
     var responseDetails = issueResponse.details ? issueResponse.details : '';
     if (issueResponse.code == 200) {
-      return res.status(issueResponse.code).json({ status: issueResponse.status, message: issueResponse.message, qrCodeImage: issueResponse.qrCodeImage, polygonLink: issueResponse.polygonLink, details: responseDetails });
+      return res.status(issueResponse.code).json({ code: issueResponse.code, status: issueResponse.status, message: issueResponse.message, qrCodeImage: issueResponse.qrCodeImage, polygonLink: issueResponse.polygonLink, details: responseDetails });
     }
 
-    res.status(issueResponse.code).json({ status: issueResponse.status, message: issueResponse.message, details: responseDetails });
+    res.status(issueResponse.code).json({ code: issueResponse.code, status: issueResponse.status, message: issueResponse.message, details: responseDetails });
   } catch (error) {
     // Handle any errors that occur during token verification or validation
     return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
@@ -415,7 +416,7 @@ const batchIssueCertificate = async (req, res) => {
     if (fs.existsSync(file)) {
       fs.unlinkSync(file);
     }
-    res.status(400).json({ status: "FAILED", message: errorMessage });
+    res.status(400).json({ code: 400, status: "FAILED", message: errorMessage });
     return;
   }
 
@@ -428,14 +429,14 @@ const batchIssueCertificate = async (req, res) => {
         existIssuerId = issuerExist.issuerId;
         let fetchCredits = await getIssuerServiceCredits(existIssuerId, 'issue');
         if (fetchCredits === true) {
-          return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaStatus });
+          return res.status(503).json({ code: 503, status: "FAILED", message: messageCode.msgIssuerQuotaStatus });
         }
         if (fetchCredits) {
         } else {
-          return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaExceeded });
+          return res.status(503).json({ code: 503, status: "FAILED", message: messageCode.msgIssuerQuotaExceeded });
         }
       } else {
-        return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidIssuerId });
+        return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidIssuerId });
       }
     }
   }
@@ -470,7 +471,7 @@ const batchIssueCertificate = async (req, res) => {
           errorMessage = messageCode.msgUnauthIssuer;
         }
 
-        res.status(400).json({ status: "FAILED", message: errorMessage, details: _details });
+        res.status(400).json({ code: 400, status: "FAILED", message: errorMessage, details: _details });
         return;
 
       } else {
@@ -523,7 +524,7 @@ const batchIssueCertificate = async (req, res) => {
           const isPaused = await newContract.paused();
           // Check if the Issuer wallet address is a valid Ethereum address
           if (!ethers.isAddress(idExist.issuerId)) {
-            return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidEthereum });
+            return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidEthereum });
           }
           const issuerAuthorized = await newContract.hasRole(process.env.ISSUER_ROLE, idExist.issuerId);
 
@@ -535,7 +536,7 @@ const batchIssueCertificate = async (req, res) => {
               messageContent = messageCode.msgIssuerUnauthrized;
             }
 
-            return res.status(400).json({ status: "FAILED", message: messageContent });
+            return res.status(400).json({ code: 400, status: "FAILED", message: messageContent });
           }
 
           // Generate the Merkle tree
@@ -657,6 +658,7 @@ const batchIssueCertificate = async (req, res) => {
             await updateIssuerServiceCredits(existIssuerId, 'issue');
 
             res.status(200).json({
+              code: 200, 
               status: "SUCCESS",
               message: messageCode.msgBatchIssuedSuccess,
               polygonLink: polygonLink,
@@ -671,21 +673,21 @@ const batchIssueCertificate = async (req, res) => {
           } catch (error) {
             // Handle mongoose connection error (log it, response an error, etc.)
             console.error(messageCode.msgInternalError, error);
-            return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+            return res.status(500).json({ code: 500, status: "FAILED", message: messageCode.msgInternalError, details: error });
           }
 
         } catch (error) {
           console.error('Error:', error);
-          return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
+          return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
         }
       }
     } catch (error) {
       console.error('Error:', error);
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidExcel, details: error });
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidExcel, details: error });
     }
   } catch (error) {
     console.error('Error:', error);
-    return res.status(400).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+    return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInternalError, details: error });
   }
 };
 
@@ -701,7 +703,7 @@ const dynamicBatchIssueCertificates = async (req, res) => {
   if (!req.file || !req.file.originalname.endsWith('.zip')) {
     // File path does not match the pattern
     const errorMessage = messageCode.msgMustZip;
-    res.status(400).json({ status: "FAILED", message: errorMessage });
+    res.status(400).json({ code: 400, status: "FAILED", message: errorMessage });
     // await cleanUploadFolder();
     if (fs.existsSync(file)) {
       fs.unlinkSync(file);
@@ -750,14 +752,14 @@ const dynamicBatchIssueCertificates = async (req, res) => {
           existIssuerId = issuerExist.issuerId;
           let fetchCredits = await getIssuerServiceCredits(existIssuerId, 'issue');
           if (fetchCredits === true) {
-            return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaStatus });
+            return res.status(503).json({ code: 503, status: "FAILED", message: messageCode.msgIssuerQuotaStatus });
           }
           if (fetchCredits) {
           } else {
-            return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaExceeded });
+            return res.status(503).json({ code: 503, status: "FAILED", message: messageCode.msgIssuerQuotaExceeded });
           }
         } else {
-          return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidIssuerId });
+          return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidIssuerId });
         }
       }
     }
@@ -770,7 +772,7 @@ const dynamicBatchIssueCertificates = async (req, res) => {
       if (!paramsExist) {
         messageContent = messageCode.msgInvalidParams;
       }
-      res.status(400).json({ status: "FAILED", message: messageContent, details: email });
+      res.status(400).json({ code: 400, status: "FAILED", message: messageContent, details: email });
       return;
     }
 
@@ -778,7 +780,7 @@ const dynamicBatchIssueCertificates = async (req, res) => {
     const stats = fs.statSync(filePath);
     var zipFileSize = parseInt(stats.size);
     if (zipFileSize <= 100) {
-      res.status(400).json({ status: "FAILED", message: messageCode.msgUnableToFindFiles });
+      res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUnableToFindFiles });
       // await cleanUploadFolder();
       await wipeUploadFolder();
       return;
@@ -811,7 +813,7 @@ const dynamicBatchIssueCertificates = async (req, res) => {
     }
 
     if (filesList.length == 0 || filesList.length == 1) {
-      res.status(400).json({ status: "FAILED", message: messageCode.msgUnableToFindFiles });
+      res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUnableToFindFiles });
       // await cleanUploadFolder();
       await wipeUploadFolder();
       return;
@@ -824,7 +826,7 @@ const dynamicBatchIssueCertificates = async (req, res) => {
     });
 
     if (xlsxFiles.length == 0) {
-      res.status(400).json({ status: "FAILED", message: messageCode.msgUnableToFindExcelFiles });
+      res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUnableToFindExcelFiles });
       // await cleanUploadFolder();
       await wipeUploadFolder();
       return;
@@ -837,7 +839,7 @@ const dynamicBatchIssueCertificates = async (req, res) => {
     });
 
     if (pdfFiles.length == 0) {
-      res.status(400).json({ status: "FAILED", message: messageCode.msgUnableToFindPdfFiles });
+      res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUnableToFindPdfFiles });
       // await cleanUploadFolder();
       await wipeUploadFolder();
       return;
@@ -851,7 +853,7 @@ const dynamicBatchIssueCertificates = async (req, res) => {
     // await _fs.remove(filePath);
     if (excelData.response == false) {
       var errorDetails = (excelData.Details).length > 0 ? excelData.Details : "";
-      res.status(400).json({ status: "FAILED", message: excelData.message, details: errorDetails });
+      res.status(400).json({ code: 400, status: "FAILED", message: excelData.message, details: errorDetails });
       // await cleanUploadFolder();
       await wipeUploadFolder();
       return;
@@ -873,14 +875,14 @@ const dynamicBatchIssueCertificates = async (req, res) => {
       }
     }
     if (certsExist.length > 0) {
-      res.status(400).json({ status: "FAILED", message: messageCode.msgExcelHasExistingIds, details: certsExist });
+      res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgExcelHasExistingIds, details: certsExist });
       // await cleanUploadFolder();
       await wipeUploadFolder();
       return;
     }
 
     if ((pdfFiles.length != matchedCerts.length) || (matchedCerts.length != excelData.message[1])) {
-      res.status(400).json({ status: "FAILED", message: messageCode.msgInputRecordsNotMatched });
+      res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInputRecordsNotMatched });
       // await cleanUploadFolder();
       await wipeUploadFolder();
       return;
@@ -925,7 +927,7 @@ const dynamicBatchIssueCertificates = async (req, res) => {
         errorMessage = messageCode.msgInvalidPdfDimensions;
         errorDetails = pdfTemplateValidation;
       }
-      res.status(400).json({ status: "FAILED", message: errorMessage, details: errorDetails });
+      res.status(400).json({ code: 400, status: "FAILED", message: errorMessage, details: errorDetails });
       // await cleanUploadFolder();
       await wipeUploadFolder();
       return;
@@ -1010,7 +1012,7 @@ const dynamicBatchIssueCertificates = async (req, res) => {
         var statusCode = bulkIssueResponse.code || 400;
         var statusMessage = bulkIssueResponse.message || messageCode.msgFailedToIssueBulkCerts;
         var statusDetails = bulkIssueResponse.Details || "";
-        res.status(statusCode).json({ status: "FAILED", message: statusMessage, details: statusDetails });
+        res.status(statusCode).json({ code: statusCode, status: "FAILED", message: statusMessage, details: statusDetails });
         await wipeUploadFolder();
         // await flushUploadFolder();
         return;
@@ -1027,7 +1029,7 @@ const dynamicBatchIssueCertificates = async (req, res) => {
         width: paramsExist.pdfWidth,
         urls: bulkIssueResponse.Details
       }
-      res.status(bulkIssueResponse.code).json({ status: "SUCCESS", message: messageCode.msgBatchIssuedSuccess, details: bulkResponse });
+      res.status(bulkIssueResponse.code).json({ code: bulkIssueResponse.code, status: "SUCCESS", message: messageCode.msgBatchIssuedSuccess, details: bulkResponse });
       await cleanUploadFolder();
       // await flushUploadFolder();
       return;
@@ -1035,14 +1037,14 @@ const dynamicBatchIssueCertificates = async (req, res) => {
       var statusCode = bulkIssueResponse.code || 400;
       var statusMessage = bulkIssueResponse.message || messageCode.msgFailedToIssueBulkCerts;
       var statusDetails = bulkIssueResponse.Details || "";
-      res.status(statusCode).json({ status: "FAILED", message: statusMessage, details: statusDetails });
+      res.status(statusCode).json({ code: statusCode, status: "FAILED", message: statusMessage, details: statusDetails });
       await wipeUploadFolder();
       // await flushUploadFolder();
       return;
     }
 
   } catch (error) {
-    res.status(400).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+    res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInternalError, details: error });
     return;
   }
 };
@@ -1074,13 +1076,13 @@ const acceptDynamicInputs = async (req, res) => {
   const qrSide = parseInt(req.body.qrside);
 
   if (!email || !positionx || !positiony || !qrSide) {
-    res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidInput, details: email });
+    res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidInput, details: email });
     return;
   }
 
   var isIssuerExist = await User.findOne({ email: email });
   if (!isIssuerExist) {
-    res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidIssuer, details: email });
+    res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidIssuer, details: email });
     return;
   }
 
@@ -1095,7 +1097,7 @@ const acceptDynamicInputs = async (req, res) => {
     if (fs.existsSync(file)) {
       fs.unlinkSync(file);
     }
-    res.status(400).json({ status: "FAILED", message: messageContent, details: email });
+    res.status(400).json({ code: 400, status: "FAILED", message: messageContent, details: email });
     return;
   }
 
@@ -1133,11 +1135,11 @@ const acceptDynamicInputs = async (req, res) => {
       if (fs.existsSync(file)) {
         fs.unlinkSync(file);
       }
-      res.status(200).json({ status: "SUCCESS", message: messageCode.msgUnderConstruction, details: isParamsExist });
+      res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgUnderConstruction, details: isParamsExist });
       return;
     }
   } catch (error) {
-    res.status(400).json({ status: "FAILED", message: messageCode.msgDbNotReady, details: error });
+    res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgDbNotReady, details: error });
     return;
   }
 };
@@ -1153,7 +1155,7 @@ const validateDynamicBulkIssueDocuments = async (req, res) => {
   if (!req.file || !req.file.originalname.endsWith('.zip')) {
     // File path does not match the pattern
     const errorMessage = messageCode.msgMustZip;
-    res.status(400).json({ status: "FAILED", message: errorMessage });
+    res.status(400).json({ code: 400, status: "FAILED", message: errorMessage });
     // await cleanUploadFolder();
     if (req.file) {
       if (fs.existsSync(req.file.path)) {
@@ -1185,14 +1187,14 @@ const validateDynamicBulkIssueDocuments = async (req, res) => {
       if (!paramsExist) {
         messageContent = messageCode.msgInvalidParams;
       }
-      res.status(400).json({ status: "FAILED", message: messageContent, details: email });
+      res.status(400).json({ code: 400, status: "FAILED", message: messageContent, details: email });
       return;
     }
     // Function to check if a file is empty
     const stats = fs.statSync(filePath);
     var zipFileSize = parseInt(stats.size);
     if (zipFileSize <= 100) {
-      res.status(400).json({ status: "FAILED", message: messageCode.msgUnableToFindFiles });
+      res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUnableToFindFiles });
       // if (fs.existsSync(file)) {
       //   fs.unlinkSync(file);
       // }
@@ -1209,7 +1211,7 @@ const validateDynamicBulkIssueDocuments = async (req, res) => {
       readStream.pipe(unzipper.Extract({ path: extractionPath }))
         .on('error', err => {
           console.error('Error extracting zip file:', err);
-          res.status(400).json({ status: "FAILED", message: messageCode.msgUnableToFindFiles, details: err });
+          res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUnableToFindFiles, details: err });
           reject(err);
         })
         .on('finish', () => {
@@ -1226,7 +1228,7 @@ const validateDynamicBulkIssueDocuments = async (req, res) => {
     console.log("response3", filesList, filesList.length);
     // return res.status(200).json({ status: "FAILED", message: messageCode.msgWorkInProgress });
     if (filesList.length < 2) {
-      res.status(400).json({ status: "FAILED", message: messageCode.msgUnableToFindFiles });
+      res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUnableToFindFiles });
       // await cleanUploadFolder();
       await wipeUploadFolder();
       return;
@@ -1238,7 +1240,7 @@ const validateDynamicBulkIssueDocuments = async (req, res) => {
     });
 
     if (xlsxFiles.length == 0) {
-      res.status(400).json({ status: "FAILED", message: messageCode.msgUnableToFindExcelFiles });
+      res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUnableToFindExcelFiles });
       // await cleanUploadFolder();
       await wipeUploadFolder();
       return;
@@ -1251,7 +1253,7 @@ const validateDynamicBulkIssueDocuments = async (req, res) => {
     });
 
     if (pdfFiles.length == 0) {
-      res.status(400).json({ status: "FAILED", message: messageCode.msgUnableToFindPdfFiles });
+      res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUnableToFindPdfFiles });
       await cleanUploadFolder();
       return;
     }
@@ -1265,7 +1267,7 @@ const validateDynamicBulkIssueDocuments = async (req, res) => {
 
     if (excelData.response == false) {
       var errorDetails = (excelData.Details).length > 0 ? excelData.Details : "";
-      res.status(400).json({ status: "FAILED", message: excelData.message, details: errorDetails });
+      res.status(400).json({ code: 400, status: "FAILED", message: excelData.message, details: errorDetails });
       // await cleanUploadFolder();
       await wipeUploadFolder();
       return;
@@ -1287,14 +1289,14 @@ const validateDynamicBulkIssueDocuments = async (req, res) => {
       }
     }
     if (certsExist.length > 0) {
-      res.status(400).json({ status: "FAILED", message: messageCode.msgExcelHasExistingIds, details: certsExist });
+      res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgExcelHasExistingIds, details: certsExist });
       // await cleanUploadFolder();
       await wipeUploadFolder();
       return;
     }
 
     if ((pdfFiles.length != matchedCerts.length) || (matchedCerts.length != excelData.message[1])) {
-      res.status(400).json({ status: "FAILED", message: messageCode.msgInputRecordsNotMatched });
+      res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInputRecordsNotMatched });
       // await cleanUploadFolder();
       await wipeUploadFolder();
       return;
@@ -1339,18 +1341,18 @@ const validateDynamicBulkIssueDocuments = async (req, res) => {
         errorMessage = messageCode.msgInvalidPdfDimensions;
         errorDetails = pdfTemplateValidation;
       }
-      res.status(400).json({ status: "FAILED", message: errorMessage, details: errorDetails });
+      res.status(400).json({ code: 400, status: "FAILED", message: errorMessage, details: errorDetails });
       // await cleanUploadFolder();
       await wipeUploadFolder();
       return;
     }
 
-    res.status(200).json({ status: "SUCCESS", message: messageCode.msgValidDocumentsUploaded, details: email });
+    res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgValidDocumentsUploaded, details: email });
     await wipeUploadFolder();
     return;
 
   } catch (error) {
-    res.status(400).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+    res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInternalError, details: error });
     await wipeUploadFolder();
     return;
   }

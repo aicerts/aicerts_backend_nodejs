@@ -53,7 +53,7 @@ const excelReportHeaders = [
 const renewCert = async (req, res) => {
     let validResult = validationResult(req);
     if (!validResult.isEmpty()) {
-        return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+        return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
     }
     try {
         // Extracting required data from the request body
@@ -70,14 +70,14 @@ const renewCert = async (req, res) => {
                     existIssuerId = issuerExist.issuerId;
                     let fetchCredits = await getIssuerServiceCredits(existIssuerId, 'renew');
                     if (fetchCredits === true) {
-                        return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaStatus });
+                        return res.status(503).json({ code: 503, status: "FAILED", message: messageCode.msgIssuerQuotaStatus });
                     }
                     if (fetchCredits) {
                     } else {
-                        return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaExceeded });
+                        return res.status(503).json({ code: 503, status: "FAILED", message: messageCode.msgIssuerQuotaExceeded });
                     }
                 } else {
-                    return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidIssuerId });
+                    return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidIssuerId });
                 }
             }
         }
@@ -88,7 +88,7 @@ const renewCert = async (req, res) => {
             _expirationDate = await convertDateFormat(req.body.expirationDate);
         }
         if (_expirationDate == null) {
-            res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidExpirationDate, details: req.body.expirationDate });
+            res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidExpirationDate, details: req.body.expirationDate });
             return;
         }
 
@@ -97,12 +97,12 @@ const renewCert = async (req, res) => {
         if (renewResponse.code == 200) {
             // Update Issuer credits limit (decrease by 1)
             await updateIssuerServiceCredits(existIssuerId, 'renew');
-            return res.status(renewResponse.code).json({ status: renewResponse.status, message: renewResponse.message, qrCodeImage: renewResponse.qrCodeImage, polygonLink: renewResponse.polygonLink, details: responseDetails });
+            return res.status(renewResponse.code).json({ code: renewResponse.code, status: renewResponse.status, message: renewResponse.message, qrCodeImage: renewResponse.qrCodeImage, polygonLink: renewResponse.polygonLink, details: responseDetails });
         }
-        res.status(renewResponse.code).json({ status: renewResponse.status, message: renewResponse.message, details: responseDetails });
+        res.status(renewResponse.code).json({ code: renewResponse.code, status: renewResponse.status, message: renewResponse.message, details: responseDetails });
     } catch (error) {
         // Handle any errors that occur during token verification or validation
-        return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
+        return res.status(500).json({ code: 500, status: "FAILED", message: messageCode.msgInternalError });
     }
 };
 
@@ -115,7 +115,7 @@ const renewCert = async (req, res) => {
 const updateCertStatus = async (req, res) => {
     let validResult = validationResult(req);
     if (!validResult.isEmpty()) {
-        return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+        return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
     }
 
     try {
@@ -135,14 +135,14 @@ const updateCertStatus = async (req, res) => {
                     existIssuerId = issuerExist.issuerId;
                     let fetchCredits = await getIssuerServiceCredits(existIssuerId, serviceStatus);
                     if (fetchCredits === true) {
-                        return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaStatus });
+                        return res.status(503).json({ code: 503, status: "FAILED", message: messageCode.msgIssuerQuotaStatus });
                     }
                     if (fetchCredits) {
                     } else {
-                        return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaExceeded });
+                        return res.status(503).json({ code: 503, status: "FAILED", message: messageCode.msgIssuerQuotaExceeded });
                     }
                 } else {
-                    return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidIssuerId });
+                    return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidIssuerId });
                 }
             }
         }
@@ -151,11 +151,11 @@ const updateCertStatus = async (req, res) => {
         const responseDetails = updateResponse.details ? updateResponse.details : '';
         // Update Issuer credits limit (decrease by 1)
         await updateIssuerServiceCredits(existIssuerId, serviceStatus);
-        return res.status(updateResponse.code).json({ status: updateResponse.status, message: updateResponse.message, details: responseDetails });
+        return res.status(updateResponse.code).json({ code: updateResponse.code, status: updateResponse.status, message: updateResponse.message, details: responseDetails });
 
     } catch (error) {
         // Handle any errors that occur during token verification or validation
-        return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
+        return res.status(500).json({ code: 500, status: "FAILED", message: messageCode.msgInternalError });
     }
 };
 
@@ -168,7 +168,7 @@ const updateCertStatus = async (req, res) => {
 const renewBatchCertificate = async (req, res) => {
     let validResult = validationResult(req);
     if (!validResult.isEmpty()) {
-        return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+        return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
     }
 
     try {
@@ -190,30 +190,30 @@ const renewBatchCertificate = async (req, res) => {
                     existIssuerId = issuerExist.issuerId;
                     let fetchCredits = await getIssuerServiceCredits(existIssuerId, 'renew');
                     if (fetchCredits === true) {
-                        return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaStatus });
+                        return res.status(503).json({ code: 503, status: "FAILED", message: messageCode.msgIssuerQuotaStatus });
                     }
                     if (fetchCredits) {
                     } else {
-                        return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaExceeded });
+                        return res.status(503).json({ code: 503, status: "FAILED", message: messageCode.msgIssuerQuotaExceeded });
                     }
                 } else {
-                    return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidIssuerId });
+                    return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidIssuerId });
                 }
             }
         }
 
         const batchResponse = await handleRenewBatchOfCertifications(email, batchId, expirationDate);
         if (!batchResponse) {
-            return res.status(400).json({ status: "FAILED", message: messageCode.msgInternalError });
+            return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInternalError });
         }
         // Update Issuer credits limit (decrease by 1)
         await updateIssuerServiceCredits(existIssuerId, 'renew');
         let responseDetails = batchResponse.details ? batchResponse.details : '';
-        return res.status(batchResponse.code).json({ status: batchResponse.status, message: batchResponse.message, details: responseDetails });
+        return res.status(batchResponse.code).json({ code: batchResponse.code, status: batchResponse.status, message: batchResponse.message, details: responseDetails });
 
     } catch (error) {
         // Handle any errors that occur during token verification or validation
-        return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
+        return res.status(500).json({ code: 500, status: "FAILED", message: messageCode.msgInternalError });
     }
 };
 
@@ -226,7 +226,7 @@ const renewBatchCertificate = async (req, res) => {
 const updateBatchStatus = async (req, res) => {
     let validResult = validationResult(req);
     if (!validResult.isEmpty()) {
-        return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+        return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
     }
 
     try {
@@ -248,30 +248,30 @@ const updateBatchStatus = async (req, res) => {
                     existIssuerId = issuerExist.issuerId;
                     let fetchCredits = await getIssuerServiceCredits(existIssuerId, serviceStatus);
                     if (fetchCredits === true) {
-                        return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaStatus });
+                        return res.status(503).json({ code: 503, status: "FAILED", message: messageCode.msgIssuerQuotaStatus });
                     }
                     if (fetchCredits) {
                     } else {
-                        return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaExceeded });
+                        return res.status(503).json({ code: 503, status: "FAILED", message: messageCode.msgIssuerQuotaExceeded });
                     }
                 } else {
-                    return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidIssuerId });
+                    return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidIssuerId });
                 }
             }
         }
 
         const batchStatusResponse = await handleUpdateBatchCertificationStatus(email, batchId, batchStatus);
         if (!batchStatusResponse) {
-            return res.status(400).json({ status: "FAILED", message: messageCode.msgInternalError });
+            return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInternalError });
         }
         // Update Issuer credits limit (decrease by 1)
         await updateIssuerServiceCredits(existIssuerId, serviceStatus);
         const responseDetails = batchStatusResponse.details ? batchStatusResponse.details : '';
-        return res.status(batchStatusResponse.code).json({ status: batchStatusResponse.status, message: batchStatusResponse.message, details: responseDetails });
+        return res.status(batchStatusResponse.code).json({ code: batchStatusResponse.code, status: batchStatusResponse.status, message: batchStatusResponse.message, details: responseDetails });
 
     } catch (error) {
         // Handle any errors that occur during token verification or validation
-        return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
+        return res.status(500).json({ code: 500, status: "FAILED", message: messageCode.msgInternalError });
     }
 };
 
@@ -289,7 +289,7 @@ const convertIntoExcel = async (req, res) => {
         // File path does not match the pattern
         let errorMessage = messageCode.msgInvalidFile;
         await cleanUploadFolder();
-        res.status(400).json({ status: "FAILED", message: errorMessage, details: req.file });
+        res.status(400).json({ code: 400, status: "FAILED", message: errorMessage, details: req.file });
         return;
     }
     let originalName = req.file.originalname;
@@ -302,7 +302,7 @@ const convertIntoExcel = async (req, res) => {
         if (dbStatus) {
             let isEmailExist = await User.findOne({ email: email });
             if (!isEmailExist) {
-                res.status(400).json({ status: "FAILED", message: messageCode.msgUserEmailNotFound, details: email });
+                res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUserEmailNotFound, details: email });
                 return;
             }
 
@@ -313,7 +313,7 @@ const convertIntoExcel = async (req, res) => {
             // console.log("The response", targetFileBuffer);
 
             if (!targetFileBuffer || targetFileBuffer == null) {
-                res.status(400).json({ status: "FAILED", message: messageCode.msgUnableToConvert });
+                res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUnableToConvert });
                 await cleanUploadFolder();
                 return;
             }
@@ -332,7 +332,7 @@ const convertIntoExcel = async (req, res) => {
         }
     } catch (error) {
         await cleanUploadFolder();
-        res.status(400).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+        res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInternalError, details: error });
         return;
     }
 
@@ -353,7 +353,7 @@ const generateExcelReport = async (req, res) => {
         if (dbStatus) {
             let isEmailExist = await User.findOne({ email: email });
             if (!isEmailExist) {
-                res.status(400).json({ status: "FAILED", message: messageCode.msgUserEmailNotFound, details: email });
+                res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUserEmailNotFound, details: email });
                 return;
             }
 
@@ -379,7 +379,7 @@ const generateExcelReport = async (req, res) => {
                 const jsonResponse = JSON.stringify(formattedData, null, 2);
 
                 if (!jsonResponse) {
-                    res.status(400).json({ status: "FAILED", message: messageCode.msgUnableToConvert });
+                    res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUnableToConvert });
                     return;
                 }
 
@@ -402,7 +402,7 @@ const generateExcelReport = async (req, res) => {
                 // console.log("The response", targetFileBuffer);
 
                 if (!targetFileBuffer) {
-                    res.status(400).json({ status: "FAILED", message: messageCode.msgUnableToConvert });
+                    res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUnableToConvert });
                     return;
                 }
 
@@ -417,14 +417,13 @@ const generateExcelReport = async (req, res) => {
                 res.send(targetFileBuffer);
                 return;
             } else {
-                res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidFlag });
+                res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidFlag });
                 return;
             }
-
         }
     } catch (error) {
         await cleanUploadFolder();
-        res.status(400).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+        res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInternalError, details: error });
         return;
     }
 

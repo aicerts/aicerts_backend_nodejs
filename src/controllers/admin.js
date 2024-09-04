@@ -28,7 +28,7 @@ var messageCode = require("../common/codes");
 const signup = async (req, res) => {
   var validResult = validationResult(req);
   if (!validResult.isEmpty()) {
-    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid ,details: validResult.array() });
+    return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid ,details: validResult.array() });
   }
   // Extracting name, email, and password from the request body
   let { name, email, password } = req.body;
@@ -48,6 +48,7 @@ const signup = async (req, res) => {
       if (existingAdmin) {
         // Admin with the provided email already exists
         res.json({
+          code: 400, 
           status: "FAILED",
           message: messageCode.msgAdminMailExist,
         });
@@ -68,13 +69,14 @@ const signup = async (req, res) => {
 
       const savedAdmin = await newAdmin.save();
       res.json({
+        code: 200, 
         status: "SUCCESS",
         message: messageCode.msgSignupSuccess,
         data: savedAdmin,
       });
     } catch (error) {
       // An error occurred during signup process
-      return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+      return res.status(500).json({ code: 500, status: "FAILED", message: messageCode.msgInternalError, details: error });
     }
 
 };
@@ -88,7 +90,7 @@ const signup = async (req, res) => {
 const login = async (req, res) => {
   var validResult = validationResult(req);
   if (!validResult.isEmpty()) {
-    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid ,details: validResult.array() });
+    return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid ,details: validResult.array() });
   }
   let { email, password } = req.body;
 
@@ -122,6 +124,7 @@ const login = async (req, res) => {
 
                 // Respond with success message and user details
                 res.status(200).json({
+                  code: 200, 
                   status: "SUCCESS",
                   message: messageCode.msgValidCredentials,
                   data: {
@@ -135,6 +138,7 @@ const login = async (req, res) => {
               } else {
                 // Incorrect password
                 res.json({
+                  code: 401, 
                   status: "FAILED",
                   message: messageCode.msgInvalidPassword,
                 });
@@ -143,6 +147,7 @@ const login = async (req, res) => {
             .catch((err) => {
               // Error occurred while comparing passwords
               res.json({
+                code: 401, 
                 status: "FAILED",
                 message: messageCode.msgErrorOnPwdCompare,
               });
@@ -151,6 +156,7 @@ const login = async (req, res) => {
         } else {
           // User with provided email not found
           res.json({
+            code: 400, 
             status: "FAILED",
             message: messageCode.msgInvalidCredentials,
           });
@@ -159,6 +165,7 @@ const login = async (req, res) => {
       .catch((err) => {
         // Error occurred during login process
         res.json({
+          code: 400, 
           status: "FAILED",
           message: messageCode.msgErrorOnExistUser,
         });
@@ -174,7 +181,7 @@ const login = async (req, res) => {
 const logout = async (req, res) => {
   var validResult = validationResult(req);
   if (!validResult.isEmpty()) {
-    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid ,details: validResult.array() });
+    return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid ,details: validResult.array() });
   }
   let { email } = req.body;
   try {
@@ -189,6 +196,7 @@ const logout = async (req, res) => {
     // If admin doesn't exist, or if they are not logged in, return failure response
     if (!existingAdmin) {
       return res.json({
+        code: 400, 
         status: 'FAILED',
         message: messageCode.msgAdminNotFound,
       });
@@ -201,6 +209,7 @@ const logout = async (req, res) => {
 
     // Respond with success message upon successful logout
     res.json({
+      code: 200, 
       status: "SUCCESS",
       message: messageCode.msgLogoutSuccess
     });
@@ -208,6 +217,7 @@ const logout = async (req, res) => {
   } catch (error) {
     // Error occurred during logout process, respond with failure message
     res.json({
+      code: 400, 
       status: 'FAILED',
       message: messageCode.msgErrorInLogout
     });
@@ -223,7 +233,7 @@ const logout = async (req, res) => {
 const resetPassword = async (req, res) => {
   var validResult = validationResult(req);
   if (!validResult.isEmpty()) {
-    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid ,details: validResult.array() });
+    return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid ,details: validResult.array() });
   }
   let { email, password } = req.body;
   try {
@@ -238,6 +248,7 @@ const resetPassword = async (req, res) => {
     // If admin doesn't exist, return failure response
     if (!admin) {
       return res.json({
+        code: 400, 
         status: 'FAILED',
         message: messageCode.msgAdminNotFound,
       });
@@ -247,6 +258,7 @@ const resetPassword = async (req, res) => {
     const isSamePassword = await bcrypt.compare(password, admin.password);
     if (isSamePassword) {
       return res.json({
+        code: 400, 
         status: 'FAILED',
         message: messageCode.msgPwdNotSame
       });
@@ -265,6 +277,7 @@ const resetPassword = async (req, res) => {
           .then(() => {
             // Password reset successful, respond with success message
             res.json({
+              code: 200, 
               status: "SUCCESS",
               message: messageCode.msgPwdSuccess
             });
@@ -272,6 +285,7 @@ const resetPassword = async (req, res) => {
           .catch((err) => {
             // Error occurred while saving user account, respond with failure message
             res.json({
+              code: 400, 
               status: "FAILED",
               message: messageCode.msgErrorOnUser
             });
@@ -280,6 +294,7 @@ const resetPassword = async (req, res) => {
       .catch((err) => {
         // Error occurred while hashing password, respond with failure message
         res.json({
+          code: 400, 
           status: "FAILED",
           message: messageCode.msgErrorOnHashing
         });
@@ -288,6 +303,7 @@ const resetPassword = async (req, res) => {
   } catch (error) {
     // Error occurred during password reset process, respond with failure message
     res.json({
+      code: 400, 
       status: 'FAILED',
       message: messageCode.msgErrorOnPwdReset
     });

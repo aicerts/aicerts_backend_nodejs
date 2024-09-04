@@ -64,7 +64,7 @@ const polygonLink = async (req, res) => {
 const validateIssuer = async (req, res) => {
   var validResult = validationResult(req);
   if (!validResult.isEmpty()) {
-    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+    return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
   let validationStatus = req.body.status;
   let email = req.body.email;
@@ -80,7 +80,7 @@ const validateIssuer = async (req, res) => {
     } else if (!userExist) {
       var defaultMessage = messageCode.msgUserNotFound;
     }
-    return res.status(400).json({ status: "FAILED", message: defaultMessage });
+    return res.status(400).json({ code: 400, status: "FAILED", message: defaultMessage });
   }
 
   try {
@@ -111,14 +111,14 @@ const validateIssuer = async (req, res) => {
             details: userExist
           });
         } else {
-          return res.status(400).json({ status: "FAILED", message: messageCode.msgRejecetedAlready });
+          return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgRejecetedAlready });
         }
       }
 
       else if (validationStatus == 1 && roleStatus === false) {
 
         if ((userExist.status == validationStatus) && (roleStatus == true)) {
-          res.status(400).json({ status: "FAILED", message: messageCode.msgExistedVerified });
+          res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgExistedVerified });
         }
 
         var grantedStatus;
@@ -126,7 +126,7 @@ const validateIssuer = async (req, res) => {
 
           var { txHash, polygonLink } = await grantOrRevokeRoleWithRetry("grant", process.env.ISSUER_ROLE, userExist.issuerId);
           if (!polygonLink || !txHash) {
-            return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedToGrantRoleRetry });
+            return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgFailedToGrantRoleRetry });
           }
           grantedStatus = "SUCCESS";
 
@@ -141,6 +141,7 @@ const validateIssuer = async (req, res) => {
           var _details = grantedStatus == "SUCCESS" ? _details = polygonLink : _details = "";
           // Respond with success message indicating user approval
           res.json({
+            code: 200, 
             status: "SUCCESS",
             email: mailresponse,
             grant: grantedStatus,
@@ -152,7 +153,7 @@ const validateIssuer = async (req, res) => {
       } else if (validationStatus == 2 && roleStatus === true) {
 
         if ((userExist.status == validationStatus) && (roleStatus == false)) {
-          res.status(400).json({ status: "FAILED", message: messageCode.msgExistRejectIssuer });
+          res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgExistRejectIssuer });
         }
 
         var revokedStatus;
@@ -160,7 +161,7 @@ const validateIssuer = async (req, res) => {
 
           var { txHash, polygonLink } = await grantOrRevokeRoleWithRetry("revoke", process.env.ISSUER_ROLE, userExist.issuerId);
           if (!polygonLink || !txHash) {
-            return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedToRevokeRoleRetry });
+            return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgFailedToRevokeRoleRetry });
           }
           revokedStatus = "SUCCESS";
 
@@ -176,10 +177,11 @@ const validateIssuer = async (req, res) => {
             var mailresponse = (mailStatus === true) ? "sent" : "NA";
             var _details = revokedStatus == "SUCCESS" ? _details = polygonLink : _details = "";
           } catch (error) {
-            return res.status(400).json({ status: "FAILED", message: mailresponse, details: error });
+            return res.status(400).json({ code: 400, status: "FAILED", message: mailresponse, details: error });
           }
           // Respond with success message indicating user rejected
           res.json({
+            code: 200, 
             status: "SUCCESS",
             email: mailresponse,
             revoke: revokedStatus,
@@ -189,17 +191,19 @@ const validateIssuer = async (req, res) => {
         }
       } else if (validationStatus == 1 && roleStatus === true) {
         res.json({
+          code: 200, 
           status: "SUCCESS",
           message: messageCode.msgIssuerApproveSuccess
         });
       }
     } catch (error) {
       // Error occurred during user approval process, respond with failure message
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
     }
   } catch (error) {
     // Error occurred during user approval process, respond with failure message
     res.json({
+      code: 400, 
       status: 'FAILED',
       message: messageCode.msgIssueInValidation,
       details: error
@@ -216,7 +220,7 @@ const validateIssuer = async (req, res) => {
 const addTrustedOwner = async (req, res) => {
   var validResult = validationResult(req);
   if (!validResult.isEmpty()) {
-    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+    return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
 
   // const { newOwnerAddress } = req.body;
@@ -226,7 +230,7 @@ const addTrustedOwner = async (req, res) => {
     const newAddress = req.body.address;
     // Validate Ethereum address format
     if (!ethers.isAddress(newAddress)) {
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidEthereum });
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidEthereum });
     }
 
     if (assignRole == 0 || assignRole == 1) {
@@ -239,19 +243,20 @@ const addTrustedOwner = async (req, res) => {
 
         if (response === true) {
           // Simulation failed, send failure response
-          return res.status(400).json({ status: "FAILED", message: messageCode.msgAddressExistBlockchain });
+          return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgAddressExistBlockchain });
         }
 
         var { txHash, polygonLink } = await grantOrRevokeRoleWithRetry("grant", assigningRole, newAddress);
 
         if (!polygonLink || !txHash) {
-          return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedToGrantRoleRetry });
+          return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgFailedToGrantRoleRetry });
         }
 
         const messageInfo = (assignRole == 0) ? messageCode.msgAdminGrant : messageCode.msgIssuerRoleGrant;
 
         // Prepare success response
         const responseMessage = {
+          code: 200, 
           status: "SUCCESS",
           message: messageInfo,
           details: `https://${process.env.NETWORK}/tx/${txHash}`
@@ -261,13 +266,13 @@ const addTrustedOwner = async (req, res) => {
         res.status(200).json(responseMessage);
       } catch (error) {
         // Error occurred during user approval process, respond with failure message
-        return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
+        return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
       }
     }
   } catch (error) {
     // Internal server error occurred, send failure response
     console.error(error);
-    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+    return res.status(500).json({ code: 500, status: "FAILED", message: messageCode.msgInternalError, details: error });
   }
 };
 
@@ -280,7 +285,7 @@ const addTrustedOwner = async (req, res) => {
 const removeTrustedOwner = async (req, res) => {
   var validResult = validationResult(req);
   if (!validResult.isEmpty()) {
-    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+    return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
 
   // const { newOwnerAddress } = req.body;
@@ -291,7 +296,7 @@ const removeTrustedOwner = async (req, res) => {
 
     // Check if the target address is a valid Ethereum address
     if (!ethers.isAddress(newAddress)) {
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidEthereum });
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidEthereum });
     }
 
     if (assignRole == 0 || assignRole == 1) {
@@ -303,18 +308,19 @@ const removeTrustedOwner = async (req, res) => {
         const response = await newContract.hasRole(assigningRole, newAddress);
 
         if (response === false) {
-          return res.status(400).json({ status: "FAILED", message: messageCode.msgAddressNotExistBlockchain });
+          return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgAddressNotExistBlockchain });
         }
 
         var { txHash, polygonLink } = await grantOrRevokeRoleWithRetry("revoke", assigningRole, newAddress);
         if (!polygonLink || !txHash) {
-          return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedToRevokeRoleRetry });
+          return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgFailedToRevokeRoleRetry });
         }
 
         const messageInfo = (assignRole == 0) ? messageCode.msgAdminRevoke : messageCode.msgIssuerRoleRevoke;
 
         // Prepare success response
         const responseMessage = {
+          code: 200, 
           status: "SUCCESS",
           message: messageInfo,
           details: `https://${process.env.NETWORK}/tx/${txHash}`
@@ -323,13 +329,13 @@ const removeTrustedOwner = async (req, res) => {
         res.status(200).json(responseMessage);
       } catch (error) {
         // Error occurred during user approval process, respond with failure message
-        return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
+        return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
       }
     }
   } catch (error) {
     // Internal server error occurred, send failure response
     console.error(error);
-    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+    return res.status(500).json({ code: 500, status: "FAILED", message: messageCode.msgInternalError, details: error });
   }
 };
 
@@ -347,7 +353,7 @@ const checkBalance = async (req, res) => {
 
     // Check if the target address is a valid Ethereum address
     if (!ethers.isAddress(targetAddress)) {
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidEthereum });
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidEthereum });
     }
 
     // Get the balance of the target address in Wei
@@ -361,6 +367,8 @@ const checkBalance = async (req, res) => {
 
     // Prepare balance response
     const balanceResponse = {
+      code: 200,
+      status: "SUCCESS", 
       message: messageCode.msgBalanceCheck,
       balance: fixedDecimals,
     };
@@ -370,7 +378,7 @@ const checkBalance = async (req, res) => {
   } catch (error) {
     // Handle errors
     console.error(error);
-    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+    return res.status(500).json({ code: 500, status: "FAILED", message: messageCode.msgInternalError, details: error });
   }
 };
 
@@ -384,7 +392,7 @@ const checkBalance = async (req, res) => {
 const createAndValidateIssuerIdUponLogin = async (req, res) => {
   let validResult = validationResult(req);
   if (!validResult.isEmpty()) {
-    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+    return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
 
   const email = req.body.email;
@@ -409,7 +417,7 @@ const createAndValidateIssuerIdUponLogin = async (req, res) => {
       // Find user by email
       const userExist = await User.findOne({ email });
       if (!userExist) {
-        return res.status(400).json({ status: "FAILED", message: messageCode.msgUserNotFound });
+        return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUserNotFound });
       }
 
       var values = Object.values(userExist);
@@ -444,11 +452,11 @@ const createAndValidateIssuerIdUponLogin = async (req, res) => {
             if (!response) {
               var { txHash, polygonLink } = await grantOrRevokeRoleWithRetry("grant", process.env.ISSUER_ROLE, getIssuerId);
               if (!polygonLink || !txHash) {
-                return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedToGrantRoleRetry });
+                return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgFailedToGrantRoleRetry });
               }
             }
           } catch (error) {
-            return res.status(500).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
+            return res.status(500).json({ code: 500, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
           }
 
           creditsExist = await ServiceAccountQuotas.find({ issuerId: getIssuerId });
@@ -480,7 +488,7 @@ const createAndValidateIssuerIdUponLogin = async (req, res) => {
             await Promise.all(insertPromises);
           }
 
-          return res.status(200).json({ status: "SUCCESS", message: messageCode.msgIssuerIdExist });
+          return res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgIssuerIdExist });
         }
 
         try {
@@ -491,12 +499,12 @@ const createAndValidateIssuerIdUponLogin = async (req, res) => {
           }
 
           if (!getNewId) {
-            return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidEthereum });
+            return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidEthereum });
           }
 
           var { txHash, polygonLink } = await grantOrRevokeRoleWithRetry("grant", process.env.ISSUER_ROLE, getNewId);
           if (!polygonLink || !txHash) {
-            return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedToGrantRoleRetry });
+            return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgFailedToGrantRoleRetry });
           }
 
           // Save verification details
@@ -531,10 +539,10 @@ const createAndValidateIssuerIdUponLogin = async (req, res) => {
           // Wait for all insert promises to resolve
           await Promise.all(insertPromises);
 
-          return res.status(200).json({ status: "SUCCESS", message: messageCode.msgIssuerApproveSuccess, details: polygonLink });
+          return res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgIssuerApproveSuccess, details: polygonLink });
 
         } catch (error) {
-          return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+          return res.status(500).json({ code: 500, status: "FAILED", message: messageCode.msgInternalError, details: error });
         }
       } else {
 
@@ -555,11 +563,11 @@ const createAndValidateIssuerIdUponLogin = async (req, res) => {
           if (!response) {
             var { txHash, polygonLink } = await grantOrRevokeRoleWithRetry("grant", process.env.ISSUER_ROLE, userExist.issuerId);
             if (!polygonLink || !txHash) {
-              return res.status(400).json({ status: "FAILED", message: messageCode.msgFailedToGrantRoleRetry });
+              return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgFailedToGrantRoleRetry });
             }
           }
         } catch (error) {
-          return res.status(500).json({ status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
+          return res.status(500).json({ code: 500, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
         }
 
         creditsExist = await ServiceAccountQuotas.find({ issuerId: userExist.issuerId });
@@ -591,15 +599,15 @@ const createAndValidateIssuerIdUponLogin = async (req, res) => {
             await Promise.all(insertPromises);
           }
 
-        return res.status(200).json({ status: "SUCCESS", message: messageCode.msgIssuerIdExist });
+        return res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgIssuerIdExist });
       }
     } else {
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgDbNotReady });
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgDbNotReady });
     }
   } catch (error) {
     // Handle errors
     console.error(error);
-    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+    return res.status(500).json({ code: 500, status: "FAILED", message: messageCode.msgInternalError, details: error });
   }
 };
 
@@ -613,7 +621,7 @@ const createAndValidateIssuerIdUponLogin = async (req, res) => {
 const allocateCredits = async (req, res) => {
   let validResult = validationResult(req);
   if (!validResult.isEmpty()) {
-    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+    return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
   const email = req.body.email;
   const activeStatus = req.body.status;
@@ -631,14 +639,14 @@ const allocateCredits = async (req, res) => {
   var credits = parseInt(_credits);
 
   if(credits > maxCreditLimit){
-    return res.status(400).json({ status: "FAILED", message: messageCode.msgValidCredits });
+    return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgValidCredits });
   }
 
   // Determine serviceName based on service code input
   const serviceName = creditToServiceName[service] || null;
 
   if (!serviceName) {
-    return res.status(400).json({ status: "FAILED", message: messageCode.msgProvideValidService });
+    return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgProvideValidService });
   }
 
   try {
@@ -649,7 +657,7 @@ const allocateCredits = async (req, res) => {
       const issuerExist = await User.findOne({ email: email }).select('-password');
 
       if (!issuerExist || !issuerExist.issuerId) {
-        return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidIssuer });
+        return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidIssuer });
       }
 
       var fetchServiceQuota = await ServiceAccountQuotas.findOne({
@@ -658,11 +666,11 @@ const allocateCredits = async (req, res) => {
       });
 
       if (!fetchServiceQuota) {
-        return res.status(400).json({ status: "FAILED", message: messageCode.msgFetchQuotaFailed });
+        return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgFetchQuotaFailed });
       }
 
       if(fetchServiceQuota.status == false && credits > 0){
-        return res.status(400).json({ status: "FAILED", message: `${messageCode.msgNoCreditsForService} : ${creditToServiceName[service]}` });
+        return res.status(400).json({ code: 400, status: "FAILED", message: `${messageCode.msgNoCreditsForService} : ${creditToServiceName[service]}` });
       }
 
       const newLimit = fetchServiceQuota.limit > 0 ? fetchServiceQuota.limit + credits : credits;
@@ -679,16 +687,16 @@ const allocateCredits = async (req, res) => {
 
       let messageContent = activeStatus == true ? messageCode.msgCreditsUpdatedSuccess : `${messageCode.msgIssuerQuotaStatus}:${serviceName}`;
 
-      return res.status(200).json({ status: "SUCCESS", message: messageContent, details: updatedDetails });
+      return res.status(200).json({ code: 200, status: "SUCCESS", message: messageContent, details: updatedDetails });
       // const userExist
     } else {
-      return res.status(400).json({ status: "FAILED", message: messageCode.msgDbNotReady });
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgDbNotReady });
     }
 
   } catch (error) {
     // Handle errors
     console.error(error);
-    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError, details: error });
+    return res.status(500).json({ code: 500, status: "FAILED", message: messageCode.msgInternalError, details: error });
   }
 }
 

@@ -496,8 +496,6 @@ const handleIssuance = async (email, certificateNumber, name, courseName, _grant
             return ({ code: 400, status: "FAILED", message: messageCode.msgFailedOpsAtBlockchain });
           }
           const polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
-          console.log("Response Enduser ID: ", fields.Certificate_Number);
-          console.log("Response Enduser name: ", fields.name);
           // Generate encrypted URL with certificate data
           const dataWithLink = { ...fields, polygonLink: polygonLink }
           const urlLink = generateEncryptedUrl(dataWithLink);

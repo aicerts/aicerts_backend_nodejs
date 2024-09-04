@@ -1476,6 +1476,24 @@ const getContractAddress = async (contractAddress) => {
   }
 };
 
+const checkTransactionStatus = async (transactionHash) => {
+  try {
+    // Get the transaction receipt
+    const receipt = await fallbackProvider.getTransactionReceipt(transactionHash);
+    if (receipt) {
+      // Return true if the transaction was successful
+      return receipt.status === 1;
+    } else {
+      // Return false if the transaction is not found
+      return false;
+    }
+  } catch (error) {
+    console.error('Error fetching transaction receipt:', error);
+    // Return false in case of any error
+    return false;
+  }
+}
+
 module.exports = {
 
   // Function to test contract response
@@ -1594,5 +1612,8 @@ module.exports = {
   rejectEmail,
 
   // Function to generate a new Ethereum account with a private key
-  generateAccount
+  generateAccount,
+
+  // Function to check transaction status for the verification
+  checkTransactionStatus,
 };
