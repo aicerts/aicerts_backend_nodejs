@@ -52,6 +52,7 @@ const upload = multer({ dest: "./uploads/" });
  *                 details:
  *                   type: object
  *             example:
+ *               code: 200.
  *               message: Certificate issued successfully.
  *               qrCodeImage: Base64-encoded QR code image.
  *               polygonLink: Link to the transaction on the Polygon network.
@@ -68,6 +69,7 @@ const upload = multer({ dest: "./uploads/" });
  *                 message:
  *                   type: string
  *             example:
+ *               code: 400.
  *               status: "FAILED"
  *               message: Error message for certificate already issued or invalid input.
  *       '401':
@@ -83,6 +85,10 @@ const upload = multer({ dest: "./uploads/" });
  *                 message:
  *                   type: string
  *                   description: Unauthorized access. No token provided.
+ *             example:
+ *               code: 401.
+ *               status: "FAILED"
+ *               message: Unauthorized access. No token provided.
  *       '422':
  *         description: User given invalid input (Unprocessable Entity)
  *         content:
@@ -95,6 +101,7 @@ const upload = multer({ dest: "./uploads/" });
  *                 message:
  *                   type: string
  *             example:
+ *               code: 422.
  *               status: "FAILED"
  *               message: Error message for invalid input.
  *       '500':
@@ -109,6 +116,7 @@ const upload = multer({ dest: "./uploads/" });
  *                 message:
  *                   type: string
  *             example:
+ *               code: 500.
  *               status: "FAILED"
  *               message: Internal server error.
  *       '503':
@@ -123,6 +131,7 @@ const upload = multer({ dest: "./uploads/" });
  *                 message:
  *                   type: string
  *             example:
+ *               code: 503.
  *               status: "FAILED"
  *               message: The service is temporarily unavailable due to inactive/insufficient credits. Please try again later.
  */
@@ -172,6 +181,7 @@ router.post('/renew-cert', validationRoute.renewIssue, ensureAuthenticated, admi
  *                 details:
  *                   type: object
  *             example:
+ *               code: 200.
  *               status: "SUCCESS"
  *               message: Certificate status updated successfully.
  *               details: Certificate details.
@@ -187,6 +197,7 @@ router.post('/renew-cert', validationRoute.renewIssue, ensureAuthenticated, admi
  *                 message:
  *                   type: string
  *             example:
+ *               code: 400.
  *               status: "FAILED"
  *               message: Error message for certificate status update input.
  *       '401':
@@ -202,6 +213,10 @@ router.post('/renew-cert', validationRoute.renewIssue, ensureAuthenticated, admi
  *                 message:
  *                   type: string
  *                   description: Unauthorized access. No token provided.
+ *             example:
+ *               code: 401.
+ *               status: "FAILED"
+ *               message: Unauthorized access. No token provided.
  *       '422':
  *         description: User given invalid input (Unprocessable Entity)
  *         content:
@@ -214,6 +229,7 @@ router.post('/renew-cert', validationRoute.renewIssue, ensureAuthenticated, admi
  *                 message:
  *                   type: string
  *             example:
+ *               code: 422.
  *               status: "FAILED"
  *               message: Error message for invalid input.
  *       '500':
@@ -228,6 +244,7 @@ router.post('/renew-cert', validationRoute.renewIssue, ensureAuthenticated, admi
  *                 message:
  *                   type: string
  *             example:
+ *               code: 500.
  *               status: "FAILED"
  *               message: Internal server error.
  *       '503':
@@ -242,6 +259,7 @@ router.post('/renew-cert', validationRoute.renewIssue, ensureAuthenticated, admi
  *                 message:
  *                   type: string
  *             example:
+ *               code: 503.
  *               status: "FAILED"
  *               message: The service is temporarily unavailable due to inactive/insufficient credits. Please try again later.
  */
@@ -291,6 +309,7 @@ router.post('/update-cert-status', validationRoute.updateStatus, ensureAuthentic
  *                 details:
  *                   type: object
  *             example:
+ *               code: 200.
  *               status: "SUCCESS"
  *               message: Batch Certificate renewed successfully.
  *               details: Certificate details.
@@ -306,6 +325,7 @@ router.post('/update-cert-status', validationRoute.updateStatus, ensureAuthentic
  *                 message:
  *                   type: string
  *             example:
+ *               code: 400.
  *               status: "FAILED"
  *               message: Error message for batch expiration date update.
  *       '401':
@@ -321,6 +341,11 @@ router.post('/update-cert-status', validationRoute.updateStatus, ensureAuthentic
  *                 message:
  *                   type: string
  *                   description: Unauthorized access. No token provided.
+ *             example:
+ *               code: 401.
+ *               status: "FAILED"
+ *               message: Unauthorized access. No token provided.
+
  *       '422':
  *         description: User given invalid input (Unprocessable Entity)
  *         content:
@@ -333,6 +358,7 @@ router.post('/update-cert-status', validationRoute.updateStatus, ensureAuthentic
  *                 message:
  *                   type: string
  *             example:
+ *               code: 422.
  *               status: "FAILED"
  *               message: Error message for invalid input.
  *       '500':
@@ -347,6 +373,7 @@ router.post('/update-cert-status', validationRoute.updateStatus, ensureAuthentic
  *                 message:
  *                   type: string
  *             example:
+ *               code: 500.
  *               status: "FAILED"
  *               message: Internal server error.
  *       '503':
@@ -361,6 +388,7 @@ router.post('/update-cert-status', validationRoute.updateStatus, ensureAuthentic
  *                 message:
  *                   type: string
  *             example:
+ *               code: 503.
  *               status: "FAILED"
  *               message: The service is temporarily unavailable due to inactive/insufficient credits. Please try again later.
  */
@@ -410,6 +438,7 @@ router.post('/renew-batch', validationRoute.renewBatch, ensureAuthenticated, adm
  *                 details:
  *                   type: object
  *             example:
+ *               code: 200.
  *               status: "SUCCESS"
  *               message: Batch Certificate status updated successfully.
  *               details: Batch status update details.
@@ -425,6 +454,7 @@ router.post('/renew-batch', validationRoute.renewBatch, ensureAuthenticated, adm
  *                 message:
  *                   type: string
  *             example:
+ *               code: 400.
  *               status: "FAILED"
  *               message: Error message for Batch certification status update input.
  *       '401':
@@ -440,6 +470,10 @@ router.post('/renew-batch', validationRoute.renewBatch, ensureAuthenticated, adm
  *                 message:
  *                   type: string
  *                   description: Unauthorized access. No token provided.
+ *             example:
+ *               code: 401.
+ *               status: "FAILED"
+ *               message: Unauthorized access. No token provided.
  *       '422':
  *         description: User given invalid input (Unprocessable Entity)
  *         content:
@@ -452,6 +486,7 @@ router.post('/renew-batch', validationRoute.renewBatch, ensureAuthenticated, adm
  *                 message:
  *                   type: string
  *             example:
+ *               code: 422.
  *               status: "FAILED"
  *               message: Error message for invalid input.
  *       '500':
@@ -466,6 +501,7 @@ router.post('/renew-batch', validationRoute.renewBatch, ensureAuthenticated, adm
  *                 message:
  *                   type: string
  *             example:
+ *               code: 500.
  *               status: "FAILED"
  *               message: Internal server error.
  *       '503':
@@ -480,6 +516,7 @@ router.post('/renew-batch', validationRoute.renewBatch, ensureAuthenticated, adm
  *                 message:
  *                   type: string
  *             example:
+ *               code: 503.
  *               status: "FAILED"
  *               message: The service is temporarily unavailable due to inactive/insufficient credits. Please try again later.
  */
@@ -543,6 +580,10 @@ router.post('/update-batch-status', validationRoute.updateBatch, ensureAuthentic
  *                message:
  *                  type: string
  *                  example: "Invalid input provided"
+ *            example:
+ *              code: 400.
+ *              status: "FAILED"
+ *              message: Error message for certificate already issued or invalid input.
  *       '500':
  *         description: Internal Server Error
  *         content:
@@ -554,6 +595,7 @@ router.post('/update-batch-status', validationRoute.updateBatch, ensureAuthentic
  *                  type: string
  *                  example: "FAILED"
  *                message:
+ *                  code: 500.
  *                  type: string
  *                  example: "Internal Server error"
  */
@@ -615,6 +657,10 @@ router.post('/convert-excel', upload.single("file"), adminController.convertInto
  *                 message:
  *                   type: string
  *                   example: Issues details not found (or) Bad request!
+ *             example:
+ *               code: 400.
+ *               status: "FAILED"
+ *               message: Error message for certificate already issued or invalid input.
  *       '422':
  *         description: User given invalid input (Unprocessable Entity)
  *         content:
@@ -627,6 +673,7 @@ router.post('/convert-excel', upload.single("file"), adminController.convertInto
  *                 message:
  *                   type: string
  *             example:
+ *               code: 422.
  *               status: "FAILED"
  *               message: Error message for invalid input.
  *       '500':
@@ -640,6 +687,7 @@ router.post('/convert-excel', upload.single("file"), adminController.convertInto
  *                   type: string
  *                   example: FAILED
  *                 message:
+ *                   code: 500.
  *                   type: string
  *                   example: An error occurred while fetching issues details
  */

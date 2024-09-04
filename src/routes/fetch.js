@@ -45,6 +45,10 @@ const __upload = multer({dest: "./uploads/"});
  *                 message:
  *                   type: string
  *                   example: An error occurred while fetching user details
+ *             example:
+ *               code: 500.
+ *               status: "FAILED"
+ *               message: Internal server error.
  */
 
 router.get('/get-all-issuers', ensureAuthenticated, adminController.getAllIssuers);
@@ -89,6 +93,10 @@ router.get('/get-all-issuers', ensureAuthenticated, adminController.getAllIssuer
  *                 message:
  *                   type: string
  *                   example: An error occurred while fetching organization details
+ *             example:
+ *               code: 500.
+ *               status: "FAILED"
+ *               message: Internal server error.
  */
 
 router.get('/get-organization-details', adminController.getOrganizationDetails);
@@ -146,6 +154,10 @@ router.get('/get-organization-details', adminController.getOrganizationDetails);
  *                 message:
  *                   type: string
  *                   example: Issues details not found (or) Bad request!
+ *             example:
+ *               code: 400.
+ *               status: "FAILED"
+ *               message: Issues details not found (or) Bad request!
  *       '422':
  *         description: User given invalid input (Unprocessable Entity)
  *         content:
@@ -158,6 +170,7 @@ router.get('/get-organization-details', adminController.getOrganizationDetails);
  *                 message:
  *                   type: string
  *             example:
+ *               code: 422.
  *               status: "FAILED"
  *               message: Error message for invalid input.
  *       '500':
@@ -173,6 +186,10 @@ router.get('/get-organization-details', adminController.getOrganizationDetails);
  *                 message:
  *                   type: string
  *                   example: An error occurred while fetching issues details
+ *             example:
+ *               code: 500.
+ *               status: "FAILED"
+ *               message: Internal server error.
  */
 
 router.post('/get-organization-issues', validationRoute.organizationIssues, adminController. getIssuesInOrganizationWithName);

@@ -391,6 +391,7 @@ router.post('/issuance', validationRoute.issuance, ensureAuthenticated, adminCon
  *                 message:
  *                   type: string
  *             example:
+ *               code: 400.
  *               status: "FAILED"
  *               message: Error message for certificate already issued or invalid input.
  *       '401':
@@ -406,6 +407,10 @@ router.post('/issuance', validationRoute.issuance, ensureAuthenticated, adminCon
  *                 message:
  *                   type: string
  *                   description: Unauthorized access. No token provided.
+ *             example:
+ *               code: 401.
+ *               status: "FAILED"
+ *               message: Unauthorized access. No token provided.
  *       '500':
  *         description: Internal Server Error
  *         content:
@@ -418,6 +423,7 @@ router.post('/issuance', validationRoute.issuance, ensureAuthenticated, adminCon
  *                 message:
  *                   type: string
  *             example:
+ *               code: 500.
  *               status: "FAILED"
  *               message: Internal Server Error.
  *       '503':
@@ -432,6 +438,7 @@ router.post('/issuance', validationRoute.issuance, ensureAuthenticated, adminCon
  *                 message:
  *                   type: string
  *             example:
+ *               code: 503.
  *               status: "FAILED"
  *               message: The service is temporarily unavailable due to inactive/insufficient credits. Please try again later.
  */
@@ -498,6 +505,7 @@ router.post('/issue-pdf', _upload.single("file"), ensureAuthenticated, adminCont
  *               type: string
  *               format: binary
  *             example:
+ *               code: 200.
  *               status: "SUCCESS"
  *               message: PDF file containing the issued certificate.
  *       '400':
@@ -512,8 +520,26 @@ router.post('/issue-pdf', _upload.single("file"), ensureAuthenticated, adminCont
  *                 message:
  *                   type: string
  *             example:
+ *               code: 400.
  *               status: "FAILED"
  *               message: Error message for certificate already issued or invalid input.
+ *       '401':
+ *         description: Unauthorized Aceess / No token provided.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the operation (FAILED).
+ *                 message:
+ *                   type: string
+ *                   description: Unauthorized access. No token provided.
+ *             example:
+ *               code: 401.
+ *               status: "FAILED"
+ *               message: Unauthorized access. No token provided.
  *       '500':
  *         description: Internal Server Error
  *         content:
@@ -526,6 +552,7 @@ router.post('/issue-pdf', _upload.single("file"), ensureAuthenticated, adminCont
  *                 message:
  *                   type: string
  *             example:
+ *               code: 500.
  *               status: "FAILED"
  *               message: Internal Server Error.
  */
@@ -562,6 +589,7 @@ router.post('/issue-dynamic-pdf', _upload.single("file"), ensureAuthenticated, a
  *         content:
  *           application/json:
  *             example:
+ *               code: 200.
  *               status: "SUCCESS"
  *               message: Batch of Certificates issued successfully
  *               polygonLink: https://your-network.com/tx/transactionHash
@@ -593,8 +621,15 @@ router.post('/issue-dynamic-pdf', _upload.single("file"), ensureAuthenticated, a
  *         description: Bad Request
  *         content:
  *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
  *             example:
- *               error: Bad Request
+ *               code: 400.
  *               status: "FAILED"
  *               message: Please provide valid Certification(Batch) details.
  *       '401':
@@ -610,11 +645,23 @@ router.post('/issue-dynamic-pdf', _upload.single("file"), ensureAuthenticated, a
  *                 message:
  *                   type: string
  *                   description: Unauthorized access. No token provided.
+ *             example:
+ *               code: 401.
+ *               status: "FAILED"
+ *               message: Unauthorized access. No token provided.
  *       '500':
  *         description: Internal Server Error
  *         content:
  *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
  *             example:
+ *               code: 500.
  *               status: "FAILED"
  *               error: Internal Server Error
  *       '503':
@@ -629,6 +676,7 @@ router.post('/issue-dynamic-pdf', _upload.single("file"), ensureAuthenticated, a
  *                 message:
  *                   type: string
  *             example:
+ *               code: 503.
  *               status: "FAILED"
  *               message: The service is temporarily unavailable due to inactive/insufficient credits. Please try again later.
  */
@@ -678,6 +726,7 @@ router.post('/batch-certificate-issue', __upload.single("excelFile"), adminContr
  *                 detailsQR:
  *                   type: string
  *             example:
+ *               code: 200.
  *               status: "SUCCESS"
  *               message: Dynamic Bulk issued successfully.
  *       '400':
@@ -690,8 +739,26 @@ router.post('/batch-certificate-issue', __upload.single("excelFile"), adminContr
  *                 message:
  *                   type: string
  *             example:
+ *               code: 400.
  *               status: "FAILED"
  *               message: Dynamic Bulk not issued successfully.
+ *       '401':
+ *         description: Unauthorized Aceess / No token provided.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the operation (FAILED).
+ *                 message:
+ *                   type: string
+ *                   description: Unauthorized access. No token provided.
+ *             example:
+ *               code: 401.
+ *               status: "FAILED"
+ *               message: Unauthorized access. No token provided.
  *       '500':
  *         description: Internal Server Error
  *         content:
@@ -704,8 +771,24 @@ router.post('/batch-certificate-issue', __upload.single("excelFile"), adminContr
  *                 message:
  *                   type: string
  *             example:
+ *               code: 500.
  *               status: "FAILED"
  *               message: Internal Server Error.
+ *       '503':
+ *         description: Service Unavailable temporarily unavailable due to inactive/insufficient credits limit.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               code: 503.
+ *               status: "FAILED"
+ *               message: The service is temporarily unavailable due to insufficient credits. Please try again later.
  */
 
 router.post('/dynamic-batch-issue', upload.single("zipFile"), ensureAuthenticated, adminController.dynamicBatchIssueCertificates);
@@ -779,6 +862,27 @@ router.post('/dynamic-batch-issue', upload.single("zipFile"), ensureAuthenticate
  *                message:
  *                  type: string
  *                  example: "Invalid input provided"
+ *            example:
+ *              code: 400.
+ *              status: "FAILED"
+ *              message: Error message for certificate already issued or invalid input.
+ *       '401':
+ *         description: Unauthorized Aceess / No token provided.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the operation (FAILED).
+ *                 message:
+ *                   type: string
+ *                   description: Unauthorized access. No token provided.
+ *             example:
+ *               code: 401.
+ *               status: "FAILED"
+ *               message: Unauthorized access. No token provided.
  *       '500':
  *         description: Internal Server Error
  *         content:
@@ -792,6 +896,10 @@ router.post('/dynamic-batch-issue', upload.single("zipFile"), ensureAuthenticate
  *                message:
  *                  type: string
  *                  example: "Internal Server error"
+ *            example:
+ *              code: 500.
+ *              status: "FAILED"
+ *              message: Internal server error.
  */
 
 router.post('/provide-inputs', _upload.single("pdfFile"), adminController.acceptDynamicInputs);
@@ -838,6 +946,7 @@ router.post('/provide-inputs', _upload.single("pdfFile"), adminController.accept
  *                 details:
  *                   type: string
  *             example:
+ *               code: 200.
  *               status: "SUCCESS"
  *               message: Files successfully validated.
  *       '400':
@@ -850,6 +959,7 @@ router.post('/provide-inputs', _upload.single("pdfFile"), adminController.accept
  *                 message:
  *                   type: string
  *             example:
+ *               code: 400.
  *               status: "FAILED"
  *               message: Files successfully Not validated.
  *       '500':
@@ -864,6 +974,7 @@ router.post('/provide-inputs', _upload.single("pdfFile"), adminController.accept
  *                 message:
  *                   type: string
  *             example:
+ *               code: 500.
  *               status: "FAILED"
  *               message: Internal Server Error.
  */
