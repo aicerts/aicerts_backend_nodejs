@@ -220,6 +220,7 @@ router.post('/issue', validationRoute.issue, ensureAuthenticated, adminControlle
  *                 details:
  *                   type: object
  *             example:
+ *               code: 200.
  *               message: Certificate issued successfully.
  *               qrCodeImage: Base64-encoded QR code image.
  *               polygonLink: Link to the transaction on the Polygon network.
@@ -236,8 +237,26 @@ router.post('/issue', validationRoute.issue, ensureAuthenticated, adminControlle
  *                 message:
  *                   type: string
  *             example:
+ *               code: 400.
  *               status: "FAILED"
  *               message: Error message for certificate already issued or invalid input.
+ *       '401':
+ *         description: Unauthorized Aceess / No token provided.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the operation (FAILED).
+ *                 message:
+ *                   type: string
+ *                   description: Unauthorized access. No token provided.
+ *             example:
+ *               code: 401.
+ *               status: "FAILED"
+ *               message: Unauthorized access. No token provided.
  *       '422':
  *         description: User given invalid input (Unprocessable Entity)
  *         content:
@@ -250,6 +269,7 @@ router.post('/issue', validationRoute.issue, ensureAuthenticated, adminControlle
  *                 message:
  *                   type: string
  *             example:
+ *               code: 422.
  *               status: "FAILED"
  *               message: Error message for invalid input.
  *       '429':
@@ -270,6 +290,7 @@ router.post('/issue', validationRoute.issue, ensureAuthenticated, adminControlle
  *                   example: 60
  *                   description: The number of seconds to wait before making another request.
  *             example:
+ *               code: 429.
  *               status: "FAILED"
  *               message: "Rate limit exceeded. Please try again later."
  *               retryAfter: 60
@@ -285,6 +306,7 @@ router.post('/issue', validationRoute.issue, ensureAuthenticated, adminControlle
  *                 message:
  *                   type: string
  *             example:
+ *               code: 500.
  *               status: "FAILED"
  *               message: Internal server error.
  */
