@@ -82,6 +82,7 @@ const storage = multer.diskStorage({
  *                 details:
  *                   type: object
  *             example:
+ *               code: 200.
  *               message: Certificate issued successfully.
  *               qrCodeImage: Base64-encoded QR code image.
  *               polygonLink: Link to the transaction on the Polygon network.
@@ -98,6 +99,7 @@ const storage = multer.diskStorage({
  *                 message:
  *                   type: string
  *             example:
+ *               code: 400.
  *               status: "FAILED"
  *               message: Error message for certificate already issued or invalid input.
  *       '401':
@@ -113,6 +115,10 @@ const storage = multer.diskStorage({
  *                 message:
  *                   type: string
  *                   description: Unauthorized access. No token provided.
+ *             example:
+ *               code: 401.
+ *               status: "FAILED"
+ *               message: Unauthorized access. No token provided.
  *       '422':
  *         description: User given invalid input (Unprocessable Entity)
  *         content:
@@ -125,6 +131,7 @@ const storage = multer.diskStorage({
  *                 message:
  *                   type: string
  *             example:
+ *               code: 422.
  *               status: "FAILED"
  *               message: Error message for invalid input.
  *       '500':
@@ -139,6 +146,7 @@ const storage = multer.diskStorage({
  *                 message:
  *                   type: string
  *             example:
+ *               code: 500.
  *               status: "FAILED"
  *               message: Internal server error.
  *       '503':
@@ -153,6 +161,7 @@ const storage = multer.diskStorage({
  *                 message:
  *                   type: string
  *             example:
+ *               code: 503.
  *               status: "FAILED"
  *               message: The service is temporarily unavailable due to insufficient credits. Please try again later.
  */

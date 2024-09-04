@@ -814,7 +814,7 @@ const dynamicBatchIssueCertificates = async (req, res) => {
 
     if (filesList.length == 0 || filesList.length == 1) {
       res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUnableToFindFiles });
-      await cleanUploadFolder();
+      // await cleanUploadFolder();
       // await wipeUploadFolder();
       return;
     }
@@ -1230,12 +1230,11 @@ const validateDynamicBulkIssueDocuments = async (req, res) => {
     // return res.status(200).json({ status: "FAILED", message: messageCode.msgWorkInProgress });
     if (filesList.length < 2) {
       res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUnableToFindFiles });
-      await cleanUploadFolder();
+      // await cleanUploadFolder();
       // await wipeUploadFolder();
       return;
     }
 
-    console.log("Reached")
     filesList.forEach(file => {
       if (file.endsWith('.xlsx')) {
         xlsxFiles.push(file);
@@ -1357,7 +1356,6 @@ const validateDynamicBulkIssueDocuments = async (req, res) => {
   } catch (error) {
     res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInternalError, details: error });
     await wipeUploadFolder();
-    console.log("Reached catch")
     return;
   }
 
