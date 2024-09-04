@@ -814,8 +814,8 @@ const dynamicBatchIssueCertificates = async (req, res) => {
 
     if (filesList.length == 0 || filesList.length == 1) {
       res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUnableToFindFiles });
-      // await cleanUploadFolder();
-      await wipeUploadFolder();
+      await cleanUploadFolder();
+      // await wipeUploadFolder();
       return;
     }
 
@@ -1221,17 +1221,17 @@ const validateDynamicBulkIssueDocuments = async (req, res) => {
     });
 
     filesList = await fs.promises.readdir(extractionPath);
-    // let zipExist = await findDirectories(filesList);
+    let zipExist = await findDirectories(filesList);
     console.log("response2", filesList, filesList.length);
-    // if (zipExist) {
-    //   filesList = zipExist;
-    // }
+    if (zipExist) {
+      filesList = zipExist;
+    }
     console.log("response3", filesList, filesList.length);
     // return res.status(200).json({ status: "FAILED", message: messageCode.msgWorkInProgress });
     if (filesList.length < 2) {
-      res.status(400).json({ code: 400, status: "FAILEDS", message: messageCode.msgUnableToFindFiles });
-      // await cleanUploadFolder();
-      await wipeUploadFolder();
+      res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUnableToFindFiles });
+      await cleanUploadFolder();
+      // await wipeUploadFolder();
       return;
     }
 
@@ -1356,7 +1356,7 @@ const validateDynamicBulkIssueDocuments = async (req, res) => {
 
   } catch (error) {
     res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInternalError, details: error });
-    // await wipeUploadFolder();
+    await wipeUploadFolder();
     console.log("Reached catch")
     return;
   }
@@ -1412,20 +1412,20 @@ const findDirectories = async (items) => {
         });
 
         // Remove the directory if it's empty
-        try {
-          // Check if the directory still exists before trying to read it
-          if (fs.existsSync(dir)) {
-            const remainingFiles = fs.readdirSync(dir);
-            if (remainingFiles.length === 0) {
-              fs.rmdirSync(dir);
-              console.log(`Removed empty directory ${dir}`);
-            }
-          } else {
-            console.warn(`Directory ${dir} does not exist anymore`);
-          }
-        } catch (err) {
-          console.error(`Error removing directory ${dir}:`, err);
-        }
+        // try {
+        //   // Check if the directory still exists before trying to read it
+        //   if (fs.existsSync(dir)) {
+        //     const remainingFiles = fs.readdirSync(dir);
+        //     if (remainingFiles.length === 0) {
+        //       fs.rmdirSync(dir);
+        //       console.log(`Removed empty directory ${dir}`);
+        //     }
+        //   } else {
+        //     console.warn(`Directory ${dir} does not exist anymore`);
+        //   }
+        // } catch (err) {
+        //   console.error(`Error removing directory ${dir}:`, err);
+        // }
       } catch (err) {
         console.error(`Error reading directory ${dir}:`, err);
       }
@@ -1435,6 +1435,7 @@ const findDirectories = async (items) => {
     return false;
   }
   // Return the list of moved files
+  console.log("Files", movedFiles);
   return movedFiles;
 };
 
