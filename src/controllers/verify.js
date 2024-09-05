@@ -261,6 +261,9 @@ const verify = async (req, res) => {
           var dbStatus = await isDBConnected();
           if (dbStatus) {
             var getCertificationInfo = await isCertificationIdExisted(extractQRData['Certificate Number']);
+            if (!getCertificationInfo) {
+              getCertificationInfo = await isBulkCertificationIdExisted(extractQRData['Certificate Number']);
+            }
             if (extractQRData && !getCertificationInfo) {
               let transactionHash = extractQRData["Polygon URL"].split('/').pop();
               if (transactionHash) {
@@ -273,9 +276,6 @@ const verify = async (req, res) => {
                 fs.unlinkSync(file);
               }
               return;
-            }
-            if (!getCertificationInfo) {
-              getCertificationInfo = await isBulkCertificationIdExisted(extractQRData['Certificate Number']);
             }
             certificateS3Url = null;
             if (getCertificationInfo) {

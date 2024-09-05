@@ -320,7 +320,7 @@ router.post('/issue', validationRoute.issue, ensureAuthenticated, adminControlle
  *               message: Internal server error.
  */
 
-router.post('/issuance', validationRoute.issuance, ensureAuthenticated, adminController.Issuance);
+router.post('/issuance', validationRoute.issuance, adminController.Issuance);
 
 /**
  * @swagger

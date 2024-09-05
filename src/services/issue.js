@@ -1441,7 +1441,9 @@ const issueCustomCertificateWithRetry = async (certificateNumber, certificateHas
       } else if (error.code === 'REPLACEMENT_UNDERPRICED' || error.code === 'UNPREDICTABLE_GAS_LIMIT' || error.code === 'TRANSACTION_REPLACEMENT_ERROR') {
         console.log(`Replacement fee too low. Retrying with a higher gas price... Attempts left: ${retryCount}`);
         // Increase the gas price by 10%
-        const increasedGasPrice = gasPrice.mul(110).div(100);
+        // const increasedGasPrice = gasPrice.mul(110).div(100);
+        const increasedGasPrice = gasPrice.multipliedBy(110).dividedBy(100);
+        // const increasedGasPrice = gasPrice*(0.10);
         console.log("increasedGasPrice", increasedGasPrice);
         await holdExecution(2000);
         return issueCustomCertificateWithRetry(certificateNumber, certificateHash, expirationEpoch, retryCount - 1, increasedGasPrice);
