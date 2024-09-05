@@ -172,7 +172,7 @@ const verify = async (req, res) => {
               // await cleanUploadFolder();
 
               res.status(200).json({
-                code: 200, 
+                code: 200,
                 status: "SUCCESS",
                 message: "Certification is valid",
                 details: completeResponse
@@ -251,7 +251,6 @@ const verify = async (req, res) => {
           return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidCert, details: error });
         }
       }
-
       responseUrl = certificateData;
       var [extractQRData, encodedUrl] = await extractCertificateInfo(responseUrl);
       if (!extractQRData["Certificate Number"]) {
@@ -262,6 +261,19 @@ const verify = async (req, res) => {
           var dbStatus = await isDBConnected();
           if (dbStatus) {
             var getCertificationInfo = await isCertificationIdExisted(extractQRData['Certificate Number']);
+            if (extractQRData && !getCertificationInfo) {
+              let transactionHash = extractQRData["Polygon URL"].split('/').pop();
+              if (transactionHash) {
+                let txStatus = await checkTransactionStatus(transactionHash);
+                extractQRData.blockchainStatus = txStatus;
+              }
+              extractQRData.certificateUrl = null;
+              res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgCertValid, details: extractQRData });
+              if (fs.existsSync(file)) {
+                fs.unlinkSync(file);
+              }
+              return;
+            }
             if (!getCertificationInfo) {
               getCertificationInfo = await isBulkCertificationIdExisted(extractQRData['Certificate Number']);
             }
@@ -365,7 +377,7 @@ const verify = async (req, res) => {
   } catch (error) {
     // If an error occurs during verification, respond with failure status
     const verificationResponse = {
-      code: 400, 
+      code: 400,
       status: "FAILED",
       message: messageCode.msgCertNotValid
     };
@@ -725,7 +737,7 @@ const verifyCertificationId = async (req, res) => {
           completeResponse.blockchainStatus = txStatus;
 
           res.status(200).json({
-            code: 200, 
+            code: 200,
             status: "SUCCESS",
             message: "Certification is valid",
             details: completeResponse
