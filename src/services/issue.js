@@ -1400,7 +1400,6 @@ const issueCustomCertificateWithRetry = async (certificateNumber, certificateHas
     const factor = 150n; // 1.15 in BigInt notation
     const divisor = 100n; // 100 in BigInt notation
     const increasedGasPrice = gasPrice * factor / divisor;
-
     console.log("Adjusted Gas Price:", increasedGasPrice.toString());
 
     // Issue Single Certification on Blockchain
@@ -1442,8 +1441,7 @@ const issueCustomCertificateWithRetry = async (certificateNumber, certificateHas
         console.log(`Replacement fee too low. Retrying with a higher gas price... Attempts left: ${retryCount}`);
         // Increase the gas price by 10%
         // const increasedGasPrice = gasPrice.mul(110).div(100);
-        const increasedGasPrice = gasPrice.multipliedBy(110).dividedBy(100);
-        // const increasedGasPrice = gasPrice*(0.10);
+        var increasedGasPrice = gasPrice*(1.10);
         console.log("increasedGasPrice", increasedGasPrice);
         await holdExecution(2000);
         return issueCustomCertificateWithRetry(certificateNumber, certificateHash, expirationEpoch, retryCount - 1, increasedGasPrice);
