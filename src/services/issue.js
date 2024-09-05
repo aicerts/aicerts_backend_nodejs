@@ -1702,8 +1702,8 @@ const _convertPdfBufferToPng = async (imagePath, pdfBuffer, _width, _height) => 
   const options = {
     format: 'png', // Specify output format (optional, defaults to 'png')
     responseType: 'buffer', // Ensure binary output (PNG buffer)
-    width: _width, // Optional width for the image
-    height: _height, // Optional height for the image
+    width: _width*3, // Optional width for the image
+    height: _height*3, // Optional height for the image
     density: 300, // Optional DPI (dots per inch)
   };
 
