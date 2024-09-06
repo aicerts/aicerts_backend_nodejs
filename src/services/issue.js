@@ -567,7 +567,7 @@ const handleIssuance = async (email, certificateNumber, name, courseName, _grant
         } catch (error) {
           // Internal server error
           console.error(error);
-          return ({ code: 400, status: "FAILED", message: messageCode.msgInternalError, details: error });
+          return ({ code: 500, status: "FAILED", message: messageCode.msgInternalError, details: error });
         }
       } catch (error) {
         // Internal server error
@@ -578,7 +578,7 @@ const handleIssuance = async (email, certificateNumber, name, courseName, _grant
   } catch (error) {
     // Internal server error
     console.error(error);
-    return ({ code: 400, status: "FAILED", message: messageCode.msgInternalError, details: error });
+    return ({ code: 500, status: "FAILED", message: messageCode.msgInternalError, details: error });
   }
 };
 
