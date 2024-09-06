@@ -1451,7 +1451,7 @@ const issueCustomCertificateWithRetry = async (certificateNumber, certificateHas
         console.log(error.reason);
         // if (error.reason == 'Only the trusted issuer can perform this operation') {
         //   // Issue Single Certification on Blockchain
-        //   let tx = await customContract.addTrustedOwner(
+        //   let tx = await newContract.addTrustedOwner(
         //     process.env.ACCOUNT_ADDRESS,
         //     {
         //       gasPrice: gasPrice, // Pass the gas price
