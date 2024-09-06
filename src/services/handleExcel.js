@@ -296,6 +296,132 @@ const handleBulkExcelFile = async (_path) => {
 
 }
 
+const handleBatchExcelFile = async (_path) => {
+
+    if (!_path) {
+        return { status: "FAILED", response: false, message: "Failed to provide excel file" };
+    }
+    // api to fetch excel data into json
+    const newPath = path.join(..._path.split("\\"));
+    const sheetNames = await readXlsxFile.readSheetNames(newPath);
+    if (sheetNames[0] != sheetName || sheetNames.length != 1) {
+        return { status: "FAILED", response: false, message: messageCode.msgInvalidExcel, Details: sheetNames };
+    }
+    try {
+        if (sheetNames == "Batch" || sheetNames.includes("Batch")) {
+            // api to fetch excel data into json
+            const rows = await readXlsxFile(newPath, { sheet: 'Batch' });
+            // Check if the extracted headers match the expected pattern
+            const isValidHeaders = JSON.stringify(rows[0]) === JSON.stringify(expectedBulkHeadersSchema);
+            if (isValidHeaders) {
+                const headers = rows.shift();
+                const targetData = rows.map(row => {
+                    const obj = {};
+                    headers.forEach((header, index) => {
+                        obj[header] = row[index];
+                    });
+                    return obj; // Return the fetched rows
+                });
+
+                // Limit Records to certain limit in the Batch
+                if (rows && rows.length > cert_limit && cert_limit != 0) {
+                    return { status: "FAILED", response: false, message: `${messageCode.msgExcelLimit}: ${cert_limit}`, Details: `Input Records : ${rows.length}` };
+                }
+
+                // Batch Certification Formated Details
+                var rawBatchData = targetData;
+
+                var certificationIDs = rawBatchData.map(item => item.certificationID);
+
+                var _certificationGrantDates = rawBatchData.map(item => item.grantDate);
+
+                var _certificationExpirationDates = rawBatchData.map(item => item.expirationDate);
+
+                var holderNames = rawBatchData.map(item => item.name);
+
+                var certificationNames = rawBatchData.map(item => item.certificationName);
+
+                var nonNullGrantDates = _certificationGrantDates.filter(date => date == null);
+                var nonNullExpiryDates = _certificationExpirationDates.filter(date => date == null);
+                var notNullCertificationIDs = certificationIDs.filter(item => item == null);
+                var notNullHolderNames = holderNames.filter(item => item == null);
+                var notNullCertificationNames = certificationNames.filter(item => item == null);
+
+                if (nonNullGrantDates.length != 0 || nonNullExpiryDates.length != 0 || notNullCertificationIDs.length != 0 || notNullHolderNames.length != 0 || notNullCertificationNames.length != 0) {
+                    return { status: "FAILED", response: false, message: messageCode.msgMissingDetailsInExcel, Details: "" };
+                }
+
+                var checkValidateGrantDates = await validateDates(_certificationGrantDates);
+                var checkValidateExpirationDates = await validateDates(_certificationExpirationDates);
+
+
+                if ((checkValidateGrantDates.invalidDates).length > 0 || (checkValidateExpirationDates.invalidDates).length > 0) {
+                    return { status: "FAILED", response: false, message: messageCode.msgInvalidDateFormat, Details: `Grant Dates ${checkValidateGrantDates.invalidDates}, Issued Dates ${checkValidateExpirationDates.invalidDates}` };
+                }
+
+                var certificationGrantDates = checkValidateGrantDates.validDates;
+                var certificationExpirationDates = checkValidateExpirationDates.validDates;
+
+                // Initialize an empty list to store matching IDs
+                const matchingIDs = [];
+                const repetitiveNumbers = await findRepetitiveIdNumbers(certificationIDs);
+                const invalidIdList = await validateBatchCertificateIDs(certificationIDs);
+                const invalidNamesList = await validateBatchCertificateNames(holderNames);
+
+                if (invalidIdList != false) {
+                    return { status: "FAILED", response: false, message: messageCode.msgInvalidCertIds, Details: invalidIdList };
+                }
+
+                if (invalidNamesList != false) {
+                    return { status: "FAILED", response: false, message: messageCode.msgOnlyAlphabets, Details: invalidNamesList };
+                }
+
+                if (repetitiveNumbers.length > 0) {
+                    return { status: "FAILED", response: false, message: messageCode.msgExcelRepetetionIds, Details: repetitiveNumbers };
+                }
+
+                const invalidGrantDateFormat = await findInvalidDates(certificationGrantDates);
+                const invalidExpirationDateFormat = await findInvalidDates(certificationExpirationDates);
+
+                if ((invalidGrantDateFormat.invalidDates).length > 0 || (invalidExpirationDateFormat.invalidDates).length > 0) {
+                    return { status: "FAILED", response: false, message: messageCode.msgInvalidDateFormat, Details: `Grant Dates ${invalidGrantDateFormat.invalidDates}, Issued Dates ${invalidExpirationDateFormat.invalidDates}` };
+
+                }
+
+                const validateCertificateDates = await compareGrantExpiredSetDates(invalidGrantDateFormat.validDates, invalidExpirationDateFormat.validDates);
+                if (validateCertificateDates.length > 0) {
+                    return { status: "FAILED", response: false, message: messageCode.msgOlderDateThanNewDate, Details: `${validateCertificateDates}` };
+
+                }
+
+                // Assuming BatchIssues is your MongoDB model
+                for (const id of certificationIDs) {
+                    const issueExist = await isBulkCertificationIdExisted(id);
+                    if (issueExist) {
+                        matchingIDs.push(id);
+                    }
+                }
+
+                if (matchingIDs.length > 0) {
+
+                    return { status: "FAILED", response: false, message: messageCode.msgExcelHasExistingIds, Details: matchingIDs };
+                }
+
+                return { status: "SUCCESS", response: true, message: [targetData, rows.length, rows] };
+
+            } else {
+                return { status: "FAILED", response: false, message: messageCode.msgInvalidHeaders };
+            }
+        } else {
+            return { status: "FAILED", response: false, message: messageCode.msgExcelSheetname };
+        }
+
+    } catch (error) {
+        console.error('Error fetching record:', error);
+        return { status: "FAILED", response: false, message: messageCode.msgInternalError };
+    }
+
+}
 
 const validateBatchCertificateIDs = async (data) => {
     const invalidStrings = [];

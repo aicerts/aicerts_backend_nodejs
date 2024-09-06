@@ -86,13 +86,13 @@ const _convertPdfBufferToPng = async (imagePath, pdfBuffer, _width, _height) => 
     }
 };
 
-const generateVibrantQr = async (url) => {
+const generateVibrantQr = async (url, qrSide) => {
     try {
         const options = {
-            width: 450,
-            height: 450,
-            data: "https://testverify.certs365.io?=1ACDG3A6242453",
-            image: "https://images.netcomlearning.com/ai-certs/Certs365-logo.svg",
+            width: qrSide,
+            height: qrSide,
+            data: url,
+            image: "https://certs365-live.s3.amazonaws.com/logo.png",
             dotsOptions: {
                 color: "#cfa935",
                 type: "rounded"
@@ -102,10 +102,10 @@ const generateVibrantQr = async (url) => {
             },
             imageOptions: {
                 crossOrigin: "anonymous",
-                margin: 20
+                margin: 0
             },
             cornersSquareOptions: {
-                color: "#000000",
+                color: "#cfa935",
                 type: "square"
             }
         }
@@ -118,8 +118,11 @@ const generateVibrantQr = async (url) => {
         const buffer = await qrCodeImage.getRawData("png");
         // Convert buffer to Base64
         const base64String = buffer.toString('base64');
+        // Prepend the data URL prefix
+        const dataUrl = `data:image/png;base64,${base64String}`;
         // fs.writeFileSync("test.png", buffer);
-        return base64String; // Return the buffer
+        // console.log("the buffer data", dataUrl);
+        return dataUrl; // Return the buffer
     } catch (error) {
         console.error("The error is ", error);
         return null;

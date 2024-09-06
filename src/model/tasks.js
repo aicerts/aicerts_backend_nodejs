@@ -28,6 +28,8 @@ const contractAddress = process.env.CONTRACT_ADDRESS;
 const providers = [
   new ethers.AlchemyProvider(process.env.RPC_NETWORK, process.env.ALCHEMY_API_KEY),
   new ethers.InfuraProvider(process.env.RPC_NETWORK, process.env.INFURA_API_KEY)
+  // new ethers.ChainstackProvider(process.env.RPC_NETWORK, process.env.CHAIN_KEY)
+  // new ethers.JsonRpcProvider(process.env.CHAIN_RPC)
   // Add more providers as needed
 ];
 
@@ -903,7 +905,6 @@ const baseCodeResponse = async (pdfFilePath, pdf2PicOptions) => {
     1, // page number to be converted to image
     true // returns base64 output
   );
-
   // Extract base64 data URI from response
   var dataUri = base64Response?.base64;
 
@@ -911,6 +912,7 @@ const baseCodeResponse = async (pdfFilePath, pdf2PicOptions) => {
   var buffer = Buffer.from(dataUri, "base64");
   // Read PNG data from buffer
   var png = PNG.sync.read(buffer);
+console.log("The data", buffer, buffer.toString('base64'), jsQR(Uint8ClampedArray.from(png.data), png.width, png.height));
 
   // Decode QR code from PNG data
   return _code = jsQR(Uint8ClampedArray.from(png.data), png.width, png.height);
@@ -1463,6 +1465,7 @@ const getCertificationStatus = async (certStatus) => {
 const getContractAddress = async (contractAddress) => {
   try {
     const code = await fallbackProvider.getCode(contractAddress);
+    console.log("the provider", fallbackProvider, code);
     if (code === '0x') {
       console.log('RPC provider is not responding');
       return false;

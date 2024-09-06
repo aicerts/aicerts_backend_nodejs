@@ -54,6 +54,8 @@ const contractAddress = process.env.CONTRACT_ADDRESS;
 const providers = [
   new ethers.AlchemyProvider(process.env.RPC_NETWORK, process.env.ALCHEMY_API_KEY),
   new ethers.InfuraProvider(process.env.RPC_NETWORK, process.env.INFURA_API_KEY)
+  // new ethers.ChainstackProvider(process.env.RPC_NETWORK, process.env.CHAIN_KEY),
+  // new ethers.JsonRpcProvider(process.env.CHAIN_RPC)
   // Add more providers as needed
 ];
 
@@ -663,7 +665,11 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
       } else if (idExist.status != 1) {
         errorMessage = messageCode.msgUnauthIssuer;
       } else if (_result == false) {
-        await cleanUploadFolder();
+        // await cleanUploadFolder();
+        // Always delete the temporary file (if it exists)
+        if (fs.existsSync(pdfPath)) {
+          fs.unlinkSync(pdfPath);
+        }
         errorMessage = messageCode.msgInvalidPdfTemplate;
       }
 
@@ -693,6 +699,10 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
       try {
         let getContractStatus = await getContractAddress(contractAddress);
         if (!getContractStatus) {
+          // Always delete the temporary file (if it exists)
+          if (fs.existsSync(pdfPath)) {
+            fs.unlinkSync(pdfPath);
+          }
           return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: messageCode.msgRpcFailed });
         }
         // Verify certificate on blockchain
@@ -778,7 +788,7 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
         // console.log("Short URL", _qrCodeData);
 
 
-        const generateQr = await generateVibrantQr(_qrCodeData);
+        const generateQr = await generateVibrantQr(_qrCodeData, 450);
 
         if (!generateQr) {
           var qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
