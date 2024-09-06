@@ -1408,7 +1408,7 @@ const issueCustomCertificateWithRetry = async (certificateNumber, certificateHas
       certificateHash,
       expirationEpoch,
       {
-        gasPrice: increasedGasPrice, // Pass the adjusted gas price
+        gasPrice, // Pass the gas price
       }
     );
 
@@ -1439,9 +1439,11 @@ const issueCustomCertificateWithRetry = async (certificateNumber, certificateHas
         return issueCustomCertificateWithRetry(certificateNumber, certificateHash, expirationEpoch, retryCount - 1, gasPrice);
       } else if (error.code === 'REPLACEMENT_UNDERPRICED' || error.code === 'UNPREDICTABLE_GAS_LIMIT' || error.code === 'TRANSACTION_REPLACEMENT_ERROR') {
         console.log(`Replacement fee too low. Retrying with a higher gas price... Attempts left: ${retryCount}`);
+        // Convert 10% to a factor of 110 (as we want to increase by 10%)
+        var factor = BigInt(110);
+        var divisor = BigInt(100);
         // Increase the gas price by 10%
-        // const increasedGasPrice = gasPrice.mul(110).div(100);
-        var increasedGasPrice = gasPrice*(1.10);
+        var increasedGasPrice = (gasPrice * factor) / divisor ;
         console.log("increasedGasPrice", increasedGasPrice);
         await holdExecution(2000);
         return issueCustomCertificateWithRetry(certificateNumber, certificateHash, expirationEpoch, retryCount - 1, increasedGasPrice);
@@ -1702,8 +1704,8 @@ const _convertPdfBufferToPng = async (imagePath, pdfBuffer, _width, _height) => 
   const options = {
     format: 'png', // Specify output format (optional, defaults to 'png')
     responseType: 'buffer', // Ensure binary output (PNG buffer)
-    width: _width*3, // Optional width for the image
-    height: _height*3, // Optional height for the image
+    width: _width * 3, // Optional width for the image
+    height: _height * 3, // Optional height for the image
     density: 300, // Optional DPI (dots per inch)
   };
 

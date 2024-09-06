@@ -812,7 +812,7 @@ const dynamicBatchIssueCertificates = async (req, res) => {
       filesList = zipExist;
     }
 
-    if (filesList.length == 0 || filesList.length == 1) {
+    if (filesList.length < 2) {
       res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUnableToFindFiles });
       // await cleanUploadFolder();
       // await wipeUploadFolder();
