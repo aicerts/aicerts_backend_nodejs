@@ -1,5 +1,7 @@
+const { QRCodeStyling } = require("qr-code-styler-node/lib/qr-code-styling.common.js");
+const nodeCanvas = require("canvas");
 const fs = require("fs");
-const { fromBuffer, fromBase64 } = require("pdf2pic");
+const { fromBuffer } = require("pdf2pic");
 
 const convertPdfBufferToPng = async (imagePath, pdfBuffer) => {
     if (!imagePath || !pdfBuffer) {
@@ -68,7 +70,7 @@ const _convertPdfBufferToPng = async (imagePath, pdfBuffer, _width, _height) => 
         // Convert Base64 to buffer
         const _buffer = Buffer.from(base64Data, 'base64');
         fs.writeFileSync(imagePath, _buffer);
-        
+
         // await fs.writeFile(imagePath, _buffer, (err) => {
         //     if (err) {
         //         console.error("Error writing PNG file:", err);
@@ -84,10 +86,52 @@ const _convertPdfBufferToPng = async (imagePath, pdfBuffer, _width, _height) => 
     }
 };
 
+const generateVibrantQr = async (url) => {
+    try {
+        const options = {
+            width: 450,
+            height: 450,
+            data: "https://testverify.certs365.io?=1ACDG3A6242453",
+            image: "https://images.netcomlearning.com/ai-certs/Certs365-logo.svg",
+            dotsOptions: {
+                color: "#cfa935",
+                type: "rounded"
+            },
+            backgroundOptions: {
+                color: "#ffffff",
+            },
+            imageOptions: {
+                crossOrigin: "anonymous",
+                margin: 20
+            },
+            cornersSquareOptions: {
+                color: "#000000",
+                type: "square"
+            }
+        }
+        // For canvas type
+        const qrCodeImage = new QRCodeStyling({
+            nodeCanvas, // this is required
+            ...options
+        });
+
+        const buffer = await qrCodeImage.getRawData("png");
+        // Convert buffer to Base64
+        const base64String = buffer.toString('base64');
+        // fs.writeFileSync("test.png", buffer);
+        return base64String; // Return the buffer
+    } catch (error) {
+        console.error("The error is ", error);
+        return null;
+    }
+};
+
 module.exports = {
     // Function to convert PDF buffer into image
     convertPdfBufferToPng,
 
-    _convertPdfBufferToPng
+    _convertPdfBufferToPng,
+
+    generateVibrantQr
 
 };

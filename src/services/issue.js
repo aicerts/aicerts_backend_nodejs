@@ -45,7 +45,7 @@ const {
   getContractAddress,
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
-// const { convertPdfBufferToPng, _convertPdfBufferToPng } = require('../utils/generateImage');
+const { generateVibrantQr } = require('../utils/generateImage');
 
 // Retrieve contract address from environment variable
 const contractAddress = process.env.CONTRACT_ADDRESS;
@@ -777,10 +777,16 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
         let _qrCodeData = modifiedUrl != false ? modifiedUrl : qrCodeData;
         // console.log("Short URL", _qrCodeData);
 
-        const qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
-          errorCorrectionLevel: "H", width: 450, height: 450
-        });
 
+        const generateQr = await generateVibrantQr(_qrCodeData);
+
+        if (!generateQr) {
+          var qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
+            errorCorrectionLevel: "H", width: 450, height: 450
+          });
+        }
+
+        const qrImageData = generateQr ? generateQr : qrCodeImage;
         var file = pdfPath;
         var outputPdf = `${fields.Certificate_Number}${name}.pdf`;
 
@@ -793,7 +799,7 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
           pdfPath,
           outputPdf,
           polygonLink,
-          qrCodeImage,
+          qrImageData,
           combinedHash
         );
 
@@ -1443,7 +1449,7 @@ const issueCustomCertificateWithRetry = async (certificateNumber, certificateHas
         var factor = BigInt(110);
         var divisor = BigInt(100);
         // Increase the gas price by 10%
-        var increasedGasPrice = (gasPrice * factor) / divisor ;
+        var increasedGasPrice = (gasPrice * factor) / divisor;
         console.log("increasedGasPrice", increasedGasPrice);
         await holdExecution(2000);
         return issueCustomCertificateWithRetry(certificateNumber, certificateHash, expirationEpoch, retryCount - 1, increasedGasPrice);
