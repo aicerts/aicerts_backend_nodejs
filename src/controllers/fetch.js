@@ -559,6 +559,200 @@ const getIssuesWithFilter = async (req, res) => {
 };
 
 /**
+ * API to Fetch issues details (for renew/revoke/reactivation) as per the filter end user/ course name/ expiration date.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
+const adminSearchWithFilter = async(req, res) => {
+  let validResult = validationResult(req);
+  if (!validResult.isEmpty()) {
+    return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+  }
+
+  var fetchedIssues = [];
+
+  try {
+    const input = req.body.input;
+    const _filter = req.body.filter;
+    const email = req.body.email;
+    const flag = parseInt(req.body.flag);
+    const filter = (_filter == 'certificationNumber') ? 'certificateNumber' : _filter;
+    const status = parseInt(req.body.status);
+    // Get page and limit from query parameters, with defaults
+    var page = parseInt(req.query.page) || null;
+    var limit = parseInt(req.query.limit) || null;
+    var startIndex;
+    var endIndex;
+    var certStatusFilter;
+    var expirationDateFilter = null;
+    await isDBConnected();
+    const isEmailExist = await User.findOne({ email: email });
+    if (!isEmailExist) {
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidEmail, details: email });
+    }
+
+    if(!status){
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidStatusValue});
+    }
+
+    if(status == 1){
+      certStatusFilter = [1, 2, 4];
+      expirationDateFilter = "1";
+    } else if(status == 2){
+      certStatusFilter = [3];
+    } else if (status == 3){
+      certStatusFilter = [1, 2, 4];
+    }
+
+    if (input && filter) {
+      var filterCriteria = `$${filter}`;
+      if (flag == 1) {
+        // Query 1
+        var query1Promise = Issues.find({
+          issuerId: isEmailExist.issuerId,
+          $expr: {
+            $and: [
+              { $regexMatch: { input: { $toLower: filterCriteria }, regex: new RegExp(`^${input.toLowerCase()}`, 'i') } }
+            ]
+          },
+          certificateStatus: { $in: certStatusFilter },
+          expirationDate: { $ne: expirationDateFilter },
+          url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
+        });
+
+        // Query 2
+        var query2Promise = BatchIssues.find({
+          issuerId: isEmailExist.issuerId,
+          $expr: {
+            $and: [
+              { $regexMatch: { input: { $toLower: filterCriteria }, regex: new RegExp(`^${input.toLowerCase()}`, 'i') } }
+            ]
+          },
+          certificateStatus: { $in: certStatusFilter },
+          expirationDate: { $ne: expirationDateFilter },
+          url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
+        });
+
+        // Await both promises
+        var [query1Result, query2Result] = await Promise.all([query1Promise, query2Promise]);
+        // Check if results are non-empty and push to finalResults
+        if (query1Result.length > 0) {
+          fetchedIssues = fetchedIssues.concat(query1Result);
+        }
+        if (query2Result.length > 0) {
+          fetchedIssues = fetchedIssues.concat(query2Result);
+        }
+
+        // Extract the key match from the results
+        const responseItems = fetchedIssues.map(item => item[filter]);
+        // Remove duplicates using a Set
+        const uniqueItems = Array.from(new Set(responseItems));
+        // Sort the values alphabetically
+        fetchResult = uniqueItems.sort((a, b) => a.localeCompare(b));
+
+        if (fetchResult.length == 0) {
+          return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgNoMatchFound });
+        }
+
+        return res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgIssueFound, details: fetchResult });
+
+      } else {
+
+        // Query 1
+        var query1Promise = Issues.find({
+          issuerId: isEmailExist.issuerId,
+          $expr: {
+            $and: [
+              { $eq: [{ $toLower: filterCriteria }, input.toLowerCase()] }
+            ]
+          },
+          certificateStatus: { $in: certStatusFilter },
+          expirationDate: { $ne: expirationDateFilter },
+          url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
+        });
+
+        // Query 2
+        var query2Promise = BatchIssues.find({
+          issuerId: isEmailExist.issuerId,
+          $expr: {
+            $and: [
+              { $eq: [{ $toLower: filterCriteria }, input.toLowerCase()] }
+            ]
+          },
+          certificateStatus: { $in: certStatusFilter },
+          expirationDate: { $ne: expirationDateFilter },
+          url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
+        });
+
+        // Await both promises
+        var [query1Result, query2Result] = await Promise.all([query1Promise, query2Promise]);
+        // Check if results are non-empty and push to finalResults
+        if (query1Result.length > 0) {
+          fetchedIssues = fetchedIssues.concat(query1Result);
+        }
+        if (query2Result.length > 0) {
+          fetchedIssues = fetchedIssues.concat(query2Result);
+        }
+
+        if (!page || !limit || page == 0 || limit == 0) {
+          page = 1;
+          limit = fetchedIssues.length;
+          // Calculate the start and end indices for the slice
+          startIndex = (page - 1) * limit;
+          endIndex = startIndex + limit;
+        } else {
+          // Calculate the start and end indices for the slice
+          startIndex = (page - 1) * limit;
+          endIndex = startIndex + limit;
+        }
+
+        // Calculate total number of pages
+        const totalItems = fetchedIssues.length;
+        const totalPages = Math.ceil(totalItems / limit);
+
+        // Slice the array to get the current page of results
+        const paginatedData = fetchedIssues.slice(startIndex, endIndex);
+
+        const paginationDetails = {
+          total: totalItems,
+          page: page,
+          limit: limit,
+          totalPages: totalPages
+        }
+
+        if (fetchedIssues.length == 0) {
+          return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgNoMatchFound });
+        }
+        // Check if the requested page is beyond the total pages
+        if (page > totalPages && totalPages > 0) {
+          return res.status(404).json({
+            code: 404,
+            status: "SUCCESS", 
+            message: messageCode.msgPageNotFound,
+            data: [],
+            pagination: paginationDetails
+          });
+        }
+
+        const matchPages = {
+          data: paginatedData,
+          ...paginationDetails
+        }
+
+        return res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgIssueFound, details: matchPages });
+      }
+    } else {
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidInput, detail: input });
+    }
+
+  } catch (error) {
+    return res.status(500).json({ code: 500, status: "FAILED", message: messageCode.msgInternalError });
+  }
+
+};
+
+/**
  * API to Upload Files to AWS-S3 bucket.
  *
  * @param {Object} req - Express request object.
@@ -1943,6 +2137,8 @@ module.exports = {
   getIssuersWithFilter,
 
   // Function to fetch issues/Gallery certs based on the flag based filter (certificationId, name, course, grantDate, expirationDate)
-  getIssuesWithFilter
+  getIssuesWithFilter,
+
+  adminSearchWithFilter,
 
 };

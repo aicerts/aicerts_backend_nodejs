@@ -391,6 +391,118 @@ router.post('/get-filtered-issues', validationRoute.filterIssues, adminControlle
 
 /**
  * @swagger
+ * /api/admin-filtered-issues:
+ *   post:
+ *     summary: Get details of certifications issued by Issuers under particular input:filter as name, course, grantDate, expirationDate, certificateNumber with filter code 1:partial match, 2:complete match).
+ *     description: API to fetch details of certifications issued by Issuers under particular input:filter as name, course, grantDate, expirationDate, certificateNumber as filter code.
+ *     tags: [Fetch/Upload]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - name: page
+ *         in: query
+ *         description: The page count (number).
+ *         required: false
+ *         schema:
+ *           type: number
+ *       - name: limit
+ *         in: query
+ *         description: The response limit count (number).
+ *         required: false
+ *         schema:
+ *           type: number
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: Provide issuer email
+ *               input:
+ *                 type: string
+ *                 description: Provide organization name
+ *               filter:
+ *                 type: string
+ *                 description: Provide Student/Candidate target name
+ *               status:
+ *                 type: number
+ *                 description: Provide status value 
+ *               flag:
+ *                 type: number
+ *                 description: Provide flag value 
+ *             required:
+ *               - email
+ *               - input
+ *               - filter
+ *               - status
+ *               - flag
+ *     responses:
+ *       '200':
+ *         description: All issues details fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: SUCCESS
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     [Issuers Log Details]
+ *                 message:
+ *                   type: string
+ *                   example: All issues details fetched successfully
+ *       '400':
+ *         description: Bad request or Invalid code
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: Issues details not found (or) Bad request!
+ *       '422':
+ *         description: User given invalid input (Unprocessable Entity)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Error message for invalid input.
+ *       '500':
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred while fetching issues details
+ */
+
+router.post('/admin-filtered-issues', validationRoute.adminFilterIssues, adminController.adminSearchWithFilter);
+
+/**
+ * @swagger
  * /api/get-issuers-log:
  *   post:
  *     summary: Get details of all issuers log with query code

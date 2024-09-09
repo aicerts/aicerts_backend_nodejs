@@ -122,13 +122,13 @@ const validationRoutes = {
         body("filter").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isString().not().equals("string").withMessage(messageCode.msgProvideValidFilter),
         body("input").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isString().withMessage(messageCode.msgInputProvide),
         body("flag").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isNumeric().isIn([1, 2]).withMessage(messageCode.msgInvalidFlag),
-        // body(["page", "limit"]).optional().notEmpty().withMessage(messageCode.msgNonEmpty).trim().isNumeric().withMessage(messageCode.msgInputProvide).custom((value) => {
-        //     const intValue = parseInt(value);
-        //     if (intValue <= 0) {
-        //         throw new Error(messageCode.msgNonZero);
-        //     }
-        //     return true;
-        // }),
+    ],
+    adminFilterIssues: [
+        body("email").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isEmail().withMessage(messageCode.msgInvalidEmail),
+        body("filter").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isString().not().equals("string").withMessage(messageCode.msgProvideValidFilter),
+        body("input").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isString().withMessage(messageCode.msgInputProvide),
+        body("status").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isNumeric().isIn([1, 2, 3]).withMessage(messageCode.msgInvalidStatusValue),
+        body("flag").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isNumeric().isIn([1, 2]).withMessage(messageCode.msgInvalidFlag),
     ],
     checkAddress: [
         body("address").notEmpty().withMessage(messageCode.msgNonEmpty).trim().isString().not().equals("string").withMessage(messageCode.msgInputProvide).isLength(42).withMessage(messageCode.msgInvalidEthereum)

@@ -208,6 +208,7 @@ module.exports = {
     msgFetchQuotaFailed: "Failed to fetch requested credits details",
     msgCreditsUpdatedSuccess: "Credits limit updated successfully",
     msgInvalidStatus: "Invalid Status entered (Recommended True/False)",
+    msgInvalidStatusValue: "Invalid Status entered",
     msgAdminNotFound: "Provided admin email not found / Unauthorized admin",
     msgMatchLimitsFound: "Match Credits limit results found",
     msgMatchLimitsNotFound: "No Match Credits limit results found",
