@@ -1645,11 +1645,12 @@ router.post('/get-single-certificates', adminController.getSingleCertificates);
  *               issuerId:
  *                 type: string
  *                 description: Issuer's ID
- *               date:
+ *               batchId:
  *                 type: string
- *                 description: Batch Date
+ *                 description: Batch ID
  *             required:
  *               - issuerId
+ *               - batchId
  *     responses:
  *       '200':
  *         description: Batch certificates fetched successfully

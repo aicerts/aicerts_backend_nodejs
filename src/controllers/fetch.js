@@ -11,7 +11,7 @@ const { validationResult } = require("express-validator");
 const moment = require('moment');
 
 // Import MongoDB models
-const { User, Issues, BatchIssues, IssueStatus, VerificationLog, ServiceAccountQuotas, DynamicIssues, DynamicBatchIssues } = require("../config/schema");
+const { User, Issues, BatchIssues, IssueStatus, VerificationLog, ServiceAccountQuotas, DynamicIssues, DynamicBatchIssues, BulkBatchIssues } = require("../config/schema");
 
 // Importing functions from a custom module
 const {
@@ -1825,7 +1825,11 @@ const getBatchCertificateDates = async (req, res) => {
     }
 
     // Fetch all batch certificates for the given issuerId
-    const batchCertificates = await BatchIssues.find({ issuerId }).sort({ issueDate: 1 });
+    const batchCertificatesOne = await BatchIssues.find({ issuerId }).sort({ issueDate: 1 });
+    const batchCertificatesTwo = await BulkBatchIssues.find({ issuerId }).sort({ issueDate: 1 });
+
+    const batchCertificates = [...batchCertificatesOne, ...batchCertificatesTwo];
+    console.log("the data", batchCertificatesOne, batchCertificatesTwo, batchCertificates);
 
     // Create a map to store the first certificate's issueDate for each batchId
     const batchDateMap = new Map();
@@ -1874,7 +1878,10 @@ const getBatchCertificates = async (req, res) => {
     }
 
     // Fetch all certificates for the given batchId and issuerId
-    const certificates = await BatchIssues.find({ batchId, issuerId });
+    var certificates = await BatchIssues.find({ batchId, issuerId });
+    if(!certificates || certificates.length < 1){
+      certificates = await BulkBatchIssues.find({ batchId, issuerId });
+    }
 
     // Respond with success and the certificates
     res.json({
