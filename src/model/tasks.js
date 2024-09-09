@@ -1465,7 +1465,7 @@ const getCertificationStatus = async (certStatus) => {
 const getContractAddress = async (contractAddress) => {
   try {
     const code = await fallbackProvider.getCode(contractAddress);
-    console.log("the provider", fallbackProvider, code);
+    // console.log("the provider", fallbackProvider, code);
     if (code === '0x') {
       console.log('RPC provider is not responding');
       return false;

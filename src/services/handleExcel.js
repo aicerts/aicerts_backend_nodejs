@@ -311,10 +311,30 @@ const handleBatchExcelFile = async (_path) => {
         if (sheetNames == "Batch" || sheetNames.includes("Batch")) {
             // api to fetch excel data into json
             const rows = await readXlsxFile(newPath, { sheet: 'Batch' });
-            // Check if the extracted headers match the expected pattern
-            const isValidHeaders = JSON.stringify(rows[0]) === JSON.stringify(expectedBulkHeadersSchema);
-            if (isValidHeaders) {
-                const headers = rows.shift();
+
+            // Extract headers from the first row
+            var headers = rows[0];
+
+            // Limit the headers and data to the first 8 columns
+            const maxColumns = 8;
+            const limitedHeaders = headers.slice(0, maxColumns);
+
+            // Map rows to JSON objects, restricting to the first 8 columns
+            const jsonData = rows.slice(1).map(row => {
+                const rowData = {};
+                limitedHeaders.forEach((header, index) => {
+                    rowData[header] = row[index] !== undefined ? row[index] : null; // handle undefined values
+                });
+                return rowData;
+            });
+
+            // Convert JSON data to a string
+            var jsonString = JSON.stringify(jsonData, null, 2);
+
+       
+            if (jsonData.length > 0) {
+                let headers = rows.shift();
+
                 const targetData = rows.map(row => {
                     const obj = {};
                     headers.forEach((header, index) => {
@@ -331,42 +351,25 @@ const handleBatchExcelFile = async (_path) => {
                 // Batch Certification Formated Details
                 var rawBatchData = targetData;
 
-                var certificationIDs = rawBatchData.map(item => item.certificationID);
-
-                var _certificationGrantDates = rawBatchData.map(item => item.grantDate);
-
-                var _certificationExpirationDates = rawBatchData.map(item => item.expirationDate);
+                var documentIDs = rawBatchData.map(item => item.documentID);
 
                 var holderNames = rawBatchData.map(item => item.name);
 
-                var certificationNames = rawBatchData.map(item => item.certificationName);
+                var documentNames = rawBatchData.map(item => item.documentName);
 
-                var nonNullGrantDates = _certificationGrantDates.filter(date => date == null);
-                var nonNullExpiryDates = _certificationExpirationDates.filter(date => date == null);
-                var notNullCertificationIDs = certificationIDs.filter(item => item == null);
+                var notNullDocumentIDs = documentIDs.filter(item => item == null);
                 var notNullHolderNames = holderNames.filter(item => item == null);
-                var notNullCertificationNames = certificationNames.filter(item => item == null);
+                var notNullDocumentNames = documentNames.filter(item => item == null);
 
-                if (nonNullGrantDates.length != 0 || nonNullExpiryDates.length != 0 || notNullCertificationIDs.length != 0 || notNullHolderNames.length != 0 || notNullCertificationNames.length != 0) {
+                if (notNullDocumentIDs.length != 0 || notNullHolderNames.length != 0 || notNullDocumentNames.length != 0) {
                     return { status: "FAILED", response: false, message: messageCode.msgMissingDetailsInExcel, Details: "" };
                 }
 
-                var checkValidateGrantDates = await validateDates(_certificationGrantDates);
-                var checkValidateExpirationDates = await validateDates(_certificationExpirationDates);
-
-
-                if ((checkValidateGrantDates.invalidDates).length > 0 || (checkValidateExpirationDates.invalidDates).length > 0) {
-                    return { status: "FAILED", response: false, message: messageCode.msgInvalidDateFormat, Details: `Grant Dates ${checkValidateGrantDates.invalidDates}, Issued Dates ${checkValidateExpirationDates.invalidDates}` };
-                }
-
-                var certificationGrantDates = checkValidateGrantDates.validDates;
-                var certificationExpirationDates = checkValidateExpirationDates.validDates;
-
                 // Initialize an empty list to store matching IDs
                 const matchingIDs = [];
-                const repetitiveNumbers = await findRepetitiveIdNumbers(certificationIDs);
-                const invalidIdList = await validateBatchCertificateIDs(certificationIDs);
-                const invalidNamesList = await validateBatchCertificateNames(holderNames);
+                const repetitiveNumbers = await findRepetitiveIdNumbers(documentIDs);
+                const invalidIdList = await validateDynamicBatchCertificateIDs(documentIDs);
+                const invalidNamesList = await validateDynamicBatchCertificateNames(holderNames);
 
                 if (invalidIdList != false) {
                     return { status: "FAILED", response: false, message: messageCode.msgInvalidCertIds, Details: invalidIdList };
@@ -380,22 +383,8 @@ const handleBatchExcelFile = async (_path) => {
                     return { status: "FAILED", response: false, message: messageCode.msgExcelRepetetionIds, Details: repetitiveNumbers };
                 }
 
-                const invalidGrantDateFormat = await findInvalidDates(certificationGrantDates);
-                const invalidExpirationDateFormat = await findInvalidDates(certificationExpirationDates);
-
-                if ((invalidGrantDateFormat.invalidDates).length > 0 || (invalidExpirationDateFormat.invalidDates).length > 0) {
-                    return { status: "FAILED", response: false, message: messageCode.msgInvalidDateFormat, Details: `Grant Dates ${invalidGrantDateFormat.invalidDates}, Issued Dates ${invalidExpirationDateFormat.invalidDates}` };
-
-                }
-
-                const validateCertificateDates = await compareGrantExpiredSetDates(invalidGrantDateFormat.validDates, invalidExpirationDateFormat.validDates);
-                if (validateCertificateDates.length > 0) {
-                    return { status: "FAILED", response: false, message: messageCode.msgOlderDateThanNewDate, Details: `${validateCertificateDates}` };
-
-                }
-
                 // Assuming BatchIssues is your MongoDB model
-                for (const id of certificationIDs) {
+                for (const id of documentIDs) {
                     const issueExist = await isBulkCertificationIdExisted(id);
                     if (issueExist) {
                         matchingIDs.push(id);
@@ -406,22 +395,52 @@ const handleBatchExcelFile = async (_path) => {
 
                     return { status: "FAILED", response: false, message: messageCode.msgExcelHasExistingIds, Details: matchingIDs };
                 }
-
                 return { status: "SUCCESS", response: true, message: [targetData, rows.length, rows] };
-
             } else {
                 return { status: "FAILED", response: false, message: messageCode.msgInvalidHeaders };
             }
         } else {
             return { status: "FAILED", response: false, message: messageCode.msgExcelSheetname };
         }
-
     } catch (error) {
         console.error('Error fetching record:', error);
         return { status: "FAILED", response: false, message: messageCode.msgInternalError };
     }
+};
 
-}
+const validateDynamicBatchCertificateIDs = async (data) => {
+    const invalidStrings = [];
+
+    data.forEach(num => {
+        const str = num.toString(); // Convert number to string
+        if (str.length < min_length || str.length > max_length || specialCharsRegex.test(str)) {
+            invalidStrings.push(str);
+        }
+    });
+
+    if (invalidStrings.length > 0) {
+        return invalidStrings; // Return array of invalid strings
+    } else {
+        return false; // Return false if all strings are valid
+    }
+};
+
+const validateDynamicBatchCertificateNames = async (names) => {
+    const invalidNames = [];
+
+    names.forEach(name => {
+        const str = name.toString(); // Convert number to string
+        if (str.length > 40) {
+            invalidNames.push(str);
+        }
+    });
+
+    if (invalidNames.length > 0) {
+        return invalidNames; // Return array of invalid strings
+    } else {
+        return false; // Return false if all strings are valid
+    }
+};
 
 const validateBatchCertificateIDs = async (data) => {
     const invalidStrings = [];
@@ -445,7 +464,7 @@ const validateBatchCertificateNames = async (names) => {
 
     names.forEach(name => {
         const str = name.toString(); // Convert number to string
-        if (str.length > 30) {
+        if (str.length > 40) {
             invalidNames.push(str);
         }
     });
@@ -648,4 +667,4 @@ const validateExpirationDates = async (dates) => {
 };
 
 
-module.exports = { handleExcelFile, handleBulkExcelFile };
+module.exports = { handleExcelFile, handleBulkExcelFile, handleBatchExcelFile };

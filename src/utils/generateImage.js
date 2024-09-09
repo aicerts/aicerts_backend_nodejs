@@ -94,8 +94,8 @@ const generateVibrantQr = async (url, qrSide) => {
             data: url,
             image: "https://certs365-live.s3.amazonaws.com/logo.png",
             dotsOptions: {
-                color: "#cfa935",
-                type: "rounded"
+                color: "#000000",
+                type: "extra-rounded"
             },
             backgroundOptions: {
                 color: "#ffffff",
@@ -105,9 +105,13 @@ const generateVibrantQr = async (url, qrSide) => {
                 margin: 0
             },
             cornersSquareOptions: {
+                color: "#000000",
+                type: "extra-rounded",
+            },
+            cornersDotOptions: {
+                type: "",
                 color: "#cfa935",
-                type: "square"
-            }
+            }        
         }
         // For canvas type
         const qrCodeImage = new QRCodeStyling({

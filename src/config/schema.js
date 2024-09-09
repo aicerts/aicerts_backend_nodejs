@@ -127,7 +127,7 @@ const IssueStatusSchema = new mongoose.Schema({
   lastUpdate: { type: Date, default: Date.now } // IssueDate field is of type Date and defaults to the current date/time
 });
 
-// Define the schema for the Issues model
+// Define the schema for the Dynamic single Issues model
 const DynamicIssuesSchema = new mongoose.Schema({
   issuerId: { type: String, required: true }, // ID field is of type String and is required
   transactionHash: { type: String, required: true }, // TransactionHash field is of type String and is required
@@ -137,25 +137,19 @@ const DynamicIssuesSchema = new mongoose.Schema({
   certificateStatus: { type: Number, required: true, default: 1 },
   certificateFields: { type: Object, required: true },
   issueDate: { type: Date, default: Date.now } ,// issueDate field is of type Date and defaults to the current date/time
-  type:{type: String}
+  type:{type: String, default: 'dynamic'}
 });
 
-// Define the schema for the Dynamic Issues model
+// Define the schema for the Dynamic batch Issues model
 const DynamicBatchIssuesSchema = new mongoose.Schema({
-  issuerId: { type: String, required: true },
-  batchId: { type: Number, required: true },
-  proofHash: [String],
-  encodedProof: { type: String, required: true },
-  transactionHash: { type: String, required: true },
-  certificateHash: { type: String, required: true },
-  certificateNumber: { type: String, required: true },
-  certificateFields: { type: Object, required: true },
-  name: { type: String, required: true },
-  course: { type: String, required: true },
-  grantDate: { type: String, required: true },
-  expirationDate: { type: String, required: true },
+  issuerId: { type: String, required: true }, // ID field is of type String and is required
+  transactionHash: { type: String, required: true }, // TransactionHash field is of type String and is required
+  certificateHash: { type: String, required: true }, // CertificateHash field is of type String and is required
+  certificateNumber: { type: String, required: true }, // CertificateNumber field is of type String and is required
+  name: { type: String }, // Name field is of type String and is required
   certificateStatus: { type: Number, required: true, default: 1 },
-  issueDate: { type: Date, default: Date.now },
+  certificateFields: { type: Object, required: true },
+  issueDate: { type: Date, default: Date.now } ,// issueDate field is of type Date and defaults to the current date/time
   type:{type: String, default: 'dynamic'}
 });
 
