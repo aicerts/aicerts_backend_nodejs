@@ -434,6 +434,34 @@ const isBulkCertificationIdExisted = async (certId) => {
   }
 };
 
+const isDynamicCertificationIdExisted = async (certId) => {
+  const dbStaus = await isDBConnected();
+
+  if (certId == null || certId == "") {
+    return null;
+  }
+
+  const singleIssueExist = await DynamicIssues.findOne({ certificateNumber: certId });
+  const batchIssueExist = await DynamicBatchIssues.findOne({ certificateNumber: certId });
+
+  try {
+    if (singleIssueExist) {
+
+      return singleIssueExist;
+    } else if (batchIssueExist) {
+
+      return batchIssueExist;
+    } else {
+
+      return null;
+    }
+
+  } catch (error) {
+    console.error("Error during validation:", error);
+    return null;
+  }
+};
+
 // Function to insert url data into DB
 const insertUrlData = async (data) => {
   if (!data) {
@@ -1513,6 +1541,8 @@ module.exports = {
 
   // Verify Certification ID from both dynamic bulk collections (single / batch)
   isBulkCertificationIdExisted,
+
+  isDynamicCertificationIdExisted,
 
   // Function to insert single certificate data into MongoDB
   insertCertificateData,

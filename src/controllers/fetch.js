@@ -11,7 +11,7 @@ const { validationResult } = require("express-validator");
 const moment = require('moment');
 
 // Import MongoDB models
-const { User, Issues, BatchIssues, IssueStatus, VerificationLog, ServiceAccountQuotas } = require("../config/schema");
+const { User, Issues, BatchIssues, IssueStatus, VerificationLog, ServiceAccountQuotas, DynamicIssues, DynamicBatchIssues } = require("../config/schema");
 
 // Importing functions from a custom module
 const {
@@ -19,6 +19,7 @@ const {
   validateSearchDateFormat,
   convertDateFormat,
   cleanUploadFolder,
+  isDynamicCertificationIdExisted,
   isDBConnected // Function to check if the database connection is established
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
@@ -483,6 +484,174 @@ const getIssuesWithFilter = async (req, res) => {
 
         // Query 2
         var query2Promise = BatchIssues.find({
+          issuerId: isEmailExist.issuerId,
+          $expr: {
+            $and: [
+              { $eq: [{ $toLower: filterCriteria }, input.toLowerCase()] }
+            ]
+          },
+          url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
+        });
+
+        // Await both promises
+        var [query1Result, query2Result] = await Promise.all([query1Promise, query2Promise]);
+        // Check if results are non-empty and push to finalResults
+        if (query1Result.length > 0) {
+          fetchedIssues = fetchedIssues.concat(query1Result);
+        }
+        if (query2Result.length > 0) {
+          fetchedIssues = fetchedIssues.concat(query2Result);
+        }
+
+        if (!page || !limit || page == 0 || limit == 0) {
+          page = 1;
+          limit = fetchedIssues.length;
+          // Calculate the start and end indices for the slice
+          startIndex = (page - 1) * limit;
+          endIndex = startIndex + limit;
+        } else {
+          // Calculate the start and end indices for the slice
+          startIndex = (page - 1) * limit;
+          endIndex = startIndex + limit;
+        }
+
+        // Calculate total number of pages
+        const totalItems = fetchedIssues.length;
+        const totalPages = Math.ceil(totalItems / limit);
+
+        // Slice the array to get the current page of results
+        const paginatedData = fetchedIssues.slice(startIndex, endIndex);
+
+        const paginationDetails = {
+          total: totalItems,
+          page: page,
+          limit: limit,
+          totalPages: totalPages
+        }
+
+        if (fetchedIssues.length == 0) {
+          return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgNoMatchFound });
+        }
+        // Check if the requested page is beyond the total pages
+        if (page > totalPages && totalPages > 0) {
+          return res.status(404).json({
+            code: 404,
+            status: "SUCCESS", 
+            message: messageCode.msgPageNotFound,
+            data: [],
+            pagination: paginationDetails
+          });
+        }
+
+        const matchPages = {
+          data: paginatedData,
+          ...paginationDetails
+        }
+
+        return res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgIssueFound, details: matchPages });
+      }
+    } else {
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidInput, detail: input });
+    }
+
+  } catch (error) {
+    return res.status(500).json({ code: 500, status: "FAILED", message: messageCode.msgInternalError });
+  }
+};
+
+/**
+ * API to Fetch issues details as per the filter end user name and Documant ID.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
+const getDynamicIssuesWithFilter = async (req, res) => {
+  let validResult = validationResult(req);
+  if (!validResult.isEmpty()) {
+    return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+  }
+
+  var fetchedIssues = [];
+
+  try {
+    const input = req.body.input;
+    const _filter = req.body.filter;
+    const email = req.body.email;
+    const flag = parseInt(req.body.flag);
+    const filter = (_filter == 'certificationNumber') ? 'certificateNumber' : _filter;
+    // Get page and limit from query parameters, with defaults
+    var page = parseInt(req.query.page) || null;
+    var limit = parseInt(req.query.limit) || null;
+    var startIndex;
+    var endIndex;
+    await isDBConnected();
+    const isEmailExist = await User.findOne({ email: email });
+    if (!isEmailExist) {
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidEmail, details: email });
+    }
+    if (input && filter) {
+      var filterCriteria = `$${filter}`;
+      if (flag == 1) {
+        // Query 1
+        var query1Promise = DynamicIssues.find({
+          issuerId: isEmailExist.issuerId,
+          $expr: {
+            $and: [
+              { $regexMatch: { input: { $toLower: filterCriteria }, regex: new RegExp(`^${input.toLowerCase()}`, 'i') } }
+            ]
+          },
+          url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
+        });
+
+        // Query 2
+        var query2Promise = DynamicBatchIssues.find({
+          issuerId: isEmailExist.issuerId,
+          $expr: {
+            $and: [
+              { $regexMatch: { input: { $toLower: filterCriteria }, regex: new RegExp(`^${input.toLowerCase()}`, 'i') } }
+            ]
+          },
+          url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
+        });
+
+        // Await both promises
+        var [query1Result, query2Result] = await Promise.all([query1Promise, query2Promise]);
+        // Check if results are non-empty and push to finalResults
+        if (query1Result.length > 0) {
+          fetchedIssues = fetchedIssues.concat(query1Result);
+        }
+        if (query2Result.length > 0) {
+          fetchedIssues = fetchedIssues.concat(query2Result);
+        }
+
+        // Extract the key match from the results
+        const responseItems = fetchedIssues.map(item => item[filter]);
+        // Remove duplicates using a Set
+        const uniqueItems = Array.from(new Set(responseItems));
+        // Sort the values alphabetically
+        fetchResult = uniqueItems.sort((a, b) => a.localeCompare(b));
+ 
+        if (fetchResult.length == 0) {
+          return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgNoMatchFound });
+        }
+
+        return res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgIssueFound, details: fetchResult });
+
+      } else {
+
+        // Query 1
+        var query1Promise = DynamicIssues.find({
+          issuerId: isEmailExist.issuerId,
+          $expr: {
+            $and: [
+              { $eq: [{ $toLower: filterCriteria }, input.toLowerCase()] }
+            ]
+          },
+          url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
+        });
+
+        // Query 2
+        var query2Promise = DynamicBatchIssues.find({
           issuerId: isEmailExist.issuerId,
           $expr: {
             $and: [
@@ -2140,5 +2309,7 @@ module.exports = {
   getIssuesWithFilter,
 
   adminSearchWithFilter,
+
+  getDynamicIssuesWithFilter
 
 };
