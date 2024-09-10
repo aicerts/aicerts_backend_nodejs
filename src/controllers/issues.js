@@ -115,6 +115,7 @@ const issuePdf = async (req, res) => {
     const certificateNumber = req.body.certificateNumber;
     const name = req.body.name;
     const courseName = req.body.course;
+    const qrOption = parseInt(req.body.qrOption) || 0;
     const _grantDate = await convertDateFormat(req.body.grantDate);
 
     // Verify with existing credits limit of an issuer to perform the operation
@@ -153,7 +154,7 @@ const issuePdf = async (req, res) => {
       return;
     }
 
-    const issueResponse = await handleIssuePdfCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate, req.file.path);
+    const issueResponse = await handleIssuePdfCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate, req.file.path, qrOption);
     const responseDetails = issueResponse.details ? issueResponse.details : '';
     if (issueResponse.code == 200) {
       // Update Issuer credits limit (decrease by 1)
@@ -290,6 +291,7 @@ const issue = async (req, res) => {
     const certificateNumber = req.body.certificateNumber;
     const name = req.body.name;
     const courseName = req.body.course;
+    const qrOption = parseInt(req.body.qrOption) || 0;
     const _grantDate = await convertDateFormat(req.body.grantDate);
     let _expirationDate;
     // Verify with existing credits limit of an issuer to perform the operation
@@ -328,7 +330,7 @@ const issue = async (req, res) => {
       return;
     }
 
-    const issueResponse = await handleIssueCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate);
+    const issueResponse = await handleIssueCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate, qrOption);
     const responseDetails = issueResponse.details ? issueResponse.details : '';
     if (issueResponse.code == 200) {
 

@@ -609,7 +609,6 @@ router.post('/admin-filtered-issues', validationRoute.adminFilterIssues, adminCo
 
 router.post('/dynamic-filtered-issues', validationRoute.filterDynamicIssues, adminController.getDynamicIssuesWithFilter);
 
-
 /**
  * @swagger
  * /api/get-issuers-log:

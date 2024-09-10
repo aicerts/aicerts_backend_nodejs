@@ -21,6 +21,9 @@ const retryDelay = parseInt(process.env.TIME_DELAY);
 const maxRetries = 3; // Maximum number of retries
 const urlLimit = parseInt(process.env.MAX_URL_SIZE) || parseInt(50);
 
+// Import ABI (Application Binary Interface) from the JSON file located at "../config/abi.json"
+const abi = require("../config/abi.json");
+
 // Retrieve contract address from environment variable
 const contractAddress = process.env.CONTRACT_ADDRESS;
 
@@ -36,8 +39,6 @@ const providers = [
 // Create a new FallbackProvider instance
 const fallbackProvider = new ethers.FallbackProvider(providers);
 
-// Regular expression to match MM/DD/YY format
-const regex = /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{4}$/;
 const excludeUrlContent = "/verify-documents";
 
 // Create a nodemailer transporter using the provided configuration
@@ -81,18 +82,38 @@ const mailOptions = {
 // Import the Issues models from the schema defined in "../config/schema"
 const { User, Issues, BatchIssues, BulkIssues, BulkBatchIssues, IssueStatus, VerificationLog, ShortUrl, DynamicIssues, ServiceAccountQuotas, DynamicBatchIssues } = require("../config/schema");
 
-//Connect to polygon
-const connectToPolygon = async () => {
+//Connect to blockchain contract
+const connectToPolygon = async (retryCount = 0) => {
+  let fallbackProvider;
+
+  // Create a fallback provider
   try {
-    const provider = new ethers.FallbackProvider(providers);
-    await provider.getNetwork(); // Attempt to detect the network
-    return provider;
+    fallbackProvider = new ethers.FallbackProvider(providers);
+  } catch (error) {
+    console.error('Failed to create fallback provider:', error.message);
+    return;
+  }
+
+  try {
+    // Create a new ethers signer instance using the private key from environment variable and the provider(Fallback)
+    const signer = new ethers.Wallet(process.env.PRIVATE_KEY, fallbackProviders);
+
+    // Create a new ethers contract instance with a signing capability (using the contract Address, ABI and signer)
+    const newContract = new ethers.Contract(contractAddress, abi, signer);
+
+    return {provider: fallbackProvider , newContract};
 
   } catch (error) {
-    console.error('Failed to connect to Polygon node:', error.message);
-    console.log(`Retrying connection in ${retryDelay / 1000} seconds...`);
-    await new Promise(resolve => setTimeout(resolve, retryDelay)); // Wait before retrying
-    return connectToPolygon(providers); // Retry connecting recursively
+    if (retryCount < maxRetries) {
+      console.error('Failed to connect to Polygon node:', error.message);
+      console.log(`Retrying connection in ${2500 / 1000} seconds... (Retry ${retryCount + 1} of ${maxRetries})`);
+      await new Promise(resolve => setTimeout(resolve, 2500)); // Wait before retrying
+      return connectToPolygon(retryCount + 1); // Retry connecting with incremented retry count
+    } else {
+      console.error('Max retries reached. Unable to connect to Polygon node.');
+      // throw error; // Re-throw the error after max retries
+      return null;
+    }
   }
 };
 
@@ -525,7 +546,7 @@ const insertIssuanceCertificateData = async (data) => {
       const previousCount = idExist.certificatesIssued || 0; // Initialize to 0 if certificatesIssued field doesn't exist
       idExist.certificatesIssued = previousCount + 1;
       await idExist.save(); // Save the changes to the existing user
-    } 
+    }
     // Logging confirmation message
     console.log("Certificate data inserted");
   } catch (error) {
@@ -940,7 +961,7 @@ const baseCodeResponse = async (pdfFilePath, pdf2PicOptions) => {
   var buffer = Buffer.from(dataUri, "base64");
   // Read PNG data from buffer
   var png = PNG.sync.read(buffer);
-console.log("The data", buffer, buffer.toString('base64'), jsQR(Uint8ClampedArray.from(png.data), png.width, png.height));
+  // console.log("The data", buffer, buffer.toString('base64'), jsQR(Uint8ClampedArray.from(png.data), png.width, png.height));
 
   // Decode QR code from PNG data
   return _code = jsQR(Uint8ClampedArray.from(png.data), png.width, png.height);
@@ -981,6 +1002,43 @@ const extractQRCodeDataFromPDF = async (pdfFilePath) => {
         var code = await baseCodeResponse(pdfFilePath, pdf2picOptions3);
       }
     }
+    const qrCodeText = code?.data;
+    // Throw error if QR code text is not available
+    if (!qrCodeText) {
+      // throw new Error("QR Code Text could not be extracted from PNG image");
+      console.log("QR Code Not Found / QR Code Text could not be extracted");
+      return false;
+    } else {
+      detailsQR = qrCodeText;
+      // Extract certificate information from QR code text
+      // const certificateInfo = extractCertificateInfo(qrCodeText);
+
+      // Return the extracted certificate information
+      return qrCodeText;
+    }
+
+  } catch (error) {
+    // Log and rethrow any errors that occur during the process
+    console.error(error);
+    // throw error;
+    return false;
+  }
+};
+
+const verifyQRCodeDataFromPDF = async (pdfFilePath) => {
+  try {
+
+    const pdf2picOptions = {
+      quality: 100,
+      density: 400,
+      format: "png",
+      width: 4000,
+      height: 4000,
+    };
+
+    // Decode QR code from PNG data
+    var code = await baseCodeResponse(pdfFilePath, pdf2picOptions);
+
     const qrCodeText = code?.data;
     // Throw error if QR code text is not available
     if (!qrCodeText) {
@@ -1226,7 +1284,7 @@ const verifyBulkDynamicPDFDimensions = async (pdfPath, posx, posy, qrside) => {
 
 const verifyPDFDimensions = async (pdfPath) => {
   // Extract QR code data from the PDF file
-  const certificateData = await extractQRCodeDataFromPDF(pdfPath);
+  const certificateData = await verifyQRCodeDataFromPDF(pdfPath);
   const pdfBuffer = fs.readFileSync(pdfPath);
   const pdfDoc = await PDFDocument.load(pdfBuffer);
 
@@ -1254,7 +1312,6 @@ const verifyPDFDimensions = async (pdfPath) => {
     // throw new Error('PDF dimensions must be within 240-260 mm width and 340-360 mm height');
     return false;
   }
-
 };
 
 const validatePDFDimensions = async (pdfPath, _width, _height) => {

@@ -58,6 +58,9 @@ const storage = multer.diskStorage({
  *               expirationDate:
  *                 type: string
  *                 description: The expiration date of the certificate.
+ *               qrOption:
+ *                 type: number
+ *                 description: The QR option have a template code [1, 2, 3 ...].
  *             required:
  *               - email
  *               - certificateNumber
@@ -361,12 +364,16 @@ router.post('/issuance', validationRoute.issuance, ensureAuthenticated, adminCon
  *                 description: PDF file to be uploaded.
  *                 x-parser:
  *                   expression: file.originalname.endsWith('.pdf') // Allow only PDF files
+ *               qrOption:
+ *                 type: number
+ *                 description: The QR option have a template code [1, 2, 3 ...].
  *             required:
  *               - email
  *               - certificateNumber
  *               - name
  *               - course
  *               - grantDate
+ *               - expirationDate
  *               - file
  *     responses:
  *       '200':

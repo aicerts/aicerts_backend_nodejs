@@ -24,6 +24,7 @@ const bulkIssueStatus = process.env.BULK_ISSUE_STATUS || 'DEFAULT';
 
 // Importing functions from a custom module
 const {
+  connectToPolygon,
   convertDateFormat,
   convertDateToEpoch,
   convertEpochToDate,
@@ -75,7 +76,9 @@ const max_length = parseInt(process.env.MAX_LENGTH);
 const messageCode = require("../common/codes");
 const rootDirectory = path.join(__dirname, '../../');
 
-const handleIssueCertification = async (email, certificateNumber, name, courseName, _grantDate, _expirationDate) => {
+const handleIssueCertification = async (email, certificateNumber, name, courseName, _grantDate, _expirationDate, qrOption) => {
+  var {providers, newContract} = await connectToPolygon();
+  console.log("The contract instance", newContract.target);
   const grantDate = await convertDateFormat(_grantDate);
   const expirationDate = await convertDateFormat(_expirationDate);
   // Get today's date
@@ -248,14 +251,21 @@ const handleIssueCertification = async (email, certificateNumber, name, courseNa
               modifiedUrl = process.env.SHORT_URL + certificateNumber;
             }
 
-            const _qrCodeData = modifiedUrl != false ? modifiedUrl : qrCodeData;
+            var _qrCodeData = modifiedUrl != false ? modifiedUrl : qrCodeData;
             // console.log("Short URL", _qrCodeData);
 
-            const qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
-              errorCorrectionLevel: "H",
-              width: 450, // Adjust the width as needed
-              height: 450, // Adjust the height as needed
-            });
+            // Generate vibrant QR
+            const generateQr = await generateVibrantQr(_qrCodeData, 450, qrOption);
+
+            if (!generateQr) {
+              var qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
+                errorCorrectionLevel: "H",
+                width: 450, // Adjust the width as needed
+                height: 450, // Adjust the height as needed
+              });
+            }
+
+            var qrImageData = generateQr ? generateQr : qrCodeImage;
 
             try {
               // Check mongoose connection
@@ -291,7 +301,7 @@ const handleIssueCertification = async (email, certificateNumber, name, courseNa
               code: 200,
               status: "SUCCESS",
               message: messageCode.msgCertIssuedSuccess,
-              qrCodeImage: qrCodeImage,
+              qrCodeImage: qrImageData,
               polygonLink: polygonLink,
               details: certificateData,
             });
@@ -584,7 +594,7 @@ const handleIssuance = async (email, certificateNumber, name, courseName, _grant
   }
 };
 
-const handleIssuePdfCertification = async (email, certificateNumber, name, courseName, _grantDate, _expirationDate, _pdfPath) => {
+const handleIssuePdfCertification = async (email, certificateNumber, name, courseName, _grantDate, _expirationDate, _pdfPath, qrOption) => {
   const pdfPath = _pdfPath;
   const grantDate = await convertDateFormat(_grantDate);
   const expirationDate = await convertDateFormat(_expirationDate);
@@ -787,8 +797,8 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
         let _qrCodeData = modifiedUrl != false ? modifiedUrl : qrCodeData;
         // console.log("Short URL", _qrCodeData);
 
-
-        const generateQr = await generateVibrantQr(_qrCodeData, 450);
+        // Generate vibrant QR
+        const generateQr = await generateVibrantQr(_qrCodeData, 450, qrOption);
 
         if (!generateQr) {
           var qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
@@ -1169,8 +1179,8 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
     }
 
     var transformedResponse = _excelResponse[2];
-    
-    return ({ code: 400, status: false, message: messageCode.msgUnderConstruction, Details: `${transformedResponse}, ${pdfResponse}`});
+
+    return ({ code: 400, status: false, message: messageCode.msgUnderConstruction, Details: `${transformedResponse}, ${pdfResponse}` });
 
     const hashedBatchData = transformedResponse.map(data => {
       // Convert data to string and calculate hash

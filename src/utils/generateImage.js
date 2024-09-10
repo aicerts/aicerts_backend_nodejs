@@ -1,7 +1,87 @@
 const { QRCodeStyling } = require("qr-code-styler-node/lib/qr-code-styling.common.js");
 const nodeCanvas = require("canvas");
 const fs = require("fs");
+const sharp = require('sharp');
 const { fromBuffer } = require("pdf2pic");
+
+var option;
+var logoUrl = "https://certs365-live.s3.amazonaws.com/logo.png";
+
+// Function to load an image and return a promise that resolves when the image is processed
+const loadImage = async (url) => {
+    const { default: fetch } = await import('node-fetch');
+    try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Network response was not ok.');
+        const buffer = await response.arrayBuffer();
+        const image = await sharp(buffer).metadata(); // Process the image with sharp (optional)
+        return image;
+    } catch (error) {
+        console.error("Error loading image:", error);
+        throw error;
+    }
+};
+
+const getOption = async(url, qrSide, code) => {
+    // Load the image before creating the options
+    await loadImage(logoUrl);
+    switch (code){
+        case 1:
+            option = {
+                width: qrSide,
+                height: qrSide,
+                data: url,
+                image: logoUrl,
+                dotsOptions: {
+                    color: "#000000",
+                    type: "extra-rounded"
+                },
+                backgroundOptions: {
+                    color: "#ffffff",
+                },
+                imageOptions: {
+                    crossOrigin: "anonymous",
+                    margin: 0
+                },
+                cornersSquareOptions: {
+                    color: "#000000",
+                    type: "extra-rounded",
+                },
+                cornersDotOptions: {
+                    type: "",
+                    color: "#cfa935",
+                }
+            };
+            break;
+        default:
+            option = {
+                width: qrSide,
+                height: qrSide,
+                data: url,
+                image: logoUrl,
+                dotsOptions: {
+                    color: "#000000",
+                    type: "extra-rounded"
+                },
+                backgroundOptions: {
+                    color: "#ffffff",
+                },
+                imageOptions: {
+                    crossOrigin: "anonymous",
+                    margin: 0
+                },
+                cornersSquareOptions: {
+                    color: "#000000",
+                    type: "extra-rounded",
+                },
+                cornersDotOptions: {
+                    type: "",
+                    color: "#cfa935",
+                }
+            };
+    }
+    return option;
+};
 
 const convertPdfBufferToPng = async (imagePath, pdfBuffer) => {
     if (!imagePath || !pdfBuffer) {
@@ -86,34 +166,12 @@ const _convertPdfBufferToPng = async (imagePath, pdfBuffer, _width, _height) => 
     }
 };
 
-const generateVibrantQr = async (url, qrSide) => {
+const generateVibrantQr = async (url, qrSide, code) => {
     try {
-        const options = {
-            width: qrSide,
-            height: qrSide,
-            data: url,
-            image: "https://certs365-live.s3.amazonaws.com/logo.png",
-            dotsOptions: {
-                color: "#000000",
-                type: "extra-rounded"
-            },
-            backgroundOptions: {
-                color: "#ffffff",
-            },
-            imageOptions: {
-                crossOrigin: "anonymous",
-                margin: 0
-            },
-            cornersSquareOptions: {
-                color: "#000000",
-                type: "extra-rounded",
-            },
-            cornersDotOptions: {
-                type: "",
-                color: "#cfa935",
-            }        
-        }
+
+        const options = await getOption(url, qrSide, code);
         // For canvas type
+        
         const qrCodeImage = new QRCodeStyling({
             nodeCanvas, // this is required
             ...options
@@ -121,7 +179,7 @@ const generateVibrantQr = async (url, qrSide) => {
 
         const buffer = await qrCodeImage.getRawData("png");
         // Convert buffer to Base64
-        const base64String = buffer.toString('base64');
+        const base64String = await buffer.toString('base64');
         // Prepend the data URL prefix
         const dataUrl = `data:image/png;base64,${base64String}`;
         // fs.writeFileSync("test.png", buffer);
