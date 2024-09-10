@@ -1772,8 +1772,8 @@ const getSingleCertificates = async (req, res) => {
     const { issuerId, type } = req.body;
 
     // Validate request body
-    if (!issuerId || (type !== 1 && type !== 2)) {
-      return res.status(400).json({ code: 400, status: "FAILED", message: "issuerId and valid type (1 or 2) are required" });
+    if (!issuerId || (type !== 1 && type !== 2 && type !== 3)) {
+      return res.status(400).json({ code: 400, status: "FAILED", message: "issuerId and valid type (1 or 2 or 3) are required" });
     }
 
     // Convert type to integer if it is a string
@@ -1785,16 +1785,26 @@ const getSingleCertificates = async (req, res) => {
       typeField = 'withpdf';
     } else if (typeInt == 2) {
       typeField = 'withoutpdf';
+    } else if (typeInt == 3) {
+      typeField = 'dynamic';
     } else {
       return res.status(400).json({ code: 400, status: "FAILED", message: "Invalid type provided" });
     }
 
     // Fetch certificates based on issuerId and type
-    const certificates = await Issues.find({
+    const certificatesSimple = await Issues.find({
       issuerId: issuerId,
       type: typeField,
       url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
     });
+
+    const certificatesDynamic = await DynamicIssues.find({
+      issuerId: issuerId,
+      type: typeField,
+      url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
+    });
+
+    const certificates = [...certificatesSimple, ...certificatesDynamic];
 
     // Respond with success and the certificates
     res.json({

@@ -1082,6 +1082,8 @@ const dynamicBatchIssueCertificates = async (req, res) => {
     }
     return;
   }
+  
+  const qrOption = req.body.qrOption || 0;
 
   var filesList = [];
   // Initialize an empty array to store the file(s) ending with ".xlsx"
@@ -1305,7 +1307,7 @@ const dynamicBatchIssueCertificates = async (req, res) => {
       return;
     }
 
-    var bulkIssueResponse = await dynamicBatchCertificates(emailExist.email, emailExist.issuerId, pdfFiles, excelData.message, excelFilePath, paramsExist.positionX, paramsExist.positionY, paramsExist.qrSide, paramsExist.pdfWidth, paramsExist.pdfHeight, flag);
+    var bulkIssueResponse = await dynamicBatchCertificates(emailExist.email, emailExist.issuerId, pdfFiles, excelData.message, excelFilePath, paramsExist.positionX, paramsExist.positionY, paramsExist.qrSide, paramsExist.pdfWidth, paramsExist.pdfHeight, qrOption, flag);
 
     if (bulkIssueStatus == 'ZIP_STORE' || flag == 1) {
       if (bulkIssueResponse.code == 200) {

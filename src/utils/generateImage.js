@@ -22,6 +22,7 @@ const loadImage = async (url) => {
 };
 
 const getOption = async(url, qrSide, code) => {
+    // console.log("inputs", url, qrSide, code);
     if(code == 0){
         return null;
     }

@@ -1093,7 +1093,7 @@ const handleIssueDynamicPdfCertification = async (email, certificateNumber, name
 
         var qrImageData = generateQr ? generateQr : qrCodeImage;
         var file = pdfPath;
-        var {width, height} = await getPdfDimensions(pdfPath);
+        var { width, height } = await getPdfDimensions(pdfPath);
         var outputPdf = `${fields.Certificate_Number}${name}.pdf`;
 
         // Add link and QR code to the PDF file
@@ -1452,7 +1452,7 @@ const _dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelRes
 
 };
 
-const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResponse, excelFilePath, posx, posy, qrside, pdfWidth, pdfHeight, flag) => {
+const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResponse, excelFilePath, posx, posy, qrside, pdfWidth, pdfHeight, qrOption, flag) => {
   // console.log("Batch inputs", _pdfReponse, excelFilePath);
   const pdfResponse = _pdfReponse;
   const excelResponse = _excelResponse[0];
@@ -1565,7 +1565,6 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
 
           var combinedHash = hashedBatchData[index];
 
-
           // Generate encrypted URL with certificate data
           var encryptLink = await generateEncryptedUrl(fields);
 
@@ -1588,10 +1587,16 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
 
           let _qrCodeData = modifiedUrl != false ? modifiedUrl : encryptLink;
 
-          const qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
-            errorCorrectionLevel: "H", width: qrside, height: qrside
-          });
+          // Generate vibrant QR
+          const generateQr = await generateVibrantQr(_qrCodeData, qrside, qrOption);
 
+          if (!generateQr) {
+            var qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
+              errorCorrectionLevel: "H", width: qrside, height: qrside
+            });
+          }
+
+          const qrImageData = generateQr ? generateQr : qrCodeImage;
           file = pdfFilePath;
           var outputPdf = `${pdfFileName}`;
 
@@ -1603,7 +1608,7 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
             pdfFilePath,
             outputPdf,
             linkUrl,
-            qrCodeImage,
+            qrImageData,
             combinedHash,
             posx,
             posy
