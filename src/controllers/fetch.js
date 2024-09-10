@@ -28,6 +28,7 @@ const apiUrl = process.env.POLYGON_API_URL || null;
 const polygonApiKey = process.env.POLYGON_API_KEY || null;
 const netcomAddress = process.env.NETCOM_CONTRACT || null;
 const lmsAddress = process.env.LMS_CONTRACT || null;
+const certs365Address = process.env.CERTS365_CONTRACT || null;
 const MAX_RETRY_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 1000; // 1 second delay between retries (adjust as needed)
 const bucketName = process.env.BUCKET_NAME || 'certs365-live';
@@ -91,21 +92,21 @@ const getIssuerByEmail = async (req, res) => {
 
     if (issuer) {
       res.json({
-        code: 200, 
+        code: 200,
         status: 'SUCCESS',
         data: issuer,
         message: `Issuer with email ${email} fetched successfully`
       });
     } else {
       res.json({
-        code: 400, 
+        code: 400,
         status: 'FAILED',
         message: `Issuer with email ${email} not found`
       });
     }
   } catch (error) {
     res.json({
-      code: 400, 
+      code: 400,
       status: 'FAILED',
       message: messageCode.msgErrorOnFetching
     });
@@ -155,7 +156,7 @@ const getServiceLimitsByEmail = async (req, res) => {
 
   } catch (error) {
     res.json({
-      code: 400, 
+      code: 400,
       status: 'FAILED',
       message: messageCode.msgErrorOnFetching
     });
@@ -536,7 +537,7 @@ const getIssuesWithFilter = async (req, res) => {
         if (page > totalPages && totalPages > 0) {
           return res.status(404).json({
             code: 404,
-            status: "SUCCESS", 
+            status: "SUCCESS",
             message: messageCode.msgPageNotFound,
             data: [],
             pagination: paginationDetails
@@ -630,7 +631,7 @@ const getDynamicIssuesWithFilter = async (req, res) => {
         const uniqueItems = Array.from(new Set(responseItems));
         // Sort the values alphabetically
         fetchResult = uniqueItems.sort((a, b) => a.localeCompare(b));
- 
+
         if (fetchResult.length == 0) {
           return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgNoMatchFound });
         }
@@ -704,7 +705,7 @@ const getDynamicIssuesWithFilter = async (req, res) => {
         if (page > totalPages && totalPages > 0) {
           return res.status(404).json({
             code: 404,
-            status: "SUCCESS", 
+            status: "SUCCESS",
             message: messageCode.msgPageNotFound,
             data: [],
             pagination: paginationDetails
@@ -733,7 +734,7 @@ const getDynamicIssuesWithFilter = async (req, res) => {
  * @param {Object} req - Express request object.
  * @param {Object} res - Express response object.
  */
-const adminSearchWithFilter = async(req, res) => {
+const adminSearchWithFilter = async (req, res) => {
   let validResult = validationResult(req);
   if (!validResult.isEmpty()) {
     return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
@@ -761,16 +762,16 @@ const adminSearchWithFilter = async(req, res) => {
       return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidEmail, details: email });
     }
 
-    if(!status){
-      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidStatusValue});
+    if (!status) {
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidStatusValue });
     }
 
-    if(status == 1){
+    if (status == 1) {
       certStatusFilter = [1, 2, 4];
       expirationDateFilter = "1";
-    } else if(status == 2){
+    } else if (status == 2) {
       certStatusFilter = [3];
-    } else if (status == 3){
+    } else if (status == 3) {
       certStatusFilter = [1, 2, 4];
     }
 
@@ -897,7 +898,7 @@ const adminSearchWithFilter = async(req, res) => {
         if (page > totalPages && totalPages > 0) {
           return res.status(404).json({
             code: 404,
-            status: "SUCCESS", 
+            status: "SUCCESS",
             message: messageCode.msgPageNotFound,
             data: [],
             pagination: paginationDetails
@@ -994,7 +995,7 @@ const getVerificationDetailsByCourse = async (req, res) => {
     if (verificationCommonResponse) {
       var responseCount = verificationCommonResponse.courses;
       res.status(200).json({
-        code: 200, 
+        code: 200,
         status: 'SUCCESS',
         data: responseCount,
         message: `Verification results fetched successfully with searched course`
@@ -1002,7 +1003,7 @@ const getVerificationDetailsByCourse = async (req, res) => {
       return;
     } else {
       res.status(400).json({
-        code: 400, 
+        code: 400,
         status: 'FAILED',
         data: 0,
         message: `No verification results found`
@@ -1011,7 +1012,7 @@ const getVerificationDetailsByCourse = async (req, res) => {
     }
   } catch (error) {
     res.status(500).json({
-      code: 500, 
+      code: 500,
       status: 'FAILED',
       data: error,
       message: messageCode.msgErrorOnFetching
@@ -1287,7 +1288,7 @@ const fetchIssuesLogDetails = async (req, res) => {
 
     // Respond with success and all user details
     res.json({
-      code: responseCode, 
+      code: responseCode,
       status: responseStatus,
       data: queryResponse,
       responses: totalResponses,
@@ -1297,7 +1298,7 @@ const fetchIssuesLogDetails = async (req, res) => {
   } catch (error) {
     // Error occurred while fetching user details, respond with failure message
     res.json({
-      code: 400, 
+      code: 400,
       status: 'FAILED',
       message: messageCode.msgErrorOnFetching
     });
@@ -1363,7 +1364,7 @@ const fetchGraphDetails = async (req, res) => {
 
     // Send the fetched graph data as a response
     res.json({
-      code: 200, 
+      code: 200,
       status: "SUCCESS",
       message: messageCode.msgGraphDataFetched,
       data: responseData,
@@ -1481,7 +1482,7 @@ const fetchGraphStatusDetails = async (req, res) => {
 
       // Send the fetched graph data as a response
       res.json({
-        code: 200, 
+        code: 200,
         status: "SUCCESS",
         message: messageCode.msgGraphDataFetched,
         data: responseData,
@@ -1503,7 +1504,7 @@ const fetchGraphStatusDetails = async (req, res) => {
 
       // Send the fetched graph data as a response
       res.json({
-        code: 200, 
+        code: 200,
         status: "SUCCESS",
         message: messageCode.msgGraphDataFetched,
         data: responseData,
@@ -1797,7 +1798,7 @@ const getSingleCertificates = async (req, res) => {
 
     // Respond with success and the certificates
     res.json({
-      code: 200, 
+      code: 200,
       status: 'SUCCESS',
       data: certificates,
       message: 'Certificates fetched successfully'
@@ -1807,7 +1808,7 @@ const getSingleCertificates = async (req, res) => {
 
     // Respond with failure message
     res.status(500).json({
-      code: 500, 
+      code: 500,
       status: 'FAILED',
       message: 'An error occurred while fetching the certificates',
       details: error.message
@@ -1850,7 +1851,7 @@ const getBatchCertificateDates = async (req, res) => {
 
     // Respond with success and the unique batch dates
     res.json({
-      code: 200, 
+      code: 200,
       status: 'SUCCESS',
       data: uniqueBatchDates,
       message: 'Unique batch dates fetched successfully'
@@ -1860,7 +1861,7 @@ const getBatchCertificateDates = async (req, res) => {
 
     // Respond with failure message
     res.status(500).json({
-      code: 500, 
+      code: 500,
       status: 'FAILED',
       message: 'An error occurred while fetching the unique batch dates',
       details: error.message
@@ -1879,13 +1880,13 @@ const getBatchCertificates = async (req, res) => {
 
     // Fetch all certificates for the given batchId and issuerId
     var certificates = await BatchIssues.find({ batchId, issuerId });
-    if(!certificates || certificates.length < 1){
+    if (!certificates || certificates.length < 1) {
       certificates = await BulkBatchIssues.find({ batchId, issuerId });
     }
 
     // Respond with success and the certificates
     res.json({
-      code: 200, 
+      code: 200,
       status: 'SUCCESS',
       data: certificates,
       message: 'Certificates fetched successfully'
@@ -1895,7 +1896,7 @@ const getBatchCertificates = async (req, res) => {
 
     // Respond with failure message
     res.status(500).json({
-      code: 500, 
+      code: 500,
       status: 'FAILED',
       message: 'An error occurred while fetching the certificates',
       details: error.message
@@ -1919,7 +1920,7 @@ const getOrganizationDetails = async (req, res) => {
     const sortedUniqueResponses = uniqueResponses.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
 
     res.json({
-      code: 200, 
+      code: 200,
       status: "SUCCESS",
       message: messageCode.msgOrganizationFetched,
       data: sortedUniqueResponses
@@ -2033,17 +2034,19 @@ const fetchCustomIssuedCertificates = async (req, res) => {
 
   const today = new Date();
   const contractAddresses = [netcomAddress, lmsAddress];
+  const allContracts = [netcomAddress, lmsAddress, certs365Address];
   try {
 
     if (!apiUrl || !polygonApiKey) {
       return res.status(400).send({ code: 400, status: "FAILED", message: msgInvalidPolygonCredentials });
     }
     const issuesCount = {
-      // Day: [],
       Week: [],
       Month: [],
       Annual: []
     };
+
+    var totalCount = [];
 
     // Define date ranges
     const dateRanges = [
@@ -2051,6 +2054,10 @@ const fetchCustomIssuedCertificates = async (req, res) => {
       { name: "Week", startDate: await getPastDate(today, 7), endDate: today },
       { name: "Month", startDate: await getPastDate(today, 30), endDate: today },
       { name: "Annual", startDate: await getPastDate(today, 365), endDate: today }
+    ];
+    // Define date ranges
+    const datesRanges = [
+      { name: "Total", startDate: 0, endDate: today }
     ];
 
     for (const addressIndex of contractAddresses) {
@@ -2065,7 +2072,25 @@ const fetchCustomIssuedCertificates = async (req, res) => {
       }
     }
 
-    return res.status(200).json({ code: 200, status: "SUCCESS", message: `${messageCode.msgAllQueryFetched}:[Netcom, LMS]`, details: issuesCount });
+    for (const addressesIndex of allContracts) {
+      for (const range of datesRanges) {
+        await holdExecution(350);
+        let _startDate = 0;
+        let _endDate = range.endDate.toISOString().split('T')[0];
+        let fetchDetails = await fetchTransactionCountWithRetry(addressesIndex, _startDate, _endDate);
+        if (fetchDetails !== 0 || fetchDetails) {
+          totalCount.push(fetchDetails);
+        }
+      }
+    }
+
+    // Calculate the sum of the numbers
+    const totalIssues = totalCount.reduce((acc, num) => acc + num, 0);
+    let totalResponse = { Total: totalIssues };
+    // Combine response and totalResponse
+    let combinedResponse = { ...issuesCount, ...totalResponse };
+
+    return res.status(200).json({ code: 200, status: "SUCCESS", message: `${messageCode.msgAllQueryFetched}:[Netcom, LMS]`, details: combinedResponse });
 
   } catch (error) {
     res.status(400).json({

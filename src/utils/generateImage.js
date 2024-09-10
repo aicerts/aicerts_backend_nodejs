@@ -4,7 +4,6 @@ const fs = require("fs");
 const sharp = require('sharp');
 const { fromBuffer } = require("pdf2pic");
 
-var option;
 var logoUrl = "https://certs365-live.s3.amazonaws.com/logo.png";
 
 // Function to load an image and return a promise that resolves when the image is processed
@@ -23,6 +22,10 @@ const loadImage = async (url) => {
 };
 
 const getOption = async(url, qrSide, code) => {
+    if(code == 0){
+        return null;
+    }
+    var option;
     // Load the image before creating the options
     await loadImage(logoUrl);
     switch (code){
@@ -185,6 +188,7 @@ const generateVibrantQr = async (url, qrSide, code) => {
         // fs.writeFileSync("test.png", buffer);
         // console.log("the buffer data", dataUrl);
         return dataUrl; // Return the buffer
+        // return null
     } catch (error) {
         console.error("The error is ", error);
         return null;

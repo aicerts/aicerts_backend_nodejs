@@ -9,7 +9,6 @@ const fs = require("fs");
 const _fs = require("fs-extra");
 const { ethers } = require("ethers"); // Ethereum JavaScript library
 const { StandardMerkleTree } = require("@openzeppelin/merkle-tree");
-const keccak256 = require('keccak256');
 const { validationResult } = require("express-validator");
 const archiver = require('archiver');
 const unzipper = require('unzipper');
@@ -21,6 +20,8 @@ const { PDFDocument } = pdf;
 const { generateEncryptedUrl } = require("../common/cryptoFunction");
 
 const AWS = require('../config/aws-config');
+
+const { generateVibrantQr } = require('../utils/generateImage');
 
 // Import MongoDB models
 const { User, Issues, BatchIssues, DynamicParameters } = require("../config/schema");
@@ -38,6 +39,7 @@ const uploadPath = path.join(__dirname, '../../uploads');
 
 // Importing functions from a custom module
 const {
+  connectToPolygon,
   convertDateFormat,
   convertDateToEpoch,
   insertBatchCertificateData, // Function to insert Batch certificate data into the database
@@ -82,7 +84,6 @@ const messageCode = require("../common/codes");
 // const parentDir = path.dirname(path.dirname(currentDir));
 const fileType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"; // File type
 
-const decodeKey = process.env.AUTH_KEY || 0;
 var existIssuerId;
 
 /**
@@ -196,6 +197,7 @@ const issueDynamicPdf = async (req, res) => {
   var file = req?.file;
   const fileBuffer = fs.readFileSync(req.file.path);
   const pdfDoc = await PDFDocument.load(fileBuffer);
+  const qrOption = req.body.qrOption || 0;
   let _expirationDate;
 
   if (pdfDoc.getPageCount() > 1) {
@@ -246,7 +248,7 @@ const issueDynamicPdf = async (req, res) => {
       }
     }
 
-    const issueResponse = await handleIssueDynamicPdfCertification(email, certificateNumber, certificateName, customFields, req.file.path, _positionX, _positionY, _qrsize);
+    const issueResponse = await handleIssueDynamicPdfCertification(email, certificateNumber, certificateName, customFields, req.file.path, _positionX, _positionY, _qrsize, qrOption);
     const responseDetails = issueResponse.details ? issueResponse.details : '';
     if (issueResponse.code == 200) {
       // Update Issuer credits limit (decrease by 1)
@@ -408,7 +410,12 @@ const Issuance = async (req, res) => {
  * @param {Object} res - Express response object.
  */
 const batchIssueCertificate = async (req, res) => {
+  const newContract = await connectToPolygon();
+  if (!newContract) {
+    return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
+  }
   const email = req.body.email;
+  const qrOption = req.body.qrOption || 0;
   var file = req?.file;
   // Check if the file path matches the pattern
   if (req.file.mimetype != fileType) {
@@ -628,11 +635,18 @@ const batchIssueCertificate = async (req, res) => {
 
               let _qrCodeData = modifiedUrl !== false ? modifiedUrl : encryptLink;
 
-              let qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
-                errorCorrectionLevel: "H",
-                width: 450, // Adjust the width as needed
-                height: 450, // Adjust the height as needed
-              });
+              // Generate vibrant QR
+              const generateQr = await generateVibrantQr(_qrCodeData, 450, qrOption);
+
+              if (!generateQr) {
+                var qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
+                  errorCorrectionLevel: "H",
+                  width: 450, // Adjust the width as needed
+                  height: 450, // Adjust the height as needed
+                });
+              }
+
+              var qrImageData = generateQr ? generateQr : qrCodeImage;
 
               batchDetailsWithQR[i] = {
                 issuerId: idExist.issuerId,
@@ -644,7 +658,7 @@ const batchIssueCertificate = async (req, res) => {
                 course: rawBatchData[i].certificationName,
                 grantDate: _grantDate,
                 expirationDate: _expirationDate,
-                qrImage: qrCodeImage
+                qrImage: qrImageData
               }
 
               insertPromises.push(insertBatchCertificateData(batchDetails[i]));
@@ -660,7 +674,7 @@ const batchIssueCertificate = async (req, res) => {
             await updateIssuerServiceCredits(existIssuerId, 'issue');
 
             res.status(200).json({
-              code: 200, 
+              code: 200,
               status: "SUCCESS",
               message: messageCode.msgBatchIssuedSuccess,
               polygonLink: polygonLink,
@@ -699,7 +713,11 @@ const batchIssueCertificate = async (req, res) => {
  * @param {Object} req - Express request object.
  * @param {Object} res - Express response object.
  */
-const dynamicBatchIssueCertificates = async (req, res) => {
+const _dynamicBatchIssueCertificates = async (req, res) => {
+  const newContract = await connectToPolygon();
+  if (!newContract) {
+    return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
+  }
   var file = req?.file;
   // Check if the file path matches the pattern
   if (!req.file || !req.file.originalname.endsWith('.zip')) {
@@ -1051,7 +1069,7 @@ const dynamicBatchIssueCertificates = async (req, res) => {
   }
 };
 
-const _dynamicBatchIssueCertificates = async (req, res) => {
+const dynamicBatchIssueCertificates = async (req, res) => {
   var file = req?.file;
   // Check if the file path matches the pattern
   if (!req.file || !req.file.originalname.endsWith('.zip')) {
@@ -1505,6 +1523,10 @@ const acceptDynamicInputs = async (req, res) => {
  * @param {Object} res - Express response object.
  */
 const validateDynamicBulkIssueDocuments = async (req, res) => {
+  const newContract = await connectToPolygon();
+  if (!newContract) {
+    return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
+  }
   // Check if the file path matches the pattern
   if (!req.file || !req.file.originalname.endsWith('.zip')) {
     // File path does not match the pattern
@@ -1618,7 +1640,7 @@ const validateDynamicBulkIssueDocuments = async (req, res) => {
     // console.log(excelFilePath); // Output: ./uploads/sample.xlsx
     // Fetch the records from the Excel file
     // const excelData = await handleBulkExcelFile(excelFilePath);
-    
+
     const excelData = await handleBatchExcelFile(excelFilePath);
     // await _fs.remove(filePath);
     if (excelData.response == false) {
@@ -1830,7 +1852,7 @@ const _validateDynamicBulkIssueDocuments = async (req, res) => {
     // console.log(excelFilePath); // Output: ./uploads/sample.xlsx
     // Fetch the records from the Excel file
     // const excelData = await handleBulkExcelFile(excelFilePath);
-    
+
     const excelData = await handleBatchExcelFile(excelFilePath);
     // await _fs.remove(filePath);
     if (excelData.response == false) {
@@ -1843,7 +1865,7 @@ const _validateDynamicBulkIssueDocuments = async (req, res) => {
 
     var excelDataResponse = excelData.message[0];
 
-console.log("excel data", excelDataResponse, excelData.message[2]);
+    console.log("excel data", excelDataResponse, excelData.message[2]);
     // Extract Certs values from data and append ".pdf"
     const certsWithPDF = excelDataResponse.map(item => item.Certs + ".pdf");
     // Compare certsWithPDF with data in Excel
@@ -2004,7 +2026,10 @@ const findDirectories = async (items) => {
 };
 
 const issueBatchCertificateWithRetry = async (root, expirationEpoch, retryCount = 3) => {
-
+  const newContract = await connectToPolygon();
+  if (!newContract) {
+    return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
+  }
   try {
     // Issue Single Certifications on Blockchain
     const tx = await newContract.issueBatchOfCertificates(

@@ -96,12 +96,12 @@ const connectToPolygon = async (retryCount = 0) => {
 
   try {
     // Create a new ethers signer instance using the private key from environment variable and the provider(Fallback)
-    const signer = new ethers.Wallet(process.env.PRIVATE_KEY, fallbackProviders);
+    const signer = new ethers.Wallet(process.env.PRIVATE_KEY, fallbackProvider);
 
     // Create a new ethers contract instance with a signing capability (using the contract Address, ABI and signer)
     const newContract = new ethers.Contract(contractAddress, abi, signer);
 
-    return {provider: fallbackProvider , newContract};
+    return newContract;
 
   } catch (error) {
     if (retryCount < maxRetries) {
@@ -640,6 +640,7 @@ const insertDynamicCertificateData = async (data) => {
       name: data.name,
       certificateStatus: 1,
       certificateFields: data.customFields,
+      url: data.url,
       type: 'dynamic',
       issueDate: Date.now() // Set the issue date to the current timestamp
     });
@@ -1221,7 +1222,7 @@ const addDynamicLinkToPdf = async (
 
 const verifyDynamicPDFDimensions = async (pdfPath, qrSide) => {
   // Extract QR code data from the PDF file
-  const certificateData = await extractQRCodeDataFromPDF(pdfPath);
+  const certificateData = await verifyQRCodeDataFromPDF(pdfPath);
   const pdfBuffer = fs.readFileSync(pdfPath);
   const pdfDoc = await PDFDocument.load(pdfBuffer);
 
@@ -1242,7 +1243,22 @@ const verifyDynamicPDFDimensions = async (pdfPath, qrSide) => {
   } else {
     return true
   }
+};
 
+const getPdfDimensions = async (pdfPath) => {
+  try {
+    const pdfBuffer = fs.readFileSync(pdfPath);
+    const pdfDoc = await PDFDocument.load(pdfBuffer);
+    const firstPage = pdfDoc.getPages()[0];
+    if (firstPage) {
+      return firstPage.getSize();
+    } else {
+      return null;
+    }
+  } catch (error) {
+    console.log("Invalid path", error);
+    return null;
+  }
 };
 
 
@@ -1706,4 +1722,6 @@ module.exports = {
 
   // Function to check transaction status for the verification
   checkTransactionStatus,
+
+  getPdfDimensions,
 };

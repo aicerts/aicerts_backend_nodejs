@@ -13,13 +13,14 @@ const pdf = require("pdf-lib"); // Library for creating and modifying PDF docume
 const { PDFDocument } = pdf;
 
 // Import MongoDB models
-const { ShortUrl, DynamicIssues } = require("../config/schema");
+const { ShortUrl, DynamicIssues, DynamicBatchIssues } = require("../config/schema");
 
 // Import ABI (Application Binary Interface) from the JSON file located at "../config/abi.json"
 const abi = require("../config/abi.json");
 
 // Importing functions from a custom module
 const {
+  connectToPolygon,
   extractQRCodeDataFromPDF, // Function to extract QR code data from a PDF file
   cleanUploadFolder, // Function to clean up the upload folder
   isDBConnected, // Function to check if the database connection is established
@@ -28,6 +29,7 @@ const {
   verificationLogEntry,
   isCertificationIdExisted,
   isBulkCertificationIdExisted,
+  isDynamicCertificationIdExisted,
   holdExecution,
   checkTransactionStatus
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
@@ -143,7 +145,7 @@ const verify = async (req, res) => {
             }
           }
           var isUrlExisted = await ShortUrl.findOne({ certificateNumber: certificationNumber });
-          var isDynamicCertificateExist = await DynamicIssues.findOne({ certificateNumber: certificationNumber });
+          var isDynamicCertificateExist = await isDynamicCertificationIdExisted(certificationNumber);
           if (isIdExist) {
             if (isIdExist.certificateStatus == 6) {
               var _polygonLink = `https://${process.env.NETWORK}/tx/${isIdExist.transactionHash}`;
@@ -228,7 +230,7 @@ const verify = async (req, res) => {
               "Polygon URL": `${process.env.NETWORK}/tx/${isDynamicCertificateExist.transactionHash}`,
               "type": isDynamicCertificateExist.type,
               "url": originalUrl,
-              "certificateUrl": null
+              "certificateUrl": isDynamicCertificateExist.url
             }
 
             if (fs.existsSync(file)) {
@@ -450,7 +452,7 @@ const decodeQRScan = async (req, res) => {
             }
           }
           var isUrlExisted = await ShortUrl.findOne({ certificateNumber: certificationNumber });
-          var isDynamicCertificateExist = await DynamicIssues.findOne({ certificateNumber: certificationNumber });
+          var isDynamicCertificateExist = await isDynamicCertificationIdExisted(certificationNumber);
           if (isIdExist) {
             let originalUrl = isUrlExisted != null ? process.env.SHORT_URL + certificationNumber : null;
             let certUrl = (isIdExist.url != undefined && (isIdExist.url).length > 1) ? isIdExist.url : null;
@@ -487,7 +489,8 @@ const decodeQRScan = async (req, res) => {
               "Custom Fields": responseFields,
               "Polygon URL": `${process.env.NETWORK}/tx/${isDynamicCertificateExist.transactionHash}`,
               "type": isDynamicCertificateExist.type,
-              "url": originalUrl
+              "url": originalUrl,
+              "certificateUrl" : isDynamicCertificateExist.url
             }
 
             let txStatus = await checkTransactionStatus(isDynamicCertificateExist.transactionHash);
@@ -707,7 +710,7 @@ const verifyCertificationId = async (req, res) => {
       }
 
       var isUrlExisted = await ShortUrl.findOne({ certificateNumber: inputId });
-      var isDynamicCertificateExist = await DynamicIssues.findOne({ certificateNumber: inputId });
+      var isDynamicCertificateExist = await isDynamicCertificationIdExisted(inputId);
 
       if (isIdExist) {
         if (isIdExist.certificateStatus == 6) {
@@ -786,7 +789,8 @@ const verifyCertificationId = async (req, res) => {
           "Custom Fields": responseFields,
           "Polygon URL": `${process.env.NETWORK}/tx/${isDynamicCertificateExist.transactionHash}`,
           "type": isDynamicCertificateExist.type,
-          "url": originalUrl
+          "url": originalUrl,
+          "certificateUrl": isDynamicCertificateExist.url
         }
         let inputFileExist = await hasFilesInDirectory(uploadsPath);
         if (inputFileExist) {
@@ -813,6 +817,10 @@ const verifyCertificationId = async (req, res) => {
 
 // Function to verify the ID (Single) with Smart Contract with Retry
 const verifySingleCertificationWithRetry = async (certificateId, retryCount = 3) => {
+  const newContract = await connectToPolygon();
+  if(!newContract){
+    return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
+  }
   try {
     // Blockchain processing.
     let verifyCert = await newContract.verifyCertificateById(certificateId);
@@ -851,6 +859,10 @@ const verifySingleCertificationWithRetry = async (certificateId, retryCount = 3)
 
 // Function to verify the ID (Batch) with Smart Contract with Retry
 const verifyBatchCertificationWithRetry = async (batchNumber, dataHash, proof, hashProof, retryCount = 3) => {
+  const newContract = await connectToPolygon();
+  if(!newContract){
+    return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
+  }
   try {
     // Blockchain processing.
     let batchVerifyResponse = await newContract.verifyBatchCertification(batchNumber, dataHash, proof);

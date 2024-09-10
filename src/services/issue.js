@@ -44,6 +44,7 @@ const {
   getCertificationStatus,
   isCertificationIdExisted,
   getContractAddress,
+  getPdfDimensions
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
 const { generateVibrantQr } = require('../utils/generateImage');
@@ -77,8 +78,10 @@ const messageCode = require("../common/codes");
 const rootDirectory = path.join(__dirname, '../../');
 
 const handleIssueCertification = async (email, certificateNumber, name, courseName, _grantDate, _expirationDate, qrOption) => {
-  var {providers, newContract} = await connectToPolygon();
-  console.log("The contract instance", newContract.target);
+  const newContract = await connectToPolygon();
+  if (!newContract) {
+    return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
+  }
   const grantDate = await convertDateFormat(_grantDate);
   const expirationDate = await convertDateFormat(_expirationDate);
   // Get today's date
@@ -327,9 +330,12 @@ const handleIssueCertification = async (email, certificateNumber, name, courseNa
 };
 
 const handleIssuance = async (email, certificateNumber, name, courseName, _grantDate, _expirationDate, flag) => {
+  const newContract = await connectToPolygon();
+  if (!newContract) {
+    return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
+  }
   const issueFlag = flag;
   var getTxHash = null;
-  // console.log("the flag", issueFlag);
   try {
     var [grantDate, expirationDate] = await Promise.all([
       convertDateFormat(_grantDate),
@@ -595,6 +601,10 @@ const handleIssuance = async (email, certificateNumber, name, courseName, _grant
 };
 
 const handleIssuePdfCertification = async (email, certificateNumber, name, courseName, _grantDate, _expirationDate, _pdfPath, qrOption) => {
+  const newContract = await connectToPolygon();
+  if (!newContract) {
+    return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
+  }
   const pdfPath = _pdfPath;
   const grantDate = await convertDateFormat(_grantDate);
   const expirationDate = await convertDateFormat(_expirationDate);
@@ -830,7 +840,6 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
         return ({ code: 400, status: "FAILED", message: messageCode.msgPdfError, details: error });
       }
 
-
       // Define the directory where you want to save the file
       // const uploadDir = path.join(__dirname, '../../uploads'); // Go up two directories from __dirname
       let _generatedImage = `${fields.Certificate_Number}.png`;
@@ -906,7 +915,11 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
   }
 };
 
-const handleIssueDynamicPdfCertification = async (email, certificateNumber, name, _customFields, _pdfPath, _positionX, _positionY, _qrsize) => {
+const handleIssueDynamicPdfCertification = async (email, certificateNumber, name, _customFields, _pdfPath, _positionX, _positionY, _qrsize, qrOption) => {
+  const newContract = await connectToPolygon();
+  if (!newContract) {
+    return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
+  }
   const pdfPath = _pdfPath;
   try {
     await isDBConnected();
@@ -1069,11 +1082,18 @@ const handleIssueDynamicPdfCertification = async (email, certificateNumber, name
         let _qrCodeData = modifiedUrl != false ? modifiedUrl : qrCodeData;
         // console.log("Short URL", _qrCodeData);
 
-        const qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
-          errorCorrectionLevel: "H", width: _qrsize, height: _qrsize
-        });
+        // Generate vibrant QR
+        const generateQr = await generateVibrantQr(_qrCodeData, _qrsize, qrOption);
 
+        if (!generateQr) {
+          var qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
+            errorCorrectionLevel: "H", width: _qrsize, height: _qrsize
+          });
+        }
+
+        var qrImageData = generateQr ? generateQr : qrCodeImage;
         var file = pdfPath;
+        var {width, height} = await getPdfDimensions(pdfPath);
         var outputPdf = `${fields.Certificate_Number}${name}.pdf`;
 
         // Add link and QR code to the PDF file
@@ -1081,7 +1101,7 @@ const handleIssueDynamicPdfCertification = async (email, certificateNumber, name
           path.join("./", '.', file),
           outputPdf,
           polygonLink,
-          qrCodeImage,
+          qrImageData,
           combinedHash,
           _positionX,
           _positionY
@@ -1092,6 +1112,22 @@ const handleIssueDynamicPdfCertification = async (email, certificateNumber, name
 
       } catch (error) {
         return ({ code: 400, status: "FAILED", message: messageCode.msgPdfError, details: error });
+      }
+
+      // Define the directory where you want to save the file
+      // const uploadDir = path.join(__dirname, '../../uploads'); // Go up two directories from __dirname
+      let _generatedImage = `${fields.Certificate_Number}.png`;
+      var generatedImage = path.join(rootDirectory, _generatedImage);
+      console.log("Image path", generatedImage);
+
+      var imageBuffer = await _convertPdfBufferToPngWithRetry(generatedImage, fileBuffer, width, height);
+      if (imageBuffer) {
+        var imageUrl = await _uploadImageToS3(fields.Certificate_Number, generatedImage);
+        if (!imageUrl) {
+          return ({ code: 400, status: "FAILED", message: messageCode.msgUploadError });
+        }
+      } else {
+        return ({ code: 400, status: "FAILED", message: messageCode.msgImageError });
       }
 
       try {
@@ -1109,9 +1145,16 @@ const handleIssueDynamicPdfCertification = async (email, certificateNumber, name
           certificateNumber: fields.Certificate_Number,
           name: fields.name,
           email: email,
+          url: imageUrl,
           customFields: _customFields
         };
         await insertDynamicCertificateData(certificateData);
+
+        // Delete files
+        if (fs.existsSync(generatedImage)) {
+          // Delete the specified file
+          fs.unlinkSync(generatedImage);
+        }
 
         // Delete files
         if (fs.existsSync(outputPdf)) {
@@ -1142,7 +1185,11 @@ const handleIssueDynamicPdfCertification = async (email, certificateNumber, name
   }
 };
 
-const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResponse, excelFilePath, posx, posy, qrside, pdfWidth, pdfHeight, flag) => {
+const _dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResponse, excelFilePath, posx, posy, qrside, pdfWidth, pdfHeight, flag) => {
+  const newContract = await connectToPolygon();
+  if (!newContract) {
+    return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
+  }
   // console.log("Batch inputs", _pdfReponse, excelFilePath);
   const pdfResponse = _pdfReponse;
   const excelResponse = _excelResponse[0];
@@ -1180,7 +1227,7 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
 
     var transformedResponse = _excelResponse[2];
 
-    return ({ code: 400, status: false, message: messageCode.msgUnderConstruction, Details: `${transformedResponse}, ${pdfResponse}` });
+    // return ({ code: 400, status: false, message: messageCode.msgUnderConstruction, Details: `${transformedResponse}, ${pdfResponse}` });
 
     const hashedBatchData = transformedResponse.map(data => {
       // Convert data to string and calculate hash
@@ -1405,7 +1452,7 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
 
 };
 
-const _dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResponse, excelFilePath, posx, posy, qrside, pdfWidth, pdfHeight, flag) => {
+const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResponse, excelFilePath, posx, posy, qrside, pdfWidth, pdfHeight, flag) => {
   // console.log("Batch inputs", _pdfReponse, excelFilePath);
   const pdfResponse = _pdfReponse;
   const excelResponse = _excelResponse[0];
@@ -1668,6 +1715,10 @@ const _dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelRes
 };
 
 const issueCustomCertificateWithRetry = async (certificateNumber, certificateHash, expirationEpoch, retryCount = 3, gasPrice = null) => {
+  const newContract = await connectToPolygon();
+  if (!newContract) {
+    return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
+  }
   console.log("Inputs", certificateNumber, certificateHash, expirationEpoch);
   try {
     // Fetch the current gas price if not already provided
@@ -1760,6 +1811,10 @@ const issueCustomCertificateWithRetry = async (certificateNumber, certificateHas
 };
 
 const issueCertificateWithRetry = async (certificateNumber, certificateHash, expirationEpoch, retryCount = 3) => {
+  const newContract = await connectToPolygon();
+  if (!newContract) {
+    return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
+  }
   try {
     // Issue Single Certifications on Blockchain
     const tx = await newContract.issueCertificate(
@@ -1804,7 +1859,10 @@ const issueCertificateWithRetry = async (certificateNumber, certificateHash, exp
 };
 
 const issueBatchCertificateWithRetry = async (root, expirationEpoch, retryCount = 3) => {
-
+  const newContract = await connectToPolygon();
+  if (!newContract) {
+    return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
+  }
   try {
     // Issue Single Certifications on Blockchain
     const tx = await newContract.issueBatchOfCertificates(
@@ -2024,7 +2082,6 @@ const _convertPdfBufferToPng = async (imagePath, pdfBuffer, _width, _height) => 
 const _uploadImageToS3 = async (certNumber, imagePath) => {
 
   const bucketName = process.env.BUCKET_NAME;
-  const timestamp = Date.now(); // Get the current timestamp in milliseconds
   const _keyName = `${certNumber}.png`;
   const s3 = new AWS.S3();
   const fileStream = fs.createReadStream(imagePath);

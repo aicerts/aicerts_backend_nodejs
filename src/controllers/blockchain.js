@@ -12,6 +12,7 @@ const abi = require("../config/abi.json");
 
 // Importing functions from a custom module
 const {
+  connectToPolygon,
   isDBConnected, // Function to check if the database connection is established
   sendEmail, // Function to send an email on approved
   rejectEmail, // Function to send an email on rejected
@@ -68,7 +69,10 @@ const validateIssuer = async (req, res) => {
   }
   let validationStatus = req.body.status;
   let email = req.body.email;
-
+  const newContract = await connectToPolygon();
+  if(!newContract){
+    return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
+  }
   // Find user by email
   const userExist = await User.findOne({ email });
 
@@ -222,7 +226,10 @@ const addTrustedOwner = async (req, res) => {
   if (!validResult.isEmpty()) {
     return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
-
+  const newContract = await connectToPolygon();
+  if(!newContract){
+    return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
+  }
   // const { newOwnerAddress } = req.body;
   try {
     // Extract new wallet address from request body
@@ -287,7 +294,10 @@ const removeTrustedOwner = async (req, res) => {
   if (!validResult.isEmpty()) {
     return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
-
+  const newContract = await connectToPolygon();
+  if(!newContract){
+    return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
+  }
   // const { newOwnerAddress } = req.body;
   try {
     // Extract new wallet address from request body
@@ -394,7 +404,10 @@ const createAndValidateIssuerIdUponLogin = async (req, res) => {
   if (!validResult.isEmpty()) {
     return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
-
+  const newContract = await connectToPolygon();
+  if(!newContract){
+    return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
+  }
   const email = req.body.email;
   let attempts = 0;
   let getNewId = null;
@@ -702,6 +715,10 @@ const allocateCredits = async (req, res) => {
 
 // Blockchain call for Grant / Revoke Issuer role
 const grantOrRevokeRoleWithRetry = async (roleStatus, role, id, retryCount = 3) => {
+  const newContract = await connectToPolygon();
+  if(!newContract){
+    return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
+  }
   try {
     // Issue Single Certifications on Blockchain
     if (roleStatus == "grant") {

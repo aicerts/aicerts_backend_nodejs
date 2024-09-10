@@ -16,6 +16,7 @@ const abi = require("../config/abi.json");
 
 // Importing functions from a custom module
 const {
+    connectToPolygon,
     convertDateFormat,
     convertDateToEpoch,
     insertIssueStatus,
@@ -52,6 +53,10 @@ const max_length = parseInt(process.env.MAX_LENGTH);
 const messageCode = require("../common/codes");
 
 const handleRenewCertification = async (email, certificateNumber, _expirationDate) => {
+    const newContract = await connectToPolygon();
+    if (!newContract) {
+        return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
+    }
     const expirationDate = _expirationDate != 1 ? await convertDateFormat(_expirationDate) : 1;
     // Get today's date
     let today = new Date().toLocaleString("en-US", { timeZone: "America/New_York" }); // Adjust timeZone as per the US Standard Time zone
@@ -527,6 +532,10 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
 };
 
 const handleUpdateCertificationStatus = async (email, certificateNumber, certStatus) => {
+    const newContract = await connectToPolygon();
+    if (!newContract) {
+        return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
+    }
     // Get today's date
     const today = new Date().toLocaleString("en-US", { timeZone: "America/New_York" }); // Adjust timeZone as per the US Standard Time zone
     // Convert today's date to epoch time (in milliseconds)
@@ -715,6 +724,10 @@ const handleUpdateCertificationStatus = async (email, certificateNumber, certSta
 };
 
 const handleRenewBatchOfCertifications = async (email, batchId, batchExpirationDate) => {
+    const newContract = await connectToPolygon();
+    if (!newContract) {
+        return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
+    }
     const expirationDate = batchExpirationDate != 1 ? await convertDateFormat(batchExpirationDate) : 1;
     // Get today's date
     var today = new Date(); // Adjust timeZone as per the US Standard Time zone
@@ -806,6 +819,10 @@ const handleRenewBatchOfCertifications = async (email, batchId, batchExpirationD
 };
 
 const handleUpdateBatchCertificationStatus = async (email, batchId, certStatus) => {
+    const newContract = await connectToPolygon();
+    if (!newContract) {
+        return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
+    }
     // Get today's date
     var today = new Date(); // Adjust timeZone as per the US Standard Time zone
     // Convert today's date to epoch time (in milliseconds)
@@ -901,7 +918,10 @@ const expirationDateVariaton = async (_oldExpirationDate, _newExpirationDate) =>
 
 // Function to Perform Extend expiration of Single Certificate with retry mechanism 
 const renewSingleCertificateExpirationWithRetry = async (certificateNumber, combinedHash, epochExpiration, retryCount = 3) => {
-
+    const newContract = await connectToPolygon();
+    if (!newContract) {
+        return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
+    }
     // Perform Extend expiration of Single Certificate with retry mechanism
     try {
         // Issue Single Certifications on Blockchain
@@ -919,7 +939,7 @@ const renewSingleCertificateExpirationWithRetry = async (certificateNumber, comb
                 // Retry after a delay (e.g., 1.5 seconds)
                 await holdExecution(1500);
                 return renewSingleCertificateExpirationWithRetry(certificateNumber, combinedHash, epochExpiration, retryCount - 1);
-            } 
+            }
         }
 
         var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
@@ -950,7 +970,10 @@ const renewSingleCertificateExpirationWithRetry = async (certificateNumber, comb
 
 // Function to Perform Extend expiration of Certificate in the batch with retry mechanism 
 const renewCertificateExpirationInBatchWithRetry = async (fetchIndex, hashedProof, epochExpiration, retryCount = 3) => {
-
+    const newContract = await connectToPolygon();
+    if (!newContract) {
+        return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
+    }
     // Perform Extend expiration of Certificate in the batch with retry mechanism 
     try {
         // Issue Single Certifications on Blockchain
@@ -999,7 +1022,10 @@ const renewCertificateExpirationInBatchWithRetry = async (fetchIndex, hashedProo
 
 // Function to Perform Update Single Certificate status with retry mechanism 
 const updateSingleCertificateStatusWithRetry = async (certificateNumber, certStatus, retryCount = 3) => {
-
+    const newContract = await connectToPolygon();
+    if (!newContract) {
+        return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
+    }
     try {
         // Perform Update Single Certificate status with retry mechanism 
         const tx = await newContract.updateSingleCertificateStatus(
@@ -1015,7 +1041,7 @@ const updateSingleCertificateStatusWithRetry = async (certificateNumber, certSta
                 // Retry after a delay (e.g., 1.5 seconds)
                 await holdExecution(1500);
                 return updateSingleCertificateStatusWithRetry(certificateNumber, certStatus, retryCount - 1);
-            } 
+            }
         }
 
         let polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
@@ -1046,6 +1072,10 @@ const updateSingleCertificateStatusWithRetry = async (certificateNumber, certSta
 
 // Function to Perform Update Certificate status in Batch with retry mechanism 
 const updateCertificateStatusInBatchWithRetry = async (hashedProof, certStatus, retryCount = 3) => {
+    const newContract = await connectToPolygon();
+    if (!newContract) {
+        return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
+    }
     try {
         // Perform Update Certificate status in Batch with retry mechanism
         const tx = await newContract.updateCertificateInBatchStatus(
@@ -1061,7 +1091,7 @@ const updateCertificateStatusInBatchWithRetry = async (hashedProof, certStatus, 
                 // Retry after a delay (e.g., 1.5 seconds)
                 await holdExecution(1500);
                 return updateCertificateStatusInBatchWithRetry(certificateNumber, certificateHash, expirationEpoch, retryCount - 1);
-            } 
+            }
         }
 
         let polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
@@ -1092,7 +1122,10 @@ const updateCertificateStatusInBatchWithRetry = async (hashedProof, certStatus, 
 
 // Function to Perform Extend Batch expiration with retry mechanism 
 const updateBatchCertificateExpirationWithRetry = async (rootIndex, expirationEpoch, retryCount = 3) => {
-
+    const newContract = await connectToPolygon();
+    if(!newContract){
+      return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
+    }
     try {
         // Perform Extend Batch expiration with retry mechanism 
         const tx = await newContract.renewBatchOfCertificates(
@@ -1108,7 +1141,7 @@ const updateBatchCertificateExpirationWithRetry = async (rootIndex, expirationEp
                 // Retry after a delay (e.g., 1.5 seconds)
                 await holdExecution(1500);
                 return updateBatchCertificateExpirationWithRetry(rootIndex, expirationEpoch, retryCount - 1);
-            } 
+            }
         }
 
         let polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
@@ -1139,7 +1172,10 @@ const updateBatchCertificateExpirationWithRetry = async (rootIndex, expirationEp
 
 // Function to Perform Update Batch Status with retry mechanism 
 const updateBatchCertificateStatusWithRetry = async (rootIndex, certStatus, retryCount = 3) => {
-
+    const newContract = await connectToPolygon();
+    if(!newContract){
+      return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
+    }
     try {
         // Perform Update Batch Status with retry mechanism 
         const tx = await newContract.updateBatchCertificateStatus(
