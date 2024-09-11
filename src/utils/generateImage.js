@@ -23,9 +23,9 @@ const loadImage = async (url) => {
 
 const getOption = async(url, qrSide, code) => {
     // console.log("inputs", url, qrSide, code);
-    if(code == 0){
-        return null;
-    }
+    // if(code == 0){
+    //     return null;
+    // }
     var option;
     // Load the image before creating the options
     await loadImage(logoUrl);

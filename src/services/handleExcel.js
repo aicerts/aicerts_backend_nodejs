@@ -165,7 +165,7 @@ const handleExcelFile = async (_path) => {
 
     } catch (error) {
         console.error('Error fetching record:', error);
-        return { status: "FAILED", response: false, message: messageCode.msgInternalError };
+        return { status: "FAILED", response: false, message: messageCode.msgProvideValidExcel };
     }
 };
 
@@ -291,7 +291,7 @@ const handleBulkExcelFile = async (_path) => {
 
     } catch (error) {
         console.error('Error fetching record:', error);
-        return { status: "FAILED", response: false, message: messageCode.msgInternalError };
+        return { status: "FAILED", response: false, message: messageCode.msgProvideValidExcel };
     }
 
 }
@@ -400,7 +400,7 @@ const handleBatchExcelFile = async (_path) => {
         }
     } catch (error) {
         console.error('Error fetching record:', error);
-        return { status: "FAILED", response: false, message: messageCode.msgInternalError };
+        return { status: "FAILED", response: false, message: messageCode.msgProvideValidExcel };
     }
 };
 
