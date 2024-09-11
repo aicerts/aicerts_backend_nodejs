@@ -2007,7 +2007,9 @@ const findDirectories = async (items) => {
         //   if (fs.existsSync(dir)) {
         //     const remainingFiles = fs.readdirSync(dir);
         //     if (remainingFiles.length === 0) {
+        //       console.log("Directory path", dir);
         //       fs.rmdirSync(dir);
+        //       // fs.unlinkSync(dir);
         //       console.log(`Removed empty directory ${dir}`);
         //     }
         //   } else {

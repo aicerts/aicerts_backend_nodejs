@@ -1272,12 +1272,10 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
       var batchNumber = await newContract.getRootLength();
       var allocateBatchId = parseInt(batchNumber) + 1;
 
-      // var txHash = await issueBatchCertificateWithRetry(tree.root, batchExpiration);
-      // if (!txHash) {
-      //   return ({ code: 400, status: false, message: messageCode.msgFaileToIssueAfterRetry });
-      // }
-
-      var txHash = "tx hash";
+      var txHash = await issueBatchCertificateWithRetry(tree.root, batchExpiration);
+      if (!txHash) {
+        return ({ code: 400, status: false, message: messageCode.msgFaileToIssueAfterRetry });
+      }
 
       var linkUrl = `https://${process.env.NETWORK}/tx/${txHash}`;
 
@@ -1325,7 +1323,6 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
 
           var combinedHash = hashedBatchData[index];
 
-
           // Generate encrypted URL with certificate data
           var encryptLink = await generateEncryptedUrl(fields);
 
@@ -1360,9 +1357,6 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
           const qrImageData = generateQr ? generateQr : qrCodeImage;
           file = pdfFilePath;
           var outputPdf = `${pdfFileName}`;
-
-          // await cleanUploadFolder();
-          // return ({ code: 400, status: false, message: messageCode.msgUnderConstruction, Details: fields });
 
           if (!fs.existsSync(pdfFilePath)) {
             return ({ code: 400, status: "FAILED", message: messageCode.msgInvalidPdfUploaded });
