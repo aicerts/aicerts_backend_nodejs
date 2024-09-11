@@ -1806,6 +1806,9 @@ const getSingleCertificates = async (req, res) => {
 
     const certificates = [...certificatesSimple, ...certificatesDynamic];
 
+    // Function to sort data by issueDate
+    certificates.sort((a, b) => new Date(b.issueDate) - new Date(a.issueDate));
+
     // Respond with success and the certificates
     res.json({
       code: 200,
@@ -1840,7 +1843,7 @@ const getBatchCertificateDates = async (req, res) => {
     const batchCertificatesTwo = await BulkBatchIssues.find({ issuerId }).sort({ issueDate: 1 });
 
     const batchCertificates = [...batchCertificatesOne, ...batchCertificatesTwo];
-    console.log("the data", batchCertificatesOne, batchCertificatesTwo, batchCertificates);
+    
 
     // Create a map to store the first certificate's issueDate for each batchId
     const batchDateMap = new Map();
@@ -1858,6 +1861,9 @@ const getBatchCertificateDates = async (req, res) => {
       issueDate: value.issueDate,
       issuerId: value.issuerId
     }));
+    
+    // Function to sort data by issueDate
+    uniqueBatchDates.sort((a, b) => new Date(b.issueDate) - new Date(a.issueDate));
 
     // Respond with success and the unique batch dates
     res.json({
