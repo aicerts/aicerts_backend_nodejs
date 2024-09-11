@@ -1052,7 +1052,8 @@ const dynamicBatchIssueCertificates = async (req, res) => {
         urls: bulkIssueResponse.Details
       }
       res.status(bulkIssueResponse.code).json({ code: bulkIssueResponse.code, status: "SUCCESS", message: messageCode.msgBatchIssuedSuccess, details: bulkResponse });
-      await cleanUploadFolder();
+      // await cleanUploadFolder();
+      await wipeUploadFolder();
       // await flushUploadFolder();
       return;
     } else {
