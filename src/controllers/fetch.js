@@ -1837,7 +1837,7 @@ const getBatchCertificateDates = async (req, res) => {
 
     // Fetch all batch certificates for the given issuerId
     const batchCertificatesOne = await BatchIssues.find({ issuerId }).sort({ issueDate: 1 });
-    const batchCertificatesTwo = await BulkBatchIssues.find({ issuerId }).sort({ issueDate: 1 });
+    const batchCertificatesTwo = await DynamicBatchIssues.find({ issuerId }).sort({ issueDate: 1 });
 
     const batchCertificates = [...batchCertificatesOne, ...batchCertificatesTwo];
     
@@ -1894,7 +1894,7 @@ const getBatchCertificates = async (req, res) => {
     // Fetch all certificates for the given batchId and issuerId
     var certificates = await BatchIssues.find({ batchId, issuerId });
     if (!certificates || certificates.length < 1) {
-      certificates = await BulkBatchIssues.find({ batchId, issuerId });
+      certificates = await DynamicBatchIssues.find({ batchId, issuerId });
     }
 
     // Respond with success and the certificates
