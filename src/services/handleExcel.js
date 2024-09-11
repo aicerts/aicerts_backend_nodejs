@@ -10,7 +10,7 @@ const {
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
 // Import MongoDB models
-const { Issues, BatchIssues } = require("../config/schema");
+const { Issues, DynamicBatchIssues } = require("../config/schema");
 
 // Parse environment variables for password length constraints
 const min_length = parseInt(process.env.MIN_LENGTH) || 12;
@@ -327,10 +327,6 @@ const handleBatchExcelFile = async (_path) => {
                 });
                 return rowData;
             });
-
-            // Convert JSON data to a string
-            var jsonString = JSON.stringify(jsonData, null, 2);
-
        
             if (jsonData.length > 0) {
                 let headers = rows.shift();
@@ -385,7 +381,7 @@ const handleBatchExcelFile = async (_path) => {
 
                 // Assuming BatchIssues is your MongoDB model
                 for (const id of documentIDs) {
-                    const issueExist = await isBulkCertificationIdExisted(id);
+                    const issueExist = await DynamicBatchIssues.findOne({certificateNumber : id});
                     if (issueExist) {
                         matchingIDs.push(id);
                     }

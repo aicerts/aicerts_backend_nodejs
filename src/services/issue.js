@@ -32,6 +32,7 @@ const {
   insertCertificateData, // Function to insert certificate data into the database
   insertIssuanceCertificateData,
   insertDynamicCertificateData,
+  insertDynamicBatchCertificateData,
   addDynamicLinkToPdf,
   insertBulkBatchIssueData,
   addLinkToPdf, // Function to add a link to a PDF file
@@ -1185,7 +1186,7 @@ const handleIssueDynamicPdfCertification = async (email, certificateNumber, name
   }
 };
 
-const _dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResponse, excelFilePath, posx, posy, qrside, pdfWidth, pdfHeight, flag) => {
+const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResponse, excelFilePath, posx, posy, qrside, pdfWidth, pdfHeight, qrOption, flag) => {
   const newContract = await connectToPolygon();
   if (!newContract) {
     return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
@@ -1199,6 +1200,7 @@ const _dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelRes
   var modifiedUrl;
   var imageUrl;
   var generatedImage;
+  var customFields;
 
   if (!pdfResponse || pdfResponse.length == 0) {
     return ({ code: 400, status: false, message: messageCode.msgUnableToFindPdfFiles });
@@ -1229,40 +1231,55 @@ const _dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelRes
 
     // return ({ code: 400, status: false, message: messageCode.msgUnderConstruction, Details: `${transformedResponse}, ${pdfResponse}` });
 
+    // const hashedBatchData = transformedResponse.map(data => {
+    //   // Convert data to string and calculate hash
+    //   const dataString = data.map(item => item.toString()).join('');
+    //   console.log("The string", dataString);
+    //   const _hash = calculateHash(dataString);
+    //   return _hash;
+    // });
+    // console.log("The hash response", hashedBatchData);
+    // // Format as arrays with corresponding elements using a loop
+    // var values = [];
+    // for (let i = 0; i < excelResponse.length; i++) {
+    //   values.push([hashedBatchData[i]]);
+    // }
+
+    // Hash each row of data
     const hashedBatchData = transformedResponse.map(data => {
-      // Convert data to string and calculate hash
-      const dataString = data.map(item => item.toString()).join('');
+      // Convert each item to a string, handling null values
+      const dataString = data.map(item => item === null ? 'null' : item.toString()).join('');
       const _hash = calculateHash(dataString);
       return _hash;
     });
+
     // Format as arrays with corresponding elements using a loop
-    var values = [];
-    for (let i = 0; i < excelResponse.length; i++) {
-      values.push([hashedBatchData[i]]);
-    }
+    values = hashedBatchData.map(hash => [hash]);
+
+    // await cleanUploadFolder();
+    // return ({ code: 400, status: false, message: messageCode.msgUnderConstruction, Details: `${values}` });
     try {
 
       // Generate the Merkle tree
       let tree = StandardMerkleTree.of(values, ['string']);
       let batchExpiration = 1;
-      try {
-        let getContractStatus = await getContractAddress(contractAddress);
-        if (!getContractStatus) {
-          return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: messageCode.msgRpcFailed });
-        }
 
-        var batchNumber = await newContract.getRootLength();
-        var allocateBatchId = parseInt(batchNumber) + 1;
-
-        var { txHash, polygonLink } = await issueBatchCertificateWithRetry(tree.root, batchExpiration);
-        var linkUrl = polygonLink;
-        if (!linkUrl) {
-          return ({ code: 400, status: false, message: messageCode.msgFaileToIssueAfterRetry });
-        }
-
-      } catch (error) {
-        return ({ code: 400, status: false, message: messageCode.msgFailedAtBlockchain, Details: error });
+      let getContractStatus = await getContractAddress(contractAddress);
+      if (!getContractStatus) {
+        return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: messageCode.msgRpcFailed });
       }
+
+      var batchNumber = await newContract.getRootLength();
+      var allocateBatchId = parseInt(batchNumber) + 1;
+
+      // var txHash = await issueBatchCertificateWithRetry(tree.root, batchExpiration);
+      // if (!txHash) {
+      //   return ({ code: 400, status: false, message: messageCode.msgFaileToIssueAfterRetry });
+      // }
+
+      var txHash = "tx hash";
+
+      var linkUrl = `https://${process.env.NETWORK}/tx/${txHash}`;
 
       if (pdfResponse.length == _excelResponse[1]) {
         console.log("working directory", __dirname);
@@ -1274,7 +1291,7 @@ const _dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelRes
 
           // Extract Certs from pdfFileName
           const certs = pdfFileName.split('.')[0]; // Remove file extension
-          const foundEntry = await excelResponse.find(entry => entry.Certs === certs);
+          const foundEntry = await excelResponse.find(entry => entry.documentName === certs);
           if (foundEntry) {
             var index = excelResponse.indexOf(foundEntry);
             var _proof = tree.getProof(index);
@@ -1292,12 +1309,17 @@ const _dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelRes
             return ({ code: 400, status: false, message: messageCode.msgNoEntryMatchFound, Details: certs });
           }
 
+          let theObject = await getFormattedFields(foundEntry);
+          if(theObject){
+            customFields = JSON.stringify(theObject, null, 2);
+          } else {
+            customFields = null;
+          }
+
           var fields = {
-            Certificate_Number: foundEntry.certificationID,
+            Certificate_Number: foundEntry.documentID,
             name: foundEntry.name,
-            courseName: foundEntry.certificationName,
-            Grant_Date: foundEntry.grantDate,
-            Expiration_Date: foundEntry.expirationDate,
+            customFields: customFields,
             polygonLink: linkUrl
           };
 
@@ -1312,7 +1334,7 @@ const _dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelRes
             if (dbStatus) {
               let urlData = {
                 email: email,
-                certificateNumber: foundEntry.certificationID,
+                certificateNumber: foundEntry.documentID,
                 url: encryptLink
               }
               await insertUrlData(urlData);
@@ -1321,17 +1343,26 @@ const _dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelRes
           }
 
           if (shortUrlStatus) {
-            modifiedUrl = process.env.SHORT_URL + foundEntry.certificationID;
+            modifiedUrl = process.env.SHORT_URL + foundEntry.documentID;
           }
 
           let _qrCodeData = modifiedUrl != false ? modifiedUrl : encryptLink;
 
-          const qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
-            errorCorrectionLevel: "H", width: qrside, height: qrside
-          });
+          // Generate vibrant QR
+          const generateQr = await generateVibrantQr(_qrCodeData, qrside, qrOption);
 
+          if (!generateQr) {
+            var qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
+              errorCorrectionLevel: "H", width: qrside, height: qrside
+            });
+          }
+
+          const qrImageData = generateQr ? generateQr : qrCodeImage;
           file = pdfFilePath;
           var outputPdf = `${pdfFileName}`;
+
+          // await cleanUploadFolder();
+          // return ({ code: 400, status: false, message: messageCode.msgUnderConstruction, Details: fields });
 
           if (!fs.existsSync(pdfFilePath)) {
             return ({ code: 400, status: "FAILED", message: messageCode.msgInvalidPdfUploaded });
@@ -1341,7 +1372,7 @@ const _dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelRes
             pdfFilePath,
             outputPdf,
             linkUrl,
-            qrCodeImage,
+            qrImageData,
             combinedHash,
             posx,
             posy
@@ -1387,13 +1418,11 @@ const _dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelRes
               certificateHash: combinedHash,
               certificateNumber: fields.Certificate_Number,
               name: fields.name,
-              course: fields.courseName,
-              grantDate: fields.Grant_Date,
-              expirationDate: fields.Expiration_Date,
+              customFields: fields.customFields,
               url: imageUrl
             };
             // await insertCertificateData(certificateData);
-            insertPromises.push(insertBulkBatchIssueData(certificateData));
+            insertPromises.push(insertDynamicBatchCertificateData(certificateData));
 
           } catch (error) {
             console.error('Error:', error);
@@ -1452,7 +1481,7 @@ const _dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelRes
 
 };
 
-const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResponse, excelFilePath, posx, posy, qrside, pdfWidth, pdfHeight, qrOption, flag) => {
+const _dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResponse, excelFilePath, posx, posy, qrside, pdfWidth, pdfHeight, qrOption, flag) => {
   // console.log("Batch inputs", _pdfReponse, excelFilePath);
   const pdfResponse = _pdfReponse;
   const excelResponse = _excelResponse[0];
@@ -1886,9 +1915,7 @@ const issueBatchCertificateWithRetry = async (root, expirationEpoch, retryCount 
       }
     }
 
-    let polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
-
-    return { txHash, polygonLink };
+    return txHash;
 
   } catch (error) {
     if (retryCount > 0 && error.code === 'ETIMEDOUT') {
@@ -2148,6 +2175,41 @@ const compareInputDates = async (_grantDate, _expirationDate) => {
     return 0;
   }
 };
+
+// Function to get the last fields after excluding the first three
+const getFormattedFields = async(obj) => {
+  const keys = Object.keys(obj);
+  
+  // Exclude the first three fields
+  const fieldsToInclude = keys.slice(3);
+
+  // Create a result object with formatted values, excluding null or empty string values
+  const result = {};
+  fieldsToInclude.forEach(key => {
+    let value = obj[key];
+    if (value instanceof Date) {
+      value = formatDate(value);
+    } else if (value === null || value === '' || value === "") {
+      return; // Skip this entry if value is null or empty string
+    } else {
+      value = value.toString(); // Convert other values to string
+    }
+    result[key] = value;
+  });
+
+  return result;
+}
+
+// Function to format a Date object into MM/DD/YYYY
+function formatDate(date) {
+  if (date instanceof Date) {
+    const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are zero-based
+    const day = String(date.getDate()).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${month}/${day}/${year}`;
+  }
+  return date;
+}
 
 module.exports = {
   // Function to issue a certification

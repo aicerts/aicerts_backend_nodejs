@@ -629,6 +629,36 @@ const insertBulkBatchIssueData = async (data) => {
 };
 
 // Function to insert certification data into MongoDB
+const insertDynamicBatchCertificateData = async (data) => {
+  try {
+
+    // Insert data into MongoDB
+    const newBatchIssue = new DynamicBatchIssues({
+      issuerId: data.issuerId,
+      batchId: data.batchId,
+      proofHash: data.proofHash,
+      encodedProof: data.encodedProof,
+      transactionHash: data.transactionHash,
+      certificateHash: data.certificateHash,
+      certificateNumber: data.certificateNumber,
+      name: data.name,
+      certificateFields: data.customFields,
+      certificateStatus: 1,
+      url: data.url || '',
+      type: 'dynamic',
+      issueDate: Date.now()
+    });
+
+    const result = await newBatchIssue.save();
+    // Logging confirmation message
+    // console.log("Certificate data inserted");
+
+  } catch (error) {
+    console.error("Error connecting to MongoDB:", error);
+  }
+};
+
+// Function to insert certification data into MongoDB
 const insertDynamicCertificateData = async (data) => {
   try {
     // Create a new Issues document with the provided data
@@ -1630,6 +1660,8 @@ module.exports = {
 
   // Function to insert dynamic bulk (batch) certificate data into MongoDB
   insertBulkBatchIssueData,
+
+  insertDynamicBatchCertificateData,
 
   // Function to extract certificate information from a QR code text
   extractCertificateInfo,

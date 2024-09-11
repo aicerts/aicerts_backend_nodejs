@@ -713,7 +713,7 @@ const batchIssueCertificate = async (req, res) => {
  * @param {Object} req - Express request object.
  * @param {Object} res - Express response object.
  */
-const _dynamicBatchIssueCertificates = async (req, res) => {
+const dynamicBatchIssueCertificates = async (req, res) => {
   const newContract = await connectToPolygon();
   if (!newContract) {
     return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
@@ -730,6 +730,8 @@ const _dynamicBatchIssueCertificates = async (req, res) => {
     }
     return;
   }
+
+  const qrOption = req.body.qrOption || 0;
 
   var filesList = [];
   // Initialize an empty array to store the file(s) ending with ".xlsx"
@@ -953,7 +955,7 @@ const _dynamicBatchIssueCertificates = async (req, res) => {
       return;
     }
 
-    var bulkIssueResponse = await dynamicBatchCertificates(emailExist.email, emailExist.issuerId, pdfFiles, excelData.message, excelFilePath, paramsExist.positionX, paramsExist.positionY, paramsExist.qrSide, paramsExist.pdfWidth, paramsExist.pdfHeight, flag);
+    var bulkIssueResponse = await dynamicBatchCertificates(emailExist.email, emailExist.issuerId, pdfFiles, excelData.message, excelFilePath, paramsExist.positionX, paramsExist.positionY, paramsExist.qrSide, paramsExist.pdfWidth, paramsExist.pdfHeight, qrOption, flag);
 
     if (bulkIssueStatus == 'ZIP_STORE' || flag == 1) {
       if (bulkIssueResponse.code == 200) {
@@ -1069,7 +1071,7 @@ const _dynamicBatchIssueCertificates = async (req, res) => {
   }
 };
 
-const dynamicBatchIssueCertificates = async (req, res) => {
+const _dynamicBatchIssueCertificates = async (req, res) => {
   var file = req?.file;
   // Check if the file path matches the pattern
   if (!req.file || !req.file.originalname.endsWith('.zip')) {
