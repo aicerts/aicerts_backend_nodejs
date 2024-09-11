@@ -18,16 +18,6 @@ const validationRoutes = {
         body("certificateNumber").notEmpty().trim().isString().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide).isLength({ min: 5, max: 50 }).withMessage(messageCode.msgCertLength),
         body(["name", "course"]).notEmpty().trim().isString().withMessage(messageCode.msgNonEmpty).not().equals("string").withMessage(messageCode.msgInputProvide).isLength({ max: 40 }).withMessage(messageCode.msgMaxLength),
         body("grantDate").not().equals("string").withMessage(messageCode.msgInputProvide),
-        body("qrOption")
-            .notEmpty().withMessage(messageCode.msgNonEmpty)
-            .trim()
-            .custom((value) => {
-                const intValue = parseInt(value);
-                if (intValue < 0) {
-                    throw new Error(messageCode.msgNumericOnly);
-                }
-                return true;
-            }),
     ],
     issuance: [
         body("email").notEmpty().trim().isEmail().withMessage(messageCode.msgInvalidEmail).not().equals("string").withMessage(messageCode.msgInvalidEmail),

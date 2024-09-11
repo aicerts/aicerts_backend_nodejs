@@ -1462,14 +1462,17 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
         }
         return ({ code: 200, status: true, message: messageCode.msgBatchIssuedSuccess, Details: insertUrl });
       } else {
+        await wipeUploadFolder();
         return ({ code: 400, status: false, message: messageCode.msgInputRecordsNotMatched, Details: error });
       }
 
     } catch (error) {
+      await wipeUploadFolder();
       return ({ code: 400, status: false, message: messageCode.msgFailedToIssueBulkCerts, Details: error });
     }
 
   } catch (error) {
+    await wipeUploadFolder();
     return ({ code: 500, status: false, message: messageCode.msgInternalError, Details: error });
   }
 

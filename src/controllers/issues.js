@@ -1029,6 +1029,12 @@ const dynamicBatchIssueCertificates = async (req, res) => {
         let files = fs.readdirSync(uploadPath);
         console.log("Files remain", files);
         await flushUploadFolder();
+        await removeEmptyFolders(uploadPath);
+        let ifFileExist = path.join(uploadPath, file.filename);
+        console.log("The file", file, ifFileExist);
+        if (fs.existsSync(ifFileExist)) {
+          fs.unlinkSync(ifFileExist);
+        }
         return;
       } else {
         var statusCode = bulkIssueResponse.code || 400;
@@ -2111,6 +2117,34 @@ const backupFileToCloud = async (file, filePath, type) => {
   } catch (error) {
     console.error('Error uploading file:', error);
     return ({ response: false, status: "FAILED", message: 'An error occurred while uploading the file', details: error });
+  }
+};
+
+async function removeEmptyFolders(dir) {
+  try {
+    // Read the contents of the directory
+    const files = fs.readdirSync(dir);
+    
+    // Loop through each file and directory
+    for (const file of files) {
+      const filePath = path.join(dir, file);
+      const stats = fs.statSync(filePath);
+
+      // If it's a directory, recursively check for empty folders
+      if (stats.isDirectory()) {
+        await removeEmptyFolders(filePath); // Recursive call
+
+        // After checking subdirectories, recheck if the folder is empty
+        const remainingFiles = fs.readdirSync(filePath);
+        if (remainingFiles.length === 0) {
+          // If empty, remove the folder
+          fs.rmdirSync(filePath);
+          console.log(`Removed empty folder: ${filePath}`);
+        }
+      }
+    }
+  } catch (error) {
+    console.error(`Error: ${error.message}`);
   }
 };
 
