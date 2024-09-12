@@ -24,7 +24,7 @@ const AWS = require('../config/aws-config');
 const { generateVibrantQr } = require('../utils/generateImage');
 
 // Import MongoDB models
-const { User, Issues, BatchIssues, DynamicParameters } = require("../config/schema");
+const { User, Issues, BatchIssues, DynamicParameters, DynamicBatchIssues } = require("../config/schema");
 
 // Import ABI (Application Binary Interface) from the JSON file located at "../config/abi.json"
 const abi = require("../config/abi.json");
@@ -746,7 +746,6 @@ const dynamicBatchIssueCertificates = async (req, res) => {
   var xlsxFiles = [];
   // Initialize an empty array to store the file(s) ending with ".pdf"
   var pdfFiles = [];
-  var docsExist = [];
   var existIssuerId;
 
 
@@ -895,21 +894,6 @@ const dynamicBatchIssueCertificates = async (req, res) => {
     const certsWithPDF = excelDataResponse.map(item => item.documentName + ".pdf");
     // Compare certsWithPDF with data in Excel
     const matchedDocs = pdfFiles.filter(cert => certsWithPDF.includes(cert));
-    //Exctract only cert Ids
-    const documentIds = excelDataResponse.map(item => item.documentID);
-    for (let index = 0; index < documentIds.length; index++) {
-      let targetId = documentIds[index];
-      let val = await newContract.verifyCertificateById(targetId);
-      if (val[0] == true) {
-        docsExist.push(targetId);
-      }
-    }
-    if (docsExist.length > 0) {
-      res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgExcelHasExistingIds, details: docsExist });
-      // await cleanUploadFolder();
-      await wipeUploadFolder();
-      return;
-    }
 
     if ((pdfFiles.length != matchedDocs.length) || (matchedDocs.length != excelData.message[1])) {
       res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInputRecordsNotMatched });
