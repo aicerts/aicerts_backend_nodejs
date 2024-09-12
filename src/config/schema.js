@@ -77,6 +77,7 @@ const IssuesSchema = new mongoose.Schema({
   issueDate: { type: Date, default: Date.now },// issueDate field is of type Date and defaults to the current date/time
   width: { type: Number },
   height: { type: Number },
+  qrOption: { type: Number, default: 0 },
   url: { type: String },
   type: { type: String }
 });
@@ -98,6 +99,7 @@ const BulkBatchIssuesSchema = new Schema({
   issueDate: { type: Date, default: Date.now },
   width: { type: Number },
   height: { type: Number },
+  qrOption: { type: Number, default: 0 },
   url: { type: String }
 });
 
@@ -115,6 +117,7 @@ const BulkIssuesSchema = new mongoose.Schema({
   issueDate: { type: Date, default: Date.now },// issueDate field is of type Date and defaults to the current date/time
   width: { type: Number },
   height: { type: Number },
+  qrOption: { type: Number, default: 0 },
   url: { type: String },
   type: { type: String }
 });
@@ -145,6 +148,7 @@ const DynamicIssuesSchema = new mongoose.Schema({
   issueDate: { type: Date, default: Date.now },// issueDate field is of type Date and defaults to the current date/time
   width: { type: Number },
   height: { type: Number },
+  qrOption: { type: Number, default: 0 },
   url: { type: String },
   type: { type: String, default: 'dynamic' }
 });
@@ -164,6 +168,7 @@ const DynamicBatchIssuesSchema = new mongoose.Schema({
   issueDate: { type: Date, default: Date.now },// issueDate field is of type Date and defaults to the current date/time
   width: { type: Number },
   height: { type: Number },
+  qrOption: { type: Number, default: 0 },
   url: { type: String },
   type: { type: String, default: 'dynamic' }
 });

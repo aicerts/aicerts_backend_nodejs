@@ -605,7 +605,8 @@ const batchIssueCertificate = async (req, res) => {
                 email: email,
                 certStatus: 1,
                 width: without_pdf_width,
-                height: without_pdf_height
+                height: without_pdf_height,
+                qrOption: qrOption
               }
 
               let _fields = {

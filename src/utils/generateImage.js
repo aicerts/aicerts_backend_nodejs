@@ -32,9 +32,6 @@ const loadImage = async (url) => {
 
 const getOption = async (url, qrSide, code) => {
     // console.log("inputs", url, qrSide, code);
-    // if(code == 0){
-    //     return null;
-    // }
     var option;
     // Load the image before creating the options
     await loadImage(logoUrl);
@@ -161,7 +158,6 @@ const convertPdfBufferToPng = async (certNumber, pdfBuffer, _width, _height) => 
         responseType: 'buffer', // Ensure binary output (PNG buffer)
         width: _width * 2, // Optional width for the image
         height: _height * 2, // Optional height for the image
-        quality: 1.0,
         density: 300, // Optional DPI (dots per inch)
         // Other options (refer to pdf2pic documentation for details)
     };
@@ -195,7 +191,7 @@ const convertPdfBufferToPng = async (certNumber, pdfBuffer, _width, _height) => 
         } catch (error) {
             console.error("Internal server error", error);
         }
-        
+
         return false;
     } catch (error) {
         console.error('Error converting PDF to PNG buffer:', error);
@@ -203,9 +199,9 @@ const convertPdfBufferToPng = async (certNumber, pdfBuffer, _width, _height) => 
     }
 };
 
-const _convertPdfBufferToPng = async (imagePath, pdfBuffer, _width, _height) => {
-    if (!imagePath || !pdfBuffer) {
-        console.error('Invalid arguments: imagePath and pdfBuffer are required.');
+const _convertPdfBufferToPng = async (certNumber, pdfBuffer, _width, _height) => {
+    if (!certNumber || !pdfBuffer) {
+        console.error('Invalid arguments: certificationNumber and pdfBuffer are required.');
         return false;
     }
     const options = {
@@ -220,23 +216,33 @@ const _convertPdfBufferToPng = async (imagePath, pdfBuffer, _width, _height) => 
     try {
         const convert = fromBuffer(pdfBuffer, options);
         const pageOutput = await convert(1, { responseType: 'buffer' }); // Convert page 1 (adjust as needed)
-
-        // Check if base64 data is available
-        if (!pageOutput || !pageOutput.base64) {
-            // throw new Error('No base64 data returned from conversion.');
-            return false;
-        }
-
         let base64String = await pageOutput.base64;
         // Remove the data URL prefix if present
-        const base64Data = await base64String.replace(/^data:image\/png;base64,/, '');
-
+        // const base64Data = await base64String.replace(/^data:image\/png;base64,/, '');
         // Convert Base64 to buffer
-        const _buffer = Buffer.from(base64Data, 'base64');
-        fs.writeFileSync(imagePath, _buffer);
+        const _buffer = Buffer.from(base64String, 'base64');
 
-        // Save the PNG buffer to a file
-        console.log('Image successfully saved to', imagePath);
+        const _keyName = `${certNumber}.png`;
+        const s3 = new AWS.S3();
+        const keyPrefix = 'dynamic_bulk_issues/';
+        const keyName = keyPrefix + _keyName;
+
+        const uploadParams = {
+            Bucket: bucketName,
+            Key: keyName,
+            Body: _buffer,
+            ContentType: 'image/png',
+            ACL: acl
+        };
+
+        try {
+            const urlData = await s3.upload(uploadParams).promise();
+            console.log("The initial upload", urlData.Location);
+            return urlData.Location;
+        } catch (error) {
+            console.error("Internal server error", error);
+        }
+
         return true;
     } catch (error) {
         console.error('Error converting PDF to PNG buffer:', error);
@@ -256,7 +262,6 @@ const generateVibrantQr = async (url, qrSide, code) => {
             nodeCanvas, // this is required
             ...options
         });
-
         const buffer = await qrCodeImage.getRawData("png");
         // Convert buffer to Base64
         const base64String = await buffer.toString('base64');

@@ -119,7 +119,6 @@ const connectToPolygon = async (retryCount = 0) => {
   }
 };
 
-
 // Function to convert the Date format
 const validateSearchDateFormat = async (dateString) => {
   if (dateString.length < 11) {
@@ -573,6 +572,7 @@ const insertCertificateData = async (data) => {
       certificateStatus: data.certStatus,
       width: data.width || without_pdf_width,
       height: data.height || without_pdf_height,
+      qrOption: data.qrOption || 0,
       url: data.url || '',
       type: data.type || '',
       issueDate: Date.now() // Set the issue date to the current timestamp
@@ -621,6 +621,7 @@ const insertBulkBatchIssueData = async (data) => {
       certificateStatus: 1,
       width: data.width || without_pdf_width,
       height: data.height || without_pdf_height,
+      qrOption: data.qrOption || 0,
       url: data.url || '',
       issueDate: Date.now()
     });
@@ -652,6 +653,7 @@ const insertDynamicBatchCertificateData = async (data) => {
       certificateStatus: 1,
       width: data.width || without_pdf_width,
       height: data.height || without_pdf_height,
+      qrOption: data.qrOption || 0,
       url: data.url || '',
       type: 'dynamic',
       issueDate: Date.now()
@@ -680,6 +682,7 @@ const insertDynamicCertificateData = async (data) => {
       certificateFields: data.customFields,
       width: data.width || without_pdf_width,
       height: data.height || without_pdf_height,
+      qrOption: data.qrOption || 0,
       url: data.url,
       type: 'dynamic',
       issueDate: Date.now() // Set the issue date to the current timestamp
@@ -725,6 +728,7 @@ const insertBatchCertificateData = async (data) => {
       certificateStatus: data.certStatus,
       width: data.width || without_pdf_width,
       height: data.height || without_pdf_height,
+      qrOption: data.qrOption || 0,
       issueDate: Date.now()
     });
 
