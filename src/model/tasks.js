@@ -19,7 +19,9 @@ const { decryptData } = require("../common/cryptoFunction"); // Custom functions
 
 const retryDelay = parseInt(process.env.TIME_DELAY);
 const maxRetries = 3; // Maximum number of retries
-const urlLimit = parseInt(process.env.MAX_URL_SIZE) || parseInt(50);
+
+const without_pdf_width = parseInt(process.env.WITHOUT_PDF_WIDTH);
+const without_pdf_height = parseInt(process.env.WITHOUT_PDF_HEIGHT);
 
 // Import ABI (Application Binary Interface) from the JSON file located at "../config/abi.json"
 const abi = require("../config/abi.json");
@@ -569,6 +571,8 @@ const insertCertificateData = async (data) => {
       grantDate: data.grantDate,
       expirationDate: data.expirationDate,
       certificateStatus: data.certStatus,
+      width: data.width || without_pdf_width,
+      height: data.height || without_pdf_height,
       url: data.url || '',
       type: data.type || '',
       issueDate: Date.now() // Set the issue date to the current timestamp
@@ -615,6 +619,8 @@ const insertBulkBatchIssueData = async (data) => {
       grantDate: data.grantDate,
       expirationDate: data.expirationDate,
       certificateStatus: 1,
+      width: data.width || without_pdf_width,
+      height: data.height || without_pdf_height,
       url: data.url || '',
       issueDate: Date.now()
     });
@@ -644,6 +650,8 @@ const insertDynamicBatchCertificateData = async (data) => {
       name: data.name,
       certificateFields: data.customFields,
       certificateStatus: 1,
+      width: data.width || without_pdf_width,
+      height: data.height || without_pdf_height,
       url: data.url || '',
       type: 'dynamic',
       issueDate: Date.now()
@@ -670,6 +678,8 @@ const insertDynamicCertificateData = async (data) => {
       name: data.name,
       certificateStatus: 1,
       certificateFields: data.customFields,
+      width: data.width || without_pdf_width,
+      height: data.height || without_pdf_height,
       url: data.url,
       type: 'dynamic',
       issueDate: Date.now() // Set the issue date to the current timestamp
@@ -713,6 +723,8 @@ const insertBatchCertificateData = async (data) => {
       grantDate: data.grantDate,
       expirationDate: data.expirationDate,
       certificateStatus: data.certStatus,
+      width: data.width || without_pdf_width,
+      height: data.height || without_pdf_height,
       issueDate: Date.now()
     });
 
@@ -1596,7 +1608,7 @@ const getCertificationStatus = async (certStatus) => {
 
 const getContractAddress = async (contractAddress, maxRetries = 3, delay = 1000) => {
   let attempt = 0;
-  
+
   try {
     const code = await fallbackProvider.getCode(contractAddress);
     // console.log("the provider", fallbackProvider, code);

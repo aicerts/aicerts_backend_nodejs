@@ -34,6 +34,9 @@ const extractionPath = './uploads';
 const bulkIssueStatus = process.env.BULK_ISSUE_STATUS || 'DEFAULT';
 const cloudStore = process.env.CLOUD_STORE || 'DEFAULT';
 
+const without_pdf_width = parseInt(process.env.WITHOUT_PDF_WIDTH);
+const without_pdf_height = parseInt(process.env.WITHOUT_PDF_HEIGHT);
+
 const destDirectory = path.join(__dirname, '../../uploads/completed');
 const uploadPath = path.join(__dirname, '../../uploads');
 
@@ -600,7 +603,9 @@ const batchIssueCertificate = async (req, res) => {
                 grantDate: _grantDate,
                 expirationDate: _expirationDate,
                 email: email,
-                certStatus: 1
+                certStatus: 1,
+                width: without_pdf_width,
+                height: without_pdf_height
               }
 
               let _fields = {
@@ -658,7 +663,9 @@ const batchIssueCertificate = async (req, res) => {
                 course: rawBatchData[i].certificationName,
                 grantDate: _grantDate,
                 expirationDate: _expirationDate,
-                qrImage: qrImageData
+                qrImage: qrImageData,
+                width: without_pdf_width,
+                height: without_pdf_height
               }
 
               insertPromises.push(insertBatchCertificateData(batchDetails[i]));

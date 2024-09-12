@@ -10,6 +10,9 @@ const AWS = require('../config/aws-config');
 const bucketName = process.env.BUCKET_NAME;
 const acl = process.env.ACL_NAME;
 
+const with_pdf_width = parseInt(process.env.WITH_PDF_WIDTH);
+const with_pdf_height = parseInt(process.env.WITH_PDF_HEIGHT);
+
 var logoUrl = "https://certs365-live.s3.amazonaws.com/logo.png";
 
 // Function to load an image and return a promise that resolves when the image is processed
@@ -147,10 +150,10 @@ const getOption = async (url, qrSide, code) => {
     return option;
 };
 
-const convertPdfBufferToPng = async (certNumber, imagePath, pdfBuffer, _width, _height) => {
+const convertPdfBufferToPng = async (certNumber, pdfBuffer, _width, _height) => {
 
-    if (!imagePath || !pdfBuffer) {
-        console.error('Invalid arguments: imagePath and pdfBuffer are required.');
+    if (!certNumber || !pdfBuffer) {
+        console.error('Invalid arguments: certificationNumber and pdfBuffer are required.');
         return false;
     }
     const options = {
@@ -158,8 +161,6 @@ const convertPdfBufferToPng = async (certNumber, imagePath, pdfBuffer, _width, _
         responseType: 'buffer', // Ensure binary output (PNG buffer)
         width: _width * 2, // Optional width for the image
         height: _height * 2, // Optional height for the image
-        // width: 2067, // Optional width for the image
-        // height: 1477, // Optional height for the image
         quality: 1.0,
         density: 300, // Optional DPI (dots per inch)
         // Other options (refer to pdf2pic documentation for details)
@@ -193,16 +194,8 @@ const convertPdfBufferToPng = async (certNumber, imagePath, pdfBuffer, _width, _
             return urlData.Location;
         } catch (error) {
             console.error("Internal server error", error);
-            return false;
         }
-
-        // fs.writeFileSync(imagePath, _buffer, (err) => {
-        //     if (err) {
-        //         console.error("Error writing PNG file:", err);
-        //         return false;
-        //     }
-        // });
-        // Save the PNG buffer to a file
+        
         return false;
     } catch (error) {
         console.error('Error converting PDF to PNG buffer:', error);
@@ -256,7 +249,6 @@ const generateVibrantQr = async (url, qrSide, code) => {
         return false;
     }
     try {
-
         const options = await getOption(url, qrSide, code);
         // For canvas type
 

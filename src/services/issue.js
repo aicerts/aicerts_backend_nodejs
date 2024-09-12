@@ -22,6 +22,9 @@ const abi = require("../config/abi.json");
 
 const bulkIssueStatus = process.env.BULK_ISSUE_STATUS || 'DEFAULT';
 
+const without_pdf_width = parseInt(process.env.WITHOUT_PDF_WIDTH);
+const without_pdf_height = parseInt(process.env.WITHOUT_PDF_HEIGHT);
+
 // Importing functions from a custom module
 const {
   connectToPolygon,
@@ -291,6 +294,8 @@ const handleIssueCertification = async (email, certificateNumber, name, courseNa
                 expirationDate: fields.Expiration_Date,
                 email: email,
                 certStatus: 1,
+                width: without_pdf_width,
+                height: without_pdf_height,
                 type: 'withoutpdf',
               };
               // Insert certificate data into database
@@ -850,7 +855,7 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
       // console.log("Image path", generatedImage);
 
       // Convert PDF buffer into PNG and upload into S3 
-      var imageUrl = await convertPdfBufferToPngWithRetry(fields.Certificate_Number, generatedImage, fileBuffer, width, height);
+      var imageUrl = await convertPdfBufferToPngWithRetry(fields.Certificate_Number, fileBuffer, width, height);
       
       if(!imageUrl){
         return ({ code: 400, status: "FAILED", message: messageCode.msgUploadError });
@@ -875,16 +880,12 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
           expirationDate: fields.Expiration_Date,
           email: email,
           certStatus: 1,
+          width: width,
+          height: height,
           url: imageUrl,
           type: 'withpdf',
         };
         await insertCertificateData(certificateData);
-
-        // Delete files
-        // if (fs.existsSync(generatedImage)) {
-        //   // Delete the specified file
-        //   fs.unlinkSync(generatedImage);
-        // }
 
         // Delete files
         if (fs.existsSync(outputPdf)) {
@@ -1145,6 +1146,8 @@ const handleIssueDynamicPdfCertification = async (email, certificateNumber, name
           certificateNumber: fields.Certificate_Number,
           name: fields.name,
           email: email,
+          width: width,
+          height: height,
           url: imageUrl,
           customFields: _customFields
         };
@@ -1412,6 +1415,8 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
               certificateNumber: fields.Certificate_Number,
               name: fields.name,
               customFields: fields.customFields,
+              width: pdfWidth,
+              height: pdfHeight,
               url: imageUrl
             };
             // await insertCertificateData(certificateData);
@@ -1939,13 +1944,13 @@ const issueBatchCertificateWithRetry = async (root, expirationEpoch, retryCount 
   }
 };
 
-const convertPdfBufferToPngWithRetry = async (certificateNumber, imagePath, pdfBuffer, width, height, retryCount = 3) => {
+const convertPdfBufferToPngWithRetry = async (certificateNumber, pdfBuffer, width, height, retryCount = 3) => {
   try {
-    const imageResponse = await convertPdfBufferToPng(certificateNumber, imagePath, pdfBuffer, width, height);
+    const imageResponse = await convertPdfBufferToPng(certificateNumber, pdfBuffer, width, height);
     if (!imageResponse) {
       if (retryCount > 0) {
         console.log(`Image conversion failed. Retrying... Attempts left: ${retryCount}`);
-        return convertPdfBufferToPngWithRetry(certificateNumber, imagePath, pdfBuffer, width, height, retryCount - 1);
+        return convertPdfBufferToPngWithRetry(certificateNumber, pdfBuffer, width, height, retryCount - 1);
       } else {
         // throw new Error('Image conversion failed after multiple attempts');
         return null;
@@ -1957,7 +1962,7 @@ const convertPdfBufferToPngWithRetry = async (certificateNumber, imagePath, pdfB
       console.log(`Connection timed out. Retrying... Attempts left: ${retryCount}`);
       // Retry after a delay (e.g., 2 seconds)
       await holdExecution(2000);
-      return convertPdfBufferToPngWithRetry(certificateNumber, imagePath, pdfBuffer, width, height, retryCount - 1);
+      return convertPdfBufferToPngWithRetry(certificateNumber, pdfBuffer, width, height, retryCount - 1);
     } else if (error.code === 'NONCE_EXPIRED') {
       // Extract and handle the error reason
       // console.log("Error reason:", error.reason);
