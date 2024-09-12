@@ -823,7 +823,6 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
         var file = pdfPath;
         var outputPdf = `${fields.Certificate_Number}${name}.pdf`;
         var { width, height } = await getPdfDimensions(pdfPath);
-        console.log("Pdf dimentions", width, height);
         if (!fs.existsSync(pdfPath)) {
           return ({ code: 400, status: "FAILED", message: messageCode.msgInvalidPdfUploaded });
         }
@@ -846,18 +845,15 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
 
       // Define the directory where you want to save the file
       // const uploadDir = path.join(__dirname, '../../uploads'); // Go up two directories from __dirname
-      let _generatedImage = `${fields.Certificate_Number}.png`;
-      var generatedImage = path.join(rootDirectory, _generatedImage);
-      console.log("Image path", generatedImage);
+      let generatedImage = `${fields.Certificate_Number}.png`;
+      // var generatedImage = path.join(rootDirectory, _generatedImage);
+      // console.log("Image path", generatedImage);
 
-      var imageBuffer = await convertPdfBufferToPngWithRetry(generatedImage, fileBuffer, width, height);
-      if (imageBuffer) {
-        var imageUrl = await uploadImageToS3(fields.Certificate_Number, generatedImage);
-        if (!imageUrl) {
-          return ({ code: 400, status: "FAILED", message: messageCode.msgUploadError });
-        }
-      } else {
-        return ({ code: 400, status: "FAILED", message: messageCode.msgImageError });
+      // Convert PDF buffer into PNG and upload into S3 
+      var imageUrl = await convertPdfBufferToPngWithRetry(fields.Certificate_Number, generatedImage, fileBuffer, width, height);
+      
+      if(!imageUrl){
+        return ({ code: 400, status: "FAILED", message: messageCode.msgUploadError });
       }
 
       try {
@@ -885,10 +881,10 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
         await insertCertificateData(certificateData);
 
         // Delete files
-        if (fs.existsSync(generatedImage)) {
-          // Delete the specified file
-          fs.unlinkSync(generatedImage);
-        }
+        // if (fs.existsSync(generatedImage)) {
+        //   // Delete the specified file
+        //   fs.unlinkSync(generatedImage);
+        // }
 
         // Delete files
         if (fs.existsSync(outputPdf)) {
@@ -1943,13 +1939,13 @@ const issueBatchCertificateWithRetry = async (root, expirationEpoch, retryCount 
   }
 };
 
-const convertPdfBufferToPngWithRetry = async (imagePath, pdfBuffer, width, height, retryCount = 3) => {
+const convertPdfBufferToPngWithRetry = async (certificateNumber, imagePath, pdfBuffer, width, height, retryCount = 3) => {
   try {
-    const imageResponse = await convertPdfBufferToPng(imagePath, pdfBuffer, width, height);
+    const imageResponse = await convertPdfBufferToPng(certificateNumber, imagePath, pdfBuffer, width, height);
     if (!imageResponse) {
       if (retryCount > 0) {
         console.log(`Image conversion failed. Retrying... Attempts left: ${retryCount}`);
-        return convertPdfBufferToPngWithRetry(imagePath, pdfBuffer, width, height, retryCount - 1);
+        return convertPdfBufferToPngWithRetry(certificateNumber, imagePath, pdfBuffer, width, height, retryCount - 1);
       } else {
         // throw new Error('Image conversion failed after multiple attempts');
         return null;
@@ -1961,7 +1957,7 @@ const convertPdfBufferToPngWithRetry = async (imagePath, pdfBuffer, width, heigh
       console.log(`Connection timed out. Retrying... Attempts left: ${retryCount}`);
       // Retry after a delay (e.g., 2 seconds)
       await holdExecution(2000);
-      return convertPdfBufferToPngWithRetry(imagePath, pdfBuffer, width, height, retryCount - 1);
+      return convertPdfBufferToPngWithRetry(certificateNumber, imagePath, pdfBuffer, width, height, retryCount - 1);
     } else if (error.code === 'NONCE_EXPIRED') {
       // Extract and handle the error reason
       // console.log("Error reason:", error.reason);
@@ -1977,69 +1973,6 @@ const convertPdfBufferToPngWithRetry = async (imagePath, pdfBuffer, width, heigh
     }
   }
 }
-
-const convertPdfBufferToPng_ = async (imagePath, pdfBuffer) => {
-  if (!imagePath || !pdfBuffer) {
-    return false;
-  }
-  const options = {
-    format: 'png', // Specify output format (optional, defaults to 'png')
-    responseType: 'buffer', // Ensure binary output (PNG buffer)
-    width: 2067, // Optional width for the image
-    height: 1477, // Optional height for the image
-    density: 100, // Optional DPI (dots per inch)
-    // Other options (refer to pdf2pic documentation for details)
-  };
-
-  try {
-    const convert = fromBuffer(pdfBuffer, options);
-    const pageOutput = await convert(1, { responseType: 'buffer' }); // Convert page 1 (adjust as needed)
-    let base64String = await pageOutput.base64;
-    // Remove the data URL prefix if present
-    const base64Data = await base64String.replace(/^data:image\/png;base64,/, '');
-
-    // Convert Base64 to buffer
-    const _buffer = Buffer.from(base64Data, 'base64');
-    fs.writeFileSync(imagePath, _buffer, (err) => {
-      if (err) {
-        console.error("Error writing PNG file:", err);
-        return false;
-      }
-    });
-    // Save the PNG buffer to a file
-    return true;
-  } catch (error) {
-    console.error('Error converting PDF to PNG buffer:', error);
-    return false;
-  }
-};
-
-const uploadImageToS3_ = async (certNumber, imagePath) => {
-
-  const bucketName = process.env.BUCKET_NAME;
-  const _keyName = `${certNumber}.png`;
-  const s3 = new AWS.S3();
-  const fileStream = fs.createReadStream(imagePath);
-  const acl = process.env.ACL_NAME;
-
-  const keyPrefix = 'issues/';
-  const keyName = keyPrefix + _keyName;
-
-  let uploadParams = {
-    Bucket: bucketName,
-    Key: keyName,
-    Body: fileStream,
-    ACL: acl
-  };
-
-  try {
-    const urlData = await s3.upload(uploadParams).promise();
-    return urlData.Location;
-  } catch (error) {
-    console.error("Internal server error", error);
-    return false;
-  }
-};
 
 const _convertPdfBufferToPngWithRetry = async (imagePath, pdfBuffer, _width, _height, retryCount = 3) => {
 
@@ -2078,85 +2011,6 @@ const _convertPdfBufferToPngWithRetry = async (imagePath, pdfBuffer, _width, _he
     }
   }
 }
-
-const _convertPdfBufferToPng_ = async (imagePath, pdfBuffer, _width, _height) => {
-  if (!imagePath || !pdfBuffer) {
-    return false;
-  }
-  const options = {
-    format: 'png', // Specify output format (optional, defaults to 'png')
-    responseType: 'buffer', // Ensure binary output (PNG buffer)
-    width: _width * 3, // Optional width for the image
-    height: _height * 3, // Optional height for the image
-    density: 300, // Optional DPI (dots per inch)
-  };
-
-  try {
-    const convert = fromBuffer(pdfBuffer, options);
-    const pageOutput = await convert(1, { responseType: 'buffer' }); // Convert page 1 (adjust as needed)
-    let base64String = await pageOutput.base64;
-    // Remove the data URL prefix if present
-    const base64Data = await base64String.replace(/^data:image\/png;base64,/, '');
-
-    // Convert Base64 to buffer
-    const _buffer = Buffer.from(base64Data, 'base64');
-    fs.writeFileSync(imagePath, _buffer, (err) => {
-      if (err) {
-        console.error("Error writing PNG file:", err);
-        return false;
-      }
-    });
-    // Save the PNG buffer to a file
-    return true;
-  } catch (error) {
-    console.error('Error converting PDF to PNG buffer:', error);
-    return false;
-  }
-};
-
-const _uploadImageToS3_ = async (certNumber, imagePath) => {
-
-  const bucketName = process.env.BUCKET_NAME;
-  const _keyName = `${certNumber}.png`;
-  const s3 = new AWS.S3();
-  const fileStream = fs.createReadStream(imagePath);
-  const acl = process.env.ACL_NAME;
-  const keyPrefix = 'dynamic_qr_bulk_issues/';
-
-  const keyName = keyPrefix + _keyName;
-
-  let uploadParams = {
-    Bucket: bucketName,
-    Key: keyName,
-    Body: fileStream,
-    ACL: acl
-  };
-
-  try {
-    const urlData = await s3.upload(uploadParams).promise();
-    return urlData.Location;
-  } catch (error) {
-    console.error("Internal server error", error);
-    return false;
-  }
-};
-
-// Function to regenerate the QR code with DB information
-const generateQrDetails_ = async (certificateNumber) => {
-  try {
-    let qrCodeData = process.env.SHORT_URL + certificateNumber;
-    let qrCodeImage = await QRCode.toDataURL(qrCodeData, {
-      errorCorrectionLevel: "H",
-      width: 450, // Adjust the width as needed
-      height: 450, // Adjust the height as needed
-    });
-
-    return qrCodeImage;
-  } catch (error) {
-    console.error("The error occured while generating qr", error);
-    return null;
-  }
-};
 
 // Function to parse MM/DD/YYYY date string into a Date object
 const parseDate = async (dateString) => {

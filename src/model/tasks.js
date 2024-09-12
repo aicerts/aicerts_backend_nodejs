@@ -1061,10 +1061,10 @@ const verifyQRCodeDataFromPDF = async (pdfFilePath) => {
 
     const pdf2picOptions = {
       quality: 100,
-      density: 400,
+      density: 100,
       format: "png",
-      width: 4000,
-      height: 4000,
+      width: 2000,
+      height: 2000,
     };
 
     // Decode QR code from PNG data
@@ -1331,6 +1331,7 @@ const verifyBulkDynamicPDFDimensions = async (pdfPath, posx, posy, qrside) => {
 const verifyPDFDimensions = async (pdfPath) => {
   // Extract QR code data from the PDF file
   const certificateData = await verifyQRCodeDataFromPDF(pdfPath);
+  console.log("The QR check", certificateData);
   const pdfBuffer = fs.readFileSync(pdfPath);
   const pdfDoc = await PDFDocument.load(pdfBuffer);
 
@@ -1593,7 +1594,9 @@ const getCertificationStatus = async (certStatus) => {
   };
 };
 
-const getContractAddress = async (contractAddress) => {
+const getContractAddress = async (contractAddress, maxRetries = 3, delay = 1000) => {
+  let attempt = 0;
+  
   try {
     const code = await fallbackProvider.getCode(contractAddress);
     // console.log("the provider", fallbackProvider, code);

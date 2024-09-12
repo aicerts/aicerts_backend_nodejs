@@ -2,6 +2,8 @@
 require('dotenv').config();
 const AWS = require('../config/aws-config');
 const fs = require("fs");
+
+
 const uploadImageToS3 = async (certNumber, imagePath) => {
 
   const bucketName = process.env.BUCKET_NAME;

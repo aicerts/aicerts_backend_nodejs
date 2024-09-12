@@ -1,8 +1,14 @@
+// Load environment variables from .env file
+require('dotenv').config();
 const { QRCodeStyling } = require("qr-code-styler-node/lib/qr-code-styling.common.js");
 const nodeCanvas = require("canvas");
 const fs = require("fs");
 const sharp = require('sharp');
 const { fromBuffer } = require("pdf2pic");
+const AWS = require('../config/aws-config');
+
+const bucketName = process.env.BUCKET_NAME;
+const acl = process.env.ACL_NAME;
 
 var logoUrl = "https://certs365-live.s3.amazonaws.com/logo.png";
 
@@ -141,7 +147,8 @@ const getOption = async (url, qrSide, code) => {
     return option;
 };
 
-const convertPdfBufferToPng = async (imagePath, pdfBuffer, _width, _height) => {
+const convertPdfBufferToPng = async (certNumber, imagePath, pdfBuffer, _width, _height) => {
+
     if (!imagePath || !pdfBuffer) {
         console.error('Invalid arguments: imagePath and pdfBuffer are required.');
         return false;
@@ -153,7 +160,8 @@ const convertPdfBufferToPng = async (imagePath, pdfBuffer, _width, _height) => {
         height: _height * 2, // Optional height for the image
         // width: 2067, // Optional width for the image
         // height: 1477, // Optional height for the image
-        density: 100, // Optional DPI (dots per inch)
+        quality: 1.0,
+        density: 300, // Optional DPI (dots per inch)
         // Other options (refer to pdf2pic documentation for details)
     };
 
@@ -162,18 +170,40 @@ const convertPdfBufferToPng = async (imagePath, pdfBuffer, _width, _height) => {
         const pageOutput = await convert(1, { responseType: 'buffer' }); // Convert page 1 (adjust as needed)
         let base64String = await pageOutput.base64;
         // Remove the data URL prefix if present
-        const base64Data = await base64String.replace(/^data:image\/png;base64,/, '');
-
+        // const base64Data = await base64String.replace(/^data:image\/png;base64,/, '');
         // Convert Base64 to buffer
-        const _buffer = Buffer.from(base64Data, 'base64');
-        fs.writeFileSync(imagePath, _buffer, (err) => {
-            if (err) {
-                console.error("Error writing PNG file:", err);
-                return false;
-            }
-        });
+        const _buffer = Buffer.from(base64String, 'base64');
+
+        const _keyName = `${certNumber}.png`;
+        const s3 = new AWS.S3();
+        const keyPrefix = 'issues/';
+        const keyName = keyPrefix + _keyName;
+
+        const uploadParams = {
+            Bucket: bucketName,
+            Key: keyName,
+            Body: _buffer,
+            ContentType: 'image/png',
+            ACL: acl
+        };
+
+        try {
+            const urlData = await s3.upload(uploadParams).promise();
+            console.log("The initial upload", urlData.Location);
+            return urlData.Location;
+        } catch (error) {
+            console.error("Internal server error", error);
+            return false;
+        }
+
+        // fs.writeFileSync(imagePath, _buffer, (err) => {
+        //     if (err) {
+        //         console.error("Error writing PNG file:", err);
+        //         return false;
+        //     }
+        // });
         // Save the PNG buffer to a file
-        return true;
+        return false;
     } catch (error) {
         console.error('Error converting PDF to PNG buffer:', error);
         return false;
@@ -222,6 +252,9 @@ const _convertPdfBufferToPng = async (imagePath, pdfBuffer, _width, _height) => 
 };
 
 const generateVibrantQr = async (url, qrSide, code) => {
+    if(code == 0){
+        return false;
+    }
     try {
 
         const options = await getOption(url, qrSide, code);
@@ -250,19 +283,19 @@ const generateVibrantQr = async (url, qrSide, code) => {
 // Function to regenerate the QR code with DB information
 const generateQrDetails = async (certificateNumber) => {
     try {
-      let qrCodeData = process.env.SHORT_URL + certificateNumber;
-      let qrCodeImage = await QRCode.toDataURL(qrCodeData, {
-        errorCorrectionLevel: "H",
-        width: 450, // Adjust the width as needed
-        height: 450, // Adjust the height as needed
-      });
-  
-      return qrCodeImage;
+        let qrCodeData = process.env.SHORT_URL + certificateNumber;
+        let qrCodeImage = await QRCode.toDataURL(qrCodeData, {
+            errorCorrectionLevel: "H",
+            width: 450, // Adjust the width as needed
+            height: 450, // Adjust the height as needed
+        });
+
+        return qrCodeImage;
     } catch (error) {
-      console.error("The error occured while generating qr", error);
-      return null;
+        console.error("The error occured while generating qr", error);
+        return null;
     }
-  };
+};
 
 module.exports = {
     // Function to convert PDF buffer into image
