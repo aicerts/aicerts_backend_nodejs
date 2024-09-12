@@ -6,7 +6,7 @@ const crypto = require('crypto'); // Module for cryptographic functions
 const path = require("path");
 const QRCode = require("qrcode");
 const fs = require("fs");
-const { fromBuffer, fromBase64 } = require("pdf2pic");
+const { fromBuffer } = require("pdf2pic");
 const { ethers } = require("ethers"); // Ethereum JavaScript library
 const AWS = require('../config/aws-config');
 const { StandardMerkleTree } = require("@openzeppelin/merkle-tree");
@@ -48,7 +48,9 @@ const {
   getPdfDimensions
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
-const { generateVibrantQr } = require('../utils/generateImage');
+const { uploadImageToS3, _uploadImageToS3 } = require('../utils/upload');
+
+const { convertPdfBufferToPng, _convertPdfBufferToPng, generateVibrantQr, generateQrDetails } = require('../utils/generateImage');
 
 // Retrieve contract address from environment variable
 const contractAddress = process.env.CONTRACT_ADDRESS;
@@ -1479,6 +1481,10 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
 };
 
 const _dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResponse, excelFilePath, posx, posy, qrside, pdfWidth, pdfHeight, qrOption, flag) => {
+  const newContract = await connectToPolygon();
+  if (!newContract) {
+    return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
+  }
   // console.log("Batch inputs", _pdfReponse, excelFilePath);
   const pdfResponse = _pdfReponse;
   const excelResponse = _excelResponse[0];
@@ -1972,7 +1978,7 @@ const convertPdfBufferToPngWithRetry = async (imagePath, pdfBuffer, retryCount =
   }
 }
 
-const convertPdfBufferToPng = async (imagePath, pdfBuffer) => {
+const convertPdfBufferToPng_ = async (imagePath, pdfBuffer) => {
   if (!imagePath || !pdfBuffer) {
     return false;
   }
@@ -2008,7 +2014,7 @@ const convertPdfBufferToPng = async (imagePath, pdfBuffer) => {
   }
 };
 
-const uploadImageToS3 = async (certNumber, imagePath) => {
+const uploadImageToS3_ = async (certNumber, imagePath) => {
 
   const bucketName = process.env.BUCKET_NAME;
   const _keyName = `${certNumber}.png`;
@@ -2073,7 +2079,7 @@ const _convertPdfBufferToPngWithRetry = async (imagePath, pdfBuffer, _width, _he
   }
 }
 
-const _convertPdfBufferToPng = async (imagePath, pdfBuffer, _width, _height) => {
+const _convertPdfBufferToPng_ = async (imagePath, pdfBuffer, _width, _height) => {
   if (!imagePath || !pdfBuffer) {
     return false;
   }
@@ -2108,7 +2114,7 @@ const _convertPdfBufferToPng = async (imagePath, pdfBuffer, _width, _height) => 
   }
 };
 
-const _uploadImageToS3 = async (certNumber, imagePath) => {
+const _uploadImageToS3_ = async (certNumber, imagePath) => {
 
   const bucketName = process.env.BUCKET_NAME;
   const _keyName = `${certNumber}.png`;
@@ -2136,7 +2142,7 @@ const _uploadImageToS3 = async (certNumber, imagePath) => {
 };
 
 // Function to regenerate the QR code with DB information
-const generateQrDetails = async (certificateNumber) => {
+const generateQrDetails_ = async (certificateNumber) => {
   try {
     let qrCodeData = process.env.SHORT_URL + certificateNumber;
     let qrCodeImage = await QRCode.toDataURL(qrCodeData, {

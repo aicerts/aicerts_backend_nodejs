@@ -185,8 +185,8 @@ const _convertPdfBufferToPng = async (imagePath, pdfBuffer, _width, _height) => 
     const options = {
         format: 'png', // Specify output format (optional, defaults to 'png')
         responseType: 'buffer', // Ensure binary output (PNG buffer)
-        // width: _width, // Optional width for the image
-        // height: _height, // Optional height for the image
+        width: _width * 3, // Opti/onal width for the image
+        height: _height * 3, // Optional height for the image
         density: 100, // Optional DPI (dots per inch)
         // Other options (refer to pdf2pic documentation for details)
     };
@@ -250,12 +250,31 @@ const generateVibrantQr = async (url, qrSide, code) => {
     }
 };
 
+// Function to regenerate the QR code with DB information
+const generateQrDetails = async (certificateNumber) => {
+    try {
+      let qrCodeData = process.env.SHORT_URL + certificateNumber;
+      let qrCodeImage = await QRCode.toDataURL(qrCodeData, {
+        errorCorrectionLevel: "H",
+        width: 450, // Adjust the width as needed
+        height: 450, // Adjust the height as needed
+      });
+  
+      return qrCodeImage;
+    } catch (error) {
+      console.error("The error occured while generating qr", error);
+      return null;
+    }
+  };
+
 module.exports = {
     // Function to convert PDF buffer into image
     convertPdfBufferToPng,
 
     _convertPdfBufferToPng,
 
-    generateVibrantQr
+    generateVibrantQr,
+
+    generateQrDetails
 
 };
