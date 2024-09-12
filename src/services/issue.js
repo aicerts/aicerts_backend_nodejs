@@ -822,7 +822,8 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
         const qrImageData = generateQr ? generateQr : qrCodeImage;
         var file = pdfPath;
         var outputPdf = `${fields.Certificate_Number}${name}.pdf`;
-
+        var { width, height } = await getPdfDimensions(pdfPath);
+        console.log("Pdf dimentions", width, height);
         if (!fs.existsSync(pdfPath)) {
           return ({ code: 400, status: "FAILED", message: messageCode.msgInvalidPdfUploaded });
         }
@@ -849,7 +850,7 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
       var generatedImage = path.join(rootDirectory, _generatedImage);
       console.log("Image path", generatedImage);
 
-      var imageBuffer = await convertPdfBufferToPngWithRetry(generatedImage, fileBuffer);
+      var imageBuffer = await convertPdfBufferToPngWithRetry(generatedImage, fileBuffer, width, height);
       if (imageBuffer) {
         var imageUrl = await uploadImageToS3(fields.Certificate_Number, generatedImage);
         if (!imageUrl) {
@@ -1310,7 +1311,7 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
           }
 
           let theObject = await getFormattedFields(foundEntry);
-          if(theObject){
+          if (theObject) {
             customFields = JSON.stringify(theObject, null, 2);
           } else {
             customFields = null;
@@ -1942,14 +1943,13 @@ const issueBatchCertificateWithRetry = async (root, expirationEpoch, retryCount 
   }
 };
 
-const convertPdfBufferToPngWithRetry = async (imagePath, pdfBuffer, retryCount = 3) => {
-
+const convertPdfBufferToPngWithRetry = async (imagePath, pdfBuffer, width, height, retryCount = 3) => {
   try {
-    const imageResponse = await convertPdfBufferToPng(imagePath, pdfBuffer);
+    const imageResponse = await convertPdfBufferToPng(imagePath, pdfBuffer, width, height);
     if (!imageResponse) {
       if (retryCount > 0) {
         console.log(`Image conversion failed. Retrying... Attempts left: ${retryCount}`);
-        return convertPdfBufferToPngWithRetry(imagePath, pdfBuffer, retryCount - 1);
+        return convertPdfBufferToPngWithRetry(imagePath, pdfBuffer, width, height, retryCount - 1);
       } else {
         // throw new Error('Image conversion failed after multiple attempts');
         return null;
@@ -1961,7 +1961,7 @@ const convertPdfBufferToPngWithRetry = async (imagePath, pdfBuffer, retryCount =
       console.log(`Connection timed out. Retrying... Attempts left: ${retryCount}`);
       // Retry after a delay (e.g., 2 seconds)
       await holdExecution(2000);
-      return convertPdfBufferToPngWithRetry(imagePath, pdfBuffer, retryCount - 1);
+      return convertPdfBufferToPngWithRetry(imagePath, pdfBuffer, width, height, retryCount - 1);
     } else if (error.code === 'NONCE_EXPIRED') {
       // Extract and handle the error reason
       // console.log("Error reason:", error.reason);
@@ -2180,9 +2180,9 @@ const compareInputDates = async (_grantDate, _expirationDate) => {
 };
 
 // Function to get the last fields after excluding the first three
-const getFormattedFields = async(obj) => {
+const getFormattedFields = async (obj) => {
   const keys = Object.keys(obj);
-  
+
   // Exclude the first three fields
   const fieldsToInclude = keys.slice(3);
 

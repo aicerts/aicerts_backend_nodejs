@@ -141,15 +141,18 @@ const getOption = async (url, qrSide, code) => {
     return option;
 };
 
-const convertPdfBufferToPng = async (imagePath, pdfBuffer) => {
+const convertPdfBufferToPng = async (imagePath, pdfBuffer, _width, _height) => {
     if (!imagePath || !pdfBuffer) {
+        console.error('Invalid arguments: imagePath and pdfBuffer are required.');
         return false;
     }
     const options = {
         format: 'png', // Specify output format (optional, defaults to 'png')
         responseType: 'buffer', // Ensure binary output (PNG buffer)
-        width: 2067, // Optional width for the image
-        height: 1477, // Optional height for the image
+        width: _width * 2, // Optional width for the image
+        height: _height * 2, // Optional height for the image
+        // width: 2067, // Optional width for the image
+        // height: 1477, // Optional height for the image
         density: 100, // Optional DPI (dots per inch)
         // Other options (refer to pdf2pic documentation for details)
     };
@@ -209,12 +212,6 @@ const _convertPdfBufferToPng = async (imagePath, pdfBuffer, _width, _height) => 
         const _buffer = Buffer.from(base64Data, 'base64');
         fs.writeFileSync(imagePath, _buffer);
 
-        // await fs.writeFile(imagePath, _buffer, (err) => {
-        //     if (err) {
-        //         console.error("Error writing PNG file:", err);
-        //         return false;
-        //     }
-        // });
         // Save the PNG buffer to a file
         console.log('Image successfully saved to', imagePath);
         return true;
