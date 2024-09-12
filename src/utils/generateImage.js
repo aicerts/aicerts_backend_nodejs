@@ -21,7 +21,7 @@ const loadImage = async (url) => {
     }
 };
 
-const getOption = async(url, qrSide, code) => {
+const getOption = async (url, qrSide, code) => {
     // console.log("inputs", url, qrSide, code);
     // if(code == 0){
     //     return null;
@@ -29,7 +29,7 @@ const getOption = async(url, qrSide, code) => {
     var option;
     // Load the image before creating the options
     await loadImage(logoUrl);
-    switch (code){
+    switch (code) {
         case 1:
             option = {
                 width: qrSide,
@@ -39,6 +39,60 @@ const getOption = async(url, qrSide, code) => {
                 dotsOptions: {
                     color: "#000000",
                     type: "extra-rounded"
+                },
+                backgroundOptions: {
+                    color: "#ffffff",
+                },
+                imageOptions: {
+                    crossOrigin: "anonymous",
+                    margin: 0
+                },
+                cornersSquareOptions: {
+                    color: "#000000",
+                    type: "extra-rounded",
+                },
+                cornersDotOptions: {
+                    type: "",
+                    color: "#cfa935",
+                }
+            };
+            break;
+        case 2:
+            option = {
+                width: qrSide,
+                height: qrSide,
+                data: url,
+                image: logoUrl,
+                dotsOptions: {
+                    color: "#000000",
+                    type: "dots"
+                },
+                backgroundOptions: {
+                    color: "#ffffff",
+                },
+                imageOptions: {
+                    crossOrigin: "anonymous",
+                    margin: 0
+                },
+                cornersSquareOptions: {
+                    color: "#000000",
+                    type: "extra-rounded",
+                },
+                cornersDotOptions: {
+                    type: "",
+                    color: "#cfa935",
+                }
+            };
+            break;
+        case 3:
+            option = {
+                width: qrSide,
+                height: qrSide,
+                data: url,
+                image: logoUrl,
+                dotsOptions: {
+                    color: "#000000",
+                    type: "classy"
                 },
                 backgroundOptions: {
                     color: "#ffffff",
@@ -175,7 +229,7 @@ const generateVibrantQr = async (url, qrSide, code) => {
 
         const options = await getOption(url, qrSide, code);
         // For canvas type
-        
+
         const qrCodeImage = new QRCodeStyling({
             nodeCanvas, // this is required
             ...options
