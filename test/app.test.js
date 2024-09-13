@@ -11,9 +11,6 @@ const { verifyDynamicPDFDimensions, extractQRCodeDataFromPDF, convertDateFormat,
 
 const messageCode = require("../src/common/codes");
 
-const readdir = promisify(fs.readdir);
-const unlink = promisify(fs.unlink);
-const mkdir = promisify(fs.mkdir);
 
 // Helper function to create a temporary directory for testing
 const createTestFolder = (folderPath) => {
