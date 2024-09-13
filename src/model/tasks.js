@@ -627,6 +627,8 @@ const insertBulkBatchIssueData = async (data) => {
     });
 
     const result = await newBatchIssue.save();
+
+    const updateIssuerLog = await insertDynamicIssueStatus(data);
     // Logging confirmation message
     // console.log("Certificate data inserted");
 
@@ -660,6 +662,9 @@ const insertDynamicBatchCertificateData = async (data) => {
     });
 
     const result = await newBatchIssue.save();
+
+    data.certStatus = 1;
+    const updateIssuerLog = await insertDynamicIssueStatus(data);
     // Logging confirmation message
     // console.log("Certificate data inserted");
 
@@ -700,6 +705,9 @@ const insertDynamicCertificateData = async (data) => {
     idExist.certificatesIssued = previousCount + 1;
     await idExist.save(); // Save the changes to the existing user
 
+    data.email = idExist.email;
+    data.certStatus = 1;
+    const updateIssuerLog = await insertDynamicIssueStatus(data);
     // Logging confirmation message
     console.log("Certificate data inserted");
   } catch (error) {
@@ -773,6 +781,34 @@ const insertIssueStatus = async (issueData) => {
       course: issueData.course,
       name: issueData.name,
       expirationDate: formattedDate, // ExpirationDate field is of type String and is required
+      certStatus: issueData.certStatus,
+      lastUpdate: Date.now()
+    });
+    const updateLog = await newIssueStatus.save();
+  }
+};
+
+// Function to store issues log in the DB
+const insertDynamicIssueStatus = async (issueData) => {
+  if (issueData) {
+    // Format the date in ISO 8601 format with UTC offset
+    // const statusDate = await convertExpirationStatusLog(issueData.expirationDate);
+    // Parsing input date using moment
+    const batchId = issueData.batchId || null;
+    const email = issueData.email || null;
+    const issuerId = issueData.issuerId || null;
+    const transactionHash = issueData.transactionHash || null;
+
+    // Insert data into status MongoDB
+    const newIssueStatus = new IssueStatus({
+      email: email,
+      issuerId: issuerId, // ID field is of type String and is required
+      batchId: batchId,
+      transactionHash: transactionHash, // TransactionHash field is of type String and is required
+      certificateNumber: issueData.certificateNumber, // CertificateNumber field is of type String and is required
+      course: null,
+      name: issueData.name,
+      expirationDate: null, // ExpirationDate field is of type String and is required
       certStatus: issueData.certStatus,
       lastUpdate: Date.now()
     });
