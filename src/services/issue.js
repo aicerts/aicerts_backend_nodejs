@@ -1362,6 +1362,7 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
           try {
             await isDBConnected();
             var certificateData = {
+              email: email,
               issuerId: issuerId,
               batchId: allocateBatchId,
               proofHash: _proof,
