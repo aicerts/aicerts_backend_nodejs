@@ -51,7 +51,7 @@ const __upload = multer({dest: "./uploads/"});
  *               message: Internal server error.
  */
 
-router.get('/get-all-issuers', ensureAuthenticated, adminController.getAllIssuers);
+router.get('/get-all-issuers', adminController.getAllIssuers);
 
 /**
  * @swagger

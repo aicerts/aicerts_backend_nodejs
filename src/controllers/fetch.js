@@ -52,11 +52,24 @@ const getAllIssuers = async (req, res) => {
     console.log(dbStatusMessage);
 
     // Fetch all users from the database
-    const allIssuers = await User.find({ approved: false }).select('-password');
-
+    const allIssuers = await User.find({ issuerId: { $ne: null, $ne: undefined } }).select('-password');
+    const allIssuerCount = allIssuers.length;
+    const activeIssuer = await User.find({
+      issuerId: { $ne: null, $ne: undefined },
+      approved: true
+    }).select('-password');
+    const activeIssuerCount = activeIssuer.length;
+    const inactiveIssuer = await User.find({
+      issuerId: { $ne: null, $ne: undefined },
+      approved: false
+    }).select('-password');
+    const inactiveIssuerCount = inactiveIssuer.length;
     // Respond with success and all user details
     res.json({
       status: 'SUCCESS',
+      allIssuers: allIssuerCount,
+      activeIssuers: activeIssuerCount,
+      inactiveIssuers: inactiveIssuerCount,
       data: allIssuers,
       message: messageCode.msgAllIssuersFetched
     });
@@ -439,8 +452,8 @@ const getIssuesWithFilter = async (req, res) => {
           url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
         });
 
-         // Query 3
-         var query3Promise = DynamicIssues.find({
+        // Query 3
+        var query3Promise = DynamicIssues.find({
           issuerId: isEmailExist.issuerId,
           $expr: {
             $and: [
@@ -1678,13 +1691,13 @@ const getSingleCertificates = async (req, res) => {
     // Fetch certificates based on issuerId and type
     const certificatesSimple = await Issues.find({
       issuerId: issuerId,
-      type: { $in: typeField},
+      type: { $in: typeField },
       url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
     });
 
     const certificatesDynamic = await DynamicIssues.find({
       issuerId: issuerId,
-      type: { $in: typeField},
+      type: { $in: typeField },
       url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
     });
 
@@ -1727,7 +1740,7 @@ const getBatchCertificateDates = async (req, res) => {
     const batchCertificatesTwo = await DynamicBatchIssues.find({ issuerId }).sort({ issueDate: 1 });
 
     const batchCertificates = [...batchCertificatesOne, ...batchCertificatesTwo];
-    
+
 
     // Create a map to store the first certificate's issueDate for each batchId
     const batchDateMap = new Map();
@@ -1745,7 +1758,7 @@ const getBatchCertificateDates = async (req, res) => {
       issueDate: value.issueDate,
       issuerId: value.issuerId
     }));
-    
+
     // Function to sort data by issueDate
     uniqueBatchDates.sort((a, b) => new Date(b.issueDate) - new Date(a.issueDate));
 
