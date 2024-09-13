@@ -1,6 +1,6 @@
 // Load environment variables from .env file
 require('dotenv').config();
-
+const { PDFDocument } = require('pdf-lib');
 const path = require("path"); // Module for working with file paths
 const fs = require("fs");
 const { ethers } = require("ethers"); // Ethereum JavaScript library
