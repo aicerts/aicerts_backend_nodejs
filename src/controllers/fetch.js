@@ -56,12 +56,12 @@ const getAllIssuers = async (req, res) => {
     const allIssuerCount = allIssuers.length;
     const activeIssuer = await User.find({
       issuerId: { $ne: null, $ne: undefined },
-      approved: true
+      status: 1
     }).select('-password');
     const activeIssuerCount = activeIssuer.length;
     const inactiveIssuer = await User.find({
       issuerId: { $ne: null, $ne: undefined },
-      approved: false
+      status: 2
     }).select('-password');
     const inactiveIssuerCount = inactiveIssuer.length;
     // Respond with success and all user details
