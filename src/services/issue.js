@@ -6,9 +6,7 @@ const crypto = require('crypto'); // Module for cryptographic functions
 const path = require("path");
 const QRCode = require("qrcode");
 const fs = require("fs");
-const { fromBuffer } = require("pdf2pic");
 const { ethers } = require("ethers"); // Ethereum JavaScript library
-const AWS = require('../config/aws-config');
 const { StandardMerkleTree } = require("@openzeppelin/merkle-tree");
 
 // Import custom cryptoFunction module for encryption and decryption
@@ -1813,8 +1811,19 @@ const issueCertificateWithRetry = async (certificateNumber, certificateHash, exp
       certificateHash,
       expirationEpoch
     );
-    console.log("the tx details", tx, tx.gasPrice());
     let txHash = tx.hash;
+    let receipt = await tx.wait();
+    if (receipt) {
+      // Get gas used and gas price
+      const gasUsed = BigInt(receipt.gasUsed.toString());
+      const gasPrice = BigInt(receipt.gasPrice.toString());
+      // Calculate transaction fee
+      let txFee = gasUsed * gasPrice; // Fee in wei
+      // Convert to decimal by dividing by 1e18
+      let decimal = Number(txFee) / 1e18;
+      let transactionFee = decimal.toString();
+      console.log("Updated transaction fee", Number(transactionFee));
+    }
 
     if (!txHash) {
       if (retryCount > 0) {

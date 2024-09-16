@@ -80,7 +80,6 @@ const mailOptions = {
   text: '', // replace with text content of the email body
 };
 
-
 // Import the Issues models from the schema defined in "../config/schema"
 const { User, Issues, BatchIssues, IssueStatus, VerificationLog, ShortUrl, DynamicIssues, ServiceAccountQuotas, DynamicBatchIssues } = require("../config/schema");
 

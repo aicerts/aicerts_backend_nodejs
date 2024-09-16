@@ -138,6 +138,9 @@ const validateIssuer = async (req, res) => {
           userExist.approved = true;
           userExist.status = 1;
           userExist.rejectedDate = null;
+          if(!userExist.approveDate || userExist.approveDate == null){
+          userExist.approveDate = Date.now();
+          }
           await userExist.save();
           // If user is not approved yet, send email and update user's approved status
           var mailStatus = await sendEmail(userExist.name, email);
