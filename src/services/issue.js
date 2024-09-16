@@ -1813,6 +1813,7 @@ const issueCertificateWithRetry = async (certificateNumber, certificateHash, exp
       certificateHash,
       expirationEpoch
     );
+    console.log("the tx details", tx, tx.gasPrice());
     let txHash = tx.hash;
 
     if (!txHash) {
@@ -1860,7 +1861,6 @@ const issueBatchCertificateWithRetry = async (root, expirationEpoch, retryCount 
       root,
       expirationEpoch
     );
-
     let txHash = tx.hash;
 
     if (!txHash) {

@@ -118,9 +118,9 @@ const verify = async (req, res) => {
         try {
           await isDBConnected();
           var isIdExist = await isCertificationIdExisted(certificationNumber);
-          if (!isIdExist) {
-            isIdExist = await isBulkCertificationIdExisted(certificationNumber);
-          }
+          // if (!isIdExist) {
+          //   isIdExist = await isBulkCertificationIdExisted(certificationNumber);
+          // }
           if (isIdExist) {
             var blockchainResponse = 0;
             if (isIdExist.batchId == undefined) {
@@ -428,9 +428,9 @@ const decodeQRScan = async (req, res) => {
         try {
           await isDBConnected();
           var isIdExist = await isCertificationIdExisted(certificationNumber);
-          if (!isIdExist) {
-            isIdExist = await isBulkCertificationIdExisted(certificationNumber);
-          }
+          // if (!isIdExist) {
+          //   isIdExist = await isBulkCertificationIdExisted(certificationNumber);
+          // }
           if (isIdExist) {
             var blockchainResponse = 0;
             if (isIdExist.batchId == undefined) {
@@ -684,9 +684,9 @@ const verifyCertificationId = async (req, res) => {
     try {
       await isDBConnected();
       var isIdExist = await isCertificationIdExisted(inputId);
-      if (!isIdExist) {
-        isIdExist = await isBulkCertificationIdExisted(inputId);
-      }
+      // if (!isIdExist) {
+      //   isIdExist = await isBulkCertificationIdExisted(inputId);
+      // }
       if (isIdExist) {
         var blockchainResponse = 0;
         if (isIdExist.batchId == undefined) {
@@ -698,7 +698,6 @@ const verifyCertificationId = async (req, res) => {
           let hashProof = isIdExist.encodedProof;
           blockchainResponse = await verifyBatchCertificationWithRetry(batchNumber, dataHash, proof, hashProof);
         }
-        console.log("The blockchain response", blockchainResponse);
         if (blockchainResponse == 2 || blockchainResponse == 3) {
           if (blockchainResponse == 2) {
             verificationResponse = messageCode.msgCertExpired;
@@ -711,7 +710,6 @@ const verifyCertificationId = async (req, res) => {
 
       var isUrlExisted = await ShortUrl.findOne({ certificateNumber: inputId });
       var isDynamicCertificateExist = await isDynamicCertificationIdExisted(inputId);
-
       if (isIdExist) {
         if (isIdExist.certificateStatus == 6) {
           let _polygonLink = `https://${process.env.NETWORK}/tx/${isIdExist.transactionHash}`;

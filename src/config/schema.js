@@ -82,6 +82,9 @@ const BatchIssuesSchema = new Schema({
   expirationDate: { type: String, required: true },
   certificateStatus: { type: Number, default: 1 },
   issueDate: { type: Date, default: Date.now },
+  width: { type: Number },
+  height: { type: Number },
+  qrOption: { type: Number, default: 0 },
   url: { type: String }
 });
 
