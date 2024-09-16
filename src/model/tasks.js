@@ -82,7 +82,7 @@ const mailOptions = {
 
 
 // Import the Issues models from the schema defined in "../config/schema"
-const { User, Issues, BatchIssues, BulkIssues, BulkBatchIssues, IssueStatus, VerificationLog, ShortUrl, DynamicIssues, ServiceAccountQuotas, DynamicBatchIssues } = require("../config/schema");
+const { User, Issues, BatchIssues, IssueStatus, VerificationLog, ShortUrl, DynamicIssues, ServiceAccountQuotas, DynamicBatchIssues } = require("../config/schema");
 
 //Connect to blockchain contract
 const connectToPolygon = async (retryCount = 0) => {
@@ -429,14 +429,14 @@ const isCertificationIdExisted = async (certId) => {
 };
 
 const isBulkCertificationIdExisted = async (certId) => {
-  const dbStaus = await isDBConnected();
+  await isDBConnected();
 
   if (certId == null || certId == "") {
     return null;
   }
 
-  const singleIssueExist = await BulkIssues.findOne({ certificateNumber: certId });
-  const batchIssueExist = await BulkBatchIssues.findOne({ certificateNumber: certId });
+  const singleIssueExist = await DynamicIssues.findOne({ certificateNumber: certId });
+  const batchIssueExist = await DynamicBatchIssues.findOne({ certificateNumber: certId });
 
   try {
     if (singleIssueExist) {
@@ -597,42 +597,6 @@ const insertCertificateData = async (data) => {
     console.log("Certificate data inserted");
   } catch (error) {
     // Handle errors related to database connection or insertion
-    console.error("Error connecting to MongoDB:", error);
-  }
-};
-
-// Function to insert certification data into MongoDB
-const insertBulkBatchIssueData = async (data) => {
-  try {
-
-    // Insert data into MongoDB
-    const newBatchIssue = new BulkBatchIssues({
-      issuerId: data.issuerId,
-      batchId: data.batchId,
-      proofHash: data.proofHash,
-      encodedProof: data.encodedProof,
-      transactionHash: data.transactionHash,
-      certificateHash: data.certificateHash,
-      certificateNumber: data.certificateNumber,
-      name: data.name,
-      course: data.course,
-      grantDate: data.grantDate,
-      expirationDate: data.expirationDate,
-      certificateStatus: 1,
-      width: data.width || without_pdf_width,
-      height: data.height || without_pdf_height,
-      qrOption: data.qrOption || 0,
-      url: data.url || '',
-      issueDate: Date.now()
-    });
-
-    const result = await newBatchIssue.save();
-
-    const updateIssuerLog = await insertDynamicIssueStatus(data);
-    // Logging confirmation message
-    // console.log("Certificate data inserted");
-
-  } catch (error) {
     console.error("Error connecting to MongoDB:", error);
   }
 };
@@ -1714,8 +1678,6 @@ module.exports = {
   insertDynamicCertificateData,
 
   // Function to insert dynamic bulk (batch) certificate data into MongoDB
-  insertBulkBatchIssueData,
-
   insertDynamicBatchCertificateData,
 
   // Function to extract certificate information from a QR code text

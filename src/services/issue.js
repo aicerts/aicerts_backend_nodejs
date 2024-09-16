@@ -1646,7 +1646,7 @@ const _dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelRes
               url: imageUrl
             };
             // await insertCertificateData(certificateData);
-            insertPromises.push(insertBulkBatchIssueData(certificateData));
+            insertPromises.push(insertDynamicBatchCertificateData(certificateData));
 
           } catch (error) {
             console.error('Error:', error);
