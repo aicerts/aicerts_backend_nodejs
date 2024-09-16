@@ -43,7 +43,7 @@ const UserSchema = new Schema({
   rejectedDate: { type: Date, default: null },
   certificatesIssued: { type: Number },
   certificatesRenewed: { type: Number },
-  approveDate: { type: Date, default: 0}
+  approveDate: { type: Date, default: null}
 });
 
 // Define the schema for the Issues model

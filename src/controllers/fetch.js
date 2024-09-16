@@ -52,20 +52,20 @@ const getAllIssuers = async (req, res) => {
     console.log(dbStatusMessage);
 
     // Fetch all users from the database
-    const allIssuers = await User.find({ issuerId: { $ne: null, $ne: undefined } }).select('-password');
+    const allIssuers = await User.find({ status: [1,2] }).select('-password');
     const allIssuerCount = allIssuers.length;
-    const activeIssuer = await User.find({
-      issuerId: { $ne: null, $ne: undefined },
-      status: 1
-    }).select('-password');
-    const activeIssuerCount = activeIssuer.length;
-    const inactiveIssuer = await User.find({
-      issuerId: { $ne: null, $ne: undefined },
-      status: 2
-    }).select('-password');
-    const inactiveIssuerCount = inactiveIssuer.length;
-    // Respond with success and all user details
+    
+    const statusCounts = allIssuers.reduce((counts, item) => {
+      if (item.status === 1) counts.status1++;
+      if (item.status === 2) counts.status2++;
+      return counts;
+    }, { status1: 0, status2: 0 });
+
+    const activeIssuerCount = statusCounts.status1;
+    const inactiveIssuerCount = statusCounts.status2;
+
     res.json({
+      code: 200,
       status: 'SUCCESS',
       allIssuers: allIssuerCount,
       activeIssuers: activeIssuerCount,
@@ -76,6 +76,7 @@ const getAllIssuers = async (req, res) => {
   } catch (error) {
     // Error occurred while fetching user details, respond with failure message
     res.json({
+      code: 400,
       status: 'FAILED',
       message: messageCode.msgErrorOnFetching
     });

@@ -11,8 +11,8 @@ const __upload = multer({dest: "./uploads/"});
  * @swagger
  * /api/get-all-issuers:
  *   get:
- *     summary: Get details of all issuers
- *     description: API to fetch all issuer details who are unapproved
+ *     summary: Get details of all issuers count with Active & Inactive status counts
+ *     description: API to fetch all issuer details who are Active/Inactive/Total.
  *     tags: [Fetch/Upload]
  *     responses:
  *       200:
