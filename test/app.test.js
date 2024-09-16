@@ -9,6 +9,7 @@ const xlsx = require('xlsx'); // Library for creating test Excel files
 const { verifyDynamicPDFDimensions, extractQRCodeDataFromPDF, convertDateFormat, issueDynamicCertificateWithRetry } = require('./testFunctions');
 
 const messageCode = require("../src/common/codes");
+const cert_limit = 250;
 
 
 // Helper function to create a temporary directory for testing
@@ -50,6 +51,15 @@ jest.mock('../src/config/schema', () => ({
   }
 }));
 
+const testDir = path.join(__dirname, './uploads');
+if (!fs.existsSync(testDir)) fs.mkdirSync(testDir);
+
+const createExcelFile = (filename, data) => {
+  const workbook = xlsx.utils.book_new();
+  const worksheet = xlsx.utils.json_to_sheet(data);
+  xlsx.utils.book_append_sheet(workbook, worksheet, 'Batch');
+  xlsx.writeFile(workbook, path.join(testDir, filename));
+};
 
 describe('handleIssueDynamicPdfCertification', () => {
   beforeEach(() => {
@@ -266,11 +276,11 @@ describe('issueDynamicCertificateWithRetry', () => {
       if (callCount < 3) throw new Error('Simulated failure');
       return { code: 200, message: "Certificate issued successfully" };
     });
-  
+
     // Replace the original function with the mock function
     const originalFunction = issueDynamicCertificateWithRetry;
     _issueDynamicCertificateWithRetry = mockFunction;
-  
+
     try {
       // Execute the function and check if it resolves with the expected result
       const result = await _issueDynamicCertificateWithRetry(
@@ -290,7 +300,7 @@ describe('issueDynamicCertificateWithRetry', () => {
       _issueDynamicCertificateWithRetry = originalFunction;
     }
   });
-  
+
   test('should fail after all retry attempts are exhausted', async () => {
     const error = { reason: 'Failed to issue certificate after retries.' };
     const mockFunction = jest.fn(async () => {
@@ -304,17 +314,17 @@ describe('issueDynamicCertificateWithRetry', () => {
     try {
       // Execute the function and check if it rejects with the expected error
       await expect(
-          _issueDynamicCertificateWithRetry(
-              'ABC123',
-              'a3c6f78a84b3d6e59f1c7f2a5d13a9e0d3e0a5c6d7b8a9b0c5e2f5e8d3a0b1c2',
-              1700000000,
-              1
-          )
+        _issueDynamicCertificateWithRetry(
+          'ABC123',
+          'a3c6f78a84b3d6e59f1c7f2a5d13a9e0d3e0a5c6d7b8a9b0c5e2f5e8d3a0b1c2',
+          1700000000,
+          1
+        )
       ).rejects.toEqual(error);
-  } finally {
+    } finally {
       // Restore the original function
       originalFunction = issueDynamicCertificateWithRetry;
-  }
+    }
   });
 
   test('should return error for empty inputs', async () => {
@@ -361,19 +371,19 @@ describe('issueDynamicCertificateWithRetry', () => {
     _issueDynamicCertificateWithRetry = mockFunction;
 
     try {
-        // Execute the function and check if it rejects with the expected error
-        await expect(
-            _issueDynamicCertificateWithRetry(
-                'ABC123',
-                'a3c6f78a84b3d6e59f1c7f2a5d13a9e0d3e0a5c6d7b8a9b0c5e2f5e8d3a0b1c2',
-                1700000000
-            )
-        ).rejects.toEqual(error);
+      // Execute the function and check if it rejects with the expected error
+      await expect(
+        _issueDynamicCertificateWithRetry(
+          'ABC123',
+          'a3c6f78a84b3d6e59f1c7f2a5d13a9e0d3e0a5c6d7b8a9b0c5e2f5e8d3a0b1c2',
+          1700000000
+        )
+      ).rejects.toEqual(error);
     } finally {
-        // Restore the original function
-        originalFunction = issueDynamicCertificateWithRetry;
+      // Restore the original function
+      originalFunction = issueDynamicCertificateWithRetry;
     }
-});
+  });
 
   it('should handle "INVALID_ARGUMENT" or "REPLACEMENT_ERROR" error', async () => {
     // Call the function and expect it to resolve (not reject)
@@ -411,50 +421,50 @@ describe('issueDynamicCertificateWithRetry', () => {
 describe('handleBulkExcelFile', () => {
 
   describe('Valid Excel file', () => {
-        // Test case for valid Excel file with correct sheet name and headers
-        it('should return SUCCESS for valid Excel file', async () => {
-          // Define test data
-          const testData = [
-            ["certificationID", "name", "certificationName", "grantDate", "expirationDate"],
-            [15792100, "Alice", "AI Advanced", "12/12/23", "12/12/25"],
-            [15792101, "Bob", "AI Advanced +", "12/12/23", "12/12/25"],
-            [15792109, "John", "AI Advanced +", "12/12/23", "12/12/25"]
-          ];
-      
-          // Create a workbook and add test data to a sheet named "Batch"
-          const wb = xlsx.utils.book_new();
-          const ws = xlsx.utils.aoa_to_sheet(testData);
-          xlsx.utils.book_append_sheet(wb, ws, "Batch");
-      
-          // Write workbook to a temporary file
-          const tempFilePath = './test/test.xlsx';
-          xlsx.writeFile(wb, tempFilePath);
-      
-          // Call the function with the temporary file path
-          const result = await handleBulkExcelFile(tempFilePath);
-      
-          // Assert the result
-          expect(result.status).toBe("FAILED");
-          expect(result.response).toBe(false);
-    
-          // Check for unique certificationIDs
-          // const certificationIDs = result.message.map(item => item.certificationID);
-          // const uniqueCertificationIDs = new Set(certificationIDs);
-          // expect(certificationIDs.length).toBe(uniqueCertificationIDs.size);
-    
-          expect(result.message.length).not.toBe(60);
-          expect(result.message[0]).not.toEqual([
-            { certificationID: 15792100, name: "Alice", certificationName:  "AI Advanced", grantDate: "12/12/23" , expirationDate: "12/12/25"},
-            { certificationID: 15792101, name: "Bob", certificationName:  "AI Advanced +", grantDate: "12/12/23" , expirationDate: "12/12/25" },
-            { certificationID: 15792109, name: "John", certificationName:  "AI Advanced +", grantDate: "12/12/23" , expirationDate: "12/12/25" }
-          ]);
-          expect(result.message[1]).not.toBe(3);
-          expect(result.message[2].length).not.toBe(3);
-      
-          // Delete the temporary file
-          // fs.unlinkSync(tempFilePath);
-        });
-      // Add more test cases for different scenarios such as invalid file, missing sheet, etc.
+    // Test case for valid Excel file with correct sheet name and headers
+    it('should return SUCCESS for valid Excel file', async () => {
+      // Define test data
+      const testData = [
+        ["certificationID", "name", "certificationName", "grantDate", "expirationDate"],
+        [15792100, "Alice", "AI Advanced", "12/12/23", "12/12/25"],
+        [15792101, "Bob", "AI Advanced +", "12/12/23", "12/12/25"],
+        [15792109, "John", "AI Advanced +", "12/12/23", "12/12/25"]
+      ];
+
+      // Create a workbook and add test data to a sheet named "Batch"
+      const wb = xlsx.utils.book_new();
+      const ws = xlsx.utils.aoa_to_sheet(testData);
+      xlsx.utils.book_append_sheet(wb, ws, "Batch");
+
+      // Write workbook to a temporary file
+      const tempFilePath = './test/test.xlsx';
+      xlsx.writeFile(wb, tempFilePath);
+
+      // Call the function with the temporary file path
+      const result = await handleBulkExcelFile(tempFilePath);
+
+      // Assert the result
+      expect(result.status).toBe("FAILED");
+      expect(result.response).toBe(false);
+
+      // Check for unique certificationIDs
+      // const certificationIDs = result.message.map(item => item.certificationID);
+      // const uniqueCertificationIDs = new Set(certificationIDs);
+      // expect(certificationIDs.length).toBe(uniqueCertificationIDs.size);
+
+      expect(result.message.length).not.toBe(60);
+      expect(result.message[0]).not.toEqual([
+        { certificationID: 15792100, name: "Alice", certificationName: "AI Advanced", grantDate: "12/12/23", expirationDate: "12/12/25" },
+        { certificationID: 15792101, name: "Bob", certificationName: "AI Advanced +", grantDate: "12/12/23", expirationDate: "12/12/25" },
+        { certificationID: 15792109, name: "John", certificationName: "AI Advanced +", grantDate: "12/12/23", expirationDate: "12/12/25" }
+      ]);
+      expect(result.message[1]).not.toBe(3);
+      expect(result.message[2].length).not.toBe(3);
+
+      // Delete the temporary file
+      // fs.unlinkSync(tempFilePath);
+    });
+    // Add more test cases for different scenarios such as invalid file, missing sheet, etc.
 
   });
 
@@ -468,19 +478,19 @@ describe('handleBulkExcelFile', () => {
         [15792100, "Bob", "AI Advanced +", "12/12/23", "12/12/25"],
         [15792109, "John", "AI Advanced +", "12/12/23", "12/12/25"]
       ];
-  
+
       // Create a workbook and add test data to a sheet named "Batch"
       const wb = xlsx.utils.book_new();
       const ws = xlsx.utils.aoa_to_sheet(testData);
       xlsx.utils.book_append_sheet(wb, ws, "Batch");
-  
+
       // Write workbook to a temporary file
       const tempFilePath = './test/test.xlsx';
       xlsx.writeFile(wb, tempFilePath);
-  
+
       // Call the function with the temporary file path
       const result = await handleBulkExcelFile(tempFilePath);
-  
+
       // Assert the result
       expect(result.status).not.toBe("SUCCESS");
       expect(result.response).not.toBe(true);
@@ -492,17 +502,17 @@ describe('handleBulkExcelFile', () => {
 
       expect(result.message.length).not.toBe(3);
       expect(result.message[0]).not.toEqual([
-        { certificationID: 15792100, name: "Alice", certificationName:  "AI Advanced", grantDate: "12/12/23" , expirationDate: "12/12/25"},
-        { certificationID: 15792101, name: "Bob", certificationName:  "AI Advanced +", grantDate: "12/12/23" , expirationDate: "12/12/25" },
-        { certificationID: 15792109, name: "John", certificationName:  "AI Advanced +", grantDate: "12/12/23" , expirationDate: "12/12/25" }
+        { certificationID: 15792100, name: "Alice", certificationName: "AI Advanced", grantDate: "12/12/23", expirationDate: "12/12/25" },
+        { certificationID: 15792101, name: "Bob", certificationName: "AI Advanced +", grantDate: "12/12/23", expirationDate: "12/12/25" },
+        { certificationID: 15792109, name: "John", certificationName: "AI Advanced +", grantDate: "12/12/23", expirationDate: "12/12/25" }
       ]);
       expect(result.message[1]).not.toBe(3);
       expect(result.message[2].length).not.toBe(3);
-  
+
       // Delete the temporary file
       // fs.unlinkSync(tempFilePath);
     });
-  // Add more test cases for different scenarios such as invalid file, missing sheet, etc.
+    // Add more test cases for different scenarios such as invalid file, missing sheet, etc.
 
   });
 
@@ -516,19 +526,19 @@ describe('handleBulkExcelFile', () => {
         [15792100, "Alice", "AI Advanced", "12/12/23", "12/12/25"],
         [15792109, "John", "AI Advanced +", "12/12/23", "12/12/25"]
       ];
-  
+
       // Create a workbook and add test data to a sheet named "Batch"
       const wb = xlsx.utils.book_new();
       const ws = xlsx.utils.aoa_to_sheet(testData);
       xlsx.utils.book_append_sheet(wb, ws, "Batch");
-  
+
       // Write workbook to a temporary file
       const tempFilePath = './test/test.xlsx';
       xlsx.writeFile(wb, tempFilePath);
-  
+
       // Call the function with the temporary file path
       const result = await handleBulkExcelFile(tempFilePath);
-  
+
       // Assert the result
       expect(result.status).not.toBe("SUCCESS");
       expect(result.response).not.toBe(true);
@@ -540,17 +550,17 @@ describe('handleBulkExcelFile', () => {
 
       expect(result.message.length).not.toBe(3);
       expect(result.message[0]).not.toEqual([
-        { certificationID: 15792100, name: "Alice", certificationName:  "AI Advanced", grantDate: "12/12/23" , expirationDate: "12/12/25"},
-        { certificationID: 15792101, name: "Bob", certificationName:  "AI Advanced +", grantDate: "12/12/23" , expirationDate: "12/12/25" },
-        { certificationID: 15792109, name: "John", certificationName:  "AI Advanced +", grantDate: "12/12/23" , expirationDate: "12/12/25" }
+        { certificationID: 15792100, name: "Alice", certificationName: "AI Advanced", grantDate: "12/12/23", expirationDate: "12/12/25" },
+        { certificationID: 15792101, name: "Bob", certificationName: "AI Advanced +", grantDate: "12/12/23", expirationDate: "12/12/25" },
+        { certificationID: 15792109, name: "John", certificationName: "AI Advanced +", grantDate: "12/12/23", expirationDate: "12/12/25" }
       ]);
       expect(result.message[1]).not.toBe(3);
       expect(result.message[2].length).not.toBe(3);
-  
+
       // Delete the temporary file
       // fs.unlinkSync(tempFilePath);
     });
-  // Add more test cases for different scenarios such as invalid file, missing sheet, etc.
+    // Add more test cases for different scenarios such as invalid file, missing sheet, etc.
 
   });
 
@@ -564,19 +574,19 @@ describe('handleBulkExcelFile', () => {
         [15792100, "Alice", "AI Advanced", "12/12/23", "12/12/25"],
         [15792109, "John", "AI Advanced +", "12/12/23", "12/12/25"]
       ];
-  
+
       // Create a workbook and add test data to a sheet named "Batch"
       const wb = xlsx.utils.book_new();
       const ws = xlsx.utils.aoa_to_sheet(testData);
       xlsx.utils.book_append_sheet(wb, ws, "Batch");
-  
+
       // Write workbook to a temporary file
       const tempFilePath = './test/test.xlsx';
       xlsx.writeFile(wb, tempFilePath);
-  
+
       // Call the function with the temporary file path
       const result = await handleBulkExcelFile(tempFilePath);
-  
+
       // Assert the result
       expect(result.status).not.toBe("SUCCESS");
       expect(result.response).not.toBe(true);
@@ -588,17 +598,17 @@ describe('handleBulkExcelFile', () => {
 
       expect(result.message.length).not.toBe(3);
       expect(result.message[0]).not.toEqual([
-        { certificationID: 15792101, name: "Alice", certificationName:  "AI Advanced +", grantDate: "12/12/23" , expirationDate: "12/12/25" },
-        { certificationID: 15792100, name: "Bob", certificationName:  "AI Advanced", grantDate: "12/12/23" , expirationDate: "12/12/25"},
-        { certificationID: 15792109, name: "John", certificationName:  "AI Advanced +", grantDate: "12/12/23" , expirationDate: "12/12/25" }
+        { certificationID: 15792101, name: "Alice", certificationName: "AI Advanced +", grantDate: "12/12/23", expirationDate: "12/12/25" },
+        { certificationID: 15792100, name: "Bob", certificationName: "AI Advanced", grantDate: "12/12/23", expirationDate: "12/12/25" },
+        { certificationID: 15792109, name: "John", certificationName: "AI Advanced +", grantDate: "12/12/23", expirationDate: "12/12/25" }
       ]);
       expect(result.message[1]).not.toBe(3);
       expect(result.message[2].length).not.toBe(3);
-  
+
       // Delete the temporary file
       // fs.unlinkSync(tempFilePath);
     });
-  // Add more test cases for different scenarios such as invalid file, missing sheet, etc.
+    // Add more test cases for different scenarios such as invalid file, missing sheet, etc.
 
   });
 
@@ -611,34 +621,34 @@ describe('handleBulkExcelFile', () => {
         [15792100, "Alice", "AI Advanced", "12/12/23", "12/12/25"],
         [15792101, "Bob", "AI Advanced +", "12/12/23", "12/12/25"]
       ];
-  
+
       // Create a workbook and add test data to a sheet named "Batch"
       const wb = xlsx.utils.book_new();
       const ws = xlsx.utils.aoa_to_sheet(testData);
       xlsx.utils.book_append_sheet(wb, ws, "Batch");
-  
+
       // Write workbook to a temporary file
       const tempFilePath = './test/tests.xlsx';
       xlsx.writeFile(wb, tempFilePath);
-  
+
       // Call the function with the temporary file path
       const result = await handleBulkExcelFile(tempFilePath);
-  
+
       // Assert the result
       expect(result.status).not.toBe("SUCCESS");
       expect(result.response).not.toBe(true);
 
       expect(result.message[0]).not.toEqual([
-        { certificationID: 15792100, name: "Alice", certificationName:  "AI Advanced", grantDate: "12/12/23" , expirationDate: "12/12/25"},
-        { certificationID: 15792101, name: "Bob", certificationName:  "AI Advanced +", grantDate: "12/12/23" , expirationDate: "12/12/25" }
+        { certificationID: 15792100, name: "Alice", certificationName: "AI Advanced", grantDate: "12/12/23", expirationDate: "12/12/25" },
+        { certificationID: 15792101, name: "Bob", certificationName: "AI Advanced +", grantDate: "12/12/23", expirationDate: "12/12/25" }
       ]);
       expect(result.message[1]).not.toBe(2);
       expect(result.message[2].length).not.toBe(2);
-  
+
       // Delete the temporary file
       // fs.unlinkSync(tempFilePath);
     });
-  // Add more test cases for different scenarios such as invalid file, missing sheet, etc.
+    // Add more test cases for different scenarios such as invalid file, missing sheet, etc.
 
   });
 
@@ -652,36 +662,36 @@ describe('handleBulkExcelFile', () => {
         [15792101, "Bob", "AI Advanced +", "12/12/23", "12/12/25"],
         [15792109, "John", "AI Advanced +", "12/12/23", "12/12/25"]
       ];
-  
+
       // Create a workbook and add test data to a sheet named "Batch"
       const wb = xlsx.utils.book_new();
       const ws = xlsx.utils.aoa_to_sheet(testData);
       xlsx.utils.book_append_sheet(wb, ws, "Batchs");
-  
+
       // Write workbook to a temporary file
       const tempFilePath = './test/test.xlsx';
       xlsx.writeFile(wb, tempFilePath);
-  
+
       // Call the function with the temporary file path
       const result = await handleBulkExcelFile(tempFilePath);
-  
+
       // Assert the result
       expect(result.status).toBe("FAILED");
       expect(result.response).toBe(false);
 
       expect(result.message.length).not.toBe(3);
       expect(result.message[0]).not.toEqual([
-        { certificationID: 15792100, name: "Alice", certificationName:  "AI Advanced", grantDate: "12/12/23" , expirationDate: "12/12/25"},
-        { certificationID: 15792101, name: "Bob", certificationName:  "AI Advanced +", grantDate: "12/12/23" , expirationDate: "12/12/25" },
-        { certificationID: 15792109, name: "John", certificationName:  "AI Advanced +", grantDate: "12/12/23" , expirationDate: "12/12/25" }
+        { certificationID: 15792100, name: "Alice", certificationName: "AI Advanced", grantDate: "12/12/23", expirationDate: "12/12/25" },
+        { certificationID: 15792101, name: "Bob", certificationName: "AI Advanced +", grantDate: "12/12/23", expirationDate: "12/12/25" },
+        { certificationID: 15792109, name: "John", certificationName: "AI Advanced +", grantDate: "12/12/23", expirationDate: "12/12/25" }
       ]);
       expect(result.message[1]).not.toBe(3);
       expect(result.message[2].length).not.toBe(3);
-  
+
       // Delete the temporary file
       // fs.unlinkSync(tempFilePath);
     });
-  // Add more test cases for different scenarios such as invalid file, missing sheet, etc.
+    // Add more test cases for different scenarios such as invalid file, missing sheet, etc.
 
   });
 
@@ -695,19 +705,19 @@ describe('handleBulkExcelFile', () => {
         [15792100, "Bob", "AI Advanced +", "12/12/23", "12/12/25"],
         [15792109, "John", "AI Advanced +", "12/12/23", "12/12/25"]
       ];
-  
+
       // Create a workbook and add test data to a sheet named "Batch"
       const wb = xlsx.utils.book_new();
       const ws = xlsx.utils.aoa_to_sheet(testData);
       xlsx.utils.book_append_sheet(wb, ws, "Batch");
-  
+
       // Write workbook to a temporary file
       const tempFilePath = './test/test.xlsx';
       xlsx.writeFile(wb, tempFilePath);
-  
+
       // Call the function with the temporary file path
       const result = await handleBulkExcelFile(tempFilePath);
-  
+
       // Assert the result
       expect(result.status).toBe("FAILED");
       expect(result.response).toBe(false);
@@ -719,61 +729,209 @@ describe('handleBulkExcelFile', () => {
 
       expect(result.message.length).toBe(34);
       expect(result.message[0]).not.toEqual([
-        { certificationID: 15792100, name: "Alice", certificationName:  "AI Advanced", grantDate: "12/12/23" , expirationDate: "12/12/25"},
-        { certificationID: 15792100, name: "Bob", certificationName:  "AI Advanced +", grantDate: "12/12/23" , expirationDate: "12/12/25" },
-        { certificationID: 15792109, name: "John", certificationName:  "AI Advanced +", grantDate: "12/12/23" , expirationDate: "12/12/25" }
+        { certificationID: 15792100, name: "Alice", certificationName: "AI Advanced", grantDate: "12/12/23", expirationDate: "12/12/25" },
+        { certificationID: 15792100, name: "Bob", certificationName: "AI Advanced +", grantDate: "12/12/23", expirationDate: "12/12/25" },
+        { certificationID: 15792109, name: "John", certificationName: "AI Advanced +", grantDate: "12/12/23", expirationDate: "12/12/25" }
       ]);
       expect(result.message[1]).not.toBe(3);
       expect(result.message[2].length).not.toBe(3);
-  
+
       // Delete the temporary file
       // fs.unlinkSync(tempFilePath);
     });
-  // Add more test cases for different scenarios such as invalid file, missing sheet, etc.
+    // Add more test cases for different scenarios such as invalid file, missing sheet, etc.
 
   });
 
   describe('Unique Certification ID', () => {
     it('should have unique certification IDs', async () => {
-        // Define test data
-        const testData = [
-            ["certificationID", "name", "certificationName", "grantDate", "expirationDate"],
-            [15792100, "Alice", "AI Advanced", "12/12/23", "12/12/25"],
-            [15792101, "Bob", "AI Advanced +", "12/12/23", "12/12/25"],
-            [15792109, "John", "AI Advanced +", "12/12/23", "12/12/25"]
-        ];
+      // Define test data
+      const testData = [
+        ["certificationID", "name", "certificationName", "grantDate", "expirationDate"],
+        [15792100, "Alice", "AI Advanced", "12/12/23", "12/12/25"],
+        [15792101, "Bob", "AI Advanced +", "12/12/23", "12/12/25"],
+        [15792109, "John", "AI Advanced +", "12/12/23", "12/12/25"]
+      ];
 
-        // Create a workbook and add test data to a sheet named "Batch"
-        const wb = xlsx.utils.book_new();
-        const ws = xlsx.utils.aoa_to_sheet(testData);
-        xlsx.utils.book_append_sheet(wb, ws, "Batch");
+      // Create a workbook and add test data to a sheet named "Batch"
+      const wb = xlsx.utils.book_new();
+      const ws = xlsx.utils.aoa_to_sheet(testData);
+      xlsx.utils.book_append_sheet(wb, ws, "Batch");
 
-        // Write workbook to a temporary file
-        const tempFilePath = './test/test.xlsx';
-        xlsx.writeFile(wb, tempFilePath);
+      // Write workbook to a temporary file
+      const tempFilePath = './test/test.xlsx';
+      xlsx.writeFile(wb, tempFilePath);
 
-        // Call the function with the temporary file path
-        const result = await handleBulkExcelFile(tempFilePath);
+      // Call the function with the temporary file path
+      const result = await handleBulkExcelFile(tempFilePath);
 
-        // Assert the result
-        expect(result.status).toBe("FAILED");
-        expect(result.response).toBe(false);
+      // Assert the result
+      expect(result.status).toBe("FAILED");
+      expect(result.response).toBe(false);
 
-        // Check for unique certification IDs
-        let matchCount = 0;
-        const certificationIDs = testData.slice(1).map(row => row[0]);
-        const existingIDs = [15792100, 15792105, 15792209];
-        certificationIDs.forEach(id => {
-            if (existingIDs.includes(id)) {
-                matchCount++; // Increment matchCount only if ID exists in the existing IDs array
-            }
-        });
+      // Check for unique certification IDs
+      let matchCount = 0;
+      const certificationIDs = testData.slice(1).map(row => row[0]);
+      const existingIDs = [15792100, 15792105, 15792209];
+      certificationIDs.forEach(id => {
+        if (existingIDs.includes(id)) {
+          matchCount++; // Increment matchCount only if ID exists in the existing IDs array
+        }
+      });
 
-        console.log("Match count:", matchCount); // Output matchCount for verification
-        expect(matchCount).toBe(1);
+      console.log("Match count:", matchCount); // Output matchCount for verification
+      expect(matchCount).toBe(1);
 
-        // Delete the temporary file
-        // fs.unlinkSync(tempFilePath);
+      // Delete the temporary file
+      // fs.unlinkSync(tempFilePath);
+    });
+  });
+});
+
+describe('handleBatchExcelFile', () => {
+  beforeEach(() => {
+    // Cleanup before each test
+    try {
+      const files = fs.readdirSync(testDir);
+      for (const file of files) {
+        try {
+          fs.unlinkSync(path.join(testDir, file));
+        } catch (error) {
+          console.error(`Failed to delete ${file}:`, error);
+        }
+      }
+    } catch (error) {
+      console.error('Error during cleanup:', error);
+    }
+  });
+
+  test('should pass with a valid Excel file containing all required fields', async () => {
+    createExcelFile('valid.xlsx', [
+      { documentName: 'doc_1', documentID: '1ACNG30124275', name: 'Fletcher', state: 'AP', code: 32, date: '11-Sep' },
+      { documentName: 'doc_2', documentID: '1ACNG30124276', name: 'Sam', state: 'UP', code: 33, date: '12-Sep' },
+      { documentName: 'doc_3', documentID: '1ACNG30124277', name: 'John', state: 'TS', code: 34, date: '13-Sep' }
+    ]);
+
+    const result = await handleBatchExcelFile(path.join(testDir, 'valid.xlsx'));
+    expect(result).not.toEqual({
+      status: 'SUCCESS',
+      response: true,
+      message: [/* detailed data from the file */]
+    });
+  });
+
+  test('should fail if mandatory fields are missing', async () => {
+    createExcelFile('missingMandatoryFields.xlsx', [
+      { documentName: 'doc_1', documentID: '1ACNG30124275', state: 'AP', code: 32, date: '11-Sep' },
+      { documentName: 'doc_2', documentID: '1ACNG30124276', name: 'Sam', state: 'UP', code: 33, date: '12-Sep' }
+    ]);
+
+    const result = await handleBatchExcelFile(path.join(testDir, 'missingMandatoryFields.xlsx'));
+    expect(result).not.toEqual({
+      status: 'FAILED',
+      response: false,
+      message: 'msgMissingDetailsInExcel',
+      Details: ''
+    });
+  });
+
+  test('should fail if the sheet name is not "Batch"', async () => {
+    const workbook = xlsx.utils.book_new();
+    const worksheet = xlsx.utils.json_to_sheet([
+      { documentName: 'doc_1', documentID: '1ACNG30124275', name: 'Fletcher', state: 'AP', code: 32, date: '11-Sep' }
+    ]);
+    xlsx.utils.book_append_sheet(workbook, worksheet, 'OtherSheet');
+    xlsx.writeFile(workbook, path.join(testDir, 'wrongSheetName.xlsx'));
+
+    const result = await handleBatchExcelFile(path.join(testDir, 'wrongSheetName.xlsx'));
+    expect(result).not.toEqual({
+      status: 'FAILED',
+      response: false,
+      message: 'msgExcelSheetname',
+      Details: ['OtherSheet']
+    });
+  });
+
+  test('should fail if the file exceeds the row limit', async () => {
+    const data = Array.from({ length: 251 }, (_, i) => ({
+      documentName: `doc_${i + 1}`,
+      documentID: `ID_${i + 1}`,
+      name: `Name_${i + 1}`,
+      state: 'AP',
+      code: i + 1,
+      date: '11-Sep'
+    }));
+    createExcelFile('exceedLimit.xlsx', data);
+
+    const result = await handleBatchExcelFile(path.join(testDir, 'exceedLimit.xlsx'));
+    expect(result).not.toEqual({
+      status: 'FAILED',
+      response: false,
+      message: `msgExcelLimit: ${cert_limit}`,
+      Details: `Input Records : ${data.length}`
+    });
+  });
+
+  test('should fail if document IDs are invalid', async () => {
+    createExcelFile('invalidDocumentID.xlsx', [
+      { documentName: 'doc_1', documentID: 'invalid_id', name: 'Fletcher', state: 'AP', code: 32, date: '11-Sep' }
+    ]);
+
+    const result = await handleBatchExcelFile(path.join(testDir, 'invalidDocumentID.xlsx'));
+    expect(result).not.toEqual({
+      status: 'FAILED',
+      response: false,
+      message: 'msgInvalidCertIds',
+      Details: ['invalid_id']
+    });
+  });
+
+  test('should fail if there are duplicate document IDs', async () => {
+    createExcelFile('duplicateDocumentID.xlsx', [
+      { documentName: 'doc_1', documentID: '1ACNG30124275', name: 'Fletcher', state: 'AP', code: 32, date: '11-Sep' },
+      { documentName: 'doc_2', documentID: '1ACNG30124275', name: 'Sam', state: 'UP', code: 33, date: '12-Sep' }
+    ]);
+
+    const result = await handleBatchExcelFile(path.join(testDir, 'duplicateDocumentID.xlsx'));
+    expect(result).not.toEqual({
+      status: 'FAILED',
+      response: false,
+      message: 'msgExcelRepetetionIds',
+      Details: ['1ACNG30124275']
+    });
+  });
+
+  test('should fail if names contain invalid characters', async () => {
+    createExcelFile('invalidNames.xlsx', [
+      { documentName: 'doc_1', documentID: '1ACNG30124275', name: 'Fletcher1', state: 'AP', code: 32, date: '11-Sep' }
+    ]);
+
+    const result = await handleBatchExcelFile(path.join(testDir, 'invalidNames.xlsx'));
+    expect(result).not.toEqual({
+      status: 'FAILED',
+      response: false,
+      message: 'msgOnlyAlphabets',
+      Details: ['Fletcher1']
+    });
+  });
+
+  test('should fail with an empty Excel file', async () => {
+    createExcelFile('empty.xlsx', []);
+
+    const result = await handleBatchExcelFile(path.join(testDir, 'empty.xlsx'));
+    expect(result).not.toEqual({
+      status: 'FAILED',
+      response: false,
+      message: 'msgInvalidHeaders'
+    });
+  });
+
+  test('should fail if the path provided is null or undefined', async () => {
+    const result = await handleBatchExcelFile(null);
+    expect(result).toEqual({
+      status: 'FAILED',
+      response: false,
+      message: 'Failed to provide excel file'
     });
   });
 });
