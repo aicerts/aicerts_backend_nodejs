@@ -569,6 +569,9 @@ const insertCertificateData = async (data) => {
       grantDate: data.grantDate,
       expirationDate: data.expirationDate,
       certificateStatus: data.certStatus,
+      positionX: data.positionX,
+      positionY: data.positionY,
+      qrSize: data.qrSize,
       width: data.width || without_pdf_width,
       height: data.height || without_pdf_height,
       qrOption: data.qrOption || 0,
@@ -616,6 +619,9 @@ const insertDynamicBatchCertificateData = async (data) => {
       name: data.name,
       certificateFields: data.customFields,
       certificateStatus: 1,
+      positionX: data.positionX,
+      positionY: data.positionY,
+      qrSize: data.qrSize,
       width: data.width || without_pdf_width,
       height: data.height || without_pdf_height,
       qrOption: data.qrOption || 0,
@@ -647,6 +653,9 @@ const insertDynamicCertificateData = async (data) => {
       certificateNumber: data.certificateNumber,
       name: data.name,
       certificateStatus: 1,
+      positionX: data.positionX,
+      positionY: data.positionY,
+      qrSize: data.qrSize,
       certificateFields: data.customFields,
       width: data.width || without_pdf_width,
       height: data.height || without_pdf_height,
@@ -697,6 +706,9 @@ const insertBatchCertificateData = async (data) => {
       grantDate: data.grantDate,
       expirationDate: data.expirationDate,
       certificateStatus: data.certStatus,
+      positionX: data.positionX,
+      positionY: data.positionY,
+      qrSize: data.qrSize,
       width: data.width || without_pdf_width,
       height: data.height || without_pdf_height,
       qrOption: data.qrOption || 0,
@@ -769,9 +781,9 @@ const insertDynamicIssueStatus = async (issueData) => {
       batchId: batchId,
       transactionHash: transactionHash, // TransactionHash field is of type String and is required
       certificateNumber: issueData.certificateNumber, // CertificateNumber field is of type String and is required
-      course: null,
+      course: 0,
       name: issueData.name,
-      expirationDate: null, // ExpirationDate field is of type String and is required
+      expirationDate: 0, // ExpirationDate field is of type String and is required
       certStatus: issueData.certStatus,
       lastUpdate: Date.now()
     });

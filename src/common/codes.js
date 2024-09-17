@@ -50,6 +50,7 @@ module.exports = {
     msgUnableToConvert: "Unable to convert the file, please check file format data and upload again...",
     msgMultipagePdfError: "Multiple-page PDF documents are not allowed. Please try again with a valid single-page PDF",
     msgProvideValidExcel: "Excel file has invalid details, Please verify and try again...",
+    msgNoHeaderSpecified: "Data entered without a corresponding header.",
 
 
     // Validation Error codes Issues (Route)

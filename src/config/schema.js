@@ -59,11 +59,14 @@ const IssuesSchema = new mongoose.Schema({
   expirationDate: { type: String, required: true }, // ExpirationDate field is of type String and is required
   certificateStatus: { type: Number, required: true, default: 1 },
   issueDate: { type: Date, default: Date.now },// issueDate field is of type Date and defaults to the current date/time
+  positionX: { type: Number, default: 0},
+  positionY: { type: Number, default: 0},
+  qrSize: { type: Number, default: 0},
   width: { type: Number },
   height: { type: Number },
   qrOption: { type: Number, default: 0 },
   url: { type: String },
-  type: { type: String }
+  type: { type: String, default: null }
 });
 
 // Batch Issues Schema
@@ -82,6 +85,9 @@ const BatchIssuesSchema = new Schema({
   expirationDate: { type: String, required: true },
   certificateStatus: { type: Number, default: 1 },
   issueDate: { type: Date, default: Date.now },
+  positionX: { type: Number, default: 0},
+  positionY: { type: Number, default: 0},
+  qrSize: { type: Number, default: 0},
   width: { type: Number },
   height: { type: Number },
   qrOption: { type: Number, default: 0 },

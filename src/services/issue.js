@@ -20,8 +20,11 @@ const abi = require("../config/abi.json");
 
 const bulkIssueStatus = process.env.BULK_ISSUE_STATUS || 'DEFAULT';
 
-const without_pdf_width = parseInt(process.env.WITHOUT_PDF_WIDTH);
-const without_pdf_height = parseInt(process.env.WITHOUT_PDF_HEIGHT);
+const withoutPdfWidth = parseInt(process.env.WITHOUT_PDF_WIDTH) || null;
+const withoutPdfHeight = parseInt(process.env.WITHOUT_PDF_HEIGHT) || null;
+const qrXPosition = parseInt(process.env.STATIC_X_POSITION) || null;
+const qrYPosition = parseInt(process.env.STATIC_Y_POSITION) || null;
+const staticQrSize = parseInt(process.env.STATIC_QR_SIZE) || null;
 
 // Importing functions from a custom module
 const {
@@ -35,7 +38,6 @@ const {
   insertDynamicCertificateData,
   insertDynamicBatchCertificateData,
   addDynamicLinkToPdf,
-  insertBulkBatchIssueData,
   addLinkToPdf, // Function to add a link to a PDF file
   verifyPDFDimensions, //Verify the uploading pdf template dimensions
   verifyDynamicPDFDimensions,
@@ -292,8 +294,11 @@ const handleIssueCertification = async (email, certificateNumber, name, courseNa
                 expirationDate: fields.Expiration_Date,
                 email: email,
                 certStatus: 1,
-                width: without_pdf_width,
-                height: without_pdf_height,
+                positionX: qrXPosition,
+                positionY: qrYPosition,
+                qrSize: staticQrSize,
+                width: withoutPdfWidth,
+                height: withoutPdfHeight,
                 qrOption: qrOption,
                 type: 'withoutpdf',
               };
@@ -873,6 +878,9 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
           expirationDate: fields.Expiration_Date,
           email: email,
           certStatus: 1,
+          positionX: process.env.ISSUE_X_POSITION || null,
+          positionY: process.env.ISSUE_Y_POSITION || null,
+          qrSize: process.env.ISSUE_QR_SIZE || null,
           width: width,
           height: height,
           qrOption: qrOption,
@@ -1131,6 +1139,9 @@ const handleIssueDynamicPdfCertification = async (email, certificateNumber, name
           certificateNumber: fields.Certificate_Number,
           name: fields.name,
           email: email,
+          positionX: _positionX,
+          positionY: _positionY,
+          qrSize: _qrsize,
           width: width,
           height: height,
           qrOption: qrOption,
@@ -1370,6 +1381,9 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
               certificateNumber: fields.Certificate_Number,
               name: fields.name,
               customFields: fields.customFields,
+              positionX: posx,
+              positionY: posy,
+              qrSize: qrside,
               width: pdfWidth,
               height: pdfHeight,
               qrOption: qrOption,
@@ -1397,7 +1411,6 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
             fs.writeFileSync(outputPath, fileBuffer);
             console.log('File saved successfully at:', outputPath);
           }
-
         }
         // Wait for all insert promises to resolve
         await Promise.all(insertPromises);
@@ -2012,14 +2025,13 @@ const getFormattedFields = async (obj) => {
     let value = obj[key];
     if (value instanceof Date) {
       value = formatDate(value);
-    } else if (value === null || value === '' || value === "") {
-      return; // Skip this entry if value is null or empty string
+    } else if (value === null || value === '' || value === "" || value == "<Enter the Value>") {
+      return null; // Skip this entry if value is null or empty string
     } else {
       value = value.toString(); // Convert other values to string
     }
     result[key] = value;
   });
-
   return result;
 }
 

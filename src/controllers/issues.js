@@ -34,8 +34,11 @@ const extractionPath = './uploads';
 const bulkIssueStatus = process.env.BULK_ISSUE_STATUS || 'DEFAULT';
 const cloudStore = process.env.CLOUD_STORE || 'DEFAULT';
 
-const without_pdf_width = parseInt(process.env.WITHOUT_PDF_WIDTH);
-const without_pdf_height = parseInt(process.env.WITHOUT_PDF_HEIGHT);
+const withoutPdfWidth = parseInt(process.env.WITHOUT_PDF_WIDTH);
+const withoutPdfHeight = parseInt(process.env.WITHOUT_PDF_HEIGHT);
+const qrXPosition = parseInt(process.env.STATIC_X_POSITION) || null;
+const qrYPosition = parseInt(process.env.STATIC_Y_POSITION) || null;
+const staticQrSize = parseInt(process.env.STATIC_QR_SIZE) || null;
 
 const destDirectory = path.join(__dirname, '../../uploads/completed');
 const uploadPath = path.join(__dirname, '../../uploads');
@@ -604,8 +607,11 @@ const batchIssueCertificate = async (req, res) => {
                 expirationDate: _expirationDate,
                 email: email,
                 certStatus: 1,
-                width: without_pdf_width,
-                height: without_pdf_height,
+                positionX: qrXPosition,
+                positionY: qrYPosition,
+                qrSize: staticQrSize,
+                width: withoutPdfWidth,
+                height: withoutPdfHeight,
                 qrOption: qrOption
               }
 
@@ -665,8 +671,8 @@ const batchIssueCertificate = async (req, res) => {
                 grantDate: _grantDate,
                 expirationDate: _expirationDate,
                 qrImage: qrImageData,
-                width: without_pdf_width,
-                height: without_pdf_height
+                width: withoutPdfWidth,
+                height: withoutPdfHeight
               }
 
               insertPromises.push(insertBatchCertificateData(batchDetails[i]));
@@ -1543,7 +1549,6 @@ const validateDynamicBulkIssueDocuments = async (req, res) => {
     }
     return;
   }
-
   var filePath = req?.file.path;
   var filesList = [];
   // Initialize an empty array to store the file(s) ending with ".xlsx"
@@ -1551,7 +1556,6 @@ const validateDynamicBulkIssueDocuments = async (req, res) => {
   // Initialize an empty array to store the file(s) ending with ".pdf"
   var pdfFiles = [];
   var docsExist = [];
-
   try {
     await isDBConnected();
 
@@ -1653,7 +1657,6 @@ const validateDynamicBulkIssueDocuments = async (req, res) => {
       await wipeUploadFolder();
       return;
     }
-
     var excelDataResponse = excelData.message[0];
 
     // Extract Certs values from data and append ".pdf"
@@ -1727,7 +1730,6 @@ const validateDynamicBulkIssueDocuments = async (req, res) => {
       await wipeUploadFolder();
       return;
     }
-
     res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgValidDocumentsUploaded, details: email });
     await wipeUploadFolder();
     return;
@@ -1737,7 +1739,6 @@ const validateDynamicBulkIssueDocuments = async (req, res) => {
     await wipeUploadFolder();
     return;
   }
-
 };
 
 const _validateDynamicBulkIssueDocuments = async (req, res) => {

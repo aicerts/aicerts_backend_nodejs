@@ -319,6 +319,23 @@ const handleBatchExcelFile = async (_path) => {
             const maxColumns = 8;
             const limitedHeaders = headers.slice(0, maxColumns);
 
+            // Check for missing headers in columns where data is present
+            let missingHeaderError = false;
+            rows.slice(1).forEach(row => {
+                limitedHeaders.slice(3).forEach((header, index) => {
+                    if (header === '<Enter the Key>' || header === null || header === undefined) {
+                        const value = row[index + 3]; // Adjust index for the header
+                        if (value !== undefined && value !== null && value !== '' && value !== '<Enter the Value>') {
+                            missingHeaderError = true;
+                        }
+                    }
+                });
+            });
+
+            if (missingHeaderError) {
+                return { status: "FAILED", response: false, message: messageCode.msgNoHeaderSpecified };
+            }
+
             // Map rows to JSON objects, restricting to the first 8 columns
             const jsonData = rows.slice(1).map(row => {
                 const rowData = {};
@@ -327,30 +344,38 @@ const handleBatchExcelFile = async (_path) => {
                 });
                 return rowData;
             });
-       
+
             if (jsonData.length > 0) {
                 let headers = rows.shift();
 
-                const targetData = rows.map(row => {
+                // Prepare targetData from jsonData
+                const targetData = jsonData.map(row => {
                     const obj = {};
-                    headers.forEach((header, index) => {
-                        obj[header] = row[index];
+                    limitedHeaders.forEach((header, index) => {
+                        if (header !== '<Enter the Key>') {
+                            const value = row[header];
+                            // Omit values that are '<Enter the Value>'
+                            if (value !== '<Enter the Value>' && value !== null && value !== '') {
+                                obj[header] = value;
+                            }
+                        }
                     });
-                    return obj; // Return the fetched rows
+                    return obj; // Return the processed row data
                 });
 
-                // Limit Records to certain limit in the Batch
-                if (rows && rows.length > cert_limit && cert_limit != 0) {
-                    return { status: "FAILED", response: false, message: `${messageCode.msgExcelLimit}: ${cert_limit}`, Details: `Input Records : ${rows.length}` };
-                }
+                // const targetData = rows.map(row => {
+                //     const obj = {};
+                //     headers.forEach((header, index) => {
+                //         obj[header] = row[index];
+                //     });
+                //     return obj; // Return the fetched rows
+                // });
 
                 // Batch Certification Formated Details
                 var rawBatchData = targetData;
 
                 var documentIDs = rawBatchData.map(item => item.documentID);
-
                 var holderNames = rawBatchData.map(item => item.name);
-
                 var documentNames = rawBatchData.map(item => item.documentName);
 
                 var notNullDocumentIDs = documentIDs.filter(item => item == null);
@@ -359,6 +384,11 @@ const handleBatchExcelFile = async (_path) => {
 
                 if (notNullDocumentIDs.length != 0 || notNullHolderNames.length != 0 || notNullDocumentNames.length != 0) {
                     return { status: "FAILED", response: false, message: messageCode.msgMissingDetailsInExcel, Details: "" };
+                }
+
+                // Limit Records to certain limit in the Batch
+                if (rows && rows.length > cert_limit && cert_limit != 0) {
+                    return { status: "FAILED", response: false, message: `${messageCode.msgExcelLimit}: ${cert_limit}`, Details: `Input Records : ${rows.length}` };
                 }
 
                 // Initialize an empty list to store matching IDs
@@ -381,7 +411,7 @@ const handleBatchExcelFile = async (_path) => {
 
                 // Assuming BatchIssues is your MongoDB model
                 for (const id of documentIDs) {
-                    const issueExist = await DynamicBatchIssues.findOne({certificateNumber : id});
+                    const issueExist = await DynamicBatchIssues.findOne({ certificateNumber: id });
                     if (issueExist) {
                         matchingIDs.push(id);
                     }
@@ -409,7 +439,7 @@ const validateDynamicBatchCertificateIDs = async (data) => {
 
     data.forEach(num => {
         const str = num.toString(); // Convert number to string
-        if (str.length < min_length || str.length > max_length || specialCharsRegex.test(str)) {
+        if (str.length < min_length || str.length > 50 || specialCharsRegex.test(str)) {
             invalidStrings.push(str);
         }
     });
@@ -423,7 +453,6 @@ const validateDynamicBatchCertificateIDs = async (data) => {
 
 const validateDynamicBatchCertificateNames = async (names) => {
     const invalidNames = [];
-
     names.forEach(name => {
         const str = name.toString(); // Convert number to string
         if (str.length > 40) {
@@ -487,7 +516,6 @@ const findRepetitiveIdNumbers = async (data) => {
             repetitiveNumbers.push(key);
         }
     }
-
     return repetitiveNumbers;
 };
 
@@ -517,7 +545,6 @@ const findInvalidDates = async (dates) => {
     }
     return { validDates, invalidDates };
 };
-
 
 // Function to compare two grant & expiration of dates
 const compareGrantExpiredSetDates = async (grantList, expirationList) => {
