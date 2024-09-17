@@ -198,7 +198,7 @@ router.post('/get-organization-issues', validationRoute.organizationIssues, admi
  * @swagger
  * /api/get-filtered-issuers:
  *   post:
- *     summary: Get details of all Issuers with the filter (organization, name, email).
+ *     summary: Get details of all Issuers with the filter (organization, name, email) as filter with flag 1:partial match, 2:complete match.
  *     description: API to fetch details of all Issuers with the filter (organization, name, email).
  *     tags: [Fetch/Upload]
  *     security:
@@ -216,9 +216,13 @@ router.post('/get-organization-issues', validationRoute.organizationIssues, admi
  *               filter:
  *                 type: string
  *                 description: Provide key 
+ *               flag:
+ *                 type: number
+ *                 description: Provide flag value 
  *             required:
  *               - input
  *               - filter
+ *               - flag
  *     responses:
  *       '200':
  *         description: All issues details fetched successfully
@@ -285,7 +289,7 @@ router.post('/get-filtered-issuers', validationRoute.fetchIssuers ,adminControll
  * @swagger
  * /api/get-filtered-issues:
  *   post:
- *     summary: Get details of certifications issued by Issuers under particular input:filter as name, course, grantDate, expirationDate, certificateNumber with filter code 1:partial match, 2:complete match).
+ *     summary: Get details of certifications issued by Issuers under particular input:filter as name, course, grantDate, expirationDate, certificateNumber as filter with flag 1:partial match, 2:complete match.
  *     description: API to fetch details of certifications issued by Issuers under particular input:filter as name, course, grantDate, expirationDate, certificateNumber as filter code.
  *     tags: [Fetch/Upload]
  *     security:

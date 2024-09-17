@@ -54,7 +54,7 @@ const getAllIssuers = async (req, res) => {
     // Fetch all users from the database
     const allIssuers = await User.find({ status: [1,2] }).select('-password');
     const allIssuerCount = allIssuers.length;
-    
+
     const statusCounts = allIssuers.reduce((counts, item) => {
       if (item.status === 1) counts.status1++;
       if (item.status === 2) counts.status2++;
@@ -374,27 +374,51 @@ const getIssueDetails = async (req, res) => {
 const getIssuersWithFilter = async (req, res) => {
   let validResult = validationResult(req);
   if (!validResult.isEmpty()) {
-    return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
   try {
     const input = req.body.input;
     const filter = req.body.filter;
-    if (!filter || !input) {
-      return res.status(400).send({ code: 400, status: "FAILED", message: messageCode.msgInputProvide });
+    const flag = parseInt(req.body.flag);
+    if (!filter || !input || !flag == 1 || !flag == 2) {
+      return res.status(400).send({ status: "FAILED", message: messageCode.msgEnterInvalid });
     }
-
     var fetchResult;
-    const query = {};
-    query[filter] = { $regex: `^${input}`, $options: 'i' };
-    fetchResult = await User.find(query).select(['-password']);
+    if (flag == 1) {
+      const query = {};
+      const projection = {};
+      query[filter] = { $regex: `^${input}`, $options: 'i' };
+      // Construct the projection object dynamically
+      projection[filter] = 1; // Include the field specified by `key`
+      projection['_id'] = 0; // Exclude the `_id` field
+      fetchResponse = await User.find(query, projection);
+      // Extract the key match from the results
+      const responseItems = fetchResponse.map(item => item[filter]);
+      // Remove duplicates using a Set
+      // const uniqueItems = Array.from(new Set(responseItems));
+      const uniqueItems = [...new Set(responseItems.map(item => item.toLowerCase()))];
+      // Sort the values alphabetically
+      // fetchResult = uniqueItems.sort((a, b) => a.localeCompare(b));
+      fetchResult = uniqueItems.map(lowerCaseItem =>
+        responseItems.find(item => item.toLowerCase() === lowerCaseItem)
+      );
+    } else {
+      let filterCriteria = `$${filter}`;
+      fetchResult = await User.find({
+        $expr: {
+          $and: [
+            { $eq: [{ $toLower: filterCriteria }, input.toLowerCase()] }
+          ]
+        }
+      }).select(['-password']);
+    }
 
     if (fetchResult.length == 0) {
-      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgNoMatchFound });
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgNoMatchFound });
     }
-
-    return res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgAllIssuersFetched, details: fetchResult });
+    return res.status(200).json({ status: "SUCCESS", message: messageCode.msgAllIssuersFetched, details: fetchResult });
   } catch (error) {
-    return res.status(500).json({ code: 500, status: "FAILED", message: messageCode.msgInternalError });
+    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
   }
 };
 
