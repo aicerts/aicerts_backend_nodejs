@@ -52,15 +52,17 @@ const getAllIssuers = async (req, res) => {
     console.log(dbStatusMessage);
 
     // Fetch all users from the database
-    const allIssuers = await User.find({ status: [1,2] }).select('-password');
+    const allIssuers = await User.find({ status: [0,1,2] }).select('-password');
     const allIssuerCount = allIssuers.length;
 
     const statusCounts = allIssuers.reduce((counts, item) => {
+      if (item.status === 0) counts.status0++;
       if (item.status === 1) counts.status1++;
       if (item.status === 2) counts.status2++;
       return counts;
-    }, { status1: 0, status2: 0 });
+    }, { status0: 0, status1: 0, status2: 0 });
 
+    const pendingIssuerCount = statusCounts.status0;
     const activeIssuerCount = statusCounts.status1;
     const inactiveIssuerCount = statusCounts.status2;
 
@@ -70,6 +72,7 @@ const getAllIssuers = async (req, res) => {
       allIssuers: allIssuerCount,
       activeIssuers: activeIssuerCount,
       inactiveIssuers: inactiveIssuerCount,
+      pendingIssuers: pendingIssuerCount,
       data: allIssuers,
       message: messageCode.msgAllIssuersFetched
     });
