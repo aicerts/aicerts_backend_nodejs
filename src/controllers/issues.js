@@ -841,19 +841,17 @@ const dynamicBatchIssueCertificates = async (req, res) => {
         });
     });
     filesList = await fs.promises.readdir(extractionPath);
-
     let zipExist = await findDirectories(filesList);
     if (zipExist) {
       filesList = zipExist;
     }
-
+    console.log("files", filesList, filesList.length);
     if (filesList.length < 2) {
       res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUnableToFindFiles });
       // await cleanUploadFolder();
       // await wipeUploadFolder();
       return;
     }
-
     filesList.forEach(file => {
       if (file.endsWith('.xlsx')) {
         xlsxFiles.push(file);
@@ -875,8 +873,8 @@ const dynamicBatchIssueCertificates = async (req, res) => {
 
     if (pdfFiles.length == 0) {
       res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUnableToFindPdfFiles });
-      // await cleanUploadFolder();
-      await wipeUploadFolder();
+      await cleanUploadFolder();
+      // await wipeUploadFolder();
       return;
     }
 
@@ -887,13 +885,14 @@ const dynamicBatchIssueCertificates = async (req, res) => {
     const excelData = await handleBatchExcelFile(excelFilePath);
     // await _fs.remove(filePath);
     if (excelData.response == false) {
-      var errorDetails = (excelData.Details).length > 0 ? excelData.Details : "";
+      var errorDetails = (excelData.Details) ? excelData.Details : "";
       res.status(400).json({ code: 400, status: "FAILED", message: excelData.message, details: errorDetails });
       // await cleanUploadFolder();
       await wipeUploadFolder();
       return;
     }
 
+    console.log("Reached", excelFilePath);
     var excelDataResponse = excelData.message[0];
 
     // Extract Certs values from data and append ".pdf"
@@ -1072,6 +1071,7 @@ const dynamicBatchIssueCertificates = async (req, res) => {
 
   } catch (error) {
     res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInternalError, details: error });
+    await wipeUploadFolder();
     return;
   }
 };
