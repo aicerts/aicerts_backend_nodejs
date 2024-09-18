@@ -25,8 +25,8 @@ const contractAddress = process.env.CONTRACT_ADDRESS;
 
 // Define an array of providers to use as fallbacks
 const providers = [
-  new ethers.AlchemyProvider(process.env.RPC_NETWORK, process.env.ALCHEMY_API_KEY),
-  new ethers.InfuraProvider(process.env.RPC_NETWORK, process.env.INFURA_API_KEY)
+  new ethers.AlchemyProvider(process.env.BALANCE_NETWORK, process.env.ALCHEMY_API_KEY),
+  new ethers.InfuraProvider(process.env.BALANCE_NETWORK, process.env.INFURA_API_KEY)
   // Add more providers as needed
 ];
 
