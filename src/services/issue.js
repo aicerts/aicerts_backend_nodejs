@@ -28,6 +28,7 @@ const staticQrSize = parseInt(process.env.STATIC_QR_SIZE) || null;
 
 // Importing functions from a custom module
 const {
+  fallbackProvider,
   connectToPolygon,
   convertDateFormat,
   convertDateToEpoch,
@@ -51,7 +52,7 @@ const {
   getPdfDimensions
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
-const { uploadImageToS3, _uploadImageToS3 } = require('../utils/upload');
+const { fetchOrEstimateTransactionFee, uploadImageToS3, _uploadImageToS3 } = require('../utils/upload');
 
 const { convertPdfBufferToPng, _convertPdfBufferToPng, generateVibrantQr, generateQrDetails } = require('../utils/generateImage');
 
@@ -68,10 +69,10 @@ const providers = [
 ];
 
 // Create a new FallbackProvider instance
-const fallbackProvider = new ethers.FallbackProvider(providers);
+const _fallbackProvider = new ethers.FallbackProvider(providers);
 
 // Create a new ethers signer instance using the private key from environment variable and the provider(Fallback)
-const signer = new ethers.Wallet(process.env.PRIVATE_KEY, fallbackProvider);
+const signer = new ethers.Wallet(process.env.PRIVATE_KEY, _fallbackProvider);
 
 // Create a new ethers contract instance with a signing capability (using the contract Address, ABI and signer)
 const newContract = new ethers.Contract(contractAddress, abi, signer);
@@ -1630,7 +1631,7 @@ const _dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelRes
             var imageBuffer = await _convertPdfBufferToPngWithRetry(generatedImage, fileBuffer, pdfWidth, pdfHeight);
 
             if (imageBuffer) {
-              imageUrl = await _uploadImageToS3(fields.Certificate_Number, generatedImage);
+              // imageUrl = await _uploadImageToS3(fields.Certificate_Number, generatedImage);
               if (!imageUrl) {
                 return ({ code: 400, status: "FAILED", message: messageCode.msgUploadError });
               }
@@ -1825,19 +1826,8 @@ const issueCertificateWithRetry = async (certificateNumber, certificateHash, exp
       expirationEpoch
     );
     let txHash = tx.hash;
-    let receipt = await tx.wait();
-    if (receipt) {
-      // Get gas used and gas price
-      const gasUsed = BigInt(receipt.gasUsed.toString());
-      const gasPrice = BigInt(receipt.gasPrice.toString());
-      // Calculate transaction fee
-      let txFee = gasUsed * gasPrice; // Fee in wei
-      // Convert to decimal by dividing by 1e18
-      let decimal = Number(txFee) / 1e18;
-      let transactionFee = decimal.toString();
-      console.log("Updated transaction fee", Number(transactionFee));
-    }
-
+    let trnasactionFee = await fetchOrEstimateTransactionFee(tx);
+    console.log("The final tx fee is", trnasactionFee);
     if (!txHash) {
       if (retryCount > 0) {
         console.log(`Unable to process the transaction. Retrying... Attempts left: ${retryCount}`);

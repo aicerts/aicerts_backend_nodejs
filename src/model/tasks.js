@@ -1217,7 +1217,7 @@ const addLinkToPdf = async (
   qrY = 75;
   qrWidth = pngDims.width;
   qrHeight = pngDims.height;
-  console.log("QR details", width, height, (width - pngDims.width - 108), 135, qrX, 75, qrWidth, qrHeight );
+  // console.log("QR details", width, height, (width - pngDims.width - 108), 135, qrX, 75, qrWidth, qrHeight );
 
   const pdfBytes = await pdfDoc.save();
 
@@ -1660,6 +1660,8 @@ const checkTransactionStatus = async (transactionHash) => {
 }
 
 module.exports = {
+
+  fallbackProvider,
 
   // Function to test contract response
   getContractAddress,
