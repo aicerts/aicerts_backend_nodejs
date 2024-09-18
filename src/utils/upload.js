@@ -11,11 +11,9 @@ const fetchOrEstimateTransactionFee = async (tx, timeoutDuration = 5500) => {
   const timeoutPromise = new Promise((_, reject) =>
     setTimeout(() => reject(new Error('Transaction timed out')), timeoutDuration)
   );
-
   if (!tx) {
     return null;
   }
-
   try {
     const receipt = await Promise.race([tx.wait(), timeoutPromise]);
 
@@ -26,9 +24,9 @@ const fetchOrEstimateTransactionFee = async (tx, timeoutDuration = 5500) => {
       // console.log('The actual gas fee', gasUsed, gasPrice);
       
       let txFee = gasUsed * gasPrice; // Fee in wei
-      let decimal = Number(txFee) / 1e18;
-      console.log("Actual transaction fee", decimal);
-      return decimal;
+      let actualTxFee = Number(txFee) / 1e18;
+      console.log("Actual transaction fee", actualTxFee);
+      return actualTxFee;
     }
   } catch (error) {
     // If the error is a timeout, proceed to estimation
@@ -48,15 +46,14 @@ const fetchOrEstimateTransactionFee = async (tx, timeoutDuration = 5500) => {
     // console.log('The assessed limit & price', gasLimit, estimateGasPrice);
     
     let estimatedTxFee = gasLimit * estimateGasPrice; // Fee in wei
-    let estimatedDecimal = Number(estimatedTxFee) / 1e18;
-    console.log("Estimated transaction fee", estimatedDecimal);
-    return estimatedDecimal;
+    let calculatedTxFee = Number(estimatedTxFee) / 1e18;
+    console.log("Estimated transaction fee", calculatedTxFee);
+    return calculatedTxFee;
   } catch (error) {
     console.error("Failed to estimate transaction fee", error);
     return null;
   }
 }
-
 
 const uploadImageToS3 = async (certNumber, imagePath) => {
 

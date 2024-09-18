@@ -79,7 +79,7 @@ module.exports = {
     msgMustPdf: "Must upload PDF file format",
     msgMustExcel: "Must upload Excel file format",
     msgPlsEnterValid: "Please provide valid details",
-    msgInvalidIssuer: "Invalid Issuer email",
+    msgInvalidIssuer: "Invalid / Inactive Issuer email",
     msgCertIdRequired: "Credential ID is required",
     msgUnauthIssuer: "Unauthorised Issuer Email",
     msgInvalidEthereum: "Invalid Ethereum address format",

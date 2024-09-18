@@ -1826,8 +1826,7 @@ const issueCertificateWithRetry = async (certificateNumber, certificateHash, exp
       expirationEpoch
     );
     let txHash = tx.hash;
-    let trnasactionFee = await fetchOrEstimateTransactionFee(tx);
-    console.log("The final tx fee is", trnasactionFee);
+    let txFee = await fetchOrEstimateTransactionFee(tx);
     if (!txHash) {
       if (retryCount > 0) {
         console.log(`Unable to process the transaction. Retrying... Attempts left: ${retryCount}`);
@@ -1836,9 +1835,13 @@ const issueCertificateWithRetry = async (certificateNumber, certificateHash, exp
         return issueCertificateWithRetry(certificateNumber, certificateHash, expirationEpoch, retryCount - 1);
       }
     }
-
+    console.log("The final tx fee is", txFee);
     let polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
-    return { txHash, polygonLink };
+    return { 
+      txHash : txHash, 
+      polygonLink : polygonLink,
+      txFee : txFee
+     };
 
   } catch (error) {
     if (retryCount > 0 && error.code === 'ETIMEDOUT') {

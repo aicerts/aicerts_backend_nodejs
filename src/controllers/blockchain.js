@@ -670,7 +670,7 @@ const allocateCredits = async (req, res) => {
     if (dbStatus) {
      
       // Check if user with provided email exists
-      const issuerExist = await User.findOne({ email: email }).select('-password');
+      const issuerExist = await User.findOne({ email: email, status: 2 }).select('-password');
 
       if (!issuerExist || !issuerExist.issuerId) {
         return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidIssuer });
