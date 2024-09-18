@@ -1490,6 +1490,42 @@ const wipeUploadFolder = async () => {
   }
 };
 
+
+
+const deletePdfFilesFromProjectRoot = async () => {
+  const projectRoot = path.resolve(__dirname, '..', '..'); // This points to the project root directory
+  const folderPath = path.join(projectRoot);
+
+  // Read the files in the project root directory
+  const filesInFolder = fs.readdirSync(folderPath);
+
+  if (filesInFolder.length > 0) {
+    // Delete only PDF files in the root directory
+    filesInFolder.forEach(fileToDelete => {
+      const filePathToDelete = path.join(folderPath, fileToDelete);
+
+      try {
+        // Check if it's a file and has a '.pdf' extension
+        if (fs.lstatSync(filePathToDelete).isFile() && path.extname(fileToDelete).toLowerCase() === '.pdf') {
+          fs.unlinkSync(filePathToDelete);
+        }
+      } catch (error) {
+        // Handle errors for files that are locked or cannot be deleted due to permission issues
+        if (error.code === 'EBUSY') {
+          console.warn(`Skipping locked file: ${filePathToDelete}`);
+        } else if (error.code === 'EPERM') {
+          console.warn(`Skipping protected file or directory: ${filePathToDelete}`);
+        } else {
+          console.error(`Error deleting file: ${filePathToDelete}`, error);
+        }
+      }
+    });
+  } else {
+    console.log("No files found in the project root directory.");
+  }
+};
+
+
 const isDBConnected = async (maxRetries = 5, retryDelay = 1500) => {
   let retryCount = 0;
 
@@ -1775,4 +1811,5 @@ module.exports = {
   checkTransactionStatus,
 
   getPdfDimensions,
+  deletePdfFilesFromProjectRoot
 };

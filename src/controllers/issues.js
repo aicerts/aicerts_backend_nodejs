@@ -878,7 +878,7 @@ const dynamicBatchIssueCertificates = async (req, res) => {
 
     // console.log(excelFilePath); // Output: ./uploads/sample.xlsx
     // Fetch the records from the Excel file
-    const excelData = await handleBatchExcelFile(excelFilePath);
+    const excelData = await handleBatchExcelFile(excelFilePath, existIssuerId);
     // await _fs.remove(filePath);
     if (excelData.response == false) {
       var errorDetails = (excelData.Details).length > 0 ? excelData.Details : "";
