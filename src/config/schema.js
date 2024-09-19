@@ -102,9 +102,9 @@ const IssueStatusSchema = new mongoose.Schema({
   transactionHash: { type: String, required: true }, // TransactionHash field is of type String and is required
   certificateNumber: { type: String, required: true }, // CertificateNumber field is of type String and is required
   name: { type: String, required: true }, // Name field is of type String and is required
-  course: { type: String, required: true },
-  expirationDate: { type: String, required: true }, // ExpirationDate field is of type String and is required
-  certStatus: { type: Number, required: true },
+  course: { type: String, default: 0 },
+  expirationDate: { type: String, default: 0 }, // ExpirationDate field is of type String and is required
+  certStatus: { type: Number },
   lastUpdate: { type: Date, default: Date.now } // IssueDate field is of type Date and defaults to the current date/time
 });
 

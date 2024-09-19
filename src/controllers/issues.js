@@ -58,9 +58,10 @@ const {
   getIssuerServiceCredits,
   updateIssuerServiceCredits,
   validatePDFDimensions,
-  verifyBulkDynamicPDFDimensions
+  verifyBulkDynamicPDFDimensions,
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
+const { fetchOrEstimateTransactionFee } = require('../utils/upload');
 const { handleExcelFile, handleBulkExcelFile, handleBatchExcelFile } = require('../services/handleExcel');
 const { handleIssueCertification, handleIssuePdfCertification, handleIssueDynamicPdfCertification, dynamicBatchCertificates, handleIssuance } = require('../services/issue');
 
@@ -567,10 +568,12 @@ const batchIssueCertificate = async (req, res) => {
             dateEntry = 0;
           }
 
-          let { txHash, polygonLink } = await issueBatchCertificateWithRetry(tree.root, dateEntry);
-          if (!polygonLink || !txHash) {
+          let { txHash, txFee } = await issueBatchCertificateWithRetry(tree.root, dateEntry);
+          if (!txHash) {
             return ({ code: 400, status: false, message: messageCode.msgFaileToIssueAfterRetry, details: certificateNumber });
           }
+
+          var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
 
           try {
             // Check mongoose connection
@@ -599,6 +602,7 @@ const batchIssueCertificate = async (req, res) => {
                 proofHash: _proof,
                 encodedProof: `0x${_proofHash}`,
                 transactionHash: txHash,
+                transactionFee: txFee,
                 certificateHash: hashedBatchData[i],
                 certificateNumber: rawBatchData[i].certificationID,
                 name: rawBatchData[i].name,
@@ -2044,7 +2048,7 @@ const issueBatchCertificateWithRetry = async (root, expirationEpoch, retryCount 
     );
 
     let txHash = tx.hash;
-
+    let txFee = await fetchOrEstimateTransactionFee(tx);
     if (!txHash) {
       if (retryCount > 0) {
         console.log(`Unable to process the transaction. Retrying... Attempts left: ${retryCount}`);
@@ -2052,13 +2056,17 @@ const issueBatchCertificateWithRetry = async (root, expirationEpoch, retryCount 
         await holdExecution(1500);
         return issueBatchCertificateWithRetry(root, expirationEpoch, retryCount - 1);
       } else {
-        return null;
+        return {
+          txHash: null,
+          txFee: null
+        };
       }
     }
 
-    let polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
-
-    return { txHash, polygonLink };
+    return { 
+      txHash: txHash,
+      txFee: txFee
+     };
 
   } catch (error) {
     if (retryCount > 0 && error.code === 'ETIMEDOUT') {
@@ -2069,15 +2077,24 @@ const issueBatchCertificateWithRetry = async (root, expirationEpoch, retryCount 
     } else if (error.code === 'NONCE_EXPIRED') {
       // Extract and handle the error reason
       // console.log("Error reason:", error.reason);
-      return null;
+      return {
+        txHash: null,
+        txFee: null
+      };
     } else if (error.reason) {
       // Extract and handle the error reason
       // console.log("Error reason:", error.reason);
-      return null;
+      return {
+        txHash: null,
+        txFee: null
+      };
     } else {
       // If there's no specific reason provided, handle the error generally
       // console.error(messageCode.msgFailedOpsAtBlockchain, error);
-      return null;
+      return {
+        txHash: null,
+        txFee: null
+      };
     }
   }
 };

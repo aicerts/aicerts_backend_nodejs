@@ -3,6 +3,7 @@ require('dotenv').config();
 const { QRCodeStyling } = require("qr-code-styler-node/lib/qr-code-styling.common.js");
 const nodeCanvas = require("canvas");
 const fs = require("fs");
+const QRCode = require('qrcode');
 const sharp = require('sharp');
 const { fromBuffer } = require("pdf2pic");
 const AWS = require('../config/aws-config');
@@ -34,6 +35,7 @@ const getOption = async (url, qrSide, code) => {
     // console.log("inputs", url, qrSide, code);
     var option;
     // Load the image before creating the options
+    logoUrl = code == 1 ? 'https://certs365-live.s3.amazonaws.com/verify_logo.png' : 'https://certs365-live.s3.amazonaws.com/logo.png'
     await loadImage(logoUrl);
     switch (code) {
         case 1:
@@ -251,18 +253,22 @@ const _convertPdfBufferToPng = async (certNumber, pdfBuffer, _width, _height) =>
 };
 
 const generateVibrantQr = async (url, qrSide, code) => {
-    if(code == 0){
+    if (code == 0) {
         return false;
     }
     try {
         const options = await getOption(url, qrSide, code);
-        // For canvas type
 
+        // Adjust options for better sharpness
+        options.errorCorrectionLevel = 'H'; // Use high error correction
+
+        // For canvas type
         const qrCodeImage = new QRCodeStyling({
             nodeCanvas, // this is required
-            ...options
+            ...options,
         });
-        const buffer = await qrCodeImage.getRawData("png");
+
+        const buffer = await qrCodeImage.getRawData("png", { quality: 1.0 });
         // Convert buffer to Base64
         const base64String = await buffer.toString('base64');
         // Prepend the data URL prefix

@@ -562,6 +562,7 @@ const insertCertificateData = async (data) => {
     const newIssue = new Issues({
       issuerId: data.issuerId,
       transactionHash: data.transactionHash,
+      transactionFee: data.transactionFee,
       certificateHash: data.certificateHash,
       certificateNumber: data.certificateNumber,
       name: data.name,
@@ -604,51 +605,13 @@ const insertCertificateData = async (data) => {
 };
 
 // Function to insert certification data into MongoDB
-const insertDynamicBatchCertificateData = async (data) => {
-  try {
-
-    // Insert data into MongoDB
-    const newBatchIssue = new DynamicBatchIssues({
-      issuerId: data.issuerId,
-      batchId: data.batchId,
-      proofHash: data.proofHash,
-      encodedProof: data.encodedProof,
-      transactionHash: data.transactionHash,
-      certificateHash: data.certificateHash,
-      certificateNumber: data.certificateNumber,
-      name: data.name,
-      certificateFields: data.customFields,
-      certificateStatus: 1,
-      positionX: data.positionX,
-      positionY: data.positionY,
-      qrSize: data.qrSize,
-      width: data.width || without_pdf_width,
-      height: data.height || without_pdf_height,
-      qrOption: data.qrOption || 0,
-      url: data.url || '',
-      type: 'dynamic',
-      issueDate: Date.now()
-    });
-
-    const result = await newBatchIssue.save();
-
-    data.certStatus = 1;
-    const updateIssuerLog = await insertDynamicIssueStatus(data);
-    // Logging confirmation message
-    // console.log("Certificate data inserted");
-
-  } catch (error) {
-    console.error("Error connecting to MongoDB:", error);
-  }
-};
-
-// Function to insert certification data into MongoDB
 const insertDynamicCertificateData = async (data) => {
   try {
     // Create a new Issues document with the provided data
     const newDynamicIssue = new DynamicIssues({
       issuerId: data.issuerId,
       transactionHash: data.transactionHash,
+      transactionFee: data.transactionFee,
       certificateHash: data.certificateHash,
       certificateNumber: data.certificateNumber,
       name: data.name,
@@ -699,6 +662,7 @@ const insertBatchCertificateData = async (data) => {
       proofHash: data.proofHash,
       encodedProof: data.encodedProof,
       transactionHash: data.transactionHash,
+      transactionFee: data.transactionFee,
       certificateHash: data.certificateHash,
       certificateNumber: data.certificateNumber,
       name: data.name,
@@ -725,6 +689,46 @@ const insertBatchCertificateData = async (data) => {
     const previousCount = idExist.certificatesIssued || 0; // Initialize to 0 if certificatesIssued field doesn't exist
     idExist.certificatesIssued = previousCount + 1;
     await idExist.save(); // Save the changes to the existing user
+
+  } catch (error) {
+    console.error("Error connecting to MongoDB:", error);
+  }
+};
+
+// Function to insert certification data into MongoDB
+const insertDynamicBatchCertificateData = async (data) => {
+  try {
+
+    // Insert data into MongoDB
+    const newBatchIssue = new DynamicBatchIssues({
+      issuerId: data.issuerId,
+      batchId: data.batchId,
+      proofHash: data.proofHash,
+      encodedProof: data.encodedProof,
+      transactionHash: data.transactionHash,
+      transactionFee: data.transactionFee,
+      certificateHash: data.certificateHash,
+      certificateNumber: data.certificateNumber,
+      name: data.name,
+      certificateFields: data.customFields,
+      certificateStatus: 1,
+      positionX: data.positionX,
+      positionY: data.positionY,
+      qrSize: data.qrSize,
+      width: data.width || without_pdf_width,
+      height: data.height || without_pdf_height,
+      qrOption: data.qrOption || 0,
+      url: data.url || '',
+      type: 'dynamic',
+      issueDate: Date.now()
+    });
+
+    const result = await newBatchIssue.save();
+
+    data.certStatus = 1;
+    const updateIssuerLog = await insertDynamicIssueStatus(data);
+    // Logging confirmation message
+    // console.log("Certificate data inserted");
 
   } catch (error) {
     console.error("Error connecting to MongoDB:", error);
@@ -1246,13 +1250,6 @@ const addDynamicLinkToPdf = async (
   const width = page.getWidth();
   const height = page.getHeight();
 
-  // Add link URL to the PDF page
-  // page.drawText(linkUrl, {
-  //   x: 62, // X coordinate of the text
-  //   y: 30, // Y coordinate of the text
-  //   size: 8, // Font size
-  // });
-
   //Adding qr code
   const pdfDc = await PDFDocument.create();
   // Adding QR code to the PDF page
@@ -1266,11 +1263,6 @@ const addDynamicLinkToPdf = async (
     height: pngDims.height,
   });
   // console.log("Width X Height", width, height);
-
-  qrX = width - pngDims.width - 75;
-  qrY = 75;
-  qrWidth = pngDims.width;
-  qrHeight = pngDims.height;
 
   const pdfBytes = await pdfDoc.save();
 

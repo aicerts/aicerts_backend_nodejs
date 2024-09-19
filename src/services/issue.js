@@ -216,10 +216,12 @@ const handleIssueCertification = async (email, certificateNumber, name, courseNa
 
           } else {
 
-            let { txHash, polygonLink } = await issueCertificateWithRetry(certificateNumber, combinedHash, epochExpiration);
-            if (!polygonLink || !txHash) {
+            var { txHash, txFee } = await issueCertificateWithRetry(certificateNumber, combinedHash, epochExpiration);
+            if (!txHash) {
               return ({ code: 400, status: false, message: messageCode.msgFailedToIssueAfterRetry, details: certificateNumber });
             }
+
+            var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
 
             // Generate encrypted URL with certificate data
             const dataWithLink = { ...fields, polygonLink: polygonLink }
@@ -287,6 +289,7 @@ const handleIssueCertification = async (email, certificateNumber, name, courseNa
               var certificateData = {
                 issuerId,
                 transactionHash: txHash,
+                transactionFee: txFee,
                 certificateHash: combinedHash,
                 certificateNumber: fields.Certificate_Number,
                 name: fields.name,
@@ -771,10 +774,12 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
         return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
       }
 
-      let { txHash, polygonLink } = await issueCertificateWithRetry(certificateNumber, combinedHash, epochExpiration);
-      if (!polygonLink || !txHash) {
+      var { txHash, txFee } = await issueCertificateWithRetry(certificateNumber, combinedHash, epochExpiration);
+      if (!txHash) {
         return ({ code: 400, status: false, message: messageCode.msgFailedToIssueAfterRetry, details: certificateNumber });
       }
+
+      var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
 
       try {
         // Generate encrypted URL with certificate data
@@ -871,6 +876,7 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
         let certificateData = {
           issuerId,
           transactionHash: txHash,
+          transactionFee: txFee,
           certificateHash: combinedHash,
           certificateNumber: fields.Certificate_Number,
           name: fields.name,
@@ -998,6 +1004,9 @@ const handleIssueDynamicPdfCertification = async (email, certificateNumber, name
       try {
         let getContractStatus = await getContractAddress(contractAddress);
         if (!getContractStatus) {
+          if (fs.existsSync(_pdfPath)) {
+            fs.unlinkSync(_pdfPath);
+          }
           return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: messageCode.msgRpcFailed });
         }
         // Verify certificate on blockchain
@@ -1033,15 +1042,12 @@ const handleIssueDynamicPdfCertification = async (email, certificateNumber, name
         return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
       }
 
-      try {
-
-        var { txHash, polygonLink } = await issueCertificateWithRetry(certificateNumber, combinedHash, 1);
-        if (!polygonLink || !txHash) {
-          return ({ code: 400, status: false, message: messageCode.msgFailedToIssueAfterRetry, details: certificateNumber });
-        }
-      } catch (error) {
-        return ({ code: 400, status: false, message: messageCode.msgFailedToIssueAfterRetry, details: error });
+      var { txHash, txFee } = await issueCertificateWithRetry(certificateNumber, combinedHash, 1);
+      if (!txHash) {
+        return ({ code: 400, status: false, message: messageCode.msgFailedToIssueAfterRetry, details: certificateNumber });
       }
+
+      var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
 
       try {
         // Generate encrypted URL with certificate data
@@ -1099,7 +1105,6 @@ const handleIssueDynamicPdfCertification = async (email, certificateNumber, name
         var file = pdfPath;
         var { width, height } = await getPdfDimensions(pdfPath);
         var outputPdf = `${fields.Certificate_Number}${name}.pdf`;
-
         // Add link and QR code to the PDF file
         const opdf = await addDynamicLinkToPdf(
           path.join("./", '.', file),
@@ -1122,6 +1127,9 @@ const handleIssueDynamicPdfCertification = async (email, certificateNumber, name
       var imageUrl = await _convertPdfBufferToPngWithRetry(fields.Certificate_Number, fileBuffer, width, height);
 
       if (!imageUrl) {
+        if (fs.existsSync(file)) {
+          fs.unlinkSync(file);
+        }
         return ({ code: 400, status: "FAILED", message: messageCode.msgUploadError });
       }
 
@@ -1136,6 +1144,7 @@ const handleIssueDynamicPdfCertification = async (email, certificateNumber, name
         let certificateData = {
           issuerId,
           transactionHash: txHash,
+          transactionFee: txFee,
           certificateHash: combinedHash,
           certificateNumber: fields.Certificate_Number,
           name: fields.name,
@@ -1170,12 +1179,18 @@ const handleIssueDynamicPdfCertification = async (email, certificateNumber, name
       } catch (error) {
         // Handle mongoose connection error (log it, response an error, etc.)
         console.error("Internal server error", error);
+        if (fs.existsSync(file)) {
+          fs.unlinkSync(file);
+        }
         return ({ code: 500, status: "FAILED", message: messageCode.msgInternalError, details: error });
       }
     }
   } catch (error) {
     // Handle mongoose connection error (log it, response an error, etc.)
     console.error("Internal server error", error);
+    if (fs.existsSync(file)) {
+      fs.unlinkSync(file);
+    }
     return ({ code: 400, status: "FAILED", message: messageCode.msgInternalError, details: error });
   }
 };
@@ -1251,7 +1266,7 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
       var batchNumber = await newContract.getRootLength();
       var allocateBatchId = parseInt(batchNumber) + 1;
 
-      var txHash = await issueBatchCertificateWithRetry(tree.root, batchExpiration);
+      var { txHash, txFee } = await issueBatchCertificateWithRetry(tree.root, batchExpiration);
       if (!txHash) {
         return ({ code: 400, status: false, message: messageCode.msgFaileToIssueAfterRetry });
       }
@@ -1378,6 +1393,7 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
               proofHash: _proof,
               encodedProof: `0x${_proofHash}`,
               transactionHash: txHash,
+              transactionFee: txFee,
               certificateHash: combinedHash,
               certificateNumber: fields.Certificate_Number,
               name: fields.name,
@@ -1505,24 +1521,22 @@ const _dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelRes
       // Generate the Merkle tree
       let tree = StandardMerkleTree.of(values, ['string']);
       let batchExpiration = 1;
-      try {
-        let getContractStatus = await getContractAddress(contractAddress);
-        if (!getContractStatus) {
-          return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: messageCode.msgRpcFailed });
-        }
 
-        var batchNumber = await newContract.getRootLength();
-        var allocateBatchId = parseInt(batchNumber) + 1;
-
-        var { txHash, polygonLink } = await issueBatchCertificateWithRetry(tree.root, batchExpiration);
-        var linkUrl = polygonLink;
-        if (!linkUrl) {
-          return ({ code: 400, status: false, message: messageCode.msgFaileToIssueAfterRetry });
-        }
-
-      } catch (error) {
-        return ({ code: 400, status: false, message: messageCode.msgFailedAtBlockchain, Details: error });
+      let getContractStatus = await getContractAddress(contractAddress);
+      if (!getContractStatus) {
+        return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: messageCode.msgRpcFailed });
       }
+
+      var batchNumber = await newContract.getRootLength();
+      var allocateBatchId = parseInt(batchNumber) + 1;
+
+      var { txHash, txFee } = await issueBatchCertificateWithRetry(tree.root, batchExpiration);
+      if (!txHash) {
+        return ({ code: 400, status: false, message: messageCode.msgFaileToIssueAfterRetry });
+      }
+
+      var linkUrl = `https://${process.env.NETWORK}/tx/${txHash}`;
+
 
       if (pdfResponse.length == _excelResponse[1]) {
         console.log("working directory", __dirname);
@@ -1644,11 +1658,13 @@ const _dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelRes
           try {
             await isDBConnected();
             var certificateData = {
+              email: email,
               issuerId: issuerId,
               batchId: allocateBatchId,
               proofHash: _proof,
               encodedProof: `0x${_proofHash}`,
               transactionHash: txHash,
+              transactionFee: txFee,
               certificateHash: combinedHash,
               certificateNumber: fields.Certificate_Number,
               name: fields.name,
@@ -1835,13 +1851,10 @@ const issueCertificateWithRetry = async (certificateNumber, certificateHash, exp
         return issueCertificateWithRetry(certificateNumber, certificateHash, expirationEpoch, retryCount - 1);
       }
     }
-    console.log("The final tx fee is", txFee);
-    let polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
-    return { 
-      txHash : txHash, 
-      polygonLink : polygonLink,
-      txFee : txFee
-     };
+    return {
+      txHash: txHash,
+      txFee: txFee
+    };
 
   } catch (error) {
     if (retryCount > 0 && error.code === 'ETIMEDOUT') {
@@ -1852,15 +1865,24 @@ const issueCertificateWithRetry = async (certificateNumber, certificateHash, exp
     } else if (error.code === 'NONCE_EXPIRED') {
       // Extract and handle the error reason
       // console.log("Error reason:", error.reason);
-      return null;
+      return {
+        txHash: null,
+        txFee: null
+      };
     } else if (error.reason) {
       // Extract and handle the error reason
       // console.log("Error reason:", error.reason);
-      return null;
+      return {
+        txHash: null,
+        txFee: null
+      };
     } else {
       // If there's no specific reason provided, handle the error generally
       // console.error(messageCode.msgFailedOpsAtBlockchain, error);
-      return null;
+      return {
+        txHash: null,
+        txFee: null
+      };
     }
   }
 };
@@ -1877,7 +1899,7 @@ const issueBatchCertificateWithRetry = async (root, expirationEpoch, retryCount 
       expirationEpoch
     );
     let txHash = tx.hash;
-
+    let txFee = await fetchOrEstimateTransactionFee(tx);
     if (!txHash) {
       if (retryCount > 0) {
         console.log(`Unable to process the transaction. Retrying... Attempts left: ${retryCount}`);
@@ -1887,7 +1909,10 @@ const issueBatchCertificateWithRetry = async (root, expirationEpoch, retryCount 
       }
     }
 
-    return txHash;
+    return {
+      txHash: txHash,
+      txFee: txFee
+    };
 
   } catch (error) {
     if (retryCount > 0 && error.code === 'ETIMEDOUT') {
@@ -1898,15 +1923,24 @@ const issueBatchCertificateWithRetry = async (root, expirationEpoch, retryCount 
     } else if (error.code === 'NONCE_EXPIRED') {
       // Extract and handle the error reason
       // console.log("Error reason:", error.reason);
-      return null;
+      return {
+        txHash: null,
+        txFee: null
+      };
     } else if (error.reason) {
       // Extract and handle the error reason
       // console.log("Error reason:", error.reason);
-      return null;
+      return {
+        txHash: null,
+        txFee: null
+      };
     } else {
       // If there's no specific reason provided, handle the error generally
       // console.error(messageCode.msgFailedOpsAtBlockchain, error);
-      return null;
+      return {
+        txHash: null,
+        txFee: null
+      };
     }
   }
 };
