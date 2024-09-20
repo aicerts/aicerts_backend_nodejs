@@ -29,6 +29,7 @@ const staticQrSize = parseInt(process.env.STATIC_QR_SIZE) || null;
 // Importing functions from a custom module
 const {
   fallbackProvider,
+  isValidIssuer,
   connectToPolygon,
   convertDateFormat,
   convertDateToEpoch,
@@ -119,7 +120,7 @@ const handleIssueCertification = async (email, certificateNumber, name, courseNa
   try {
     await isDBConnected();
     // Check if user with provided email exists
-    const idExist = await User.findOne({ email });
+    const idExist = await isValidIssuer(email);
     // Check if certificate number already exists
     const isIssueExist = await isCertificationIdExisted(certificateNumber);
     // Validation checks for request data
@@ -385,6 +386,7 @@ const handleIssuance = async (email, certificateNumber, name, courseName, _grant
 
     await isDBConnected();
     // Check if user with provided email exists
+    // const idExist = await isValidIssuer(email);
     const idExist = await User.findOne({ email });
 
     // Check if certificate number already exists
@@ -653,7 +655,7 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
   try {
     await isDBConnected();
     // Check if user with provided email exists
-    const idExist = await User.findOne({ email });
+    const idExist = await isValidIssuer(email);
     // Check if certificate number already exists
     const isIssueExist = await isCertificationIdExisted(certificateNumber);
 
@@ -934,7 +936,7 @@ const handleIssueDynamicPdfCertification = async (email, certificateNumber, name
   try {
     await isDBConnected();
     // Check if user with provided email exists
-    const idExist = await User.findOne({ email });
+    const idExist = await isValidIssuer(email);
 
     if (!idExist) {
       return ({ code: 400, status: "FAILED", message: messageCode.msgIssueNotFound, details: email });
@@ -1127,9 +1129,6 @@ const handleIssueDynamicPdfCertification = async (email, certificateNumber, name
       var imageUrl = await _convertPdfBufferToPngWithRetry(fields.Certificate_Number, fileBuffer, width, height);
 
       if (!imageUrl) {
-        if (fs.existsSync(file)) {
-          fs.unlinkSync(file);
-        }
         return ({ code: 400, status: "FAILED", message: messageCode.msgUploadError });
       }
 
@@ -1171,7 +1170,7 @@ const handleIssueDynamicPdfCertification = async (email, certificateNumber, name
           fs.unlinkSync(file);
         }
 
-        await cleanUploadFolder();
+        // await cleanUploadFolder();
 
         // Set response headers for PDF download
         return ({ code: 200, file: fileBuffer });
@@ -1393,7 +1392,6 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
               proofHash: _proof,
               encodedProof: `0x${_proofHash}`,
               transactionHash: txHash,
-              transactionFee: txFee,
               certificateHash: combinedHash,
               certificateNumber: fields.Certificate_Number,
               name: fields.name,
@@ -1432,13 +1430,16 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
         // Wait for all insert promises to resolve
         await Promise.all(insertPromises);
 
-        const idExist = await User.findOne({ email: email });
+        const idExist = await isValidIssuer(email);
         if (idExist.certificatesIssued == undefined) {
           idExist.certificatesIssued = 0;
         }
         // If user with given id exists, update certificatesIssued count
         const previousCount = idExist.certificatesIssued || 0; // Initialize to 0 if certificatesIssued field doesn't exist
         idExist.certificatesIssued = previousCount + 1;
+        // If user with given id exists, update certificatesIssued transation fee
+        const previousrtransactionFee = idExist.transactionFee || 0; // Initialize to 0 if transactionFee field doesn't exist
+        idExist.transactionFee = previousrtransactionFee + txFee;
         await idExist.save(); // Save the changes to the existing user
 
         if (bulkIssueStatus == 'ZIP_STORE' || flag == 1) {
@@ -1459,278 +1460,6 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
     await wipeUploadFolder();
     return ({ code: 500, status: false, message: messageCode.msgInternalError, Details: error });
   }
-
-};
-
-const _dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResponse, excelFilePath, posx, posy, qrside, pdfWidth, pdfHeight, qrOption, flag) => {
-  const newContract = await connectToPolygon();
-  if (!newContract) {
-    return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
-  }
-  // console.log("Batch inputs", _pdfReponse, excelFilePath);
-  const pdfResponse = _pdfReponse;
-  const excelResponse = _excelResponse[0];
-  var insertPromises = []; // Array to hold all insert promises
-  var insertUrl = [];
-  var shortUrlStatus = false;
-  var modifiedUrl;
-  var imageUrl;
-  var generatedImage;
-
-  if (!pdfResponse || pdfResponse.length == 0) {
-    return ({ code: 400, status: false, message: messageCode.msgUnableToFindPdfFiles });
-  }
-
-  try {
-    // Check if the directory exists, if not, create it
-    const destDirectory = path.join(__dirname, '../../uploads/completed');
-    console.log("Present working directory", __dirname, destDirectory);
-
-    if (bulkIssueStatus == 'ZIP_STORE' || flag == 1) {
-      if (fs.existsSync(destDirectory)) {
-        // Delete the existing directory recursively
-        fs.rmSync(destDirectory, { recursive: true });
-      }
-      // Recreate the directory
-      fs.mkdirSync(destDirectory, { recursive: true });
-      const excelFileName = path.basename(excelFilePath);
-      // Destination file path
-      const destinationFilePath = path.join(destDirectory, excelFileName);
-      // Read the content of the source file
-      const fileContent = fs.readFileSync(excelFilePath);
-      // Write the content to the destination file
-      fs.writeFileSync(destinationFilePath, fileContent);
-    }
-
-    var transformedResponse = _excelResponse[2];
-    // return ({ code: 400, status: false, message: messageCode.msgUnderConstruction, Details: `${transformedResponse}, ${pdfResponse}`});
-
-    const hashedBatchData = transformedResponse.map(data => {
-      // Convert data to string and calculate hash
-      const dataString = data.map(item => item.toString()).join('');
-      const _hash = calculateHash(dataString);
-      return _hash;
-    });
-    // Format as arrays with corresponding elements using a loop
-    var values = [];
-    for (let i = 0; i < excelResponse.length; i++) {
-      values.push([hashedBatchData[i]]);
-    }
-    try {
-
-      // Generate the Merkle tree
-      let tree = StandardMerkleTree.of(values, ['string']);
-      let batchExpiration = 1;
-
-      let getContractStatus = await getContractAddress(contractAddress);
-      if (!getContractStatus) {
-        return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: messageCode.msgRpcFailed });
-      }
-
-      var batchNumber = await newContract.getRootLength();
-      var allocateBatchId = parseInt(batchNumber) + 1;
-
-      var { txHash, txFee } = await issueBatchCertificateWithRetry(tree.root, batchExpiration);
-      if (!txHash) {
-        return ({ code: 400, status: false, message: messageCode.msgFaileToIssueAfterRetry });
-      }
-
-      var linkUrl = `https://${process.env.NETWORK}/tx/${txHash}`;
-
-
-      if (pdfResponse.length == _excelResponse[1]) {
-        console.log("working directory", __dirname);
-
-        for (let i = 0; i < pdfResponse.length; i++) {
-          var pdfFileName = pdfResponse[i];
-          var pdfFilePath = path.join(__dirname, '../../uploads', pdfFileName);
-          console.log("pdf directory path", pdfFilePath);
-
-          // Extract Certs from pdfFileName
-          const certs = pdfFileName.split('.')[0]; // Remove file extension
-          const foundEntry = await excelResponse.find(entry => entry.Certs === certs);
-          if (foundEntry) {
-            var index = excelResponse.indexOf(foundEntry);
-            var _proof = tree.getProof(index);
-
-            let buffers = _proof.map(hex => Buffer.from(hex.slice(2), 'hex'));
-            // Concatenate all Buffers into one
-            let concatenatedBuffer = Buffer.concat(buffers);
-            // Calculate SHA-256 hash of the concatenated buffer
-            var _proofHash = crypto.createHash('sha256').update(concatenatedBuffer).digest('hex');
-            // Do something with foundEntry
-            console.log("Found entry for", certs);
-            // You can return or process foundEntry here
-          } else {
-            console.log("No matching entry found for", certs);
-            return ({ code: 400, status: false, message: messageCode.msgNoEntryMatchFound, Details: certs });
-          }
-
-          var fields = {
-            Certificate_Number: foundEntry.certificationID,
-            name: foundEntry.name,
-            courseName: foundEntry.certificationName,
-            Grant_Date: foundEntry.grantDate,
-            Expiration_Date: foundEntry.expirationDate,
-            polygonLink: linkUrl
-          };
-
-          var combinedHash = hashedBatchData[index];
-
-          // Generate encrypted URL with certificate data
-          var encryptLink = await generateEncryptedUrl(fields);
-
-          if (encryptLink) {
-            let dbStatus = await isDBConnected();
-            if (dbStatus) {
-              let urlData = {
-                email: email,
-                certificateNumber: foundEntry.certificationID,
-                url: encryptLink
-              }
-              await insertUrlData(urlData);
-              shortUrlStatus = true;
-            }
-          }
-
-          if (shortUrlStatus) {
-            modifiedUrl = process.env.SHORT_URL + foundEntry.certificationID;
-          }
-
-          let _qrCodeData = modifiedUrl != false ? modifiedUrl : encryptLink;
-
-          // Generate vibrant QR
-          const generateQr = await generateVibrantQr(_qrCodeData, qrside, qrOption);
-
-          if (!generateQr) {
-            var qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
-              errorCorrectionLevel: "H", width: qrside, height: qrside
-            });
-          }
-
-          const qrImageData = generateQr ? generateQr : qrCodeImage;
-          file = pdfFilePath;
-          var outputPdf = `${pdfFileName}`;
-
-          if (!fs.existsSync(pdfFilePath)) {
-            return ({ code: 400, status: "FAILED", message: messageCode.msgInvalidPdfUploaded });
-          }
-          // Add link and QR code to the PDF file
-          var opdf = await addDynamicLinkToPdf(
-            pdfFilePath,
-            outputPdf,
-            linkUrl,
-            qrImageData,
-            combinedHash,
-            posx,
-            posy
-          );
-          if (!fs.existsSync(outputPdf)) {
-            return ({ code: 400, status: "FAILED", message: messageCode.msgInvalidFilePath });
-          }
-          // Read the generated PDF file
-          var fileBuffer = fs.readFileSync(outputPdf);
-
-          // Assuming fileBuffer is available
-          var outputPath = path.join(__dirname, '../../uploads', 'completed', `${pdfFileName}`);
-
-          if (bulkIssueStatus == 'ZIP_STORE' || flag == 1) {
-            imageUrl = '';
-            generatedImage = null;
-          } else {
-            let _generatedImage = `${fields.Certificate_Number}.png`;
-            generatedImage = path.join(rootDirectory, _generatedImage);
-            console.log("Image path", generatedImage);
-
-            var imageBuffer = await _convertPdfBufferToPngWithRetry(generatedImage, fileBuffer, pdfWidth, pdfHeight);
-
-            if (imageBuffer) {
-              // imageUrl = await _uploadImageToS3(fields.Certificate_Number, generatedImage);
-              if (!imageUrl) {
-                return ({ code: 400, status: "FAILED", message: messageCode.msgUploadError });
-              }
-              insertUrl.push(imageUrl);
-            } else {
-              return ({ code: 400, status: "FAILED", message: messageCode.msgImageError });
-            }
-          }
-
-          try {
-            await isDBConnected();
-            var certificateData = {
-              email: email,
-              issuerId: issuerId,
-              batchId: allocateBatchId,
-              proofHash: _proof,
-              encodedProof: `0x${_proofHash}`,
-              transactionHash: txHash,
-              transactionFee: txFee,
-              certificateHash: combinedHash,
-              certificateNumber: fields.Certificate_Number,
-              name: fields.name,
-              course: fields.courseName,
-              grantDate: fields.Grant_Date,
-              expirationDate: fields.Expiration_Date,
-              url: imageUrl
-            };
-            // await insertCertificateData(certificateData);
-            insertPromises.push(insertDynamicBatchCertificateData(certificateData));
-
-          } catch (error) {
-            console.error('Error:', error);
-            return ({ code: 400, status: false, message: messageCode.msgDBFailed, Details: error });
-          }
-
-          // Delete image source files (if it exists)
-          if (fs.existsSync(generatedImage)) {
-            // Delete the specified file
-            fs.unlinkSync(generatedImage);
-          }
-
-          // Always delete the source files (if it exists)
-          if (fs.existsSync(file)) {
-            fs.unlinkSync(file);
-          }
-
-          // Always delete the source files (if it exists)
-          if (fs.existsSync(outputPdf)) {
-            fs.unlinkSync(outputPdf);
-          }
-
-          if (bulkIssueStatus == 'ZIP_STORE' || flag == 1) {
-            fs.writeFileSync(outputPath, fileBuffer);
-            console.log('File saved successfully at:', outputPath);
-          }
-
-        }
-        // Wait for all insert promises to resolve
-        await Promise.all(insertPromises);
-
-        const idExist = await User.findOne({ email: email });
-        if (idExist.certificatesIssued == undefined) {
-          idExist.certificatesIssued = 0;
-        }
-        // If user with given id exists, update certificatesIssued count
-        const previousCount = idExist.certificatesIssued || 0; // Initialize to 0 if certificatesIssued field doesn't exist
-        idExist.certificatesIssued = previousCount + 1;
-        await idExist.save(); // Save the changes to the existing user
-
-        if (bulkIssueStatus == 'ZIP_STORE' || flag == 1) {
-          return ({ code: 200, status: true });
-        }
-        return ({ code: 200, status: true, message: messageCode.msgBatchIssuedSuccess, Details: insertUrl });
-      } else {
-        return ({ code: 400, status: false, message: messageCode.msgInputRecordsNotMatched, Details: error });
-      }
-
-    } catch (error) {
-      return ({ code: 400, status: false, message: messageCode.msgFailedToIssueBulkCerts, Details: error });
-    }
-
-  } catch (error) {
-    return ({ code: 500, status: false, message: messageCode.msgInternalError, Details: error });
-  }
-
 };
 
 const issueCustomCertificateWithRetry = async (certificateNumber, certificateHash, expirationEpoch, retryCount = 3, gasPrice = null) => {

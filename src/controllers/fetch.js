@@ -15,11 +15,9 @@ const { User, Issues, BatchIssues, IssueStatus, VerificationLog, ServiceAccountQ
 
 // Importing functions from a custom module
 const {
+  isValidIssuer,
   holdExecution,
   validateSearchDateFormat,
-  convertDateFormat,
-  cleanUploadFolder,
-  isDynamicCertificationIdExisted,
   isDBConnected // Function to check if the database connection is established
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
@@ -105,7 +103,7 @@ const getIssuerByEmail = async (req, res) => {
 
     const { email } = req.body;
 
-    const issuer = await User.findOne({ email: email }).select('-password');
+    const issuer = await isValidIssuer(email);
 
     if (issuer) {
       res.json({
@@ -149,7 +147,7 @@ const getServiceLimitsByEmail = async (req, res) => {
 
     const { email } = req.body;
 
-    const issuerExist = await User.findOne({ email: email }).select('-password');
+    const issuerExist = await isValidIssuer(email);
     if (!issuerExist || !issuerExist.issuerId) {
       return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidIssuer, details: email });
     }
@@ -214,7 +212,7 @@ const getIssueDetails = async (req, res) => {
     }
 
     // Check if user with provided email exists
-    const issuerExist = await User.findOne({ email: email });
+    const issuerExist = await isValidIssuer(email);
 
     if (!issuerExist) {
       return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUserNotFound });
@@ -451,7 +449,7 @@ const getIssuesWithFilter = async (req, res) => {
     var startIndex;
     var endIndex;
     await isDBConnected();
-    const isEmailExist = await User.findOne({ email: email });
+    const isEmailExist = await isValidIssuer(email);
     if (!isEmailExist) {
       return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidEmail, details: email });
     }
@@ -685,7 +683,7 @@ const adminSearchWithFilter = async (req, res) => {
     var certStatusFilter;
     var expirationDateFilter = null;
     await isDBConnected();
-    const isEmailExist = await User.findOne({ email: email });
+    const isEmailExist = await isValidIssuer(email);
     if (!isEmailExist) {
       return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidEmail, details: email });
     }
@@ -732,14 +730,44 @@ const adminSearchWithFilter = async (req, res) => {
           url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
         });
 
+        // Query 3
+        var query3Promise = BatchIssues.find({
+          issuerId: isEmailExist.issuerId,
+          $expr: {
+            $and: [
+              { $regexMatch: { input: { $toLower: filterCriteria }, regex: new RegExp(`^${input.toLowerCase()}`, 'i') } }
+            ]
+          },
+          certificateStatus: { $in: certStatusFilter },
+          url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
+        });
+
+        // Query 4
+        var query4Promise = DynamicBatchIssues.find({
+          issuerId: isEmailExist.issuerId,
+          $expr: {
+            $and: [
+              { $regexMatch: { input: { $toLower: filterCriteria }, regex: new RegExp(`^${input.toLowerCase()}`, 'i') } }
+            ]
+          },
+          certificateStatus: { $in: certStatusFilter },
+          url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
+        });
+
         // Await both promises
-        var [query1Result, query2Result] = await Promise.all([query1Promise, query2Promise]);
+        var [query1Result, query2Result, query3Result, query4Result] = await Promise.all([query1Promise, query2Promise, query3Promise, query4Promise]);
         // Check if results are non-empty and push to finalResults
         if (query1Result.length > 0) {
           fetchedIssues = fetchedIssues.concat(query1Result);
         }
         if (query2Result.length > 0) {
           fetchedIssues = fetchedIssues.concat(query2Result);
+        }
+        if (query3Result.length > 0) {
+          fetchedIssues = fetchedIssues.concat(query3Result);
+        }
+        if (query4Result.length > 0) {
+          fetchedIssues = fetchedIssues.concat(query4Result);
         }
 
         // Extract the key match from the results
@@ -783,14 +811,45 @@ const adminSearchWithFilter = async (req, res) => {
           url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
         });
 
+        // Query 3
+        var query3Promise = DynamicIssues.find({
+          issuerId: isEmailExist.issuerId,
+          $expr: {
+            $and: [
+              { $eq: [{ $toLower: filterCriteria }, input.toLowerCase()] }
+            ]
+          },
+          certificateStatus: { $in: certStatusFilter },
+          url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
+        });
+
+        
+        // Query 4
+        var query4Promise = DynamicBatchIssues.find({
+          issuerId: isEmailExist.issuerId,
+          $expr: {
+            $and: [
+              { $eq: [{ $toLower: filterCriteria }, input.toLowerCase()] }
+            ]
+          },
+          certificateStatus: { $in: certStatusFilter },
+          url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
+        });
+
         // Await both promises
-        var [query1Result, query2Result] = await Promise.all([query1Promise, query2Promise]);
+        var [query1Result, query2Result, query3Result, query4Result] = await Promise.all([query1Promise, query2Promise, query3Promise, query4Promise]);
         // Check if results are non-empty and push to finalResults
         if (query1Result.length > 0) {
           fetchedIssues = fetchedIssues.concat(query1Result);
         }
         if (query2Result.length > 0) {
           fetchedIssues = fetchedIssues.concat(query2Result);
+        }
+        if (query3Result.length > 0) {
+          fetchedIssues = fetchedIssues.concat(query3Result);
+        }
+        if (query4Result.length > 0) {
+          fetchedIssues = fetchedIssues.concat(query4Result);
         }
 
         if (!page || !limit || page == 0 || limit == 0) {
@@ -912,7 +971,7 @@ const getVerificationDetailsByCourse = async (req, res) => {
     // Check mongoose connection
     const dbStatus = await isDBConnected();
 
-    const isEmailExist = await User.findOne({ email: email });
+    const isEmailExist = await isValidIssuer(email);
 
     if (!isEmailExist) {
       return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUserEmailNotFound });
@@ -989,7 +1048,7 @@ const fetchIssuesLogDetails = async (req, res) => {
     console.log(dbStatusMessage);
 
     // Check if user with provided email exists
-    const issuerExist = await User.findOne({ email: email });
+    const issuerExist = await isValidIssuer(email);
 
     if (!issuerExist) {
       return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUserNotFound });
@@ -1085,23 +1144,35 @@ const fetchIssuesLogDetails = async (req, res) => {
           break;
         case 6:
           var filteredResponse6 = [];
-          var query1Promise = Issues.find({
+          var query1Promise = await Issues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: { $in: [1, 2, 4] },
             url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
-          var query2Promise = BatchIssues.find({
+          var query2Promise = await BatchIssues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: { $in: [1, 2, 4] },
+            url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
+          }).lean(); // Use lean() to convert documents to plain JavaScript objects
+
+          var query3Promise = await DynamicIssues.find({
+            issuerId: issuerExist.issuerId,
+            certificateStatus: 3,
+            url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
+          }).lean(); // Use lean() to convert documents to plain JavaScript objects
+
+          var query4Promise = await DynamicBatchIssues.find({
+            issuerId: issuerExist.issuerId,
+            certificateStatus: 3,
             url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           // Wait for both queries to resolve
-          var [queryResponse1, queryResponse2] = await Promise.all([query1Promise, query2Promise]);
+          var [queryResponse1, queryResponse2, queryResponse3, queryResponse4] = await Promise.all([query1Promise, query2Promise, query3Promise, query4Promise]);
 
           // Merge the results into a single array
-          var _queryResponse = [...queryResponse1, ...queryResponse2];
+          var _queryResponse = [...queryResponse1, ...queryResponse2, ...queryResponse3, ...queryResponse4];
           // Sort the data based on the 'issueDate' date in descending order
           _queryResponse.sort((a, b) => new Date(b.issueDate) - new Date(a.issueDate));
 
@@ -1122,23 +1193,35 @@ const fetchIssuesLogDetails = async (req, res) => {
           queryResponse = filteredResponse6;
           break;
         case 7://To fetch Revoked certifications and count
-          var query1Promise = Issues.find({
+          var query1Promise = await Issues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: 3,
             url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
-          var query2Promise = BatchIssues.find({
+          var query2Promise = await BatchIssues.find({
+            issuerId: issuerExist.issuerId,
+            certificateStatus: 3,
+            url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
+          }).lean(); // Use lean() to convert documents to plain JavaScript objects
+
+          var query3Promise = await DynamicIssues.find({
+            issuerId: issuerExist.issuerId,
+            certificateStatus: 3,
+            url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
+          }).lean(); // Use lean() to convert documents to plain JavaScript objects
+
+          var query4Promise = await DynamicBatchIssues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: 3,
             url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           // Wait for both queries to resolve
-          var [queryResponse1, queryResponse2] = await Promise.all([query1Promise, query2Promise]);
+          var [queryResponse1, queryResponse2, queryResponse3, queryResponse4] = await Promise.all([query1Promise, query2Promise, query3Promise, query4Promise]);
 
           // Merge the results into a single array
-          var _queryResponse = [...queryResponse1, ...queryResponse2];
+          var _queryResponse = [...queryResponse1, ...queryResponse2, ...queryResponse3, ...queryResponse4];
           // Sort the data based on the 'issueDate' date in descending order
           _queryResponse.sort((a, b) => new Date(b.issueDate) - new Date(a.issueDate));
 
@@ -1147,14 +1230,14 @@ const fetchIssuesLogDetails = async (req, res) => {
           break;
         case 8:
           var filteredResponse8 = [];
-          var query1Promise = Issues.find({
+          var query1Promise = await Issues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: { $in: [1, 2, 4] },
             expirationDate: { $ne: "1" },
             url: { $exists: true, $ne: null, $ne: "", $regex: bucketName } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
-          var query2Promise = BatchIssues.find({
+          var query2Promise = await BatchIssues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: { $in: [1, 2, 4] },
             expirationDate: { $ne: "1" },
@@ -1261,7 +1344,7 @@ const fetchGraphDetails = async (req, res) => {
   }
 
   // Check if user with provided email exists
-  const issuerExist = await User.findOne({ email: email });
+  const issuerExist = await isValidIssuer(email);
 
   if (!issuerExist) {
     return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUserEmailNotFound });
@@ -1366,7 +1449,7 @@ const fetchGraphStatusDetails = async (req, res) => {
   }
 
   // Check if user with provided email exists
-  const issuerExist = await User.findOne({ email: email });
+  const issuerExist = await isValidIssuer(email);
 
   if (!issuerExist) {
     return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUserEmailNotFound });
@@ -1501,7 +1584,7 @@ const fetchStatusCoreFeatureIssues = async (req, res) => {
   try {
     await isDBConnected();
     // Check if user with provided email exists
-    const issuerExist = await User.findOne({ email: email });
+    const issuerExist = await isValidIssuer(email);
     if (!issuerExist) {
       return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUserEmailNotFound, details: email });
     }

@@ -9,6 +9,16 @@ const AdminSchema = new mongoose.Schema({
   status: { type: Boolean, required: true } // Status field is of type Boolean and is required
 });
 
+// Define the schema for the IssueStatus model
+const ServerDetailsSchema = new mongoose.Schema({
+  email: { type: String, required: true },
+  serverName: { type: String, default: null }, 
+  serverEndpoint: { type: String, default: null },
+  serverAddress: { type: String, default: null }, 
+  serverStatus: { type: Boolean, default: true },
+  lastUpdate: { type: Date, default: Date.now } // IssueDate field is of type Date and defaults to the current date/time
+});
+
 // Define the schema for the ServiceQuota model
 const ServiceAccountQuotasSchema = new Schema({
   issuerId: { type: String, required: true }, // Issuer Id field is of type String and is required
@@ -41,6 +51,7 @@ const UserSchema = new Schema({
   designation: { type: String },
   username: { type: String, unique: true },
   rejectedDate: { type: Date, default: null },
+  transactionFee: { type: Number, default: 0 },
   certificatesIssued: { type: Number },
   certificatesRenewed: { type: Number },
   approveDate: { type: Date, default: null}
@@ -50,7 +61,6 @@ const UserSchema = new Schema({
 const IssuesSchema = new mongoose.Schema({
   issuerId: { type: String, required: true }, // ID field is of type String and is required
   transactionHash: { type: String, required: true }, // TransactionHash field is of type String and is required
-  transactionFee: { type: Number, default: 0}, // TransactionFee field is of type Number
   certificateHash: { type: String, required: true }, // CertificateHash field is of type String and is required
   certificateNumber: { type: String, required: true }, // CertificateNumber field is of type String and is required
   name: { type: String, required: true }, // Name field is of type String and is required
@@ -76,7 +86,6 @@ const BatchIssuesSchema = new Schema({
   proofHash: [String],
   encodedProof: { type: String, required: true },
   transactionHash: { type: String, required: true },
-  transactionFee: { type: Number, default: 0}, // TransactionFee field is of type Number
   certificateHash: { type: String, required: true },
   certificateNumber: { type: String, required: true },
   name: { type: String, required: true },
@@ -112,7 +121,6 @@ const IssueStatusSchema = new mongoose.Schema({
 const DynamicIssuesSchema = new mongoose.Schema({
   issuerId: { type: String, required: true }, // ID field is of type String and is required
   transactionHash: { type: String, required: true }, // TransactionHash field is of type String and is required
-  transactionFee: { type: Number, default: 0}, // TransactionFee field is of type Number
   certificateHash: { type: String, required: true }, // CertificateHash field is of type String and is required
   certificateNumber: { type: String, required: true }, // CertificateNumber field is of type String and is required
   name: { type: String }, // Name field is of type String and is required
@@ -136,7 +144,6 @@ const DynamicBatchIssuesSchema = new mongoose.Schema({
   proofHash: [String],
   encodedProof: { type: String, required: true },
   transactionHash: { type: String, required: true }, // TransactionHash field is of type String and is required
-  transactionFee: { type: Number, default: 0}, // TransactionFee field is of type Number
   certificateHash: { type: String, required: true }, // CertificateHash field is of type String and is required
   certificateNumber: { type: String, required: true }, // CertificateNumber field is of type String and is required
   name: { type: String }, // Name field is of type String and is required
@@ -180,6 +187,7 @@ const DynamicParamsSchema = new mongoose.Schema({
   modifiedDate: { type: Date, default: Date.now } // issueDate field is of type Date and defaults to the current date/time
 });
 
+
 const Admin = mongoose.model('Admin', AdminSchema);
 const ServiceAccountQuotas = mongoose.model('ServiceAccountQuotas', ServiceAccountQuotasSchema);
 const User = mongoose.model('User', UserSchema);
@@ -191,9 +199,11 @@ const DynamicBatchIssues = mongoose.model('DynamicBatchIssues', DynamicBatchIssu
 const VerificationLog = mongoose.model('VerificationLog', VerificationLogSchema);
 const ShortUrl = mongoose.model('ShortUrl', ShortUrlSchema);
 const DynamicParameters = mongoose.model('DynamicParameters', DynamicParamsSchema);
+const ServerDetails = mongoose.model('ServerDetails', ServerDetailsSchema);
 
 module.exports = {
   Admin,
+  ServerDetails,
   ServiceAccountQuotas,
   User,
   Issues,

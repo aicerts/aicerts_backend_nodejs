@@ -3,11 +3,14 @@ require('dotenv').config();
 const AWS = require('../config/aws-config');
 const fs = require("fs");
 
+// Import MongoDB models
+const { User, Issues, BatchIssues, ShortUrl, DynamicIssues, DynamicBatchIssues } = require("../config/schema");
+
 const {
   fallbackProvider
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
-const fetchOrEstimateTransactionFee = async (tx, timeoutDuration = 5500) => {
+const fetchOrEstimateTransactionFee = async (tx, timeoutDuration = 3500) => {
   const timeoutPromise = new Promise((_, reject) =>
     setTimeout(() => reject(new Error('Transaction timed out')), timeoutDuration)
   );
@@ -22,7 +25,7 @@ const fetchOrEstimateTransactionFee = async (tx, timeoutDuration = 5500) => {
       const gasUsed = BigInt(receipt.gasUsed.toString());
       const gasPrice = BigInt(receipt.gasPrice.toString());
       // console.log('The actual gas fee', gasUsed, gasPrice);
-      
+
       let txFee = gasUsed * gasPrice; // Fee in wei
       let actualTxFee = Number(txFee) / 1e18;
       console.log("Actual transaction fee", actualTxFee);
@@ -44,7 +47,7 @@ const fetchOrEstimateTransactionFee = async (tx, timeoutDuration = 5500) => {
     const estimateGasPrice = BigInt(feeData.gasPrice.toString());
     const gasLimit = BigInt(tx.gasLimit.toString());
     // console.log('The assessed limit & price', gasLimit, estimateGasPrice);
-    
+
     let estimatedTxFee = gasLimit * estimateGasPrice; // Fee in wei
     let calculatedTxFee = Number(estimatedTxFee) / 1e18;
     console.log("Estimated transaction fee", calculatedTxFee);
@@ -54,6 +57,27 @@ const fetchOrEstimateTransactionFee = async (tx, timeoutDuration = 5500) => {
     return null;
   }
 }
+
+const updateTransactionFeeWithIssuer = async (email, txFee) => {
+  if (!email || !txFee) {
+    return null;
+  }
+  const issuerToFeeUpdate = await User.find({ email: email });
+  var updatedFee;
+  try {
+    if (issuerToFeeUpdate.transactionFee) {
+      updatedFee = issuerToFeeUpdate.transactionFee;
+      issuerToFeeUpdate.transactionFee = updatedFee + txFee;
+    } else {
+      issuerToFeeUpdate.transactionFee = txFee;
+    }
+    await issuerToFeeUpdate.save(); // Save the changes to the existing issuer
+    return true;
+  } catch (error) {
+    console.error("An error occurred", error);
+    return null;
+  }
+};
 
 const uploadImageToS3 = async (certNumber, imagePath) => {
 
@@ -112,5 +136,7 @@ module.exports = {
   // Upload media file into the S3 bucket (for the single issue)
   uploadImageToS3,
   // Upload media file into the S3 bucket (for the dynamic bulk issue)
-  _uploadImageToS3
+  _uploadImageToS3,
+  // Update Transaction fee with respect to issuer
+  updateTransactionFeeWithIssuer
 };

@@ -130,7 +130,7 @@ module.exports = {
 
     // Blockchain route Messages
     msgInvalidInput : "Invalid Input parameter",
-    msgUserNotFound: "Issuer not found!",
+    msgUserNotFound: "Issuer not found! / Issuer not Approved",
     msgNoMatchFound: "No matching results found",
     msgIssuerRejectSuccess: "Issuer Rejected successfully",
     msgExistRejectIssuer: "Existed Rejected Issuer",
@@ -191,7 +191,7 @@ module.exports = {
     msgInvalidGraphInput: "Please provide valid Graph Input",
     msgUnableToGetGraphData: "Unable to fetched Graph data",
     msgGraphDataFetched: "Graph data fetched successfully",
-    msgUserEmailNotFound: "Invalid email provided",
+    msgUserEmailNotFound: "Invalid email provided / issuer not approved",
     msgDbError: "Unable to connect with Database, Please try again",
     msgIssueFound: "Credential details found",
     msgIssueNotFound: "Credential details not found",

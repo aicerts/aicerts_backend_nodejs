@@ -12,6 +12,7 @@ const abi = require("../config/abi.json");
 
 // Importing functions from a custom module
 const {
+  isValidIssuer,
   connectToPolygon,
   isDBConnected, // Function to check if the database connection is established
   sendEmail, // Function to send an email on approved
@@ -74,7 +75,7 @@ const validateIssuer = async (req, res) => {
     return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
   }
   // Find user by email
-  const userExist = await User.findOne({ email });
+  const userExist = await isValidIssuer(email);
 
   if (!email || !userExist || (validationStatus != 1 && validationStatus != 2)) {
     var defaultMessage = messageCode.msgInvalidInput;
@@ -431,7 +432,7 @@ const createAndValidateIssuerIdUponLogin = async (req, res) => {
 
     if (dbStatus) {
       // Find user by email
-      const userExist = await User.findOne({ email });
+      const userExist = await isValidIssuer(email);
       if (!userExist) {
         return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUserNotFound });
       }
@@ -670,7 +671,7 @@ const allocateCredits = async (req, res) => {
     if (dbStatus) {
      
       // Check if user with provided email exists
-      const issuerExist = await User.findOne({ email: email, status: 2 }).select('-password');
+      const issuerExist = await isValidIssuer(email);
 
       if (!issuerExist || !issuerExist.issuerId) {
         return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidIssuer });

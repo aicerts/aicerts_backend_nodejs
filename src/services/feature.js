@@ -16,10 +16,12 @@ const abi = require("../config/abi.json");
 
 // Importing functions from a custom module
 const {
+    isValidIssuer,
     connectToPolygon,
     convertDateFormat,
     convertDateToEpoch,
     insertIssueStatus,
+    insertDynamicIssueStatus,
     convertEpochToDate, // Function to insert certificate data into the database
     getCertificationStatus,
     calculateHash, // Function to calculate the hash of a file
@@ -71,7 +73,7 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
     try {
         await isDBConnected();
         // Check if user with provided email exists
-        const idExist = await User.findOne({ email });
+        const idExist = await isValidIssuer(email);
         // Check if certificate number already exists
         const isNumberExist = await Issues.findOne({ certificateNumber: certificateNumber });
         // Check if certificate number already exists in the Batch
@@ -240,7 +242,6 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                         isNumberExist.certificateHash = combinedHash;
                         isNumberExist.expirationDate = expirationDate;
                         isNumberExist.transactionHash = txHash;
-                        isNumberExist.transactionFee = (isNumberExist.transactionFee) ? isNumberExist.transactionFee + txFee : txFee;
                         isNumberExist.certificateStatus = 2;
                         isNumberExist.issueDate = Date.now();
 
@@ -250,11 +251,13 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                         // Update certificate Count
                         let previousCount = idExist.certificatesIssued;
                         idExist.certificatesIssued = previousCount + 1;
-                        await idExist.save(); // Save the changes to the existing user
-
                         // If user with given id exists, update certificatesRenewed count
                         let previousRenewCount = idExist.certificatesRenewed || 0; // Initialize to 0 if certificatesIssued field doesn't exist
                         idExist.certificatesRenewed = previousRenewCount + 1;
+                        // If user with given id exists, update certificatesIssued transation fee
+                        const previousrtransactionFee = idExist.transactionFee || 0; // Initialize to 0 if transactionFee field doesn't exist
+                        idExist.transactionFee = previousrtransactionFee + txFee;
+
                         await idExist.save(); // Save the changes to the existing user
 
                         const issuerId = idExist.issuerId;
@@ -457,7 +460,6 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
 
                                 // Save Issue details (modified)
                                 isNumberExistInBatch.transactionHash = txHash;
-                                isNumberExistInBatch.transactionFee = (isNumberExistInBatch.transactionFee) ? isNumberExistInBatch.transactionFee + txFee : txFee;
                                 isNumberExistInBatch.expirationDate = fields.Expiration_Date;
                                 isNumberExistInBatch.certificateStatus = 2;
                                 isNumberExistInBatch.issueDate = Date.now();
@@ -468,11 +470,14 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                                 // Update certificate Count
                                 let previousCount = idExist.certificatesIssued;
                                 idExist.certificatesIssued = previousCount + 1;
-                                await idExist.save(); // Save the changes to the existing user
 
                                 // If user with given id exists, update certificatesRenewed count
                                 let previousRenewCount = idExist.certificatesRenewed || 0; // Initialize to 0 if certificatesIssued field doesn't exist
                                 idExist.certificatesRenewed = previousRenewCount + 1;
+                                // If user with given id exists, update certificatesIssued transation fee
+                                const previousrtransactionFee = idExist.transactionFee || 0; // Initialize to 0 if transactionFee field doesn't exist
+                                idExist.transactionFee = previousrtransactionFee + txFee;
+
                                 await idExist.save(); // Save the changes to the existing user
 
                                 const issuerId = idExist.issuerId;
@@ -553,8 +558,7 @@ const handleUpdateCertificationStatus = async (email, certificateNumber, certSta
         const dbStatus = await isDBConnected();
         const dbStatusMessage = (dbStatus === true) ? messageCode.msgDbReady : messageCode.msgDbNotReady;
         console.log(dbStatusMessage);
-
-        const isIssuerExist = await User.findOne({ email }).select('-password');
+        const isIssuerExist = await isValidIssuer(email);
         // Check if certificate number already exists
         const isNumberExist = await Issues.findOne({ certificateNumber: certificateNumber });
         // Check if certificate number already exists in the Batch
@@ -564,17 +568,17 @@ const handleUpdateCertificationStatus = async (email, certificateNumber, certSta
         // Check if certificate number already exists in the Batch Dynamic QR issue
         const isNumberExistInBatchDynamic = await DynamicBatchIssues.findOne({ certificateNumber: certificateNumber });
 
-        if (!isIssuerExist || (!isNumberExist && !isNumberExistInBatch)) {
+        if (!isIssuerExist || (!isNumberExist && !isNumberExistInBatch && !isNumberExistInSingleDynamic && !isNumberExistInBatchDynamic)) {
             let errorMessage = messageCode.msgPlsEnterValid
             // Invalid Issuer
             if (!isIssuerExist) {
                 errorMessage = messageCode.msgInvalidIssuer;
-            } else if (!isNumberExist && !isNumberExistInBatch && !isNumberExistInSingleDynamic && !isNumberExistInBatchDynamic) {
+            } else {
                 errorMessage = messageCode.msgCertNotExist;
             }
             return ({ code: 400, status: "FAILED", message: errorMessage });
         }
-        let _certStatus = await getCertificationStatus(certStatus);
+        var _certStatus = await getCertificationStatus(certStatus);
 
         try {
             // Verify certificate on blockchain
@@ -632,10 +636,13 @@ const handleUpdateCertificationStatus = async (email, certificateNumber, certSta
                         // Save Issue details (modified)
                         isNumberExist.certificateStatus = certStatus;
                         isNumberExist.transactionHash = txHash;
-                        isIssuerExist.transactionFee = (isIssuerExist.transactionFee) ? isIssuerExist.transactionFee + txFee : txFee,
+                        // Save certification data into database
+                        await isNumberExist.save();
 
-                            // Save certification data into database
-                            await isNumberExist.save();
+                        // If user with given id exists, update certificatesIssued transation fee
+                        const previousrtransactionFee = isIssuerExist.transactionFee || 0; // Initialize to 0 if transactionFee field doesn't exist
+                        isIssuerExist.transactionFee = previousrtransactionFee + txFee;
+                        await isIssuerExist.save(); // Save the changes to the existing user
 
                         var certificateData = {
                             issuerId: isIssuerExist.issuerId,
@@ -696,10 +703,15 @@ const handleUpdateCertificationStatus = async (email, certificateNumber, certSta
                         // Save updated details (modified)
                         isNumberExistInBatch.certificateStatus = certStatus;
                         isNumberExistInBatch.transactionHash = txHash;
-                        isNumberExistInBatch.transactionFee = (isNumberExistInBatch.transactionFee) ? isNumberExistInBatch.transactionFee + txFee : txFee;
 
                         // Save certification data into database
                         await isNumberExistInBatch.save();
+
+                        // If user with given id exists, update certificatesIssued transation fee
+                        const previousrtransactionFee = isIssuerExist.transactionFee || 0; // Initialize to 0 if transactionFee field doesn't exist
+                        isIssuerExist.transactionFee = previousrtransactionFee + txFee;
+                        await isIssuerExist.save(); // Save the changes to the existing user
+
 
                         var certificateData = {
                             issuerId: isIssuerExist.issuerId,
@@ -717,6 +729,133 @@ const handleUpdateCertificationStatus = async (email, certificateNumber, certSta
                         await insertIssueStatus(certificateData);
 
                         var statusDetails = { batchId: isNumberExistInBatch.batchId, certificateNumber: isNumberExistInBatch.certificateNumber, updatedStatus: _certStatus, polygonLink: polygonLink };
+                        return ({ code: 200, status: "SUCCESS", message: messageCode.msgBatchStatusUpdated, details: statusDetails });
+
+                    } else {
+                        return ({ code: 400, status: "FAILED", message: messageCode.msgCertNotExist });
+                    }
+                } catch (error) {
+                    // Internal server error
+                    console.error(error);
+                    return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
+                }
+            } else if (isNumberExistInSingleDynamic) {
+
+                if (isNumberExistInSingleDynamic.certificateStatus != 3 && certStatus == 4) {
+                    return ({ code: 400, status: "FAILED", message: messageCode.msgReactivationNotPossible });
+                }
+
+                if (isNumberExistInSingleDynamic.certificateStatus == parseInt(certStatus)) {
+                    return ({ code: 400, status: "FAILED", message: messageCode.msgStatusAlreadyExist });
+                }
+
+                try {
+                    let _getCertificateStatus = await newContract.getCertificateStatus(certificateNumber);
+                    const getCertificateStatus = parseInt(_getCertificateStatus);
+                    if (getCertificateStatus == 0) {
+                        return ({ code: 400, status: "FAILED", message: messageCode.msgCertNotExist });
+                    }
+                    if (getCertificateStatus != certStatus) {
+
+                        let { txHash, txFee } = await updateSingleCertificateStatusWithRetry(certificateNumber, certStatus);
+                        if (!txHash) {
+                            return ({ code: 400, status: false, message: messageCode.msgFailedToUpdateStatusRetry, details: certificateNumber });
+                        }
+
+                        var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
+
+                        // Save Issue details (modified)
+                        isNumberExistInSingleDynamic.certificateStatus = certStatus;
+                        isNumberExistInSingleDynamic.transactionHash = txHash;
+                        // Save certification data into database
+                        await isNumberExistInSingleDynamic.save();
+
+                        // If user with given id exists, update certificatesIssued transation fee
+                        const previousrtransactionFee = isIssuerExist.transactionFee || 0; // Initialize to 0 if transactionFee field doesn't exist
+                        isIssuerExist.transactionFee = previousrtransactionFee + txFee;
+                        await isIssuerExist.save(); // Save the changes to the existing user
+
+                        var certificateData = {
+                            issuerId: isIssuerExist.issuerId,
+                            transactionHash: txHash,
+                            certificateNumber: certificateNumber,
+                            course: 0,
+                            name: isNumberExistInSingleDynamic.name,
+                            expirationDate: 0,
+                            email: email,
+                            certStatus: certStatus
+                        };
+
+                        // Insert certification status data into database
+                        await insertDynamicIssueStatus(certificateData);
+
+                        return ({ code: 200, status: "SUCCESS", message: `Updated status: ${_certStatus}`, details: isNumberExistInSingleDynamic });
+
+                    } else {
+                        return ({ code: 400, status: "FAILED", message: messageCode.msgStatusAlreadyExist });
+                    }
+                } catch (error) {
+                    // Internal server error
+                    console.error(error);
+                    return ({ code: 400, status: "FAILED", message: messageCode.msgFailedAtBlockchain, details: error });
+                }
+            } else if (isNumberExistInBatchDynamic) {
+
+                if (isNumberExistInBatchDynamic.certificateStatus != 3 && certStatus == 4) {
+                    return ({ code: 400, status: "FAILED", message: messageCode.msgReactivationNotPossible });
+                }
+
+                if (isNumberExistInBatchDynamic.certificateStatus == parseInt(certStatus)) {
+                    return ({ code: 400, status: "FAILED", message: messageCode.msgStatusAlreadyExist });
+                }
+
+                try {
+                    let fetchIndex = isNumberExistInBatchDynamic.batchId - 1;
+                    let hashedProof = isNumberExistInBatchDynamic.encodedProof;
+                    // Blockchain calls
+                    let batchStatusResponse = await newContract.verifyBatchRoot(fetchIndex);
+
+                    if (batchStatusResponse[0] === true) {
+                        if (isNumberExistInBatchDynamic.certificateStatus == parseInt(certStatus)) {
+                            return ({ code: 400, status: "FAILED", message: messageCode.msgStatusAlreadyExist });
+                        }
+
+                        let { txHash, txFee } = await updateCertificateStatusInBatchWithRetry(hashedProof, certStatus);
+                        if (!txHash) {
+                            return ({ code: 400, status: false, message: messageCode.msgFailedToUpdateStatusRetry, details: certStatus });
+                        }
+
+                        let polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
+
+                        // Save updated details (modified)
+                        isNumberExistInBatchDynamic.certificateStatus = certStatus;
+                        isNumberExistInBatchDynamic.transactionHash = txHash;
+
+                        // Save certification data into database
+                        await isNumberExistInBatchDynamic.save();
+
+                        // If user with given id exists, update certificatesIssued transation fee
+                        const previousrtransactionFee = isIssuerExist.transactionFee || 0; // Initialize to 0 if transactionFee field doesn't exist
+                        isIssuerExist.transactionFee = previousrtransactionFee + txFee;
+                        await isIssuerExist.save(); // Save the changes to the existing user
+
+
+                        var certificateData = {
+                            issuerId: isIssuerExist.issuerId,
+                            batchId: isNumberExistInBatch.batchId,
+                            transactionHash: txHash,
+                            certificateNumber: certificateNumber,
+                            course: 0,
+                            name: isNumberExistInBatch.name,
+                            expirationDate: 0,
+                            email: email,
+                            certStatus: certStatus
+                        };
+
+                        // Insert certification status data into database
+                        await insertDynamicIssueStatus(certificateData);
+
+                        var statusDetails = { batchId: isNumberExistInBatchDynamic.batchId, certificateNumber: isNumberExistInBatchDynamic.certificateNumber, updatedStatus: _certStatus, polygonLink: polygonLink };
                         return ({ code: 200, status: "SUCCESS", message: messageCode.msgBatchStatusUpdated, details: statusDetails });
 
                     } else {
@@ -760,7 +899,7 @@ const handleRenewBatchOfCertifications = async (email, batchId, batchExpirationD
         const dbStatusMessage = (dbStatus == true) ? messageCode.msgDbReady : messageCode.msgDbNotReady;
         console.log(dbStatusMessage);
 
-        const isIssuerExist = await User.findOne({ email }).select('-password');
+        const isIssuerExist = await isValidIssuer(email);
         const rootIndex = parseInt(batchId) - 1;
 
         if (!isIssuerExist) {
@@ -822,6 +961,12 @@ const handleRenewBatchOfCertifications = async (email, batchId, batchExpirationD
 
                 var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
 
+                // If user with given id exists, update certificatesIssued transation fee
+                const previousrtransactionFee = isIssuerExist.transactionFee || 0; // Initialize to 0 if transactionFee field doesn't exist
+                isIssuerExist.transactionFee = previousrtransactionFee + txFee;
+                await isIssuerExist.save(); // Save the changes to the existing user
+
+
                 var statusDetails = { batchId: batchId, updatedExpirationDate: expirationDate, polygonLink: polygonLink };
                 return ({ code: 200, status: "SUCCESS", message: messageCode.msgBatchRenewed, details: statusDetails });
 
@@ -853,7 +998,7 @@ const handleUpdateBatchCertificationStatus = async (email, batchId, certStatus) 
         const dbStatusMessage = (dbStatus == true) ? messageCode.msgDbReady : messageCode.msgDbNotReady;
         console.log(dbStatusMessage);
 
-        const isIssuerExist = await User.findOne({ email }).select('-password');
+        const isIssuerExist = await isValidIssuer(email);
         const rootIndex = parseInt(batchId) - 1;
 
         if (!isIssuerExist) {
@@ -897,6 +1042,12 @@ const handleUpdateBatchCertificationStatus = async (email, batchId, certStatus) 
                 }
 
                 var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
+
+                // If user with given id exists, update certificatesIssued transation fee
+                const previousrtransactionFee = isIssuerExist.transactionFee || 0; // Initialize to 0 if transactionFee field doesn't exist
+                isIssuerExist.transactionFee = previousrtransactionFee + txFee;
+                await isIssuerExist.save(); // Save the changes to the existing user
+
 
                 var statusDetails = { batchId: batchId, updatedBatchStatus: _certStatus, polygonLink: polygonLink };
                 return ({ code: 200, status: "SUCCESS", message: messageCode.msgBatchStatusUpdated, details: statusDetails });

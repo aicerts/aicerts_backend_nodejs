@@ -18,6 +18,7 @@ const {
 
 // Importing functions from a custom module
 const {
+    isValidIssuer,
     convertDateFormat,
     isDBConnected,
     getIssuerServiceCredits,
@@ -65,7 +66,7 @@ const renewCert = async (req, res) => {
         if (email) {
             let dbStatus = await isDBConnected();
             if (dbStatus) {
-                var issuerExist = await User.findOne({ email: email });
+                var issuerExist = await isValidIssuer(email);
                 if (issuerExist && issuerExist.issuerId) {
                     existIssuerId = issuerExist.issuerId;
                     let fetchCredits = await getIssuerServiceCredits(existIssuerId, 'renew');
@@ -130,7 +131,7 @@ const updateCertStatus = async (req, res) => {
         if (email) {
             let dbStatus = await isDBConnected();
             if (dbStatus) {
-                var issuerExist = await User.findOne({ email: email });
+                var issuerExist = await isValidIssuer(email);
                 if (issuerExist && issuerExist.issuerId) {
                     existIssuerId = issuerExist.issuerId;
                     let fetchCredits = await getIssuerServiceCredits(existIssuerId, serviceStatus);
@@ -185,7 +186,7 @@ const renewBatchCertificate = async (req, res) => {
         if (email) {
             let dbStatus = await isDBConnected();
             if (dbStatus) {
-                var issuerExist = await User.findOne({ email: email });
+                var issuerExist = await isValidIssuer(email);
                 if (issuerExist && issuerExist.issuerId) {
                     existIssuerId = issuerExist.issuerId;
                     let fetchCredits = await getIssuerServiceCredits(existIssuerId, 'renew');
@@ -243,7 +244,7 @@ const updateBatchStatus = async (req, res) => {
         if (email) {
             let dbStatus = await isDBConnected();
             if (dbStatus) {
-                var issuerExist = await User.findOne({ email: email });
+                var issuerExist = await isValidIssuer(email);
                 if (issuerExist && issuerExist.issuerId) {
                     existIssuerId = issuerExist.issuerId;
                     let fetchCredits = await getIssuerServiceCredits(existIssuerId, serviceStatus);
@@ -300,7 +301,7 @@ const convertIntoExcel = async (req, res) => {
         const email = req.body.email;
         let dbStatus = isDBConnected();
         if (dbStatus) {
-            let isEmailExist = await User.findOne({ email: email });
+            let isEmailExist = await isValidIssuer(email);
             if (!isEmailExist) {
                 res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUserEmailNotFound, details: email });
                 return;
@@ -351,7 +352,7 @@ const generateExcelReport = async (req, res) => {
         const value = parseInt(req.body.value);
         let dbStatus = isDBConnected();
         if (dbStatus) {
-            let isEmailExist = await User.findOne({ email: email });
+            let isEmailExist = await isValidIssuer(email);
             if (!isEmailExist) {
                 res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUserEmailNotFound, details: email });
                 return;

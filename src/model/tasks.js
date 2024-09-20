@@ -83,6 +83,24 @@ const mailOptions = {
 // Import the Issues models from the schema defined in "../config/schema"
 const { User, Issues, BatchIssues, IssueStatus, VerificationLog, ShortUrl, DynamicIssues, ServiceAccountQuotas, DynamicBatchIssues } = require("../config/schema");
 
+// Function to verify the Issuer email
+const isValidIssuer = async (email) => {
+  if (!email) {
+    return null;
+  }
+  try {
+    var validIssuer = await User.findOne({
+      email: email,
+      status: 1
+    }).select('-password');
+
+    return validIssuer;
+  } catch (error) {
+    console.log("An error occured", error);
+    return null;
+  }
+};
+
 //Connect to blockchain contract
 const connectToPolygon = async (retryCount = 0) => {
   let fallbackProvider;
@@ -545,6 +563,9 @@ const insertIssuanceCertificateData = async (data) => {
       // If user with given id exists, update certificatesIssued count
       const previousCount = idExist.certificatesIssued || 0; // Initialize to 0 if certificatesIssued field doesn't exist
       idExist.certificatesIssued = previousCount + 1;
+      // If user with given id exists, update certificatesIssued transation fee
+      // const previousrtransactionFee = idExist.transactionFee || 0; // Initialize to 0 if transactionFee field doesn't exist
+      // idExist.transactionFee = previousrtransactionFee + data.transactionFee;
       await idExist.save(); // Save the changes to the existing user
     }
     // Logging confirmation message
@@ -562,7 +583,6 @@ const insertCertificateData = async (data) => {
     const newIssue = new Issues({
       issuerId: data.issuerId,
       transactionHash: data.transactionHash,
-      transactionFee: data.transactionFee,
       certificateHash: data.certificateHash,
       certificateNumber: data.certificateNumber,
       name: data.name,
@@ -593,8 +613,10 @@ const insertCertificateData = async (data) => {
     // If user with given id exists, update certificatesIssued count
     const previousCount = idExist.certificatesIssued || 0; // Initialize to 0 if certificatesIssued field doesn't exist
     idExist.certificatesIssued = previousCount + 1;
+    // If user with given id exists, update certificatesIssued transation fee
+    const previousrtransactionFee = idExist.transactionFee || 0; // Initialize to 0 if transactionFee field doesn't exist
+    idExist.transactionFee = previousrtransactionFee + data.transactionFee;
     await idExist.save(); // Save the changes to the existing user
-
 
     // Logging confirmation message
     console.log("Certificate data inserted");
@@ -611,7 +633,6 @@ const insertDynamicCertificateData = async (data) => {
     const newDynamicIssue = new DynamicIssues({
       issuerId: data.issuerId,
       transactionHash: data.transactionHash,
-      transactionFee: data.transactionFee,
       certificateHash: data.certificateHash,
       certificateNumber: data.certificateNumber,
       name: data.name,
@@ -638,6 +659,9 @@ const insertDynamicCertificateData = async (data) => {
     // If user with given id exists, update certificatesIssued count
     const previousCount = idExist.certificatesIssued || 0; // Initialize to 0 if certificatesIssued field doesn't exist
     idExist.certificatesIssued = previousCount + 1;
+    // If user with given id exists, update certificatesIssued transation fee
+    const previousrtransactionFee = idExist.transactionFee || 0; // Initialize to 0 if transactionFee field doesn't exist
+    idExist.transactionFee = previousrtransactionFee + data.transactionFee;
     await idExist.save(); // Save the changes to the existing user
 
     data.email = idExist.email;
@@ -662,7 +686,6 @@ const insertBatchCertificateData = async (data) => {
       proofHash: data.proofHash,
       encodedProof: data.encodedProof,
       transactionHash: data.transactionHash,
-      transactionFee: data.transactionFee,
       certificateHash: data.certificateHash,
       certificateNumber: data.certificateNumber,
       name: data.name,
@@ -683,11 +706,14 @@ const insertBatchCertificateData = async (data) => {
 
     const updateIssuerLog = await insertIssueStatus(data);
 
-    const idExist = await User.findOne({ issuerId: data.issuerId });
+    var idExist = await User.findOne({ issuerId: data.issuerId });
 
     // If user with given id exists, update certificatesIssued count
     const previousCount = idExist.certificatesIssued || 0; // Initialize to 0 if certificatesIssued field doesn't exist
     idExist.certificatesIssued = previousCount + 1;
+    // If user with given id exists, update certificatesIssued transation fee
+    // const previousrtransactionFee = idExist.transactionFee || 0; // Initialize to 0 if transactionFee field doesn't exist
+    // idExist.transactionFee = previousrtransactionFee + data.transactionFee;
     await idExist.save(); // Save the changes to the existing user
 
   } catch (error) {
@@ -706,7 +732,6 @@ const insertDynamicBatchCertificateData = async (data) => {
       proofHash: data.proofHash,
       encodedProof: data.encodedProof,
       transactionHash: data.transactionHash,
-      transactionFee: data.transactionFee,
       certificateHash: data.certificateHash,
       certificateNumber: data.certificateNumber,
       name: data.name,
@@ -1616,7 +1641,6 @@ const getCertificationStatus = async (certStatus) => {
 
 const getContractAddress = async (contractAddress, maxRetries = 3, delay = 1000) => {
   let attempt = 0;
-
   try {
     const code = await fallbackProvider.getCode(contractAddress);
     // console.log("the provider", fallbackProvider, code);
@@ -1654,6 +1678,9 @@ const checkTransactionStatus = async (transactionHash) => {
 module.exports = {
 
   fallbackProvider,
+
+  // Function to validate issuer by email
+  isValidIssuer,
 
   // Function to test contract response
   getContractAddress,
@@ -1708,6 +1735,8 @@ module.exports = {
 
   // Function to insert the certification issue status 
   insertIssueStatus,
+
+  insertDynamicIssueStatus,
 
   // Function to fetch certification status
   getCertificationStatus,
