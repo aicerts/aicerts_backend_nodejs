@@ -731,7 +731,7 @@ const adminSearchWithFilter = async (req, res) => {
         });
 
         // Query 3
-        var query3Promise = BatchIssues.find({
+        var query3Promise = DynamicIssues.find({
           issuerId: isEmailExist.issuerId,
           $expr: {
             $and: [
@@ -1158,13 +1158,13 @@ const fetchIssuesLogDetails = async (req, res) => {
 
           var query3Promise = await DynamicIssues.find({
             issuerId: issuerExist.issuerId,
-            certificateStatus: 3,
+            certificateStatus: { $in: [1, 2, 4] },
             url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           var query4Promise = await DynamicBatchIssues.find({
             issuerId: issuerExist.issuerId,
-            certificateStatus: 3,
+            certificateStatus: { $in: [1, 2, 4] },
             url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
