@@ -103,7 +103,7 @@ const validateIssuer = async (req, res) => {
     var mailStatus = await rejectEmail(userExist.name, email);
     var mailresponse = (mailStatus === true) ? "sent" : "NA";
     // Respond with success message indicating user rejected
-    res.json({
+    return res.json({
       code: 200,
       status: "SUCCESS",
       email: mailresponse,
