@@ -71,11 +71,16 @@ const validateIssuer = async (req, res) => {
   let validationStatus = req.body.status;
   let email = req.body.email;
   const newContract = await connectToPolygon();
-  if(!newContract){
+  if (!newContract) {
     return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
   }
+
+  // Check mongo DB connection
+  const dbStatus = await isDBConnected();
+  const dbStatusMessage = (dbStatus == true) ? messageCode.msgDbReady : messageCode.msgDbNotReady;
+  console.log(dbStatusMessage);
   // Find user by email
-  const userExist = await isValidIssuer(email);
+  const userExist = await User.findOne({ email: email }).select('-password');
 
   if (!email || !userExist || (validationStatus != 1 && validationStatus != 2)) {
     var defaultMessage = messageCode.msgInvalidInput;
@@ -88,11 +93,34 @@ const validateIssuer = async (req, res) => {
     return res.status(400).json({ code: 400, status: "FAILED", message: defaultMessage });
   }
 
+  if (validationStatus == 2 && userExist.status == 0) {
+    // Save Issuer rejected details
+    userExist.approved = false;
+    userExist.status = 3;
+    userExist.rejectedDate = Date.now();
+    await userExist.save();
+    // If user is not rejected yet, send email and update user's rejected status
+    var mailStatus = await rejectEmail(userExist.name, email);
+    var mailresponse = (mailStatus === true) ? "sent" : "NA";
+    // Respond with success message indicating user rejected
+    res.json({
+      code: 200,
+      status: "SUCCESS",
+      email: mailresponse,
+      message: messageCode.msgIssuerRejectSuccess,
+      details: userExist
+    });
+  }
+
+  if(validationStatus == 2 && userExist.status == 3){
+    return res.status(400).json({ 
+      code: 400, 
+      status: "FAILED", 
+      message: messageCode.msgRejecetedAlready 
+    });
+  }
+
   try {
-    // Check mongo DB connection
-    const dbStatus = await isDBConnected();
-    const dbStatusMessage = (dbStatus == true) ? messageCode.msgDbReady : messageCode.msgDbNotReady;
-    console.log(dbStatusMessage);
     try {
       const roleStatus = await newContract.hasRole(process.env.ISSUER_ROLE, userExist.issuerId);
 
@@ -139,8 +167,8 @@ const validateIssuer = async (req, res) => {
           userExist.approved = true;
           userExist.status = 1;
           userExist.rejectedDate = null;
-          if(!userExist.approveDate || userExist.approveDate == null){
-          userExist.approveDate = Date.now();
+          if (!userExist.approveDate || userExist.approveDate == null) {
+            userExist.approveDate = Date.now();
           }
           await userExist.save();
           // If user is not approved yet, send email and update user's approved status
@@ -149,7 +177,7 @@ const validateIssuer = async (req, res) => {
           var _details = grantedStatus == "SUCCESS" ? _details = polygonLink : _details = "";
           // Respond with success message indicating user approval
           res.json({
-            code: 200, 
+            code: 200,
             status: "SUCCESS",
             email: mailresponse,
             grant: grantedStatus,
@@ -189,7 +217,7 @@ const validateIssuer = async (req, res) => {
           }
           // Respond with success message indicating user rejected
           res.json({
-            code: 200, 
+            code: 200,
             status: "SUCCESS",
             email: mailresponse,
             revoke: revokedStatus,
@@ -199,7 +227,7 @@ const validateIssuer = async (req, res) => {
         }
       } else if (validationStatus == 1 && roleStatus === true) {
         res.json({
-          code: 200, 
+          code: 200,
           status: "SUCCESS",
           message: messageCode.msgIssuerApproveSuccess
         });
@@ -211,7 +239,7 @@ const validateIssuer = async (req, res) => {
   } catch (error) {
     // Error occurred during user approval process, respond with failure message
     res.json({
-      code: 400, 
+      code: 400,
       status: 'FAILED',
       message: messageCode.msgIssueInValidation,
       details: error
@@ -231,7 +259,7 @@ const addTrustedOwner = async (req, res) => {
     return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
   const newContract = await connectToPolygon();
-  if(!newContract){
+  if (!newContract) {
     return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
   }
   // const { newOwnerAddress } = req.body;
@@ -267,7 +295,7 @@ const addTrustedOwner = async (req, res) => {
 
         // Prepare success response
         const responseMessage = {
-          code: 200, 
+          code: 200,
           status: "SUCCESS",
           message: messageInfo,
           details: `https://${process.env.NETWORK}/tx/${txHash}`
@@ -299,7 +327,7 @@ const removeTrustedOwner = async (req, res) => {
     return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
   const newContract = await connectToPolygon();
-  if(!newContract){
+  if (!newContract) {
     return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
   }
   // const { newOwnerAddress } = req.body;
@@ -334,7 +362,7 @@ const removeTrustedOwner = async (req, res) => {
 
         // Prepare success response
         const responseMessage = {
-          code: 200, 
+          code: 200,
           status: "SUCCESS",
           message: messageInfo,
           details: `https://${process.env.NETWORK}/tx/${txHash}`
@@ -382,7 +410,7 @@ const checkBalance = async (req, res) => {
     // Prepare balance response
     const balanceResponse = {
       code: 200,
-      status: "SUCCESS", 
+      status: "SUCCESS",
       message: messageCode.msgBalanceCheck,
       balance: fixedDecimals,
     };
@@ -409,7 +437,7 @@ const createAndValidateIssuerIdUponLogin = async (req, res) => {
     return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
   const newContract = await connectToPolygon();
-  if(!newContract){
+  if (!newContract) {
     return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
   }
   const email = req.body.email;
@@ -588,33 +616,33 @@ const createAndValidateIssuerIdUponLogin = async (req, res) => {
         }
 
         creditsExist = await ServiceAccountQuotas.find({ issuerId: userExist.issuerId });
-          if (!creditsExist || creditsExist.length < statusCount) {
-            for (let count = 1; count < 5; count++) {
-              let serviceName = creditToServiceName[count];
-              let serveiceExist = await ServiceAccountQuotas.findOne({
+        if (!creditsExist || creditsExist.length < statusCount) {
+          for (let count = 1; count < 5; count++) {
+            let serviceName = creditToServiceName[count];
+            let serveiceExist = await ServiceAccountQuotas.findOne({
+              issuerId: userExist.issuerId,
+              serviceId: serviceName
+            });
+
+            if (!serveiceExist) {
+              // Initialise credits
+              let newServiceAccountQuota = new ServiceAccountQuotas({
                 issuerId: userExist.issuerId,
-                serviceId: serviceName
+                serviceId: serviceName,
+                limit: serviceLimit,
+                status: true,
+                createdAt: todayDate,
+                updatedAt: todayDate,
+                resetAt: todayDate
               });
 
-              if (!serveiceExist) {
-                // Initialise credits
-                let newServiceAccountQuota = new ServiceAccountQuotas({
-                  issuerId: userExist.issuerId,
-                  serviceId: serviceName,
-                  limit: serviceLimit,
-                  status: true,
-                  createdAt: todayDate,
-                  updatedAt: todayDate,
-                  resetAt: todayDate
-                });
-
-                // await newServiceAccountQuota.save();
-                insertPromises.push(newServiceAccountQuota.save());
-              }
+              // await newServiceAccountQuota.save();
+              insertPromises.push(newServiceAccountQuota.save());
             }
-            // Wait for all insert promises to resolve
-            await Promise.all(insertPromises);
           }
+          // Wait for all insert promises to resolve
+          await Promise.all(insertPromises);
+        }
 
         return res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgIssuerIdExist });
       }
@@ -655,7 +683,7 @@ const allocateCredits = async (req, res) => {
   var service = parseInt(_service);
   var credits = parseInt(_credits);
 
-  if(credits > maxCreditLimit){
+  if (credits > maxCreditLimit) {
     return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgValidCredits });
   }
 
@@ -669,7 +697,7 @@ const allocateCredits = async (req, res) => {
   try {
     var dbStatus = isDBConnected();
     if (dbStatus) {
-     
+
       // Check if user with provided email exists
       const issuerExist = await isValidIssuer(email);
 
@@ -686,7 +714,7 @@ const allocateCredits = async (req, res) => {
         return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgFetchQuotaFailed });
       }
 
-      if(fetchServiceQuota.status == false && credits > 0){
+      if (fetchServiceQuota.status == false && credits > 0) {
         return res.status(400).json({ code: 400, status: "FAILED", message: `${messageCode.msgNoCreditsForService} : ${creditToServiceName[service]}` });
       }
 
@@ -720,7 +748,7 @@ const allocateCredits = async (req, res) => {
 // Blockchain call for Grant / Revoke Issuer role
 const grantOrRevokeRoleWithRetry = async (roleStatus, role, id, retryCount = 3) => {
   const newContract = await connectToPolygon();
-  if(!newContract){
+  if (!newContract) {
     return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
   }
   try {
