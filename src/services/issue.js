@@ -56,18 +56,19 @@ const {
 // import bull queue
 const Queue = require("bull")
 // Define the Redis connection options
-const redisConfig = {
-    redis: {
-      port: process.env.REDIS_PORT || 6379,  // Redis port (6380 from your env)
-      host: process.env.REDIS_HOST || 'localhost',  // Redis host (127.0.0.1 from your env)
-    }
-  };
+// const redisConfig = {
+//     redis: {
+//       port: process.env.REDIS_PORT || 6379,  // Redis port (6380 from your env)
+//       host: process.env.REDIS_HOST || 'localhost',  // Redis host (127.0.0.1 from your env)
+//       password:'BaxTkslqBo7XZ7nK9nCAetraPywcQ2vn'
+//     }
+//   };
 
-const bulkIssueQueue = new Queue("bulkIssueQueue", redisConfig);
+// const bulkIssueQueue = new Queue("bulkIssueQueue", redisConfig);
 
-bulkIssueQueue.on('ready', () => {
-    console.log('Queue is connected to Redis and ready to process jobs');
-  });
+// bulkIssueQueue.on('ready', () => {
+//     console.log('Queue is connected to Redis and ready to process jobs');
+//   });
 
 const { uploadImageToS3, _uploadImageToS3 } = require('../utils/upload');
 
@@ -100,7 +101,7 @@ const max_length = parseInt(process.env.MAX_LENGTH);
 
 const messageCode = require("../common/codes");
 const { getChunkSizeAndConcurrency, waitForJobsToComplete, cleanUpJobs, addJobsInChunks } = require('../queue_service/queueUtils');
-const processBulkIssueJob = require('../queue_service/bulkIssueQueueProcessor');
+const {processBulkIssueJob,s3UploadQueue} = require('../queue_service/bulkIssueQueueProcessor');
 const rootDirectory = path.join(__dirname, '../../');
 
 const handleIssueCertification = async (email, certificateNumber, name, courseName, _grantDate, _expirationDate, qrOption) => {
@@ -1190,6 +1191,29 @@ const handleIssueDynamicPdfCertification = async (email, certificateNumber, name
   }
 };
 
+const processListener = async (job) => {
+  try {
+    // Process the job
+    const result = await processBulkIssueJob(job);
+
+    // Check the result and handle failures
+    if (result.status === false) {
+      console.log(result)
+      // Optionally pause the queue if a failure occurs
+      await bulkIssueQueue.pause();
+      // Create and throw a detailed error
+      const message = result.message + " " + (result.Details || "");
+      throw new Error(message);
+    }
+
+    // Return the result if successful
+    return { URLS: result.URLS };
+  } catch (error) {
+    // Handle errors
+    throw new Error(`${error.message} ${error.details || ""}`);
+  }
+};
+
 const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResponse, excelFilePath, posx, posy, qrside, pdfWidth, pdfHeight, qrOption, flag) => {
   const newContract = await connectToPolygon();
   if (!newContract) {
@@ -1273,8 +1297,8 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
         console.log("working directory", __dirname);
         const pdfCount = pdfResponse.length;
         // const {chunkSize, concurrency}= getChunkSizeAndConcurrency(pdfCount)
-        const chunkSize=5
-        const concurrency=2
+        const chunkSize=10
+        const concurrency=20
         console.log(`chunk size : ${chunkSize} concurrency : ${concurrency}`)
 
 
@@ -1284,6 +1308,7 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
         redis: {
           port: process.env.REDIS_PORT || 6379,  // Redis port (6380 from your env)
           host: process.env.REDIS_HOST || 'localhost',  // Redis host (127.0.0.1 from your env)
+           password:'BaxTkslqBo7XZ7nK9nCAetraPywcQ2vn'
         }
       };
       const queueName = `bulkIssueQueue${issuerId}`
@@ -1293,6 +1318,7 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
       bulkIssueQueue.on('ready', () => {
         console.log('Queue is connected to Redis and ready to process jobs');
       });
+      bulkIssueQueue.process(concurrency, processListener)
 
         const jobDataCallback = (chunk) => ({
           pdfResponse: chunk,
@@ -1314,7 +1340,8 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
           qrOption
        
         });
-        bulkIssueQueue.process(concurrency, processListener)
+    
+       
 
         // Add jobs in chunks with custom job data
         const jobs = await addJobsInChunks(
@@ -1324,6 +1351,7 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
           jobDataCallback
         );
         
+        
         const insertUrl=await waitForJobsToComplete(jobs);
 
         console.log("final s3 urls");
@@ -1332,6 +1360,8 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
 
          // Cleanup jobs
          await cleanUpJobs(bulkIssueQueue)
+         await cleanUpJobs(s3UploadQueue)
+         await wipeUploadFolder()
          console.log("queue cleanup success..");
 
      
@@ -1367,33 +1397,6 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
   }
 
 };
-
-const processListener = async (job) => {
-  try {
-    // Process the job
-    const result = await processBulkIssueJob(job);
-
-    // Check the result and handle failures
-    if (result.status === false) {
-      console.log(result)
-      // Optionally pause the queue if a failure occurs
-      await bulkIssueQueue.pause();
-      // Create and throw a detailed error
-      const message = result.message + " " + (result.Details || "");
-      throw new Error(message);
-    }
-
-    // Return the result if successful
-    return { URLS: result.URLS };
-  } catch (error) {
-    // Handle errors
-    throw new Error(`${error.message} ${error.details || ""}`);
-  }
-};
-
-const processQueue = (concurrency)=>{
-  bulkIssueQueue.process(concurrency, processListener)
-}
 
 const _dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResponse, excelFilePath, posx, posy, qrside, pdfWidth, pdfHeight, qrOption, flag) => {
   const newContract = await connectToPolygon();

@@ -224,7 +224,7 @@ const _convertPdfBufferToPng = async (certNumber, pdfBuffer, _width, _height) =>
 
         const _keyName = `${certNumber}.png`;
         const s3 = new AWS.S3();
-        const keyPrefix = 'dynamic_bulk_issues/';
+        const keyPrefix = 'dynamic_test_bulk_issues/';
         const keyName = keyPrefix + _keyName;
 
         const uploadParams = {

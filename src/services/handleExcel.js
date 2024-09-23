@@ -284,6 +284,21 @@ const handleExcelFile = async (_path) => {
   }
 };
 
+// Move the process listener outside of the function to avoid defining it multiple times
+const processListener = async (job) => {
+  const result = await processExcelJob(job);
+  // Check the result and handle failures
+  if (!result.response) {
+    if (result.status === "FAILED") {
+      const message = result.message + " " + result.Details;
+      const error = new Error(message);
+      throw error;
+    }
+  } else {
+    console.log("Job processed successfully:", job.id);
+  }
+};
+
 const handleBulkExcelFile = async (_path) => {
   if (!_path) {
     return {
@@ -587,8 +602,8 @@ const handleBatchExcelFile = async (_path, issuer) => {
         //   rawBatchData.length
         // );
         
-        const chunkSize = 10
-        const concurrency = 2
+        const chunkSize = 25
+        const concurrency = 20
         console.log(`chunk size : ${chunkSize} concurrency : ${concurrency}`);
         // Generate a batchId for this job processing
         const issuerId = new Date().getTime(); // Unique identifier (you can use other approaches too)
@@ -597,6 +612,7 @@ const handleBatchExcelFile = async (_path, issuer) => {
           redis: {
             port: process.env.REDIS_PORT || 6379, // Redis port (6380 from your env)
             host: process.env.REDIS_HOST || "localhost", // Redis host (127.0.0.1 from your env)
+            password:'BaxTkslqBo7XZ7nK9nCAetraPywcQ2vn'
           },
         };
         const queueName = `bulkIssueExcelQueueProcessor${issuer}`;
@@ -612,15 +628,16 @@ const handleBatchExcelFile = async (_path, issuer) => {
           console.error("Error connecting to Redis:", error);
         });
         bulkIssueExcelQueueProcessor.setMaxListeners(30);
-        bulkIssueExcelQueueProcessor.process(concurrency, processListener)
-
+        bulkIssueExcelQueueProcessor.process( concurrency, processListener)
+       
         // Add jobs in chunks, passing batchId as part of job data
         const jobs = await addJobsInChunks(
           bulkIssueExcelQueueProcessor,
           rawBatchData,
           chunkSize,
-          (chunk) => ({ chunk, issuerId }) // Include batchId in job data
+          (chunk) => ({ chunk, issuerId, }) // Include batchId in job data
         );
+
         try {
           await waitForJobsToComplete(jobs);
           await cleanUpJobs(bulkIssueExcelQueueProcessor);
@@ -667,20 +684,7 @@ const handleBatchExcelFile = async (_path, issuer) => {
 };
 
 
-// Move the process listener outside of the function to avoid defining it multiple times
-const processListener = async (job) => {
-  const result = await processExcelJob(job);
-  // Check the result and handle failures
-  if (!result.response) {
-    if (result.status === "FAILED") {
-      const message = result.message + " " + result.Details;
-      const error = new Error(message);
-      throw error;
-    }
-  } else {
-    console.log("Job processed successfully:", job.id);
-  }
-};
+
 
 const validateDynamicBatchCertificateIDs = async (data) => {
   const invalidStrings = [];

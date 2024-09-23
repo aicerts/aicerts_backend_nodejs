@@ -1,5 +1,6 @@
 // queueUtils.js
 
+
 const processBulkExcelJobs = require("./bulkIssueExcelQueueProcessor")
 
  const processExcelJob = async (job) => {
@@ -42,7 +43,7 @@ async function addJobsInChunks(queue, data, chunkSize, jobDataCallback) {
       const chunk = data.slice(i, i + chunkSize);
       const jobData = jobDataCallback ? jobDataCallback(chunk) : chunk; // Use callback or default to chunk
       // Add job to the queue
-      const job = await queue.add(jobData);
+      const job = await queue.add(jobData, {attempts:2} );
       console.log("job added to bulkIssue Queue", i)
       jobs.push(job);
     }
@@ -76,7 +77,7 @@ async function cleanUpJobs(queue) {
       console.error('Error during queue obliteration:', error);
     } finally {
       // Close the queue to prevent new jobs from being added
-      await queue.close(); 
+      // await queue.close(); 
       console.log('Queue closed');
     }
   }

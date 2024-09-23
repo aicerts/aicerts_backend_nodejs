@@ -12,6 +12,8 @@ const { StandardMerkleTree } = require("@openzeppelin/merkle-tree");
 const { validationResult } = require("express-validator");
 const archiver = require('archiver');
 const unzipper = require('unzipper');
+const os = require("os")
+const StreamZip = require("node-stream-zip")
 
 const pdf = require("pdf-lib"); // Library for creating and modifying PDF documents
 const { PDFDocument } = pdf;
@@ -805,35 +807,36 @@ const dynamicBatchIssueCertificates = async (req, res) => {
       return;
     }
 
-    // Function to check if a file is empty
-    const stats = fs.statSync(filePath);
-    var zipFileSize = parseInt(stats.size);
-    if (zipFileSize <= 100) {
-      res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUnableToFindFiles });
-      // await cleanUploadFolder();
-      await wipeUploadFolder();
-      return;
-    }
-    // Create a readable stream from the zip file
-    const readStream = fs.createReadStream(filePath);
+     // Function to check if a file is empty
+     const stats = fs.statSync(filePath);
+     var zipFileSize = parseInt(stats.size);
+     if (zipFileSize <= 100) {
+       res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUnableToFindFiles });
+       // await cleanUploadFolder();
+       await wipeUploadFolder();
+       return;
+     }
+     // Create a readable stream from the zip file
+     const readStream = fs.createReadStream(filePath);
+ 
+     if (fs.existsSync(destDirectory)) {
+       // Delete the existing directory recursively
+       fs.rmSync(destDirectory, { recursive: true });
+     }
+     // Pipe the read stream to the unzipper module for extraction
+     await new Promise((resolve, reject) => {
+       readStream.pipe(unzipper.Extract({ path: extractionPath }))
+         .on('error', err => {
+           console.error('Error extracting zip file:', err);
+           res.status(400).json({ status: "FAILED", message: messageCode.msgUnableToFindFiles, details: err });
+           reject(err);
+         })
+         .on('finish', () => {
+           console.log('Zip file extracted successfully.');
+           resolve();
+         });
+     });
 
-    if (fs.existsSync(destDirectory)) {
-      // Delete the existing directory recursively
-      fs.rmSync(destDirectory, { recursive: true });
-    }
-    // Pipe the read stream to the unzipper module for extraction
-    await new Promise((resolve, reject) => {
-      readStream.pipe(unzipper.Extract({ path: extractionPath }))
-        .on('error', err => {
-          console.error('Error extracting zip file:', err);
-          res.status(400).json({ status: "FAILED", message: messageCode.msgUnableToFindFiles, details: err });
-          reject(err);
-        })
-        .on('finish', () => {
-          console.log('Zip file extracted successfully.');
-          resolve();
-        });
-    });
     filesList = await fs.promises.readdir(extractionPath);
 
     let zipExist = await findDirectories(filesList);
