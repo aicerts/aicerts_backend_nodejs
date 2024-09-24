@@ -26,9 +26,9 @@ const swaggerOptions = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'Blockchain API',
+      title: 'Certs365 admin API',
       version: '1.0.0',
-      description: 'API documentation for Blockchain module',
+      description: 'API documentation for Certs365 admin module',
     },
   },
   apis: ['./src/routes/*.js'], // Add other paths if needed
