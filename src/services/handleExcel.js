@@ -13,8 +13,8 @@ const {
 const { Issues, DynamicBatchIssues } = require("../config/schema");
 
 // Parse environment variables for password length constraints
-const min_length = parseInt(process.env.MIN_LENGTH) || 12;
-const max_length = parseInt(process.env.MAX_LENGTH) || 25;
+const min_length = 6;
+const max_length = 50;
 const cert_limit = parseInt(process.env.BATCH_LIMIT);
 const sheetName = process.env.SHEET_NAME || 'Batch';
 
@@ -388,7 +388,7 @@ const handleBatchExcelFile = async (_path) => {
                 const invalidIdList = await validateDynamicBatchCertificateIDs(documentIDs);
                 const invalidNamesList = await validateDynamicBatchCertificateNames(holderNames);
                 if (invalidIdList != false) {
-                    return { status: "FAILED", response: false, message: messageCode.msgInvalidCertIds, Details: invalidIdList };
+                    return { status: "FAILED", response: false, message: messageCode.msgInvalidDocIds, Details: invalidIdList };
                 }
 
                 if (invalidNamesList != false) {
@@ -429,7 +429,7 @@ const validateDynamicBatchCertificateIDs = async (data) => {
 
     data.forEach(num => {
         const str = num.toString(); // Convert number to string
-        if (str.length < min_length || str.length > 50 || specialCharsRegex.test(str)) {
+        if (str.length < min_length || str.length > max_length || specialCharsRegex.test(str)) {
             invalidStrings.push(str);
         }
     });
@@ -445,7 +445,7 @@ const validateDynamicBatchCertificateNames = async (names) => {
     const invalidNames = [];
     names.forEach(name => {
         const str = name.toString(); // Convert number to string
-        if (str.length > 40 || specialCharsRegex.test(str)) {
+        if (str.length < min_length || str.length > max_length || specialCharsRegex.test(str)) {
             invalidNames.push(str);
         }
     });
