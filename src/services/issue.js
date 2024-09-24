@@ -353,6 +353,7 @@ const handleIssuance = async (email, certificateNumber, name, courseName, _grant
   }
   const issueFlag = flag;
   var getTxHash = null;
+  var getTxFee = null;
   try {
     var [grantDate, expirationDate] = await Promise.all([
       convertDateFormat(_grantDate),
@@ -409,6 +410,7 @@ const handleIssuance = async (email, certificateNumber, name, courseName, _grant
       let errorMessage = messageCode.msgPlsEnterValid;
       var moreDetails = '';
       var txHash = null;
+      var txFee = null;
 
       // Check for specific error conditions and update the error message accordingly
       if (isCertificationExist) {
@@ -508,6 +510,7 @@ const handleIssuance = async (email, certificateNumber, name, courseName, _grant
               }
             } else {
               txHash = transactionResponse.message;
+              txFee = transactionResponse.txFee;
             }
 
           } else {
@@ -571,6 +574,7 @@ const handleIssuance = async (email, certificateNumber, name, courseName, _grant
             var certificateData = {
               issuerId,
               transactionHash: txHash,
+              transactionFee: txFee,
               certificateHash: combinedHash,
               certificateNumber: fields.Certificate_Number,
               name: fields.name,
@@ -1501,11 +1505,12 @@ const issueCustomCertificateWithRetry = async (certificateNumber, certificateHas
     );
 
     const txHash = tx.hash;
+    let txFee = await fetchOrEstimateTransactionFee(tx);
 
     if (!txHash) {
       throw new Error('Transaction hash is null');
     }
-    return ({ code: 200, message: txHash });
+    return ({ code: 200, message: txHash,  txFee: txFee});
 
   } catch (error) {
     if (error.reason == 'Certificate already issued') {

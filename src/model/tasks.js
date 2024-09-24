@@ -564,8 +564,8 @@ const insertIssuanceCertificateData = async (data) => {
       const previousCount = idExist.certificatesIssued || 0; // Initialize to 0 if certificatesIssued field doesn't exist
       idExist.certificatesIssued = previousCount + 1;
       // If user with given id exists, update certificatesIssued transation fee
-      // const previousrtransactionFee = idExist.transactionFee || 0; // Initialize to 0 if transactionFee field doesn't exist
-      // idExist.transactionFee = previousrtransactionFee + data.transactionFee;
+      const previousrtransactionFee = idExist.transactionFee || 0; // Initialize to 0 if transactionFee field doesn't exist
+      idExist.transactionFee = previousrtransactionFee + data.transactionFee;
       await idExist.save(); // Save the changes to the existing user
     }
     // Logging confirmation message

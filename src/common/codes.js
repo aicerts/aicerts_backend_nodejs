@@ -35,6 +35,7 @@ module.exports = {
     msgFailedToRenewRetry: "Failed to Extend expiration after retries. Please try again...",
     msgErrorInFetching: "Unable to fetch requested details",
     msgNoMatchFoundInDates: "No match Found on given date",
+    msgOnlyAlphabets: "Please provide names with valid format",
 
     // Handle Excel with Zip
     msgMustZip: "Must upload Zip file format",

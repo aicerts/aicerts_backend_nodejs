@@ -297,7 +297,6 @@ const handleBulkExcelFile = async (_path) => {
 }
 
 const handleBatchExcelFile = async (_path) => {
-
     if (!_path) {
         return { status: "FAILED", response: false, message: "Failed to provide excel file" };
     }
@@ -363,14 +362,6 @@ const handleBatchExcelFile = async (_path) => {
                     return obj; // Return the processed row data
                 });
 
-                // const targetData = rows.map(row => {
-                //     const obj = {};
-                //     headers.forEach((header, index) => {
-                //         obj[header] = row[index];
-                //     });
-                //     return obj; // Return the fetched rows
-                // });
-
                 // Batch Certification Formated Details
                 var rawBatchData = targetData;
 
@@ -396,7 +387,6 @@ const handleBatchExcelFile = async (_path) => {
                 const repetitiveNumbers = await findRepetitiveIdNumbers(documentIDs);
                 const invalidIdList = await validateDynamicBatchCertificateIDs(documentIDs);
                 const invalidNamesList = await validateDynamicBatchCertificateNames(holderNames);
-
                 if (invalidIdList != false) {
                     return { status: "FAILED", response: false, message: messageCode.msgInvalidCertIds, Details: invalidIdList };
                 }
@@ -455,7 +445,7 @@ const validateDynamicBatchCertificateNames = async (names) => {
     const invalidNames = [];
     names.forEach(name => {
         const str = name.toString(); // Convert number to string
-        if (str.length > 40) {
+        if (str.length > 40 || specialCharsRegex.test(str)) {
             invalidNames.push(str);
         }
     });
