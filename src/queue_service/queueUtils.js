@@ -101,7 +101,10 @@ const waitForJobsToComplete = async (jobs) => {
     );
     
     // Extract all URLS from the results
-    const allUrls = results.flatMap(result => result.URLS);
+    const allUrls = results.flatMap((result)=>{
+      console.log(result.URLS)
+      return result.URLS
+    });
     return allUrls; // Return the aggregated URLs
   } catch (error) {
     console.error("Error waiting for jobs to complete:", error.message);

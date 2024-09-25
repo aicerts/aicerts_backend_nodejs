@@ -1297,8 +1297,8 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
         console.log("working directory", __dirname);
         const pdfCount = pdfResponse.length;
         // const {chunkSize, concurrency}= getChunkSizeAndConcurrency(pdfCount)
-        const chunkSize=10
-        const concurrency=20
+        const chunkSize=parseInt(process.env.BULK_ISSUE_CHUNK)
+        const concurrency=parseInt(process.env.BULK_ISSUE_CHUNK)
         console.log(`chunk size : ${chunkSize} concurrency : ${concurrency}`)
 
 
@@ -1308,7 +1308,7 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
         redis: {
           port: process.env.REDIS_PORT || 6379,  // Redis port (6380 from your env)
           host: process.env.REDIS_HOST || 'localhost',  // Redis host (127.0.0.1 from your env)
-           password:'BaxTkslqBo7XZ7nK9nCAetraPywcQ2vn'
+           password:'4lylWWVTHA3zB3NRg8pmR6K35PxnmTYB'
         }
       };
       const queueName = `bulkIssueQueue${issuerId}`

@@ -7,6 +7,7 @@ const path = require("path");
 const {
   isCertificationIdExisted,
   isBulkCertificationIdExisted,
+  wipeUploadFolder,
 } = require("../model/tasks"); // Importing functions from the '../model/tasks' module
 
 // Import MongoDB models
@@ -602,8 +603,8 @@ const handleBatchExcelFile = async (_path, issuer) => {
         //   rawBatchData.length
         // );
         
-        const chunkSize = 25
-        const concurrency = 20
+        const chunkSize = parseInt(process.env.EXCEL_CHUNK)
+        const concurrency = parseInt(process.env.EXCEL_CONC)
         console.log(`chunk size : ${chunkSize} concurrency : ${concurrency}`);
         // Generate a batchId for this job processing
         const issuerId = new Date().getTime(); // Unique identifier (you can use other approaches too)
@@ -612,7 +613,7 @@ const handleBatchExcelFile = async (_path, issuer) => {
           redis: {
             port: process.env.REDIS_PORT || 6379, // Redis port (6380 from your env)
             host: process.env.REDIS_HOST || "localhost", // Redis host (127.0.0.1 from your env)
-            password:'BaxTkslqBo7XZ7nK9nCAetraPywcQ2vn'
+            password:'4lylWWVTHA3zB3NRg8pmR6K35PxnmTYB'
           },
         };
         const queueName = `bulkIssueExcelQueueProcessor${issuer}`;
@@ -642,6 +643,7 @@ const handleBatchExcelFile = async (_path, issuer) => {
           await waitForJobsToComplete(jobs);
           await cleanUpJobs(bulkIssueExcelQueueProcessor);
         } catch (error) {
+          // await wipeUploadFolder()
           return {
             status: 400,
             response: false,
@@ -651,6 +653,7 @@ const handleBatchExcelFile = async (_path, issuer) => {
           // Remove the process listener after processing jobs
           bulkIssueExcelQueueProcessor.removeAllListeners()
           console.log("bulkIssue queue listener remved... ");
+         
         }
         console.log("all jobs for excel data completed...");
 
