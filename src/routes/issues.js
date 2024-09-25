@@ -58,9 +58,6 @@ const storage = multer.diskStorage({
  *               expirationDate:
  *                 type: string
  *                 description: The expiration date of the certificate.
- *               qrOption:
- *                 type: number
- *                 description: The QR option have a template code [1, 2, 3 ...].
  *             required:
  *               - email
  *               - certificateNumber
@@ -364,9 +361,6 @@ router.post('/issuance', validationRoute.issuance, ensureAuthenticated, adminCon
  *                 description: PDF file to be uploaded.
  *                 x-parser:
  *                   expression: file.originalname.endsWith('.pdf') // Allow only PDF files
- *               qrOption:
- *                 type: number
- *                 description: The QR option have a template code [1, 2, 3 ...].
  *             required:
  *               - email
  *               - certificateNumber
@@ -494,9 +488,6 @@ router.post('/issue-pdf', _upload.single("file"), ensureAuthenticated, adminCont
  *                 description: PDF file to be uploaded.
  *                 x-parser:
  *                   expression: file.originalname.endsWith('.pdf') // Allow only PDF files
- *               qrOption:
- *                 type: number
- *                 description: The QR option have a template code [1, 2, 3 ...].
  *             required:
  *               - email
  *               - certificateNumber
@@ -590,9 +581,6 @@ router.post('/issue-dynamic-pdf', _upload.single("file"), ensureAuthenticated, a
  *                 type: string
  *                 format: binary
  *                 description: Excel file to be uploaded. Must not be blank.
- *               qrOption:
- *                 type: number
- *                 description: The QR option have a template code [1, 2, 3 ...].
  *             required:
  *               - email
  *               - excelFile
@@ -717,9 +705,6 @@ router.post('/batch-certificate-issue', __upload.single("excelFile"), ensureAuth
  *                 type: string
  *                 format: binary
  *                 description: ZIP file containing the PDF certificates & Excel to be issued.
- *               qrOption:
- *                 type: number
- *                 description: The QR option have a template code [1, 2, 3 ...].
  *               flag:
  *                 type: number
  *                 description: Provide flag for download option 0:S3 JSON Response, 1:Zip response.
