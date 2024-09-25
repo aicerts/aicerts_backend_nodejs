@@ -203,21 +203,21 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                             qrCodeData = urlLink;
                         }
 
-                        if (urlLink) {
-                            let dbStatus = await isDBConnected();
-                            if (dbStatus) {
-                                var urlExist = await ShortUrl.findOne({ certificateNumber: certificateNumber });
-                                if (urlExist) {
-                                    urlExist.url = urlLink;
-                                    await urlExist.save();
-                                    shortUrlStatus = true;
-                                }
-                            }
-                        }
+                        // if (urlLink) {
+                        //     let dbStatus = await isDBConnected();
+                        //     if (dbStatus) {
+                        //         var urlExist = await ShortUrl.findOne({ certificateNumber: certificateNumber });
+                        //         if (urlExist) {
+                        //             urlExist.url = urlLink;
+                        //             await urlExist.save();
+                        //             shortUrlStatus = true;
+                        //         }
+                        //     }
+                        // }
 
-                        if (shortUrlStatus) {
-                            modifiedUrl = process.env.SHORT_URL + certificateNumber;
-                        }
+                        // if (shortUrlStatus) {
+                        modifiedUrl = process.env.SHORT_URL + certificateNumber;
+                        // }
 
                         const _qrCodeData = modifiedUrl != false ? modifiedUrl : qrCodeData;
 
@@ -423,21 +423,21 @@ const handleRenewCertification = async (email, certificateNumber, _expirationDat
                                     qrCodeData = urlLink;
                                 }
 
-                                if (urlLink) {
-                                    let dbStatus = await isDBConnected();
-                                    if (dbStatus) {
-                                        let urlExist = await ShortUrl.findOne({ certificateNumber: certificateNumber });
-                                        if (urlExist) {
-                                            urlExist.url = urlLink;
-                                            await urlExist.save();
-                                            shortUrlStatus = true;
-                                        }
-                                    }
-                                }
+                                // if (urlLink) {
+                                //     let dbStatus = await isDBConnected();
+                                //     if (dbStatus) {
+                                //         let urlExist = await ShortUrl.findOne({ certificateNumber: certificateNumber });
+                                //         if (urlExist) {
+                                //             urlExist.url = urlLink;
+                                //             await urlExist.save();
+                                //             shortUrlStatus = true;
+                                //         }
+                                //     }
+                                // }
 
-                                if (shortUrlStatus) {
-                                    modifiedUrl = process.env.SHORT_URL + certificateNumber;
-                                }
+                                // if (shortUrlStatus) {
+                                modifiedUrl = process.env.SHORT_URL + certificateNumber;
+                                // }
 
                                 const _qrCodeData = modifiedUrl != false ? modifiedUrl : qrCodeData;
 

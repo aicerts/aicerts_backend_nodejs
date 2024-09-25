@@ -124,7 +124,6 @@ const issuePdf = async (req, res) => {
     const certificateNumber = req.body.certificateNumber;
     const name = req.body.name;
     const courseName = req.body.course;
-    const qrOption = parseInt(req.body.qrOption) || 0;
     const _grantDate = await convertDateFormat(req.body.grantDate);
 
     // Verify with existing credits limit of an issuer to perform the operation
@@ -163,7 +162,7 @@ const issuePdf = async (req, res) => {
       return;
     }
 
-    const issueResponse = await handleIssuePdfCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate, req.file.path, qrOption);
+    const issueResponse = await handleIssuePdfCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate, req.file.path);
     const responseDetails = issueResponse.details ? issueResponse.details : '';
     if (issueResponse.code == 200) {
       // Update Issuer credits limit (decrease by 1)
@@ -205,7 +204,6 @@ const issueDynamicPdf = async (req, res) => {
   var file = req?.file;
   const fileBuffer = fs.readFileSync(req.file.path);
   const pdfDoc = await PDFDocument.load(fileBuffer);
-  const qrOption = req.body.qrOption || 0;
   let _expirationDate;
 
   if (pdfDoc.getPageCount() > 1) {
@@ -256,7 +254,7 @@ const issueDynamicPdf = async (req, res) => {
       }
     }
 
-    const issueResponse = await handleIssueDynamicPdfCertification(email, certificateNumber, certificateName, customFields, req.file.path, _positionX, _positionY, _qrsize, qrOption);
+    const issueResponse = await handleIssueDynamicPdfCertification(email, certificateNumber, certificateName, customFields, req.file.path, _positionX, _positionY, _qrsize);
     const responseDetails = issueResponse.details ? issueResponse.details : '';
     if (issueResponse.code == 200) {
       // Update Issuer credits limit (decrease by 1)
@@ -301,7 +299,6 @@ const issue = async (req, res) => {
     const certificateNumber = req.body.certificateNumber;
     const name = req.body.name;
     const courseName = req.body.course;
-    const qrOption = parseInt(req.body.qrOption) || 0;
     const _grantDate = await convertDateFormat(req.body.grantDate);
     let _expirationDate;
     // Verify with existing credits limit of an issuer to perform the operation
@@ -340,7 +337,7 @@ const issue = async (req, res) => {
       return;
     }
 
-    const issueResponse = await handleIssueCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate, qrOption);
+    const issueResponse = await handleIssueCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate);
     const responseDetails = issueResponse.details ? issueResponse.details : '';
     if (issueResponse.code == 200) {
 
@@ -423,7 +420,7 @@ const batchIssueCertificate = async (req, res) => {
     return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
   }
   const email = req.body.email;
-  const qrOption = req.body.qrOption || 0;
+  var qrOption = 0;
   var file = req?.file;
   // Check if the file path matches the pattern
   if (req.file.mimetype != fileType) {
@@ -462,6 +459,10 @@ const batchIssueCertificate = async (req, res) => {
     await isDBConnected();
     const idExist = issuerExist;
     let filePath = req.file.path;
+
+    if(idExist.qrPreference){
+      qrOption = idExist.qrPreference;
+    }
 
     // Fetch the records from the Excel file
     const excelData = await handleExcelFile(filePath);
@@ -752,14 +753,13 @@ const dynamicBatchIssueCertificates = async (req, res) => {
     return;
   }
 
-  const qrOption = req.body.qrOption || 0;
-
   var filesList = [];
   // Initialize an empty array to store the file(s) ending with ".xlsx"
   var xlsxFiles = [];
   // Initialize an empty array to store the file(s) ending with ".pdf"
   var pdfFiles = [];
   var existIssuerId;
+  var qrOption = 0;
 
 
   var today = new Date();
@@ -816,6 +816,10 @@ const dynamicBatchIssueCertificates = async (req, res) => {
       }
       res.status(400).json({ code: 400, status: "FAILED", message: messageContent, details: email });
       return;
+    }
+
+    if(emailExist.qrPreference){
+      qrOption = emailExist.qrPreference;
     }
 
     // Function to check if a file is empty

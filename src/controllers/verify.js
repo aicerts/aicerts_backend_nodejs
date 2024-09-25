@@ -144,7 +144,6 @@ const verify = async (req, res) => {
               return res.status(400).json({ code: 400, status: "FAILED", message: verificationResponse });
             }
           }
-          var isUrlExisted = await ShortUrl.findOne({ certificateNumber: certificationNumber });
           var isDynamicCertificateExist = await isDynamicCertificationIdExisted(certificationNumber);
           if (isIdExist) {
             if (isIdExist.certificateStatus == 6) {
@@ -182,7 +181,7 @@ const verify = async (req, res) => {
               return;
             }
 
-            let originalUrl = isUrlExisted != null ? process.env.SHORT_URL + certificationNumber : null;
+            let originalUrl = process.env.SHORT_URL + certificationNumber;
             let certUrl = (isIdExist.url != undefined && (isIdExist.url).length > 1) ? isIdExist.url : null;
             let formattedResponse = {
               "Certificate Number": isIdExist.certificateNumber,
@@ -221,7 +220,7 @@ const verify = async (req, res) => {
             return res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgCertValid, details: formattedResponse });
 
           } else if (isDynamicCertificateExist) {
-            let originalUrl = isUrlExisted != null ? process.env.SHORT_URL + certificationNumber : null;
+            let originalUrl = process.env.SHORT_URL + certificationNumber;
             let responseFields = isDynamicCertificateExist.certificateFields;
             let formattedDynamicResponse = {
               "Certificate Number": isDynamicCertificateExist.certificateNumber,
@@ -451,10 +450,9 @@ const decodeQRScan = async (req, res) => {
               return res.status(400).json({ code: 400, status: "FAILED", message: verificationResponse });
             }
           }
-          var isUrlExisted = await ShortUrl.findOne({ certificateNumber: certificationNumber });
           var isDynamicCertificateExist = await isDynamicCertificationIdExisted(certificationNumber);
           if (isIdExist) {
-            let originalUrl = isUrlExisted != null ? process.env.SHORT_URL + certificationNumber : null;
+            let originalUrl = process.env.SHORT_URL + certificationNumber;
             let certUrl = (isIdExist.url != undefined && (isIdExist.url).length > 1) ? isIdExist.url : null;
             let formattedResponse = {
               "Certificate Number": isIdExist.certificateNumber,
@@ -481,7 +479,7 @@ const decodeQRScan = async (req, res) => {
             return res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgCertValid, details: formattedResponse });
 
           } else if (isDynamicCertificateExist) {
-            let originalUrl = isUrlExisted != null ? process.env.SHORT_URL + isDynamicCertificateExist.certificateNumber : null;
+            let originalUrl = process.env.SHORT_URL + isDynamicCertificateExist.certificateNumber;
             let responseFields = isDynamicCertificateExist.certificateFields;
             let formattedDynamicResponse = {
               "Certificate Number": isDynamicCertificateExist.certificateNumber,
@@ -708,7 +706,6 @@ const verifyCertificationId = async (req, res) => {
         }
       }
 
-      var isUrlExisted = await ShortUrl.findOne({ certificateNumber: inputId });
       var isDynamicCertificateExist = await isDynamicCertificationIdExisted(inputId);
       if (isIdExist) {
         if (isIdExist.certificateStatus == 6) {
@@ -722,11 +719,7 @@ const verifyCertificationId = async (req, res) => {
             'Polygon URL': _polygonLink
           };
 
-          if (isUrlExisted) {
-            completeResponse.url = process.env.SHORT_URL + isIdExist.certificateNumber;
-          } else {
-            completeResponse.url = null;
-          }
+          completeResponse.url = process.env.SHORT_URL + isIdExist.certificateNumber;
 
           let inputFileExist = await hasFilesInDirectory(uploadsPath);
           if (inputFileExist) {
@@ -746,7 +739,7 @@ const verifyCertificationId = async (req, res) => {
           return;
         }
 
-        let originalUrl = isUrlExisted != null ? process.env.SHORT_URL + isIdExist.certificateNumber : null;
+        let originalUrl = process.env.SHORT_URL + isIdExist.certificateNumber;
         let certUrl = (isIdExist.url != undefined && (isIdExist.url).length > 1) ? isIdExist.url : null;
         let formattedResponse = {
           "Certificate Number": isIdExist.certificateNumber,
@@ -779,7 +772,7 @@ const verifyCertificationId = async (req, res) => {
         return res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgCertValid, details: formattedResponse });
 
       } else if (isDynamicCertificateExist) {
-        let originalUrl = isUrlExisted != null ? process.env.SHORT_URL + isDynamicCertificateExist.certificateNumber : null;
+        let originalUrl = process.env.SHORT_URL + isDynamicCertificateExist.certificateNumber;
         let responseFields = isDynamicCertificateExist.certificateFields;
         let formattedDynamicResponse = {
           "Certificate Number": isDynamicCertificateExist.certificateNumber,

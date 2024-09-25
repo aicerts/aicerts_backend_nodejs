@@ -85,8 +85,9 @@ const max_length = parseInt(process.env.MAX_LENGTH);
 const messageCode = require("../common/codes");
 const rootDirectory = path.join(__dirname, '../../');
 
-const handleIssueCertification = async (email, certificateNumber, name, courseName, _grantDate, _expirationDate, qrOption) => {
+const handleIssueCertification = async (email, certificateNumber, name, courseName, _grantDate, _expirationDate) => {
   const newContract = await connectToPolygon();
+  var qrOption = 0;
   if (!newContract) {
     return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
   }
@@ -247,26 +248,29 @@ const handleIssueCertification = async (email, certificateNumber, name, courseNa
               qrCodeData = urlLink;
             }
 
-            if (urlLink) {
-              let dbStatus = await isDBConnected();
-              if (dbStatus) {
-                let urlData = {
-                  email: email,
-                  certificateNumber: certificateNumber,
-                  url: urlLink
-                }
-                await insertUrlData(urlData);
-                shortUrlStatus = true;
-              }
-            }
+            // if (urlLink) {
+            //   let dbStatus = await isDBConnected();
+            //   if (dbStatus) {
+            //     let urlData = {
+            //       email: email,
+            //       certificateNumber: certificateNumber,
+            //       url: urlLink
+            //     }
+            //     await insertUrlData(urlData);
+            //     shortUrlStatus = true;
+            //   }
+            // }
 
-            if (shortUrlStatus) {
-              modifiedUrl = process.env.SHORT_URL + certificateNumber;
-            }
+            // if (shortUrlStatus) {
+            modifiedUrl = process.env.SHORT_URL + certificateNumber;
+            // }
 
             var _qrCodeData = modifiedUrl != false ? modifiedUrl : qrCodeData;
             // console.log("Short URL", _qrCodeData);
 
+            if(idExist.qrPreference){
+              qrOption = idExist.qrPreference;
+            }
             // Generate vibrant QR
             const generateQr = await generateVibrantQr(_qrCodeData, 450, qrOption);
 
@@ -539,22 +543,22 @@ const handleIssuance = async (email, certificateNumber, name, courseName, _grant
           const dataWithLink = { ...fields, polygonLink: polygonLink }
           const urlLink = generateEncryptedUrl(dataWithLink);
 
-          if (urlLink) {
-            let dbStatus = await isDBConnected();
-            if (dbStatus) {
-              let urlData = {
-                email: email,
-                certificateNumber: certificateNumber,
-                url: urlLink
-              }
-              await insertUrlData(urlData);
-              shortUrlStatus = true;
-            }
-          }
+          // if (urlLink) {
+          //   let dbStatus = await isDBConnected();
+          //   if (dbStatus) {
+          //     let urlData = {
+          //       email: email,
+          //       certificateNumber: certificateNumber,
+          //       url: urlLink
+          //     }
+          //     await insertUrlData(urlData);
+          //     shortUrlStatus = true;
+          //   }
+          // }
 
-          if (shortUrlStatus == true) {
-            var modifiedUrl = process.env.SHORT_URL + certificateNumber;
-          }
+          // if (shortUrlStatus == true) {
+          var modifiedUrl = process.env.SHORT_URL + certificateNumber;
+          // }
 
           let _qrCodeData = modifiedUrl != false ? modifiedUrl : urlLink;
 
@@ -622,8 +626,9 @@ const handleIssuance = async (email, certificateNumber, name, courseName, _grant
   }
 };
 
-const handleIssuePdfCertification = async (email, certificateNumber, name, courseName, _grantDate, _expirationDate, _pdfPath, qrOption) => {
+const handleIssuePdfCertification = async (email, certificateNumber, name, courseName, _grantDate, _expirationDate, _pdfPath) => {
   const newContract = await connectToPolygon();
+  var qrOption = 0;
   if (!newContract) {
     return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
   }
@@ -811,25 +816,29 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
           qrCodeData = urlLink;
         }
 
-        if (urlLink) {
-          let dbStatus = await isDBConnected();
-          if (dbStatus) {
-            const urlData = {
-              email: email,
-              certificateNumber: certificateNumber,
-              url: urlLink
-            }
-            await insertUrlData(urlData);
-            shortUrlStatus = true;
-          }
-        }
+        // if (urlLink) {
+        //   let dbStatus = await isDBConnected();
+        //   if (dbStatus) {
+        //     const urlData = {
+        //       email: email,
+        //       certificateNumber: certificateNumber,
+        //       url: urlLink
+        //     }
+        //     await insertUrlData(urlData);
+        //     shortUrlStatus = true;
+        //   }
+        // }
 
-        if (shortUrlStatus) {
-          modifiedUrl = process.env.SHORT_URL + certificateNumber;
-        }
+        // if (shortUrlStatus) {
+        modifiedUrl = process.env.SHORT_URL + certificateNumber;
+        // }
 
         let _qrCodeData = modifiedUrl != false ? modifiedUrl : qrCodeData;
         // console.log("Short URL", _qrCodeData);
+
+        if(idExist.qrPreference){
+          qrOption = idExist.qrPreference;
+        }
 
         // Generate vibrant QR
         const generateQr = await generateVibrantQr(_qrCodeData, 450, qrOption);
@@ -931,8 +940,9 @@ const handleIssuePdfCertification = async (email, certificateNumber, name, cours
   }
 };
 
-const handleIssueDynamicPdfCertification = async (email, certificateNumber, name, _customFields, _pdfPath, _positionX, _positionY, _qrsize, qrOption) => {
+const handleIssueDynamicPdfCertification = async (email, certificateNumber, name, _customFields, _pdfPath, _positionX, _positionY, _qrsize) => {
   const newContract = await connectToPolygon();
+  var qrOption = 0;
   if (!newContract) {
     return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
   }
@@ -1078,25 +1088,29 @@ const handleIssueDynamicPdfCertification = async (email, certificateNumber, name
           qrCodeData = urlLink;
         }
 
-        if (urlLink) {
-          let dbStatus = await isDBConnected();
-          if (dbStatus) {
-            const urlData = {
-              email: email,
-              certificateNumber: certificateNumber,
-              url: urlLink
-            }
-            await insertUrlData(urlData);
-            shortUrlStatus = true;
-          }
-        }
+        // if (urlLink) {
+        //   let dbStatus = await isDBConnected();
+        //   if (dbStatus) {
+        //     const urlData = {
+        //       email: email,
+        //       certificateNumber: certificateNumber,
+        //       url: urlLink
+        //     }
+        //     await insertUrlData(urlData);
+        //     shortUrlStatus = true;
+        //   }
+        // }
 
-        if (shortUrlStatus) {
-          modifiedUrl = process.env.SHORT_URL + certificateNumber;
-        }
+        // if (shortUrlStatus) {
+        modifiedUrl = process.env.SHORT_URL + certificateNumber;
+        // }
 
         let _qrCodeData = modifiedUrl != false ? modifiedUrl : qrCodeData;
         // console.log("Short URL", _qrCodeData);
+
+        if(idExist.qrPreference){
+          qrOption = idExist.qrPreference;
+        }
 
         // Generate vibrant QR
         const generateQr = await generateVibrantQr(_qrCodeData, _qrsize, qrOption);
@@ -1323,22 +1337,22 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
           // Generate encrypted URL with certificate data
           var encryptLink = await generateEncryptedUrl(fields);
 
-          if (encryptLink) {
-            let dbStatus = await isDBConnected();
-            if (dbStatus) {
-              let urlData = {
-                email: email,
-                certificateNumber: foundEntry.documentID,
-                url: encryptLink
-              }
-              await insertUrlData(urlData);
-              shortUrlStatus = true;
-            }
-          }
+          // if (encryptLink) {
+          //   let dbStatus = await isDBConnected();
+          //   if (dbStatus) {
+          //     let urlData = {
+          //       email: email,
+          //       certificateNumber: foundEntry.documentID,
+          //       url: encryptLink
+          //     }
+          //     await insertUrlData(urlData);
+          //     shortUrlStatus = true;
+          //   }
+          // }
 
-          if (shortUrlStatus) {
-            modifiedUrl = process.env.SHORT_URL + foundEntry.documentID;
-          }
+          // if (shortUrlStatus) {
+          modifiedUrl = process.env.SHORT_URL + foundEntry.documentID;
+          // }
 
           let _qrCodeData = modifiedUrl != false ? modifiedUrl : encryptLink;
 

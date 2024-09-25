@@ -507,31 +507,32 @@ const insertUrlData = async (data) => {
     console.log("invaid data sent to store in DB");
     return false;
   }
-  try {
-    isDBConnected();
-    const isUrlExist = await ShortUrl.findOne({ email: data.email, certificateNumber: data.certificateNumber });
+  return true;
+  // try {
+  //   isDBConnected();
+  //   const isUrlExist = await ShortUrl.findOne({ email: data.email, certificateNumber: data.certificateNumber });
 
-    if (isUrlExist) {
-      isUrlExist.url = data.url;
-      await isUrlExist.save();
-    } else {
-      // Store new url details fro provided data
-      const newUrlData = new ShortUrl({
-        email: data.email,
-        certificateNumber: data.certificateNumber,
-        url: data.url
-      });
-      // Save the new shortUrl document to the database
-      const result = await newUrlData.save();
-    }
-    // Logging confirmation message
-    console.log("URL data inserted");
-    return true;
-  } catch (error) {
-    // Handle errors related to database connection or insertion
-    console.error("Error connecting in update URL data", error);
-    return false;
-  }
+  //   if (isUrlExist) {
+  //     isUrlExist.url = data.url;
+  //     await isUrlExist.save();
+  //   } else {
+  //     // Store new url details fro provided data
+  //     const newUrlData = new ShortUrl({
+  //       email: data.email,
+  //       certificateNumber: data.certificateNumber,
+  //       url: data.url
+  //     });
+  //     // Save the new shortUrl document to the database
+  //     const result = await newUrlData.save();
+  //   }
+  //   // Logging confirmation message
+  //   console.log("URL data inserted");
+  //   return true;
+  // } catch (error) {
+  //   // Handle errors related to database connection or insertion
+  //   console.error("Error connecting in update URL data", error);
+  //   return false;
+  // }
 };
 
 // Function to insert certification data into MongoDB

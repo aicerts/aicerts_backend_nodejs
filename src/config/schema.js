@@ -51,7 +51,10 @@ const UserSchema = new Schema({
   designation: { type: String },
   username: { type: String, unique: true },
   rejectedDate: { type: Date, default: null },
+  invoiceNumber: { type: Number, default: 0 },
   transactionFee: { type: Number, default: 0 },
+  qrPreference: { type: Number, default: 0 },
+  blockchainPreference: { type: Number, default: 0 },
   certificatesIssued: { type: Number },
   certificatesRenewed: { type: Number },
   approveDate: { type: Date, default: null}
