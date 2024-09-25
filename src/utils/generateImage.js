@@ -44,6 +44,11 @@ const getOption = async (url, qrSide, code) => {
                 height: qrSide,
                 data: url,
                 image: logoUrl,
+                qrOptions: {
+                    typeNumber: "0",
+                    mode: "Byte",
+                    errorCorrectionLevel: "Q",
+                },
                 dotsOptions: {
                     color: "#000000",
                     type: "extra-rounded"
@@ -71,6 +76,11 @@ const getOption = async (url, qrSide, code) => {
                 height: qrSide,
                 data: url,
                 image: logoUrl,
+                qrOptions: {
+                    typeNumber: "0",
+                    mode: "Byte",
+                    errorCorrectionLevel: "Q",
+                },
                 dotsOptions: {
                     color: "#000000",
                     type: "dots"
@@ -98,6 +108,11 @@ const getOption = async (url, qrSide, code) => {
                 height: qrSide,
                 data: url,
                 image: logoUrl,
+                qrOptions: {
+                    typeNumber: "0",
+                    mode: "Byte",
+                    errorCorrectionLevel: "Q",
+                },
                 dotsOptions: {
                     color: "#000000",
                     type: "classy"
@@ -125,6 +140,11 @@ const getOption = async (url, qrSide, code) => {
                 height: qrSide,
                 data: url,
                 image: logoUrl,
+                qrOptions: {
+                    typeNumber: "0",
+                    mode: "Byte",
+                    errorCorrectionLevel: "Q",
+                },
                 dotsOptions: {
                     color: "#000000",
                     type: "extra-rounded"

@@ -1371,7 +1371,6 @@ const validateDynamicBulkIssueDocuments = async (req, res) => {
         console.error("Error processing file:", pdfFiles[index], error);
       }
     }
-
     if (pdfTemplateValidation.length > 0 || pdfPagesValidation.length > 0) {
       let errorMessage = '';
       let errorDetails = '';
