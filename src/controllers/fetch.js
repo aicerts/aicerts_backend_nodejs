@@ -103,7 +103,7 @@ const getIssuerByEmail = async (req, res) => {
 
     const { email } = req.body;
 
-    const issuer = await isValidIssuer(email);
+    const issuer = await User.findOne({ email : email }).select('-password');
 
     if (issuer) {
       res.json({
