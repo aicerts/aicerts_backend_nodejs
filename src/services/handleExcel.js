@@ -462,7 +462,7 @@ const validateBatchCertificateIDs = async (data) => {
 
     data.forEach(num => {
         const str = num.toString(); // Convert number to string
-        if (str.length < min_length || str.length > max_length || specialCharsRegex.test(str)) {
+        if (str.length < 12 || str.length > 25 || specialCharsRegex.test(str)) {
             invalidStrings.push(str);
         }
     });
@@ -479,7 +479,7 @@ const validateBatchCertificateNames = async (names) => {
 
     names.forEach(name => {
         const str = name.toString(); // Convert number to string
-        if (str.length > 40) {
+        if (str.length > 40 || specialCharsRegex.test(str)) {
             invalidNames.push(str);
         }
     });
