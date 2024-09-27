@@ -28,6 +28,7 @@ const abi = require("../config/abi.json");
 
 // Retrieve contract address from environment variable
 const contractAddress = process.env.CONTRACT_ADDRESS;
+const polygonApiKey = process.env.POLYGON_API_KEY || null;
 
 // Define an array of providers to use as fallbacks
 const providers = [
@@ -1676,6 +1677,42 @@ const checkTransactionStatus = async (transactionHash) => {
   }
 }
 
+// Function to get last fund transfer date
+const getLatestTransferDate = async (address) => {
+
+  const url = `https://api.polygonscan.com/api?module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&sort=asc&apikey=${polygonApiKey}`;
+
+  try {
+    // Dynamically import fetch
+    const { default: fetch } = await import('node-fetch');
+    const response = await fetch(url);
+    const fetchdeData = await response.json();
+    // Check if the API call was successful
+    if (fetchdeData.status !== "1") {
+      console.error("Error fetching transactions:", fetchdeData.message);
+      return null; // Handle the error accordingly
+    }
+    // Assuming the transactions are under data.result
+    const transactions = fetchdeData.result;
+    // Filter incoming transactions
+    const incomingTransactions = transactions.filter(tx => tx.to.toLowerCase() === address.toLowerCase());
+
+    // Check if there are incoming transactions
+    if (incomingTransactions.length === 0) {
+      return null; // No incoming transactions found
+    }
+    // Get the most recent transaction
+    const lastTransaction = incomingTransactions[incomingTransactions.length - 1];
+    var formattedDate = await convertEpochToDate(lastTransaction.timeStamp);
+
+    return formattedDate;
+
+  } catch (error) {
+    console.error('Error fetching transactions:', error);
+    return null; // Return null in case of error
+  }
+};
+
 module.exports = {
 
   fallbackProvider,
@@ -1809,4 +1846,6 @@ module.exports = {
   checkTransactionStatus,
 
   getPdfDimensions,
+
+  getLatestTransferDate,
 };

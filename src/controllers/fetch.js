@@ -147,7 +147,7 @@ const getServiceLimitsByEmail = async (req, res) => {
 
     const { email } = req.body;
 
-    const issuerExist = await isValidIssuer(email);
+    const issuerExist = await await User.findOne({ email : email });
     if (!issuerExist || !issuerExist.issuerId) {
       return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidIssuer, details: email });
     }
