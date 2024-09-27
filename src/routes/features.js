@@ -4,6 +4,7 @@ const multer = require('multer');
 const { ensureAuthenticated } = require("../config/auth"); // Import authentication middleware
 const adminController = require('../controllers/features');
 const validationRoute = require("../common/validationRoutes");
+const { decryptRequestBody, decryptRequestParseBody } = require('../common/authUtils');
 
 const upload = multer({ dest: "./uploads/" });
 
@@ -136,7 +137,7 @@ const upload = multer({ dest: "./uploads/" });
  *               message: The service is temporarily unavailable due to inactive/insufficient credits. Please try again later.
  */
 
-router.post('/renew-cert', validationRoute.renewIssue, ensureAuthenticated, adminController.renewCert);
+router.post('/renew-cert',decryptRequestParseBody, validationRoute.renewIssue, ensureAuthenticated, adminController.renewCert);
 
 /**
  * @swagger
@@ -264,7 +265,7 @@ router.post('/renew-cert', validationRoute.renewIssue, ensureAuthenticated, admi
  *               message: The service is temporarily unavailable due to inactive/insufficient credits. Please try again later.
  */
 
-router.post('/update-cert-status', validationRoute.updateStatus, ensureAuthenticated, adminController.updateCertStatus);
+router.post('/update-cert-status',decryptRequestParseBody, validationRoute.updateStatus, ensureAuthenticated, adminController.updateCertStatus);
 
 /**
  * @swagger
