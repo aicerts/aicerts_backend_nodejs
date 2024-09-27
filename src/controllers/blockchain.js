@@ -17,7 +17,8 @@ const {
   isDBConnected, // Function to check if the database connection is established
   sendEmail, // Function to send an email on approved
   rejectEmail, // Function to send an email on rejected
-  generateAccount
+  generateAccount,
+  getLatestTransferDate
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
 // Retrieve contract address from environment variable
@@ -407,12 +408,16 @@ const checkBalance = async (req, res) => {
     // Convert balanceEther to fixed number of decimals (e.g., 2 decimals)
     const fixedDecimals = parseFloat(balanceEther).toFixed(3);
 
+    const getLatestDate = await getLatestTransferDate(targetAddress);
+    const updatedDate = (!getLatestDate) ? 'unknown' : getLatestDate;
+
     // Prepare balance response
     const balanceResponse = {
       code: 200,
       status: "SUCCESS",
       message: messageCode.msgBalanceCheck,
       balance: fixedDecimals,
+      lastUpdate: updatedDate
     };
 
     // Respond with the balance information
