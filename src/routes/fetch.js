@@ -4,6 +4,7 @@ const multer = require('multer');
 const adminController = require('../controllers/fetch');
 const { ensureAuthenticated } = require("../config/auth"); // Import authentication middleware
 const validationRoute = require("../common/validationRoutes");
+const { decryptRequestBody, decryptRequestParseBody } = require('../common/authUtils');
 
 const __upload = multer({dest: "./uploads/"});
 
@@ -283,7 +284,7 @@ router.post('/get-organization-issues', validationRoute.organizationIssues, admi
  *                   example: An error occurred while fetching issues details
  */
 
-router.post('/get-filtered-issuers', validationRoute.fetchIssuers ,adminController. getIssuersWithFilter);
+router.post('/get-filtered-issuers',decryptRequestBody, validationRoute.fetchIssuers ,adminController.getIssuersWithFilter);
 
 /**
  * @swagger
@@ -391,7 +392,7 @@ router.post('/get-filtered-issuers', validationRoute.fetchIssuers ,adminControll
  *                   example: An error occurred while fetching issues details
  */
 
-router.post('/get-filtered-issues', validationRoute.filterIssues, adminController.getIssuesWithFilter);
+router.post('/get-filtered-issues',decryptRequestParseBody, validationRoute.filterIssues, adminController.getIssuesWithFilter);
 
 /**
  * @swagger
@@ -503,7 +504,7 @@ router.post('/get-filtered-issues', validationRoute.filterIssues, adminControlle
  *                   example: An error occurred while fetching issues details
  */
 
-router.post('/admin-filtered-issues', validationRoute.adminFilterIssues, adminController.adminSearchWithFilter);
+router.post('/admin-filtered-issues',decryptRequestParseBody, validationRoute.adminFilterIssues, adminController.adminSearchWithFilter);
 
 /**
  * @swagger
@@ -587,7 +588,7 @@ router.post('/admin-filtered-issues', validationRoute.adminFilterIssues, adminCo
  *                   example: An error occurred while fetching issuer log details
  */
 
-router.post('/get-issuers-log', validationRoute.queryCode, adminController.fetchIssuesLogDetails);
+router.post('/get-issuers-log',decryptRequestParseBody, validationRoute.queryCode, adminController.fetchIssuesLogDetails);
 
 /**
  * @swagger
@@ -664,7 +665,7 @@ router.post('/get-issuers-log', validationRoute.queryCode, adminController.fetch
  */
 
 router.post('/get-issue', validationRoute.searchCertification, adminController.getIssueDetails);
-
+    
 /**
  * @swagger
  * /api/get-graph-data/{year}/{email}:
@@ -889,7 +890,7 @@ router.get('/get-status-graph-data/:value/:email', adminController.fetchGraphSta
  *                   example: An error occurred during the process!
  */
 
-router.post('/get-issuer-by-email', validationRoute.emailCheck, adminController.getIssuerByEmail);
+router.post('/get-issuer-by-email',decryptRequestParseBody, validationRoute.emailCheck, adminController.getIssuerByEmail);
 
 /**
  * @swagger
@@ -969,7 +970,7 @@ router.post('/get-issuer-by-email', validationRoute.emailCheck, adminController.
  *                   example: An error occurred during the process!
  */
 
-router.post('/get-credits-by-email', validationRoute.emailCheck, adminController.getServiceLimitsByEmail);
+router.post('/get-credits-by-email',decryptRequestParseBody, validationRoute.emailCheck, adminController.getServiceLimitsByEmail);
 
 /**
  * @swagger
@@ -1519,7 +1520,7 @@ router.post('/upload-certificate',__upload.single('file'),(req, res)=>  adminCon
  *                   example: Error details
  */
 
-router.post('/get-single-certificates', adminController.getSingleCertificates);
+router.post('/get-single-certificates',decryptRequestParseBody, adminController.getSingleCertificates);
 
 /**
  * @swagger
@@ -1715,7 +1716,7 @@ router.post('/get-batch-certificates', adminController.getBatchCertificates);
  *                   example: Error details
  */
 
-router.post('/get-batch-certificate-dates', adminController.getBatchCertificateDates);
+router.post('/get-batch-certificate-dates',decryptRequestParseBody, adminController.getBatchCertificateDates);
 
 
 module.exports=router;
