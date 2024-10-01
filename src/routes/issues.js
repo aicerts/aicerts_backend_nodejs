@@ -682,7 +682,7 @@ router.post('/issue-dynamic-pdf', _upload.single("file"), ensureAuthenticated, a
  *               message: The service is temporarily unavailable due to inactive/insufficient credits. Please try again later.
  */
 
-router.post('/batch-certificate-issue', __upload.single("excelFile"), ensureAuthenticated, adminController.batchIssueCertificate);
+router.post('/batch-certificate-issue', __upload.single("excelFile"), adminController.batchIssueCertificate);
 
 /**
  * @swagger

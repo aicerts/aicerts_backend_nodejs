@@ -34,8 +34,6 @@ const loadImage = async (url) => {
 const getOption = async (url, qrSide, code) => {
     // console.log("inputs", url, qrSide, code);
     var option;
-    // Load the image before creating the options
-    logoUrl = code == 1 ? 'https://certs365-live.s3.amazonaws.com/verify_logo.png' : 'https://certs365-live.s3.amazonaws.com/logo.png'
     await loadImage(logoUrl);
     switch (code) {
         case 1:
@@ -272,7 +270,7 @@ const _convertPdfBufferToPng = async (certNumber, pdfBuffer, _width, _height) =>
     }
 };
 
-const generateVibrantQr = async (url, qrSide, code) => {
+const __uploadgenerateVibrantQr = async (url, qrSide, code) => {
     if (code == 0) {
         return false;
     }
@@ -291,6 +289,59 @@ const generateVibrantQr = async (url, qrSide, code) => {
         const buffer = await qrCodeImage.getRawData("png", { quality: 1.0 });
         // Convert buffer to Base64
         const base64String = await buffer.toString('base64');
+        // Prepend the data URL prefix
+        const dataUrl = `data:image/png;base64,${base64String}`;
+        // fs.writeFileSync("test.png", buffer);
+        // console.log("the buffer data", dataUrl);
+        return dataUrl; // Return the buffer
+        // return null
+    } catch (error) {
+        console.error("The error is ", error);
+        return null;
+    }
+};
+
+const generateVibrantQr = async (url, qrSide, code) => {
+    if (code == 0) {
+        return false;
+    }
+    try {
+        const options = await getOption(url, qrSide, code);
+
+        // Adjust options for better sharpness
+        options.errorCorrectionLevel = 'H'; // Use high error correction
+
+        // For canvas type
+        const qrCodeImage = new QRCodeStyling({
+            nodeCanvas, // this is required
+            ...options,
+        });
+
+        const buffer = await qrCodeImage.getRawData("png", { quality: 1.0 });
+
+        // Create a canvas and context
+        const canvas = nodeCanvas.createCanvas(qrSide, qrSide + 20); // Increase height to accommodate text
+        const ctx = canvas.getContext("2d");
+
+        // Load the generated QR code image onto the canvas
+        const qrImage = await nodeCanvas.loadImage(buffer);
+        ctx.drawImage(qrImage, 0, 0, qrSide, qrSide);
+
+        // Set text properties
+        ctx.font = "bold 25px Arial"; // Customize text style
+        ctx.fillStyle = "#000000"; // Customize text color
+        ctx.textAlign = "left";
+        ctx.textBaseline = "bottom";
+
+        // Draw text at the bottom left
+        const text = "testverify.certs365.io";
+        ctx.fillText(text, 0, qrSide + 25); // Adjust position of text
+
+        // Convert canvas to buffer with the text overlay
+        const finalBuffer = canvas.toBuffer("image/png");
+
+        // Convert buffer to Base64
+        const base64String = await finalBuffer.toString('base64');
         // Prepend the data URL prefix
         const dataUrl = `data:image/png;base64,${base64String}`;
         // fs.writeFileSync("test.png", buffer);
