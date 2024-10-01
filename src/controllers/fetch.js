@@ -2095,7 +2095,6 @@ const fetchCustomIssuedCertificates = async (req, res) => {
 
     const issuanceResponses = await getIssuanceCounts(getIssuances);
 
-
     for (const addressIndex of contractAddresses) {
       for (const range of dateRanges) {
         await holdExecution(350);
@@ -2119,7 +2118,6 @@ const fetchCustomIssuedCertificates = async (req, res) => {
         }
       }
     }
-
 
     // Iterate over each key in the response
     for (let key in issuanceResponses) {
