@@ -556,10 +556,15 @@ const insertIssuanceCertificateData = async (data) => {
     // Save the new Issues document to the database
     const result = await newIssue.save();
 
+
     const idExist = await User.findOne({ issuerId: data.issuerId });
     if (idExist.certificatesIssued == undefined) {
       idExist.certificatesIssued = 0;
     }
+
+    data.email = idExist.email;
+    data.certStatus = 6;
+    const updateIssuanceLog = await insertIssueStatus(data);
 
     if (idExist) {
       // If user with given id exists, update certificatesIssued count

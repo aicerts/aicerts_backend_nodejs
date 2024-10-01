@@ -50,7 +50,7 @@ const getAllIssuers = async (req, res) => {
     console.log(dbStatusMessage);
 
     // Fetch all users from the database
-    const allIssuers = await User.find({ status: [0,1,2] }).select('-password');
+    const allIssuers = await User.find({ status: [0, 1, 2] }).select('-password');
     const allIssuerCount = allIssuers.length;
 
     const statusCounts = allIssuers.reduce((counts, item) => {
@@ -103,7 +103,7 @@ const getIssuerByEmail = async (req, res) => {
 
     const { email } = req.body;
 
-    const issuer = await User.findOne({ email : email }).select('-password');
+    const issuer = await User.findOne({ email: email }).select('-password');
 
     if (issuer) {
       res.json({
@@ -147,7 +147,7 @@ const getServiceLimitsByEmail = async (req, res) => {
 
     const { email } = req.body;
 
-    const issuerExist = await await User.findOne({ email : email });
+    const issuerExist = await await User.findOne({ email: email });
     if (!issuerExist || !issuerExist.issuerId) {
       return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidIssuer, details: email });
     }
@@ -823,7 +823,7 @@ const adminSearchWithFilter = async (req, res) => {
           url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
         });
 
-        
+
         // Query 4
         var query4Promise = DynamicBatchIssues.find({
           issuerId: isEmailExist.issuerId,
@@ -2071,6 +2071,7 @@ const fetchCustomIssuedCertificates = async (req, res) => {
     };
 
     var totalCount = [];
+    var sumOfIssuances = {};
 
     // Define date ranges
     const dateRanges = [
@@ -2083,6 +2084,17 @@ const fetchCustomIssuedCertificates = async (req, res) => {
     const datesRanges = [
       { name: "Total", startDate: 0, endDate: today }
     ];
+
+    const getIssuances = await IssueStatus.find({
+      certStatus: 6
+    });
+
+    if(getIssuances){
+      totalCount.push(getIssuances.length);
+    }
+
+    const issuanceResponses = await getIssuanceCounts(getIssuances);
+
 
     for (const addressIndex of contractAddresses) {
       for (const range of dateRanges) {
@@ -2108,11 +2120,33 @@ const fetchCustomIssuedCertificates = async (req, res) => {
       }
     }
 
+
+    // Iterate over each key in the response
+    for (let key in issuanceResponses) {
+      // Check if the key exists in count
+      if (issuesCount[key]) {
+        sumOfIssuances[key] = [...issuesCount[key]]; // Copy the original count array
+
+        // If there's a second element in the array, add the response value to it
+        if (sumOfIssuances[key].length >= 2) {
+          sumOfIssuances[key][1] += issuanceResponses[key];
+        } else {
+          // If there's no second element, just push the response value
+          sumOfIssuances[key].push(issuanceResponses[key]);
+        }
+      } else {
+        // If the key doesn't exist in count, initialize it with an array containing only the response value
+        sumOfIssuances[key] = [issuanceResponses[key]];
+      }
+    }
+    // console.log("The response", issuanceResponses);
+    // console.log("Total count", issuesCount, sumOfIssuances);
+
     // Calculate the sum of the numbers
     const totalIssues = totalCount.reduce((acc, num) => acc + num, 0);
     let totalResponse = { Total: totalIssues };
     // Combine response and totalResponse
-    let combinedResponse = { ...issuesCount, ...totalResponse };
+    let combinedResponse = { ...sumOfIssuances, ...totalResponse };
 
     return res.status(200).json({ code: 200, status: "SUCCESS", message: `${messageCode.msgAllQueryFetched}:[Netcom, LMS]`, details: combinedResponse });
 
@@ -2123,6 +2157,32 @@ const fetchCustomIssuedCertificates = async (req, res) => {
       details: error
     });
   }
+};
+
+// Function to get counts for last 7 days, last 30 days, and last 1 year
+const getIssuanceCounts = async (data) => {
+  const currentDate = new Date();
+
+  // Dates for filtering
+  const last7Days = new Date();
+  last7Days.setDate(currentDate.getDate() - 7);
+
+  const last30Days = new Date();
+  last30Days.setDate(currentDate.getDate() - 30);
+
+  const last1Year = new Date();
+  last1Year.setFullYear(currentDate.getFullYear() - 1);
+
+  // Filter and count based on date ranges
+  const countLast7Days = data.filter(item => item.lastUpdate >= last7Days).length;
+  const countLast30Days = data.filter(item => item.lastUpdate >= last30Days).length;
+  const countLast1Year = data.filter(item => item.lastUpdate >= last1Year).length;
+
+  return {
+    Week: countLast7Days || 0, // Returns 0 if no match
+    Month: countLast30Days || 0, // Returns 0 if no match
+    Annual: countLast1Year || 0 // Returns 0 if no match
+  };
 };
 
 // Retry function to handle failed case
