@@ -18,7 +18,8 @@ const {
   sendEmail, // Function to send an email on approved
   rejectEmail, // Function to send an email on rejected
   generateAccount,
-  getLatestTransferDate
+  getLatestTransferDate,
+  convertEpochIntoDate
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
 // Retrieve contract address from environment variable
@@ -394,6 +395,9 @@ const checkBalance = async (req, res) => {
     // Extract the target address from the query parameter
     const targetAddress = req.query.address;
 
+    const today = Date.now();
+    const formatedDate = await convertEpochIntoDate(today);
+
     // Check if the target address is a valid Ethereum address
     if (!ethers.isAddress(targetAddress)) {
       return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidEthereum });
@@ -409,7 +413,7 @@ const checkBalance = async (req, res) => {
     const fixedDecimals = parseFloat(balanceEther).toFixed(3);
 
     const getLatestDate = await getLatestTransferDate(targetAddress);
-    const updatedDate = (!getLatestDate) ? 'unknown' : getLatestDate;
+    const updatedDate = (!getLatestDate) ? formatedDate : getLatestDate;
 
     // Prepare balance response
     const balanceResponse = {

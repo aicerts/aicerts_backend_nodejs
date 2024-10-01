@@ -400,7 +400,29 @@ const convertEpochToDate = async (epochTimestamp) => {
     const dateString = `${month}/${day}/${year}`;
     return dateString;
   }
+
 };
+
+const convertEpochIntoDate = async (epochTimestamp) => {
+  if (!epochTimestamp || epochTimestamp == 0) {
+    return false;
+  } else if (epochTimestamp == 1) {
+    return epochTimestamp;
+  } else {
+    // Create a new Date object with the epoch timestamp (in milliseconds)
+    const regularIntValue = parseInt(epochTimestamp.toString());
+    const dateObject = new Date(regularIntValue); // No need to multiply by 1000
+
+    // Extract the month, day, and year components from the date object
+    const month = String(dateObject.getMonth() + 1).padStart(2, '0'); // Month starts from 0
+    const day = String(dateObject.getDate()).padStart(2, '0');
+    const year = String(dateObject.getFullYear()).slice(-4); // Get last 4 digits of the year
+
+    // Construct the MM/DD/YY date format string
+    const dateString = `${month}/${day}/${year}`;
+    return dateString;
+  }
+}
 
 const convertExpirationStatusLog = async (_date) => {
   if (_date == "1" || _date == null) {
@@ -1691,6 +1713,10 @@ const getLatestTransferDate = async (address) => {
     // Dynamically import fetch
     const { default: fetch } = await import('node-fetch');
     const response = await fetch(url);
+    if (!response) {
+      console.error("Error fetching transactions:");
+      return null; // Handle the error accordingly
+    }
     const fetchdeData = await response.json();
     // Check if the API call was successful
     if (fetchdeData.status !== "1") {
@@ -1775,6 +1801,8 @@ module.exports = {
 
   // Function to convert the Date format from epoch into the standard format
   convertEpochToDate,
+
+  convertEpochIntoDate,
 
   // Function to insert the certification issue status 
   insertIssueStatus,
