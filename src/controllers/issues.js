@@ -465,7 +465,7 @@ const batchIssueCertificate = async (req, res) => {
     }
 
     // Fetch the records from the Excel file
-    const excelData = await handleExcelFile(filePath);
+    const excelData = await handleExcelFile(filePath,existIssuerId);
     await _fs.remove(filePath);
 
     try {

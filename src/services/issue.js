@@ -50,8 +50,11 @@ const {
   getCertificationStatus,
   isCertificationIdExisted,
   getContractAddress,
-  getPdfDimensions
+  getPdfDimensions,
+  wipeUploadFolder
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
+// import bull queue
+const Queue = require("bull")
 
 const { fetchOrEstimateTransactionFee, uploadImageToS3, _uploadImageToS3 } = require('../utils/upload');
 
@@ -83,6 +86,8 @@ const min_length = parseInt(process.env.MIN_LENGTH);
 const max_length = parseInt(process.env.MAX_LENGTH);
 
 const messageCode = require("../common/codes");
+const { waitForJobsToComplete, cleanUpJobs, addJobsInChunks } = require('../queue_service/queueUtils');
+const { processBulkIssueJob } = require('../queue_service/bulkIssueQueueProcessor');
 const rootDirectory = path.join(__dirname, '../../');
 
 const handleIssueCertification = async (email, certificateNumber, name, courseName, _grantDate, _expirationDate) => {
@@ -1212,6 +1217,30 @@ const handleIssueDynamicPdfCertification = async (email, certificateNumber, name
   }
 };
 
+const processListener = async (job) => {
+  try {
+    // Process the job
+    const result = await processBulkIssueJob(job);
+
+    // Check the result and handle failures
+    if (result.status === false) {
+      console.log(result)
+      // Optionally pause the queue if a failure occurs
+      await bulkIssueQueue.pause();
+      // Create and throw a detailed error
+      const message = result.message + " " + (result.Details || "");
+      throw new Error(message);
+    }
+
+    // Return the result if successful
+    return { URLS: result.URLS };
+  } catch (error) {
+    // Handle errors
+    throw new Error(`${error.message} ${error.details || ""}`);
+  }
+};
+
+
 const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResponse, excelFilePath, posx, posy, qrside, pdfWidth, pdfHeight, qrOption, flag) => {
   const newContract = await connectToPolygon();
   if (!newContract) {
@@ -1220,12 +1249,12 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
   // console.log("Batch inputs", _pdfReponse, excelFilePath);
   const pdfResponse = _pdfReponse;
   const excelResponse = _excelResponse[0];
-  var insertPromises = []; // Array to hold all insert promises
-  var insertUrl = [];
-  var shortUrlStatus = false;
-  var modifiedUrl;
-  var imageUrl;
-  var customFields;
+  // var insertPromises = []; // Array to hold all insert promises
+  // var insertUrl = [];
+  // var shortUrlStatus = false;
+  // var modifiedUrl;
+  // var imageUrl;
+  // var customFields;
 
   if (!pdfResponse || pdfResponse.length == 0) {
     return ({ code: 400, status: false, message: messageCode.msgUnableToFindPdfFiles });
@@ -1273,6 +1302,7 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
 
       // Generate the Merkle tree
       let tree = StandardMerkleTree.of(values, ['string']);
+      const serializedTree = JSON.stringify(tree.dump());
       let batchExpiration = 1;
 
       let getContractStatus = await getContractAddress(contractAddress);
@@ -1292,161 +1322,65 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
 
       if (pdfResponse.length == _excelResponse[1]) {
         console.log("working directory", __dirname);
+        const pdfCount = pdfResponse.length;
+        // const {chunkSize, concurrency}= getChunkSizeAndConcurrency(pdfCount)
+        const chunkSize=parseInt(process.env.BULK_ISSUE_CHUNK)
+        const concurrency=parseInt(process.env.BULK_ISSUE_CHUNK)
+        console.log(`chunk size : ${chunkSize} concurrency : ${concurrency}`)
 
-        for (let i = 0; i < pdfResponse.length; i++) {
-          var pdfFileName = pdfResponse[i];
-          var pdfFilePath = path.join(__dirname, '../../uploads', pdfFileName);
-          console.log("pdf directory path", pdfFilePath);
 
-          // Extract Certs from pdfFileName
-          const certs = pdfFileName.split('.')[0]; // Remove file extension
-          const foundEntry = await excelResponse.find(entry => entry.documentName === certs);
-          if (foundEntry) {
-            var index = excelResponse.indexOf(foundEntry);
-            var _proof = tree.getProof(index);
 
-            let buffers = _proof.map(hex => Buffer.from(hex.slice(2), 'hex'));
-            // Concatenate all Buffers into one
-            let concatenatedBuffer = Buffer.concat(buffers);
-            // Calculate SHA-256 hash of the concatenated buffer
-            var _proofHash = crypto.createHash('sha256').update(concatenatedBuffer).digest('hex');
-            // Do something with foundEntry
-            console.log("Found entry for", certs);
-            // You can return or process foundEntry here
-          } else {
-            console.log("No matching entry found for", certs);
-            return ({ code: 400, status: false, message: messageCode.msgNoEntryMatchFound, Details: certs });
-          }
-
-          let theObject = await getFormattedFields(foundEntry);
-          if (theObject) {
-            customFields = JSON.stringify(theObject, null, 2);
-          } else {
-            customFields = null;
-          }
-
-          var fields = {
-            Certificate_Number: foundEntry.documentID,
-            name: foundEntry.name,
-            customFields: customFields,
-            polygonLink: linkUrl
-          };
-
-          var combinedHash = hashedBatchData[index];
-
-          // Generate encrypted URL with certificate data
-          var encryptLink = await generateEncryptedUrl(fields);
-
-          // if (encryptLink) {
-          //   let dbStatus = await isDBConnected();
-          //   if (dbStatus) {
-          //     let urlData = {
-          //       email: email,
-          //       certificateNumber: foundEntry.documentID,
-          //       url: encryptLink
-          //     }
-          //     await insertUrlData(urlData);
-          //     shortUrlStatus = true;
-          //   }
-          // }
-
-          // if (shortUrlStatus) {
-          modifiedUrl = process.env.SHORT_URL + foundEntry.documentID;
-          // }
-
-          let _qrCodeData = modifiedUrl != false ? modifiedUrl : encryptLink;
-
-          // Generate vibrant QR
-          const generateQr = await generateVibrantQr(_qrCodeData, qrside, qrOption);
-
-          if (!generateQr) {
-            var qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
-              errorCorrectionLevel: "H", width: qrside, height: qrside
-            });
-          }
-
-          const qrImageData = generateQr ? generateQr : qrCodeImage;
-          file = pdfFilePath;
-          var outputPdf = `${pdfFileName}`;
-
-          if (!fs.existsSync(pdfFilePath)) {
-            return ({ code: 400, status: "FAILED", message: messageCode.msgInvalidPdfUploaded });
-          }
-          // Add link and QR code to the PDF file
-          var opdf = await addDynamicLinkToPdf(
-            pdfFilePath,
-            outputPdf,
-            linkUrl,
-            qrImageData,
-            combinedHash,
-            posx,
-            posy
-          );
-          if (!fs.existsSync(outputPdf)) {
-            return ({ code: 400, status: "FAILED", message: messageCode.msgInvalidFilePath });
-          }
-          // Read the generated PDF file
-          var fileBuffer = fs.readFileSync(outputPdf);
-
-          // Assuming fileBuffer is available
-          var outputPath = path.join(__dirname, '../../uploads', 'completed', `${pdfFileName}`);
-
-          if (bulkIssueStatus == 'ZIP_STORE' || flag == 1) {
-            imageUrl = '';
-          } else {
-            var imageUrl = await _convertPdfBufferToPngWithRetry(foundEntry.documentID, fileBuffer, pdfWidth, pdfHeight);
-            if (!imageUrl) {
-              return ({ code: 400, status: "FAILED", message: messageCode.msgUploadError });
-            }
-            insertUrl.push(imageUrl);
-          }
-
-          try {
-            await isDBConnected();
-            var certificateData = {
-              email: email,
-              issuerId: issuerId,
-              batchId: allocateBatchId,
-              proofHash: _proof,
-              encodedProof: `0x${_proofHash}`,
-              transactionHash: txHash,
-              certificateHash: combinedHash,
-              certificateNumber: fields.Certificate_Number,
-              name: fields.name,
-              customFields: fields.customFields,
-              positionX: posx,
-              positionY: posy,
-              qrSize: qrside,
-              width: pdfWidth,
-              height: pdfHeight,
-              qrOption: qrOption,
-              url: imageUrl
-            };
-            // await insertCertificateData(certificateData);
-            insertPromises.push(insertDynamicBatchCertificateData(certificateData));
-
-          } catch (error) {
-            console.error('Error:', error);
-            return ({ code: 400, status: false, message: messageCode.msgDBFailed, Details: error });
-          }
-
-          // Always delete the source files (if it exists)
-          if (fs.existsSync(file)) {
-            fs.unlinkSync(file);
-          }
-
-          // Always delete the source files (if it exists)
-          if (fs.existsSync(outputPdf)) {
-            fs.unlinkSync(outputPdf);
-          }
-
-          if (bulkIssueStatus == 'ZIP_STORE' || flag == 1) {
-            fs.writeFileSync(outputPath, fileBuffer);
-            console.log('File saved successfully at:', outputPath);
-          }
+        // Define the Redis connection options
+      const redisConfig = {
+        redis: {
+          port: process.env.REDIS_PORT || 6379,  // Redis port (6380 from your env)
+          host: process.env.REDIS_HOST || 'localhost',  // Redis host (127.0.0.1 from your env)
         }
-        // Wait for all insert promises to resolve
-        await Promise.all(insertPromises);
+      };
+      const queueName = `bulkIssueQueue${issuerId}`
+
+      const bulkIssueQueue = new Queue(queueName, redisConfig);
+
+      const jobDataCallback = (chunk) => ({
+        pdfResponse: chunk,
+        pdfWidth,
+        pdfHeight,
+        linkUrl,
+        qrside,
+        posx,
+        posy,
+        excelResponse,
+        hashedBatchData,
+        serializedTree,
+        email,
+        issuerId,
+        allocateBatchId,
+        txHash,
+        bulkIssueStatus,
+        flag,
+        qrOption
+     
+      });
+       // Add jobs in chunks with custom job data
+       const jobs = await addJobsInChunks(
+        bulkIssueQueue,
+        pdfResponse,
+        chunkSize,
+        jobDataCallback
+      );
+      bulkIssueQueue.process(concurrency, processListener)
+      const insertUrl=await waitForJobsToComplete(jobs);
+      console.log("final s3 urls");
+      console.log(insertUrl);
+      console.log("bulk issue queue processing completed");
+
+       // Cleanup jobs
+       await cleanUpJobs(bulkIssueQueue)
+       await wipeUploadFolder()
+       console.log("queue cleanup success..");
+
+        // // Wait for all insert promises to resolve
+        // await Promise.all(insertPromises);
 
         const idExist = await isValidIssuer(email);
         if (idExist.certificatesIssued == undefined) {
