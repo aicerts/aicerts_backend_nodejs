@@ -15,7 +15,6 @@ const with_pdf_width = parseInt(process.env.WITH_PDF_WIDTH);
 const with_pdf_height = parseInt(process.env.WITH_PDF_HEIGHT);
 const qrText = process.env.QR_TEXT || '';
 const themeColor = process.env.THEME_COLOR || 'cfa935';
-var inputQrSize = 10;
 var base64String;
 
 var logoUrl = "https://certs365-live.s3.amazonaws.com/logo.png";
