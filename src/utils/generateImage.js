@@ -13,39 +13,27 @@ const acl = process.env.ACL_NAME;
 
 const with_pdf_width = parseInt(process.env.WITH_PDF_WIDTH);
 const with_pdf_height = parseInt(process.env.WITH_PDF_HEIGHT);
+const qrText = process.env.QR_TEXT || '';
+const themeColor = process.env.THEME_COLOR || 'cfa935';
+var inputQrSize = 10;
+var base64String;
 
 var logoUrl = "https://certs365-live.s3.amazonaws.com/logo.png";
-
-// Function to load an image and return a promise that resolves when the image is processed
-const loadImage = async (url) => {
-    const { default: fetch } = await import('node-fetch');
-    try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('Network response was not ok.');
-        const buffer = await response.arrayBuffer();
-        const image = await sharp(buffer).metadata(); // Process the image with sharp (optional)
-        return image;
-    } catch (error) {
-        console.error("Error loading image:", error);
-        throw error;
-    }
-};
 
 const getOption = async (url, qrSide, code) => {
     // console.log("inputs", url, qrSide, code);
     var option;
-    await loadImage(logoUrl);
     switch (code) {
         case 1:
             option = {
                 width: qrSide,
                 height: qrSide,
                 data: url,
-                image: logoUrl,
+                margin: 1,
                 qrOptions: {
                     typeNumber: "0",
                     mode: "Byte",
-                    errorCorrectionLevel: "Q",
+                    errorCorrectionLevel: "H",
                 },
                 dotsOptions: {
                     color: "#000000",
@@ -54,17 +42,13 @@ const getOption = async (url, qrSide, code) => {
                 backgroundOptions: {
                     color: "#ffffff",
                 },
-                imageOptions: {
-                    crossOrigin: "anonymous",
-                    margin: 0
-                },
                 cornersSquareOptions: {
                     color: "#000000",
                     type: "extra-rounded",
                 },
                 cornersDotOptions: {
                     type: "",
-                    color: "#cfa935",
+                    color: `#${themeColor}`,
                 }
             };
             break;
@@ -73,11 +57,11 @@ const getOption = async (url, qrSide, code) => {
                 width: qrSide,
                 height: qrSide,
                 data: url,
-                image: logoUrl,
+                margin: 1,
                 qrOptions: {
                     typeNumber: "0",
                     mode: "Byte",
-                    errorCorrectionLevel: "Q",
+                    errorCorrectionLevel: "H",
                 },
                 dotsOptions: {
                     color: "#000000",
@@ -86,17 +70,13 @@ const getOption = async (url, qrSide, code) => {
                 backgroundOptions: {
                     color: "#ffffff",
                 },
-                imageOptions: {
-                    crossOrigin: "anonymous",
-                    margin: 0
-                },
                 cornersSquareOptions: {
                     color: "#000000",
                     type: "extra-rounded",
                 },
                 cornersDotOptions: {
                     type: "",
-                    color: "#cfa935",
+                    color: `#${themeColor}`,
                 }
             };
             break;
@@ -105,7 +85,7 @@ const getOption = async (url, qrSide, code) => {
                 width: qrSide,
                 height: qrSide,
                 data: url,
-                image: logoUrl,
+                margin: 1,
                 qrOptions: {
                     typeNumber: "0",
                     mode: "Byte",
@@ -118,17 +98,13 @@ const getOption = async (url, qrSide, code) => {
                 backgroundOptions: {
                     color: "#ffffff",
                 },
-                imageOptions: {
-                    crossOrigin: "anonymous",
-                    margin: 0
-                },
                 cornersSquareOptions: {
                     color: "#000000",
                     type: "extra-rounded",
                 },
                 cornersDotOptions: {
                     type: "",
-                    color: "#cfa935",
+                    color: `#${themeColor}`,
                 }
             };
             break;
@@ -137,11 +113,11 @@ const getOption = async (url, qrSide, code) => {
                 width: qrSide,
                 height: qrSide,
                 data: url,
-                image: logoUrl,
+                // image: logoUrl,
                 qrOptions: {
                     typeNumber: "0",
                     mode: "Byte",
-                    errorCorrectionLevel: "Q",
+                    errorCorrectionLevel: "H",
                 },
                 dotsOptions: {
                     color: "#000000",
@@ -150,17 +126,17 @@ const getOption = async (url, qrSide, code) => {
                 backgroundOptions: {
                     color: "#ffffff",
                 },
-                imageOptions: {
-                    crossOrigin: "anonymous",
-                    margin: 0
-                },
+                // imageOptions: {
+                //     crossOrigin: "anonymous",
+                //     margin: 0
+                // },
                 cornersSquareOptions: {
                     color: "#000000",
                     type: "extra-rounded",
                 },
                 cornersDotOptions: {
                     type: "",
-                    color: "#cfa935",
+                    color: `#${themeColor}`,
                 }
             };
     }
@@ -319,29 +295,49 @@ const generateVibrantQr = async (url, qrSide, code) => {
 
         const buffer = await qrCodeImage.getRawData("png", { quality: 1.0 });
 
-        // Create a canvas and context
-        const canvas = nodeCanvas.createCanvas(qrSide, qrSide + 20); // Increase height to accommodate text
-        const ctx = canvas.getContext("2d");
+        if (code != 0) {
 
-        // Load the generated QR code image onto the canvas
-        const qrImage = await nodeCanvas.loadImage(buffer);
-        ctx.drawImage(qrImage, 0, 0, qrSide, qrSide);
+            // Create a canvas and context
+            const canvas = nodeCanvas.createCanvas(qrSide, qrSide + 20); // Increase height to accommodate text
+            const ctx = canvas.getContext("2d");
+            // Draw text at the bottom left
+            const text = qrText;
 
-        // Set text properties
-        ctx.font = "bold 25px Arial"; // Customize text style
-        ctx.fillStyle = "#000000"; // Customize text color
-        ctx.textAlign = "left";
-        ctx.textBaseline = "bottom";
+            // Load the generated QR code image onto the canvas
+            const qrImage = await nodeCanvas.loadImage(buffer);
+            ctx.drawImage(qrImage, 0, 0, qrSide, qrSide);
 
-        // Draw text at the bottom left
-        const text = "testverify.certs365.io";
-        ctx.fillText(text, 0, qrSide + 25); // Adjust position of text
+            // Set text properties
+            var fontSize = qrSide * 0.05; // Font size 5% of the QR size
+            ctx.font = `bold ${fontSize}px Arial`; // Set dynamic font size
+            ctx.textAlign = "left";
+            ctx.textBaseline = "bottom";
 
-        // Convert canvas to buffer with the text overlay
-        const finalBuffer = canvas.toBuffer("image/png");
+            // Calculate text position
+            const textX = qrSide * 0.20; // 20% from the left
+            const textY = qrSide * 0.98; // 2% from the bottom
 
-        // Convert buffer to Base64
-        const base64String = await finalBuffer.toString('base64');
+            // Measure the text width and height to create a background
+            const textMetrics = ctx.measureText(text);
+            const textWidth = textMetrics.width;
+
+            const textHeight = fontSize; // Approximating text height as font size
+            // Set background color for the text
+            ctx.fillStyle = "#ffffff"; // Background color (white)
+            ctx.fillRect(textX, textY - textHeight, textWidth, textHeight); // Draw background rectangle
+            
+            // Draw the text on top of the background
+            ctx.fillStyle = `#${themeColor}`, // Text color (theme)
+            ctx.fillText(text, textX, textY); // Position text on the QR
+
+            // Convert canvas to buffer with the text overlay
+            const finalBuffer = canvas.toBuffer("image/png");
+            // Convert buffer to Base64
+            base64String = await finalBuffer.toString('base64');
+        } else {
+            // Convert buffer to Base64
+            base64String = await buffer.toString('base64');
+        }
         // Prepend the data URL prefix
         const dataUrl = `data:image/png;base64,${base64String}`;
         // fs.writeFileSync("test.png", buffer);
