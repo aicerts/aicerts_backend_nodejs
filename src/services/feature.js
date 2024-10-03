@@ -826,8 +826,6 @@ const handleUpdateCertificationStatus = async (email, certificateNumber, certSta
                         }
 
                         let polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
-                        
-                console.log("Reached", txFee, txHash);
 
                         // Save updated details (modified)
                         isNumberExistInBatchDynamic.certificateStatus = certStatus;
