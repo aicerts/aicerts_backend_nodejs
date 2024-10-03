@@ -1,0 +1,29 @@
+services:
+  redis:
+    image: redis:6.2-alpine
+    container_name: redis
+    restart: unless-stopped
+    network_mode: bridge
+    expose:
+      - 6379
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    command: ["redis-server"]  # Start Redis without requiring a password
+  api:
+    build: .
+    container_name: certs365_batch
+    restart: unless-stopped
+    image: certs365_batch  # Use the pre-built image
+    network_mode: bridge
+    env_file:
+      - .env
+    ports:
+      - 8000:8000
+    environment:
+      NODE_ENV: dev
+      REDIS_HOST: redis  # Hostname of the Redis container
+      REDIS_PORT: 6379    # Redis port
+      REDIS_URL: redis://redis:6379  # Connection URL to Redis
+    links:
+      - redis
