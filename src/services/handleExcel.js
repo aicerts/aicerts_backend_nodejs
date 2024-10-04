@@ -643,14 +643,21 @@ const handleBatchExcelFile = async (_path, issuer) => {
         const bulkIssueExcelQueueProcessor = new Queue(queueName, redisConfig);
          // Handle Redis connection error
          let redisConnectionFailed = false;
-         bulkIssueExcelQueueProcessor.on("error", (error) => {
+
+         const onErrorListener = (error) => {
            console.error("Error connecting to Redis:", error);
            redisConnectionFailed = true;
-         });
- 
+         };
+         
+         // Attach the error listener
+         bulkIssueExcelQueueProcessor.on("error", onErrorListener);
+         
          // Wait a short time to check if Redis connects successfully
          await new Promise((resolve) => setTimeout(resolve, 2000));
- 
+         
+         // After the initial check, remove the error listener
+         bulkIssueExcelQueueProcessor.off("error", onErrorListener);
+         
          if (redisConnectionFailed) {
            return {
              status: 400,
