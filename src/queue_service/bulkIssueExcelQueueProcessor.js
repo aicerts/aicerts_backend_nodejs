@@ -261,6 +261,8 @@ const compareGrantExpiredSetDates = async (grantList, expirationList) => {
         return false; // Return false if all strings are valid
     }
 };
+
+
 const validateDynamicBatchCertificateNames = async (names) => {
   const invalidNames = [];
 

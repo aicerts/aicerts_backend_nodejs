@@ -642,10 +642,23 @@ const handleBatchExcelFile = async (_path, issuer) => {
         };
         const queueName = `bulkIssueExcelQueueProcessor${issuer}`;
         const bulkIssueExcelQueueProcessor = new Queue(queueName, redisConfig);
-        // Event listener to catch any connection errors
-        bulkIssueExcelQueueProcessor.on("error", (error) => {
-          console.error("Error connecting to Redis:", error);
-        });
+         // Handle Redis connection error
+         let redisConnectionFailed = false;
+         bulkIssueExcelQueueProcessor.on("error", (error) => {
+           console.error("Error connecting to Redis:", error);
+           redisConnectionFailed = true;
+         });
+ 
+         // Wait a short time to check if Redis connects successfully
+         await new Promise((resolve) => setTimeout(resolve, 2000));
+ 
+         if (redisConnectionFailed) {
+           return {
+             status: 400,
+             response: false,
+             message: "Redis connection failed. Please check and try again later.",
+           };
+         }
         bulkIssueExcelQueueProcessor.process(concurrency, processListener);
         // Add jobs in chunks, passing batchId as part of job data
         const jobs = await addJobsInChunks(
