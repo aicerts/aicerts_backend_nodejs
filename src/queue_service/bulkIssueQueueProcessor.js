@@ -36,6 +36,16 @@ const Queue = require("bull");
 // Create an S3 upload queue
 const s3UploadQueue = new Queue("s3-upload-queue", redisConfig);
 
+s3UploadQueue.on('completed', async (job) => {
+  try {
+    await job.remove();
+    console.log(`Removed job ${job.id} from the queue after completion.`);
+  } catch (error) {
+    console.error(`Error removing job ${job.id}:`, error.message);
+  }
+});
+
+
 // Process the queue jobs with concurrency (e.g., 5 jobs in parallel)
 s3UploadQueue.process(10, async (job) => {
   console.log(`Processing s3 batch job ${job.id}`);
@@ -152,6 +162,7 @@ async function processBulkIssueJob(job) {
     // Insert all certificate data in bulk
     if (certificateDataArray.length > 0) {
       await insertDynamicBatchCertificateDataBulk(certificateDataArray);
+      
     }
     console.log(insertUrl)
 
