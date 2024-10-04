@@ -4,7 +4,6 @@ const { QRCodeStyling } = require("qr-code-styler-node/lib/qr-code-styling.commo
 const nodeCanvas = require("canvas");
 const fs = require("fs");
 const QRCode = require('qrcode');
-const sharp = require('sharp');
 const { fromBuffer } = require("pdf2pic");
 const AWS = require('../config/aws-config');
 
