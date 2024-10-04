@@ -279,7 +279,6 @@ const handleExcelFile = async (_path) => {
   }
 };
 
-
 const handleBulkExcelFile = async (_path) => {
   if (!_path) {
     return {
@@ -652,7 +651,7 @@ const handleBatchExcelFile = async (_path, issuer) => {
           bulkIssueExcelQueueProcessor,
           rawBatchData,
           chunkSize,
-          (chunk) => ({ chunk,rows, issuerId }) // Include batchId in job data
+          (chunk) => ({ chunk, rows, issuerId }) // Include batchId in job data
         );
         try {
           await waitForJobsToComplete(jobs).catch(async (err) => {
@@ -766,7 +765,7 @@ const validateBatchCertificateNames = async (names) => {
 
   names.forEach((name) => {
     const str = name.toString(); // Convert number to string
-    if (str.length < 3 || str.length > 40 || specialCharsRegex.test(str)) {
+    if (str.length < 3 || str.length > max_length || specialCharsRegex.test(str)) {
       invalidNames.push(str);
     }
   });
