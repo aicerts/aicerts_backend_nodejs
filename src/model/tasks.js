@@ -240,7 +240,7 @@ const getIssuerServiceCredits = async (existIssuerId, serviceId) => {
     issuerId: existIssuerId,
     serviceId: serviceId
   });
-  if (getServiceLimit && getServiceLimit.limit > 0) {
+  if (getServiceLimit || getServiceLimit.limit > 0) {
     if (getServiceLimit.status === false) {
       return true;
     }
