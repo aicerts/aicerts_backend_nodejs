@@ -2137,6 +2137,7 @@ const fetchCustomIssuedCertificates = async (req, res) => {
         sumOfIssuances[key] = [issuanceResponses[key]];
       }
     }
+    
     // console.log("The response", issuanceResponses);
     // console.log("Total count", issuesCount, sumOfIssuances);
 
