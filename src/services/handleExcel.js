@@ -20,7 +20,6 @@ const Queue = require("bull");
 const min_length = 6;
 const max_length = 50;
 const cert_limit = parseInt(process.env.BATCH_LIMIT);
-const batch_limit = parseInt(process.env.DYNAMIC_BATCH_LIMIT);
 const sheetName = process.env.SHEET_NAME || "Batch";
 
 // Regular expression to match MM/DD/YY format
@@ -539,11 +538,6 @@ const handleBatchExcelFile = async (_path, issuer) => {
         // const { chunkSize, concurrency } = getChunkSizeAndConcurrency(
         //   rawBatchData.length
         // );
-
-        // Limit Records to certain limit in the Batch
-        if (rows && rows.length > batch_limit && batch_limit != 0) {
-          return { status: "FAILED", response: false, message: `${messageCode.msgExcelLimit}: ${batch_limit}`, Details: `Input Records : ${rows.length}` };
-        }
 
         const chunkSize = parseInt(process.env.EXCEL_CHUNK);
         const concurrency = parseInt(process.env.EXCEL_CONC);
