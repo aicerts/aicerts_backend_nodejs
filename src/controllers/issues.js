@@ -64,7 +64,7 @@ const {
 
 const { fetchOrEstimateTransactionFee } = require('../utils/upload');
 const { handleExcelFile, handleBulkExcelFile, handleBatchExcelFile } = require('../services/handleExcel');
-const { handleIssueCertification, handleIssuePdfCertification, handleIssueDynamicPdfCertification, dynamicBatchCertificates, handleIssuance } = require('../services/issue');
+const { handleIssueCertification, handleIssuePdfCertification, handleIssueDynamicPdfCertification, dynamicBatchCertificates, dynamicBulkCertificates, andleIssuance } = require('../services/issue');
 
 // Retrieve contract address from environment variable
 const contractAddress = process.env.CONTRACT_ADDRESS;
@@ -407,7 +407,6 @@ const Issuance = async (req, res) => {
   }
 };
 
-
 /**
  * API call for Batch Certificates issue.
  *
@@ -460,12 +459,12 @@ const batchIssueCertificate = async (req, res) => {
     const idExist = issuerExist;
     let filePath = req.file.path;
 
-    if(idExist.qrPreference){
+    if (idExist.qrPreference) {
       qrOption = idExist.qrPreference;
     }
 
     // Fetch the records from the Excel file
-    const excelData = await handleExcelFile(filePath,existIssuerId);
+    const excelData = await handleExcelFile(filePath, existIssuerId);
     await _fs.remove(filePath);
 
     try {
@@ -760,6 +759,8 @@ const dynamicBatchIssueCertificates = async (req, res) => {
   var pdfFiles = [];
   var existIssuerId;
   var qrOption = 0;
+  var excelData;
+  var bulkIssueResponse;
 
 
   var today = new Date();
@@ -784,6 +785,7 @@ const dynamicBatchIssueCertificates = async (req, res) => {
     var filePath = req.file.path;
     const email = req.body.email;
     const flag = parseInt(req.body.flag);
+    const queueOption = parseInt(req.body.queue);
 
     // Verify with existing credits limit of an issuer to perform the operation
     if (email) {
@@ -818,7 +820,7 @@ const dynamicBatchIssueCertificates = async (req, res) => {
       return;
     }
 
-    if(emailExist.qrPreference){
+    if (emailExist.qrPreference) {
       qrOption = emailExist.qrPreference;
     }
 
@@ -893,7 +895,14 @@ const dynamicBatchIssueCertificates = async (req, res) => {
 
     // console.log(excelFilePath); // Output: ./uploads/sample.xlsx
     // Fetch the records from the Excel file
-    const excelData = await handleBatchExcelFile(excelFilePath);
+    // excelData = await handleBulkExcelFile(excelFilePath);
+    if (queueOption == 0) {
+      excelData = await handleBulkExcelFile(excelFilePath);
+    } else {
+    console.log("the input option", queueOption);
+      excelData = await handleBatchExcelFile(excelFilePath);
+    }
+
     // await _fs.remove(filePath);
     if (excelData.response == false) {
       var errorDetails = (excelData.Details) ? excelData.Details : "";
@@ -903,7 +912,6 @@ const dynamicBatchIssueCertificates = async (req, res) => {
       return;
     }
 
-    console.log("Reached", excelFilePath);
     var excelDataResponse = excelData.message[0];
 
     // Extract Certs values from data and append ".pdf"
@@ -963,7 +971,12 @@ const dynamicBatchIssueCertificates = async (req, res) => {
       return;
     }
 
-    var bulkIssueResponse = await dynamicBatchCertificates(emailExist.email, emailExist.issuerId, pdfFiles, excelData.message, excelFilePath, paramsExist.positionX, paramsExist.positionY, paramsExist.qrSide, paramsExist.pdfWidth, paramsExist.pdfHeight, qrOption, flag);
+    console.log("The queue option", queueOption);
+    if (queueOption == 0) {
+      bulkIssueResponse = await dynamicBulkCertificates(emailExist.email, emailExist.issuerId, pdfFiles, excelData.message, excelFilePath, paramsExist.positionX, paramsExist.positionY, paramsExist.qrSide, paramsExist.pdfWidth, paramsExist.pdfHeight, qrOption, flag);
+    } else {
+      bulkIssueResponse = await dynamicBatchCertificates(emailExist.email, emailExist.issuerId, pdfFiles, excelData.message, excelFilePath, paramsExist.positionX, paramsExist.positionY, paramsExist.qrSide, paramsExist.pdfWidth, paramsExist.pdfHeight, qrOption, flag);
+    }
 
     if (bulkIssueStatus == 'ZIP_STORE' || flag == 1) {
       if (bulkIssueResponse.code == 200) {
@@ -1503,10 +1516,10 @@ const issueBatchCertificateWithRetry = async (root, expirationEpoch, retryCount 
       }
     }
 
-    return { 
+    return {
       txHash: txHash,
       txFee: txFee
-     };
+    };
 
   } catch (error) {
     if (retryCount > 0 && error.code === 'ETIMEDOUT') {
@@ -1574,7 +1587,7 @@ async function removeEmptyFolders(dir) {
   try {
     // Read the contents of the directory
     const files = fs.readdirSync(dir);
-    
+
     // Loop through each file and directory
     for (const file of files) {
       const filePath = path.join(dir, file);

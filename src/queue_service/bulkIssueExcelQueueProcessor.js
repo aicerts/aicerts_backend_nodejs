@@ -1,12 +1,14 @@
 const messageCode = require("../common/codes");
 const { DynamicBatchIssues } = require("../config/schema");
 // Parse environment variables for password length constraints
-const min_length = parseInt(process.env.MIN_LENGTH) || 12;
-const max_length = parseInt(process.env.MAX_LENGTH) || 25;
+const min_length = 6;
+const max_length = 40;
 // Regular expression to match MM/DD/YY format
 const regex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/\d{4}$/;
 const specialCharsRegex = /[!@#$%^&*(),.?":{}|<>]/; // Regular expression for special characters
 const cert_limit = parseInt(process.env.BATCH_LIMIT);
+
+// const { validateDynamicBatchCertificateIDs, validateDynamicBatchCertificateNames } = require('../services/handleExcel');
 
 const processBulkExcelJobs = async (rawBatchData,rows, jobId) => {
  try {
@@ -251,8 +253,5 @@ const compareGrantExpiredSetDates = async (grantList, expirationList) => {
       return false; // Return false if all strings are valid
     }
   };
-
-
-
 
 module.exports = processBulkExcelJobs;

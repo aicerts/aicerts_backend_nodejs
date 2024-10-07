@@ -20,6 +20,7 @@ const Queue = require("bull");
 const min_length = 6;
 const max_length = 50;
 const cert_limit = parseInt(process.env.BATCH_LIMIT);
+const batch_limit = parseInt(process.env.DYNAMIC_BATCH_LIMIT);
 const sheetName = process.env.SHEET_NAME || "Batch";
 
 // Regular expression to match MM/DD/YY format
@@ -281,237 +282,132 @@ const handleExcelFile = async (_path) => {
 
 const handleBulkExcelFile = async (_path) => {
   if (!_path) {
-    return {
-      status: "FAILED",
-      response: false,
-      message: "Failed to provide excel file",
-    };
+    return { status: "FAILED", response: false, message: "Failed to provide excel file" };
   }
   // api to fetch excel data into json
   const newPath = path.join(..._path.split("\\"));
   const sheetNames = await readXlsxFile.readSheetNames(newPath);
   if (sheetNames[0] != sheetName || sheetNames.length != 1) {
-    return {
-      status: "FAILED",
-      response: false,
-      message: messageCode.msgInvalidExcel,
-      Details: sheetNames,
-    };
+    return { status: "FAILED", response: false, message: messageCode.msgInvalidExcel, Details: sheetNames };
   }
   try {
     if (sheetNames == "Batch" || sheetNames.includes("Batch")) {
       // api to fetch excel data into json
-      const rows = await readXlsxFile(newPath, { sheet: "Batch" });
-      // Check if the extracted headers match the expected pattern
-      const isValidHeaders =
-        JSON.stringify(rows[0]) === JSON.stringify(expectedBulkHeadersSchema);
-      if (isValidHeaders) {
-        const headers = rows.shift();
-        const targetData = rows.map((row) => {
-          const obj = {};
-          headers.forEach((header, index) => {
-            obj[header] = row[index];
-          });
-          return obj; // Return the fetched rows
-        });
+      const rows = await readXlsxFile(newPath, { sheet: 'Batch' });
 
-        // Limit Records to certain limit in the Batch
-        if (rows && rows.length > cert_limit && cert_limit != 0) {
-          return {
-            status: "FAILED",
-            response: false,
-            message: `${messageCode.msgExcelLimit}: ${cert_limit}`,
-            Details: `Input Records : ${rows.length}`,
-          };
-        }
+      // Extract headers from the first row
+      var headers = rows[0];
+
+      // Limit the headers and data to the first 8 columns
+      const maxColumns = 8;
+      const limitedHeaders = headers.slice(0, maxColumns);
+
+      // Check for missing headers in columns where data is present
+      let missingHeaderError = false;
+      rows.slice(1).forEach(row => {
+        limitedHeaders.slice(3).forEach((header, index) => {
+          if (header === '<Enter the Key>' || header === null || header === undefined) {
+            const value = row[index + 3]; // Adjust index for the header
+            if (value !== undefined && value !== null && value !== '' && value !== '<Enter the Value>') {
+              missingHeaderError = true;
+            }
+          }
+        });
+      });
+
+      if (missingHeaderError) {
+        return { status: "FAILED", response: false, message: messageCode.msgNoHeaderSpecified };
+      }
+
+      // Map rows to JSON objects, restricting to the first 8 columns
+      const jsonData = rows.slice(1).map(row => {
+        const rowData = {};
+        limitedHeaders.forEach((header, index) => {
+          rowData[header] = row[index] !== undefined ? row[index] : null; // handle undefined values
+        });
+        return rowData;
+      });
+
+      if (jsonData.length > 0) {
+        let headers = rows.shift();
+
+        // Prepare targetData from jsonData
+        const targetData = jsonData.map(row => {
+          const obj = {};
+          limitedHeaders.forEach((header, index) => {
+            if (header !== '<Enter the Key>') {
+              const value = row[header];
+              // Omit values that are '<Enter the Value>'
+              if (value !== '<Enter the Value>' && value !== null && value !== '') {
+                obj[header] = value;
+              }
+            }
+          });
+          return obj; // Return the processed row data
+        });
 
         // Batch Certification Formated Details
         var rawBatchData = targetData;
 
-        var certificationIDs = rawBatchData.map((item) => item.certificationID);
+        var documentIDs = rawBatchData.map(item => item.documentID);
+        var holderNames = rawBatchData.map(item => item.name);
+        var documentNames = rawBatchData.map(item => item.documentName);
 
-        var _certificationGrantDates = rawBatchData.map(
-          (item) => item.grantDate
-        );
+        var notNullDocumentIDs = documentIDs.filter(item => item == null);
+        var notNullHolderNames = holderNames.filter(item => item == null);
+        var notNullDocumentNames = documentNames.filter(item => item == null);
 
-        var _certificationExpirationDates = rawBatchData.map(
-          (item) => item.expirationDate
-        );
-
-        var holderNames = rawBatchData.map((item) => item.name);
-
-        var certificationNames = rawBatchData.map(
-          (item) => item.certificationName
-        );
-
-        var nonNullGrantDates = _certificationGrantDates.filter(
-          (date) => date == null
-        );
-        var nonNullExpiryDates = _certificationExpirationDates.filter(
-          (date) => date == null
-        );
-        var notNullCertificationIDs = certificationIDs.filter(
-          (item) => item == null
-        );
-        var notNullHolderNames = holderNames.filter((item) => item == null);
-        var notNullCertificationNames = certificationNames.filter(
-          (item) => item == null
-        );
-
-        if (
-          nonNullGrantDates.length != 0 ||
-          nonNullExpiryDates.length != 0 ||
-          notNullCertificationIDs.length != 0 ||
-          notNullHolderNames.length != 0 ||
-          notNullCertificationNames.length != 0
-        ) {
-          return {
-            status: "FAILED",
-            response: false,
-            message: messageCode.msgMissingDetailsInExcel,
-            Details: "",
-          };
+        if (notNullDocumentIDs.length != 0 || notNullHolderNames.length != 0 || notNullDocumentNames.length != 0) {
+          return { status: "FAILED", response: false, message: messageCode.msgMissingDetailsInExcel, Details: "" };
         }
 
-        var checkValidateGrantDates = await validateDates(
-          _certificationGrantDates
-        );
-        var checkValidateExpirationDates = await validateDates(
-          _certificationExpirationDates
-        );
-
-        if (
-          checkValidateGrantDates.invalidDates.length > 0 ||
-          checkValidateExpirationDates.invalidDates.length > 0
-        ) {
-          return {
-            status: "FAILED",
-            response: false,
-            message: messageCode.msgInvalidDateFormat,
-            Details: `Grant Dates ${checkValidateGrantDates.invalidDates}, Issued Dates ${checkValidateExpirationDates.invalidDates}`,
-          };
+        // Limit Records to certain limit in the Batch
+        if (rows && rows.length > cert_limit && cert_limit != 0) {
+          return { status: "FAILED", response: false, message: `${messageCode.msgExcelLimit}: ${cert_limit}`, Details: `Input Records : ${rows.length}` };
         }
-
-        var certificationGrantDates = checkValidateGrantDates.validDates;
-        var certificationExpirationDates =
-          checkValidateExpirationDates.validDates;
 
         // Initialize an empty list to store matching IDs
         const matchingIDs = [];
-        const repetitiveNumbers = await findRepetitiveIdNumbers(
-          certificationIDs
-        );
-        const invalidIdList = await validateBatchCertificateIDs(
-          certificationIDs
-        );
-        const invalidNamesList = await validateBatchCertificateNames(
-          holderNames
-        );
-
+        const repetitiveNumbers = await findRepetitiveIdNumbers(documentIDs);
+        const invalidIdList = await validateDynamicBatchCertificateIDs(documentIDs);
+        const invalidNamesList = await validateDynamicBatchCertificateNames(holderNames);
         if (invalidIdList != false) {
-          return {
-            status: "FAILED",
-            response: false,
-            message: messageCode.msgInvalidCertIds,
-            Details: invalidIdList,
-          };
+          return { status: "FAILED", response: false, message: messageCode.msgInvalidDocIds, Details: invalidIdList };
         }
 
         if (invalidNamesList != false) {
-          return {
-            status: "FAILED",
-            response: false,
-            message: messageCode.msgOnlyAlphabets,
-            Details: invalidNamesList,
-          };
+          return { status: "FAILED", response: false, message: messageCode.msgOnlyAlphabets, Details: invalidNamesList };
         }
 
         if (repetitiveNumbers.length > 0) {
-          return {
-            status: "FAILED",
-            response: false,
-            message: messageCode.msgExcelRepetetionIds,
-            Details: repetitiveNumbers,
-          };
-        }
-
-        const invalidGrantDateFormat = await findInvalidDates(
-          certificationGrantDates
-        );
-        const invalidExpirationDateFormat = await findInvalidDates(
-          certificationExpirationDates
-        );
-
-        if (
-          invalidGrantDateFormat.invalidDates.length > 0 ||
-          invalidExpirationDateFormat.invalidDates.length > 0
-        ) {
-          return {
-            status: "FAILED",
-            response: false,
-            message: messageCode.msgInvalidDateFormat,
-            Details: `Grant Dates ${invalidGrantDateFormat.invalidDates}, Issued Dates ${invalidExpirationDateFormat.invalidDates}`,
-          };
-        }
-
-        const validateCertificateDates = await compareGrantExpiredSetDates(
-          invalidGrantDateFormat.validDates,
-          invalidExpirationDateFormat.validDates
-        );
-        if (validateCertificateDates.length > 0) {
-          return {
-            status: "FAILED",
-            response: false,
-            message: messageCode.msgOlderDateThanNewDate,
-            Details: `${validateCertificateDates}`,
-          };
+          return { status: "FAILED", response: false, message: messageCode.msgExcelRepetetionIds, Details: repetitiveNumbers };
         }
 
         // Assuming BatchIssues is your MongoDB model
-        for (const id of certificationIDs) {
-          const issueExist = await isBulkCertificationIdExisted(id);
+        for (const id of documentIDs) {
+          const issueExist = await DynamicBatchIssues.findOne({ certificateNumber: id });
           if (issueExist) {
             matchingIDs.push(id);
           }
         }
 
         if (matchingIDs.length > 0) {
-          return {
-            status: "FAILED",
-            response: false,
-            message: messageCode.msgExcelHasExistingIds,
-            Details: matchingIDs,
-          };
-        }
 
-        return {
-          status: "SUCCESS",
-          response: true,
-          message: [targetData, rows.length, rows],
-        };
+          return { status: "FAILED", response: false, message: messageCode.msgExcelHasExistingIds, Details: matchingIDs };
+        }
+        return { status: "SUCCESS", response: true, message: [targetData, rows.length, rows] };
       } else {
-        return {
-          status: "FAILED",
-          response: false,
-          message: messageCode.msgInvalidHeaders,
-        };
+        return { status: "FAILED", response: false, message: messageCode.msgInvalidHeaders };
       }
     } else {
-      return {
-        status: "FAILED",
-        response: false,
-        message: messageCode.msgExcelSheetname,
-      };
+      return { status: "FAILED", response: false, message: messageCode.msgExcelSheetname };
     }
   } catch (error) {
-    console.error("Error fetching record:", error);
-    return {
-      status: "FAILED",
-      response: false,
-      message: messageCode.msgProvideValidExcel,
-    };
+    console.error('Error fetching record:', error);
+    return { status: "FAILED", response: false, message: messageCode.msgProvideValidExcel };
   }
 };
+
 const failedErrorObject = {
   status: "FAILED",
   response: false,
@@ -644,6 +540,11 @@ const handleBatchExcelFile = async (_path, issuer) => {
         //   rawBatchData.length
         // );
 
+        // Limit Records to certain limit in the Batch
+        if (rows && rows.length > batch_limit && batch_limit != 0) {
+          return { status: "FAILED", response: false, message: `${messageCode.msgExcelLimit}: ${batch_limit}`, Details: `Input Records : ${rows.length}` };
+        }
+
         const chunkSize = parseInt(process.env.EXCEL_CHUNK);
         const concurrency = parseInt(process.env.EXCEL_CONC);
         console.log(`chunk size : ${chunkSize} concurrency : ${concurrency}`);
@@ -658,30 +559,30 @@ const handleBatchExcelFile = async (_path, issuer) => {
         };
         const queueName = `bulkIssueExcelQueueProcessor${issuer}`;
         const bulkIssueExcelQueueProcessor = new Queue(queueName, redisConfig);
-         // Handle Redis connection error
-         let redisConnectionFailed = false;
+        // Handle Redis connection error
+        let redisConnectionFailed = false;
 
-         const onErrorListener = (error) => {
-           console.error("Error connecting to Redis:", error);
-           redisConnectionFailed = true;
-         };
-         
-         // Attach the error listener
-         bulkIssueExcelQueueProcessor.on("error", onErrorListener);
-         
-         // Wait a short time to check if Redis connects successfully
-         await new Promise((resolve) => setTimeout(resolve, 2000));
-         
-         // After the initial check, remove the error listener
-         bulkIssueExcelQueueProcessor.off("error", onErrorListener);
-         
-         if (redisConnectionFailed) {
-           return {
-             status: 400,
-             response: false,
-             message: "Redis connection failed. Please check and try again later.",
-           };
-         }
+        const onErrorListener = (error) => {
+          console.error("Error connecting to Redis:", error);
+          redisConnectionFailed = true;
+        };
+
+        // Attach the error listener
+        bulkIssueExcelQueueProcessor.on("error", onErrorListener);
+
+        // Wait a short time to check if Redis connects successfully
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+
+        // After the initial check, remove the error listener
+        bulkIssueExcelQueueProcessor.off("error", onErrorListener);
+
+        if (redisConnectionFailed) {
+          return {
+            status: 400,
+            response: false,
+            message: "Redis connection failed. Please check and try again later.",
+          };
+        }
         bulkIssueExcelQueueProcessor.process(concurrency, processListener);
         // Add jobs in chunks, passing batchId as part of job data
         const jobs = await addJobsInChunks(
@@ -707,7 +608,7 @@ const handleBatchExcelFile = async (_path, issuer) => {
         } finally {
           // Remove the process listener after processing jobs
           bulkIssueExcelQueueProcessor.removeAllListeners();
-          
+
           Object.assign(failedErrorObject, {
             status: "FAILED",
             response: false,
@@ -747,8 +648,6 @@ const handleBatchExcelFile = async (_path, issuer) => {
   }
 };
 
-
-
 const validateBatchCertificateIDs = async (data) => {
   const invalidStrings = [];
 
@@ -772,6 +671,47 @@ const validateBatchCertificateNames = async (names) => {
   names.forEach((name) => {
     const str = name.toString(); // Convert number to string
     if (str.length < 3 || str.length > max_length || specialCharsRegex.test(str)) {
+      invalidNames.push(str);
+    }
+  });
+
+  if (invalidNames.length > 0) {
+    return invalidNames; // Return array of invalid strings
+  } else {
+    return false; // Return false if all strings are valid
+  }
+};
+
+const validateDynamicBatchCertificateIDs = async (data) => {
+  const invalidStrings = [];
+
+  data.forEach((num) => {
+    const str = num.toString(); // Convert number to string
+    if (
+      str.length < min_length ||
+      str.length > max_length ||
+      specialCharsRegex.test(str)
+    ) {
+      invalidStrings.push(str);
+    }
+  });
+
+  if (invalidStrings.length > 0) {
+    return invalidStrings; // Return array of invalid strings
+  } else {
+    return false; // Return false if all strings are valid
+  }
+};
+
+const validateDynamicBatchCertificateNames = async (names) => {
+  const invalidNames = [];
+  names.forEach((name) => {
+    const str = name.toString(); // Convert number to string
+    if (
+      str.length < min_length ||
+      str.length > max_length ||
+      specialCharsRegex.test(str)
+    ) {
       invalidNames.push(str);
     }
   });
@@ -1069,4 +1009,4 @@ const waitForJobsToComplete = async (jobs) => {
   }
 };
 
-module.exports = { handleExcelFile, handleBulkExcelFile, handleBatchExcelFile };
+module.exports = { handleExcelFile, handleBulkExcelFile, handleBatchExcelFile, validateDynamicBatchCertificateIDs, validateDynamicBatchCertificateNames };
