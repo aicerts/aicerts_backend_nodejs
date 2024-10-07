@@ -1218,8 +1218,7 @@ const handleIssueDynamicPdfCertification = async (email, certificateNumber, name
 };
 
 const dynamicBulkCertificates = async (email, issuerId, _pdfReponse, _excelResponse, excelFilePath, posx, posy, qrside, pdfWidth, pdfHeight, qrOption, flag) => {
-  console.log("Reached");
-  const newContract = await connectToPolygon();
+ const newContract = await connectToPolygon();
   if (!newContract) {
     return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
   }
@@ -1436,9 +1435,9 @@ const dynamicBulkCertificates = async (email, issuerId, _pdfReponse, _excelRespo
           }
 
           // Always delete the source files (if it exists)
-          if (fs.existsSync(file)) {
-            fs.unlinkSync(file);
-          }
+          // if (fs.existsSync(file)) {
+          //   fs.unlinkSync(file);
+          // }
 
           // Always delete the source files (if it exists)
           if (fs.existsSync(outputPdf)) {

@@ -222,5 +222,7 @@ module.exports = {
     msgInvalidIssuerId: "Invalid Issuer (or) Issuer ID not found, Please check",
     msgIssuerQuotaExceeded: "Your account has insufficient credits to perform this operation",
     msgRpcFailed: "Invalid Address / RPC provider endpoint failed",
+    msgMaximumRange: "Maximum credits allocation must not exceed 100",
+    msgExistedMaximum: "Issuer has over maximum credits limit already",
 
 };

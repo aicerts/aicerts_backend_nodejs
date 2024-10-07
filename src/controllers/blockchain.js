@@ -47,6 +47,7 @@ var messageCode = require("../common/codes");
 
 const statusCount = parseInt(process.env.STATUS_COUNT) || 4;
 const maxCreditLimit = process.env.LIMIT_THRESHOLD || 100;
+const maximumHolding = process.env.MAXIMUM_CREDITS || 250;
 
 var linkUrl = process.env.NETWORK || "polygon";
 /**
@@ -721,6 +722,10 @@ const allocateCredits = async (req, res) => {
 
       if (!fetchServiceQuota) {
         return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgFetchQuotaFailed });
+      }
+
+      if(fetchServiceQuota.limit > maximumHolding){
+        return res.status(400).json({ code: 400, status: "FAILED", message: `${messageCode.msgExistedMaximum}:${maximumHolding}`});
       }
 
       if (fetchServiceQuota.status == false && credits > 0) {
