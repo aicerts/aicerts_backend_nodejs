@@ -642,6 +642,31 @@ const handleBatchExcelFile = async (_path, issuer) => {
   }
 };
 
+const getExcelRecordsCount = async (_path) => {
+  if (!_path) {
+    return { status: "FAILED", response: false, message: "Failed to provide excel file" };
+  }
+  // api to fetch excel data into json
+  const newPath = path.join(..._path.split("\\"));
+  const sheetNames = await readXlsxFile.readSheetNames(newPath);
+  if (sheetNames[0] != sheetName || sheetNames.length != 1) {
+    return { status: "FAILED", response: false, message: messageCode.msgInvalidExcel };
+  }
+  try {
+    if (sheetNames == "Batch" || sheetNames.includes("Batch")) {
+      // api to fetch excel data into json
+      const rows = await readXlsxFile(newPath, { sheet: 'Batch' });
+      let rowsCount = rows.length - 1;
+      return { status: "SUCCESS", response: true, message: messageCode.msgInvalidExcel, data: rowsCount};
+    } 
+    return { status: "FAILED", response: false, message: messageCode.msgInvalidExcel };
+
+    }catch (error) {
+      console.error("The error occured on fetching excel records count", error);
+      return { status: "FAILED", response: false, message: messageCode.msgInvalidExcel };
+    }
+};
+
 const validateBatchCertificateIDs = async (data) => {
   const invalidStrings = [];
 
@@ -1003,4 +1028,4 @@ const waitForJobsToComplete = async (jobs) => {
   }
 };
 
-module.exports = { handleExcelFile, handleBulkExcelFile, handleBatchExcelFile, validateDynamicBatchCertificateIDs, validateDynamicBatchCertificateNames };
+module.exports = { handleExcelFile, handleBulkExcelFile, handleBatchExcelFile, validateDynamicBatchCertificateIDs, validateDynamicBatchCertificateNames, getExcelRecordsCount };
