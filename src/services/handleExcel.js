@@ -512,18 +512,35 @@ const handleBulkExcelFile = async (_path) => {
     };
   }
 };
-// Move the process listener outside of the function to avoid defining it multiple times
+const failedErrorObject = {
+  status: "FAILED",
+  response: false,
+  message: "",
+  Details: [],
+};
 const processListener = async (job) => {
-  const result = await processExcelJob(job);
-  // Check the result and handle failures
-  if (!result.response) {
-    if (result.status === "FAILED") {
-      const message = result.message + " " + result.Details;
-      const error = new Error(message);
-      throw error;
+  try {
+    const result = await processExcelJob(job);
+
+    if (!result.response && result.status === "FAILED") {
+      failedErrorObject.message = result.message;
+      failedErrorObject.Details.push(...result.Details);
+      const errorDetails = {
+        message: result.message,
+        Details: result.Details,
+      };
+      // Fail the job manually with errorDetails, including custom details
+      await job.moveToFailed(
+        { message: result.message, Details: result.Details },
+        true
+      );
+      throw new Error(result.message); // Still throw an error for logging
+    } else {
+      console.log("Job processed successfully:", job.id);
     }
-  } else {
-    console.log("Job processed successfully:", job.id);
+  } catch (error) {
+    console.error("Error during job processing:", error.message, error.Details);
+    throw error;
   }
 };
 
@@ -684,11 +701,19 @@ const handleBatchExcelFile = async (_path, issuer) => {
           return {
             status: 400,
             response: false,
-            message: error.message || "Job processing failed.",
+            message: failedErrorObject.message || "Job processing failed.",
+            Details: failedErrorObject.Details // Include the failed details
           };
         } finally {
           // Remove the process listener after processing jobs
           bulkIssueExcelQueueProcessor.removeAllListeners();
+          
+          Object.assign(failedErrorObject, {
+            status: "FAILED",
+            response: false,
+            message: "",
+            Details: []
+          });
           console.log("bulkIssue queue listener remved... ");
         }
         console.log("all jobs for excel data completed...");
@@ -722,46 +747,7 @@ const handleBatchExcelFile = async (_path, issuer) => {
   }
 };
 
-const validateDynamicBatchCertificateIDs = async (data) => {
-  const invalidStrings = [];
 
-  data.forEach((num) => {
-    const str = num.toString(); // Convert number to string
-    if (
-      str.length < min_length ||
-      str.length > max_length ||
-      specialCharsRegex.test(str)
-    ) {
-      invalidStrings.push(str);
-    }
-  });
-
-  if (invalidStrings.length > 0) {
-    return invalidStrings; // Return array of invalid strings
-  } else {
-    return false; // Return false if all strings are valid
-  }
-};
-
-const validateDynamicBatchCertificateNames = async (names) => {
-  const invalidNames = [];
-  names.forEach((name) => {
-    const str = name.toString(); // Convert number to string
-    if (
-      str.length < min_length ||
-      str.length > max_length ||
-      specialCharsRegex.test(str)
-    ) {
-      invalidNames.push(str);
-    }
-  });
-
-  if (invalidNames.length > 0) {
-    return invalidNames; // Return array of invalid strings
-  } else {
-    return false; // Return false if all strings are valid
-  }
-};
 
 const validateBatchCertificateIDs = async (data) => {
   const invalidStrings = [];

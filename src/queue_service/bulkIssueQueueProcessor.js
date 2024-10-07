@@ -30,7 +30,6 @@ const Queue = require("bull");
       redis: {
         port: process.env.REDIS_PORT || 6379,  // Redis port (6380 from your env)
         host: process.env.REDIS_HOST || 'localhost',  // Redis host (127.0.0.1 from your env)
-         password:'4lylWWVTHA3zB3NRg8pmR6K35PxnmTYB'
       }
     };
 // Create an S3 upload queue

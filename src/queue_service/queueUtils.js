@@ -65,7 +65,6 @@ async function cleanUpJobs(queue) {
     await queue.clean(0, 'completed'); 
     await queue.clean(0, 'failed'); 
     
-    console.log('Completed and failed jobs cleaned up immediately');
   } catch (error) {
     console.error('Error during job cleanup:', error);
   } finally {

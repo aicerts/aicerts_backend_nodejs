@@ -151,42 +151,8 @@ const findRepetitiveIdNumbers = async (data) => {
 
   return repetitiveNumbers;
 };
-const validateBatchCertificateIDs = async (data) => {
-  const invalidStrings = [];
 
-  data.forEach((num) => {
-    const str = num.toString(); // Convert number to string
-    if (
-      str.length < min_length ||
-      str.length > max_length ||
-      specialCharsRegex.test(str)
-    ) {
-      invalidStrings.push(str);
-    }
-  });
 
-  if (invalidStrings.length > 0) {
-    return invalidStrings; // Return array of invalid strings
-  } else {
-    return false; // Return false if all strings are valid
-  }
-};
-const validateBatchCertificateNames = async (names) => {
-  const invalidNames = [];
-
-  names.forEach((name) => {
-    const str = name.toString(); // Convert number to string
-    if (str.length > 30) {
-      invalidNames.push(str);
-    }
-  });
-
-  if (invalidNames.length > 0) {
-    return invalidNames; // Return array of invalid strings
-  } else {
-    return false; // Return false if all strings are valid
-  }
-};
 const findInvalidDates = async (dates) => {
   const validDates = [];
   const invalidDates = [];
@@ -247,37 +213,46 @@ const compareGrantExpiredSetDates = async (grantList, expirationList) => {
 
   const validateDynamicBatchCertificateIDs = async (data) => {
     const invalidStrings = [];
-
-    data.forEach(num => {
-        const str = num.toString(); // Convert number to string
-        if (str.length < min_length || str.length > max_length || specialCharsRegex.test(str)) {
-            invalidStrings.push(str);
-        }
-    });
-
-    if (invalidStrings.length > 0) {
-        return invalidStrings; // Return array of invalid strings
-    } else {
-        return false; // Return false if all strings are valid
-    }
-};
-
-
-const validateDynamicBatchCertificateNames = async (names) => {
-  const invalidNames = [];
-
-  names.forEach(name => {
-      const str = name.toString(); // Convert number to string
-      if (str.length > 40) {
-          invalidNames.push(str);
+  
+    data.forEach((num) => {
+      const str = num.toString(); // Convert number to string
+      if (
+        str.length < min_length ||
+        str.length > max_length ||
+        specialCharsRegex.test(str)
+      ) {
+        invalidStrings.push(str);
       }
-  });
-
-  if (invalidNames.length > 0) {
-      return invalidNames; // Return array of invalid strings
-  } else {
+    });
+  
+    if (invalidStrings.length > 0) {
+      return invalidStrings; // Return array of invalid strings
+    } else {
       return false; // Return false if all strings are valid
-  }
-};
+    }
+  };
+  
+  const validateDynamicBatchCertificateNames = async (names) => {
+    const invalidNames = [];
+    names.forEach((name) => {
+      const str = name.toString(); // Convert number to string
+      if (
+        str.length < min_length ||
+        str.length > max_length ||
+        specialCharsRegex.test(str)
+      ) {
+        invalidNames.push(str);
+      }
+    });
+  
+    if (invalidNames.length > 0) {
+      return invalidNames; // Return array of invalid strings
+    } else {
+      return false; // Return false if all strings are valid
+    }
+  };
+
+
+
 
 module.exports = processBulkExcelJobs;
