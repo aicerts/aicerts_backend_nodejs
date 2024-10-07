@@ -1483,6 +1483,12 @@ const dynamicBulkCertificates = async (email, issuerId, _pdfReponse, _excelRespo
     return ({ code: 500, status: false, message: messageCode.msgInternalError, Details: error });
   }
 };
+const failedErrorObject = {
+  status: "FAILED",
+  response: false,
+  message: "",
+  Details: [],
+};
 
 const processListener = async (job) => {
   try {
@@ -1492,6 +1498,8 @@ const processListener = async (job) => {
     // Check the result and handle failures
     if (result.status === false) {
       console.log(result)
+      failedErrorObject.message = result.message;
+      failedErrorObject.Details.push(...result.Details);
       // Optionally pause the queue if a failure occurs
       await bulkIssueQueue.pause();
       // Create and throw a detailed error
@@ -1636,6 +1644,8 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
       );
       bulkIssueQueue.process(concurrency, processListener)
       const insertUrl=await waitForJobsToComplete(jobs);
+
+
       console.log("final s3 urls");
       console.log(insertUrl);
       console.log("bulk issue queue processing completed");
@@ -1671,7 +1681,14 @@ const dynamicBatchCertificates = async (email, issuerId, _pdfReponse, _excelResp
 
     } catch (error) {
       await wipeUploadFolder();
-      return ({ code: 400, status: false, message: messageCode.msgFailedToIssueBulkCerts, Details: error });
+      return ({ code: 400, status: false, message: messageCode.msgFailedToIssueBulkCerts, Details: failedErrorObject.Details });
+    }finally{
+      Object.assign(failedErrorObject, {
+        status: "FAILED",
+        response: false,
+        message: "",
+        Details: []
+      });
     }
 
   } catch (error) {

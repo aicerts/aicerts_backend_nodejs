@@ -58,7 +58,7 @@ s3UploadQueue.process(10, async (job) => {
       
       // Convert back to Buffer
       const fileBuffer = Buffer.from(base64Buffer, 'base64');
-      const imageUrl = await _convertPdfBufferToPng(
+      const imageUrl = await _convertPdfBufferToPngWithRetry(
         certificateNumber,
         fileBuffer,
         pdfWidth,
