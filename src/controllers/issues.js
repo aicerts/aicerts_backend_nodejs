@@ -34,6 +34,8 @@ const extractionPath = './uploads';
 const bulkIssueStatus = process.env.BULK_ISSUE_STATUS || 'DEFAULT';
 const cloudStore = process.env.CLOUD_STORE || 'DEFAULT';
 
+const queueEnable = parseInt(process.env.ENABLE_QUEUE) || 0;
+
 const withoutPdfWidth = parseInt(process.env.WITHOUT_PDF_WIDTH);
 const withoutPdfHeight = parseInt(process.env.WITHOUT_PDF_HEIGHT);
 const qrXPosition = parseInt(process.env.STATIC_X_POSITION) || null;
@@ -897,21 +899,25 @@ const dynamicBatchIssueCertificates = async (req, res) => {
 
     // console.log(excelFilePath); // Output: ./uploads/sample.xlsx
     // Fetch the records from the Excel file
-    var excelDataCount = await getExcelRecordsCount(excelFilePath);
-    console.log("the count", excelDataCount);
-    if(excelDataCount.data){
-      queueOption = (excelDataCount.data >= cert_limit) ? queueOption = 1 : queueOption = 0;
+    if (queueEnable == 0) {
+      var excelDataCount = await getExcelRecordsCount(excelFilePath);
+      console.log("the count", excelDataCount);
+      if (excelDataCount.data) {
+        queueOption = (excelDataCount.data >= cert_limit) ? queueOption = 1 : queueOption = 0;
+      } else {
+        res.status(400).json({ code: 400, status: "FAILED", message: excelDataCount.message });
+        // await cleanUploadFolder();
+        await wipeUploadFolder();
+        return;
+      }
     } else {
-      res.status(400).json({ code: 400, status: "FAILED", message: excelDataCount.message });
-      // await cleanUploadFolder();
-      await wipeUploadFolder();
-      return;
+      queueOption = 0;
     }
 
     if (queueOption == 0) {
       excelData = await handleBulkExcelFile(excelFilePath);
     } else {
-    console.log("the input option", queueOption);
+      console.log("the input option", queueOption);
       excelData = await handleBatchExcelFile(excelFilePath);
     }
 
