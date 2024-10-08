@@ -294,13 +294,13 @@ async function processSinglePdf({
       posy
     );
 
-    if (!fs.existsSync(outputPdf)) {
-      return {
-        code: 400,
-        status: "FAILD",
-        message: messageCode.msgInvalidFilePath,
-      };
-    }
+    // if (!fs.existsSync(outputPdf)) {
+    //   return {
+    //     code: 400,
+    //     status: "FAILD",
+    //     message: messageCode.msgInvalidFilePath,
+    //   };
+    // }
 
     // Read the generated PDF file
     var fileBuffer = fs.readFileSync(outputPdf);

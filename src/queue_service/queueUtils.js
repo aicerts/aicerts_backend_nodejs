@@ -1,4 +1,5 @@
 // queueUtils.js
+const Redis = require("ioredis")
 
 
 const processBulkExcelJobs = require("./bulkIssueExcelQueueProcessor")
@@ -130,10 +131,27 @@ const getChunkSizeAndConcurrency = (count) => {
 };
 
 
+
+const cleanRedis = async (redisConfig) => {
+  const redisClient = new Redis(redisConfig.redis.port, redisConfig.redis.host);
+  
+  try {
+    await redisClient.flushdb(); // Clears the current database
+    console.log('Redis database cleaned successfully.');
+  } catch (error) {
+    console.error('Error cleaning Redis database:', error);
+  } finally {
+    redisClient.quit(); // Ensure the Redis client is closed after operation
+  }
+};
+
+
+
 module.exports = {
   addJobsInChunks,
   waitForJobsToComplete,
   cleanUpJobs,
   processExcelJob,
-  getChunkSizeAndConcurrency
+  getChunkSizeAndConcurrency,
+  cleanRedis
 };

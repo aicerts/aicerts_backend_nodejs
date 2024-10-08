@@ -46,7 +46,7 @@ const expectedBulkHeadersSchema = [
 ];
 
 const messageCode = require("../common/codes");
-const { cleanUpJobs, addJobsInChunks, processExcelJob } = require("../queue_service/queueUtils");
+const { cleanUpJobs, addJobsInChunks, processExcelJob, cleanRedis } = require("../queue_service/queueUtils");
 
 const handleExcelFile = async (_path) => {
   if (!_path) {
@@ -551,6 +551,7 @@ const handleBatchExcelFile = async (_path, issuer) => {
             host: process.env.REDIS_HOST || "localhost", // Redis host (127.0.0.1 from your env)
           },
         };
+        await cleanRedis(redisConfig)
         const queueName = `bulkIssueExcelQueueProcessor${issuer}`;
         const bulkIssueExcelQueueProcessor = new Queue(queueName, redisConfig);
         // Handle Redis connection error
