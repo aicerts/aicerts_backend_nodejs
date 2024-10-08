@@ -792,7 +792,117 @@ router.post('/batch-certificate-issue', __upload.single("excelFile"), ensureAuth
  *               message: The service is temporarily unavailable due to insufficient credits. Please try again later.
  */
 
-router.post('/dynamic-batch-issue', upload.single("zipFile"), adminController.dynamicBatchIssueCertificates);
+router.post('/dynamic-batch-issue', upload.single("zipFile"), ensureAuthenticated, adminController.dynamicBatchIssueCertificates);
+
+/**
+ * @swagger
+ * /api/dynamic-batch:
+ *   post:
+ *     summary: upload ZIP contain Excel & Pdfs with bulk issue with batch approach with issuer email and download response flag (optional).
+ *     description: API extract zip file contents into uploads folder for Dynamic Bulk issue.
+ *     tags: [Dynamic Batch Issue]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: Issuer email id to be validated
+ *               zipFile:
+ *                 type: string
+ *                 format: binary
+ *                 description: ZIP file containing the PDF certificates & Excel to be issued.
+ *               flag:
+ *                 type: number
+ *                 description: Provide flag for download option 0:S3 JSON Response, 1:Zip response.
+ *             required:
+ *                - email
+ *                - zipFile
+ *           example:
+ *             status: "FAILED"
+ *             error: Internal Server Error
+ *     responses:
+ *       '200':
+ *         description: Dynamic Bulk issued successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 detailsQR:
+ *                   type: string
+ *             example:
+ *               code: 200.
+ *               status: "SUCCESS"
+ *               message: Dynamic Bulk issued successfully.
+ *       '400':
+ *         description: Dynamic Bulk not issued successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *             example:
+ *               code: 400.
+ *               status: "FAILED"
+ *               message: Dynamic Bulk not issued successfully.
+ *       '401':
+ *         description: Unauthorized Aceess / No token provided.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the operation (FAILED).
+ *                 message:
+ *                   type: string
+ *                   description: Unauthorized access. No token provided.
+ *             example:
+ *               code: 401.
+ *               status: "FAILED"
+ *               message: Unauthorized access. No token provided.
+ *       '500':
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               code: 500.
+ *               status: "FAILED"
+ *               message: Internal Server Error.
+ *       '503':
+ *         description: Service Unavailable temporarily unavailable due to inactive/insufficient credits limit.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               code: 503.
+ *               status: "FAILED"
+ *               message: The service is temporarily unavailable due to insufficient credits. Please try again later.
+ */
+
+router.post('/dynamic-batch', upload.single("zipFile"), adminController.dynamicBatchIssueCredentials);
 
 /**
  * @swagger

@@ -1,6 +1,6 @@
 services:
   redis:
-    image: redis:6.2-alpine
+    image: redis
     container_name: redis
     restart: unless-stopped
     network_mode: bridge
