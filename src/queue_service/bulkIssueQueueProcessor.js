@@ -330,7 +330,7 @@ async function processSinglePdf({
           pdfHeight,
 
       }
-      imageUrl = `https://certs365-live.s3.amazonaws.com/dynamic_test_bulk_issues/${foundEntry.documentID}.png`;
+      imageUrl = `https://certs365-live.s3.amazonaws.com/dynamic_bulk_issues/${foundEntry.documentID}.png`;
       if (!imageUrl) {
         return {
           code: 400,
@@ -457,7 +457,7 @@ const _uploadImageToS3 = async (certNumber, imagePath) => {
   const fileStream = fs.createReadStream(imagePath.replace(".png", "-1.png"));
 
   const acl = process.env.ACL_NAME;
-  const keyPrefix = "dynamic_test_bulk_issues/";
+  const keyPrefix = "dynamic_bulk_issues/";
 
   const keyName = keyPrefix + _keyName;
 

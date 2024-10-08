@@ -12,9 +12,9 @@ services:
     command: ["redis-server"]  # Start Redis without requiring a password
   api:
     build: .
-    container_name: certs365_batch
+    container_name: certs365_dynamic
     restart: unless-stopped
-    image: certs365_batch  # Use the pre-built image
+    image: certs365_dynamic  # Use the pre-built image
     network_mode: bridge
     env_file:
       - .env

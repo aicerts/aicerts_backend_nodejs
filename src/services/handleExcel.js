@@ -610,7 +610,7 @@ const handleBatchExcelFile = async (_path, issuer) => {
             message: "",
             Details: []
           });
-          console.log("bulkIssue queue listener remved... ");
+          console.log("bulkIssue queue listener removed... ");
         }
         console.log("all jobs for excel data completed...");
 
