@@ -63,7 +63,7 @@ const {
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
 const { fetchOrEstimateTransactionFee } = require('../utils/upload');
-const { handleExcelFile, handleBulkExcelFile, handleBatchExcelFile } = require('../services/handleExcel');
+const { handleExcelFile, handleBulkExcelFile, handleBatchExcelFile, getExcelRecordsCount } = require('../services/handleExcel');
 const { handleIssueCertification, handleIssuePdfCertification, handleIssueDynamicPdfCertification, dynamicBatchCertificates, dynamicBulkCertificates, andleIssuance } = require('../services/issue');
 
 // Retrieve contract address from environment variable
@@ -87,6 +87,8 @@ const signer = new ethers.Wallet(process.env.PRIVATE_KEY, fallbackProvider);
 const newContract = new ethers.Contract(contractAddress, abi, signer);
 
 const messageCode = require("../common/codes");
+
+const cert_limit = parseInt(process.env.BATCH_LIMIT);
 
 // const currentDir = __dirname;
 // const parentDir = path.dirname(path.dirname(currentDir));
@@ -785,7 +787,7 @@ const dynamicBatchIssueCertificates = async (req, res) => {
     var filePath = req.file.path;
     const email = req.body.email;
     const flag = parseInt(req.body.flag);
-    const queueOption = parseInt(req.body.queue);
+    var queueOption;
 
     // Verify with existing credits limit of an issuer to perform the operation
     if (email) {
@@ -895,7 +897,17 @@ const dynamicBatchIssueCertificates = async (req, res) => {
 
     // console.log(excelFilePath); // Output: ./uploads/sample.xlsx
     // Fetch the records from the Excel file
-    // excelData = await handleBulkExcelFile(excelFilePath);
+    var excelDataCount = await getExcelRecordsCount(excelFilePath);
+    console.log("the count", excelDataCount);
+    if(excelDataCount.data){
+      queueOption = (excelDataCount.data >= cert_limit) ? queueOption = 1 : queueOption = 0;
+    } else {
+      res.status(400).json({ code: 400, status: "FAILED", message: excelDataCount.message });
+      // await cleanUploadFolder();
+      await wipeUploadFolder();
+      return;
+    }
+
     if (queueOption == 0) {
       excelData = await handleBulkExcelFile(excelFilePath);
     } else {

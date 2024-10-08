@@ -705,17 +705,12 @@ router.post('/batch-certificate-issue', __upload.single("excelFile"), ensureAuth
  *                 type: string
  *                 format: binary
  *                 description: ZIP file containing the PDF certificates & Excel to be issued.
- *               queue:
- *                 type: number
- *                 description: Provide queue for issue option 0:250 normal approach, 1:2000 with queue process.
- *                 default: 0
  *               flag:
  *                 type: number
  *                 description: Provide flag for download option 0:S3 JSON Response, 1:Zip response.
  *             required:
  *                - email
  *                - zipFile
- *                - queue
  *           example:
  *             status: "FAILED"
  *             error: Internal Server Error

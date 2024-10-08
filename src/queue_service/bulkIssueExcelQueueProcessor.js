@@ -6,7 +6,7 @@ const max_length = 40;
 // Regular expression to match MM/DD/YY format
 const regex = /^(0[1-9]|1[0-2])\/(0[1-9]|[12][0-9]|3[01])\/\d{4}$/;
 const specialCharsRegex = /[!@#$%^&*(),.?":{}|<>]/; // Regular expression for special characters
-const cert_limit = parseInt(process.env.BATCH_LIMIT);
+const cert_limit = parseInt(process.env.DYNAMIC_BATCH_LIMIT);
 
 // const { validateDynamicBatchCertificateIDs, validateDynamicBatchCertificateNames } = require('../services/handleExcel');
 

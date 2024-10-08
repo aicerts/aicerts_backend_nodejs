@@ -20,7 +20,6 @@ const Queue = require("bull");
 const min_length = 6;
 const max_length = 50;
 const cert_limit = parseInt(process.env.BATCH_LIMIT);
-const batch_limit = parseInt(process.env.DYNAMIC_BATCH_LIMIT);
 const sheetName = process.env.SHEET_NAME || "Batch";
 
 // Regular expression to match MM/DD/YY format
@@ -540,11 +539,6 @@ const handleBatchExcelFile = async (_path, issuer) => {
         //   rawBatchData.length
         // );
 
-        // Limit Records to certain limit in the Batch
-        if (rows && rows.length > batch_limit && batch_limit != 0) {
-          return { status: "FAILED", response: false, message: `${messageCode.msgExcelLimit}: ${batch_limit}`, Details: `Input Records : ${rows.length}` };
-        }
-
         const chunkSize = parseInt(process.env.EXCEL_CHUNK);
         const concurrency = parseInt(process.env.EXCEL_CONC);
         console.log(`chunk size : ${chunkSize} concurrency : ${concurrency}`);
@@ -646,6 +640,31 @@ const handleBatchExcelFile = async (_path, issuer) => {
       message: messageCode.msgProvideValidExcel,
     };
   }
+};
+
+const getExcelRecordsCount = async (_path) => {
+  if (!_path) {
+    return { status: "FAILED", response: false, message: "Failed to provide excel file" };
+  }
+  // api to fetch excel data into json
+  const newPath = path.join(..._path.split("\\"));
+  const sheetNames = await readXlsxFile.readSheetNames(newPath);
+  if (sheetNames[0] != sheetName || sheetNames.length != 1) {
+    return { status: "FAILED", response: false, message: messageCode.msgInvalidExcel };
+  }
+  try {
+    if (sheetNames == "Batch" || sheetNames.includes("Batch")) {
+      // api to fetch excel data into json
+      const rows = await readXlsxFile(newPath, { sheet: 'Batch' });
+      let rowsCount = rows.length - 1;
+      return { status: "SUCCESS", response: true, message: messageCode.msgInvalidExcel, data: rowsCount};
+    } 
+    return { status: "FAILED", response: false, message: messageCode.msgInvalidExcel };
+
+    }catch (error) {
+      console.error("The error occured on fetching excel records count", error);
+      return { status: "FAILED", response: false, message: messageCode.msgInvalidExcel };
+    }
 };
 
 const validateBatchCertificateIDs = async (data) => {
@@ -1009,4 +1028,4 @@ const waitForJobsToComplete = async (jobs) => {
   }
 };
 
-module.exports = { handleExcelFile, handleBulkExcelFile, handleBatchExcelFile, validateDynamicBatchCertificateIDs, validateDynamicBatchCertificateNames };
+module.exports = { handleExcelFile, handleBulkExcelFile, handleBatchExcelFile, validateDynamicBatchCertificateIDs, validateDynamicBatchCertificateNames, getExcelRecordsCount };
