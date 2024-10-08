@@ -1501,7 +1501,7 @@ const processListener = async (job) => {
       failedErrorObject.message = result.message;
       failedErrorObject.Details.push(...result.Details);
       // Optionally pause the queue if a failure occurs
-      await bulkIssueQueue.pause();
+      // await bulkIssueQueue.pause();
       // Create and throw a detailed error
       const message = result.message + " " + (result.Details || "");
       throw new Error(message);
