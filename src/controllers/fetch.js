@@ -11,14 +11,13 @@ const { validationResult } = require("express-validator");
 const moment = require('moment');
 
 // Import MongoDB models
-const { User, Issues, BatchIssues, IssueStatus, VerificationLog, ServiceAccountQuotas } = require("../config/schema");
+const { User, Issues, BatchIssues, IssueStatus, VerificationLog, ServiceAccountQuotas, DynamicIssues, DynamicBatchIssues, BulkBatchIssues } = require("../config/schema");
 
 // Importing functions from a custom module
 const {
+  isValidIssuer,
   holdExecution,
   validateSearchDateFormat,
-  convertDateFormat,
-  cleanUploadFolder,
   isDBConnected // Function to check if the database connection is established
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
@@ -27,6 +26,7 @@ const apiUrl = process.env.POLYGON_API_URL || null;
 const polygonApiKey = process.env.POLYGON_API_KEY || null;
 const netcomAddress = process.env.NETCOM_CONTRACT || null;
 const lmsAddress = process.env.LMS_CONTRACT || null;
+const certs365Address = process.env.CERTS365_CONTRACT || null;
 const MAX_RETRY_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 1000; // 1 second delay between retries (adjust as needed)
 const bucketName = process.env.BUCKET_NAME || 'certs365-live';
@@ -50,17 +50,34 @@ const getAllIssuers = async (req, res) => {
     console.log(dbStatusMessage);
 
     // Fetch all users from the database
-    const allIssuers = await User.find({ approved: false }).select('-password');
+    const allIssuers = await User.find({ status: [0, 1, 2] }).select('-password');
+    const allIssuerCount = allIssuers.length;
 
-    // Respond with success and all user details
+    const statusCounts = allIssuers.reduce((counts, item) => {
+      if (item.status === 0) counts.status0++;
+      if (item.status === 1) counts.status1++;
+      if (item.status === 2) counts.status2++;
+      return counts;
+    }, { status0: 0, status1: 0, status2: 0 });
+
+    const pendingIssuerCount = statusCounts.status0;
+    const activeIssuerCount = statusCounts.status1;
+    const inactiveIssuerCount = statusCounts.status2;
+
     res.json({
+      code: 200,
       status: 'SUCCESS',
+      allIssuers: allIssuerCount,
+      activeIssuers: activeIssuerCount,
+      inactiveIssuers: inactiveIssuerCount,
+      pendingIssuers: pendingIssuerCount,
       data: allIssuers,
       message: messageCode.msgAllIssuersFetched
     });
   } catch (error) {
     // Error occurred while fetching user details, respond with failure message
     res.json({
+      code: 400,
       status: 'FAILED',
       message: messageCode.msgErrorOnFetching
     });
@@ -90,21 +107,21 @@ const getIssuerByEmail = async (req, res) => {
 
     if (issuer) {
       res.json({
-        code: 200, 
+        code: 200,
         status: 'SUCCESS',
         data: issuer,
         message: `Issuer with email ${email} fetched successfully`
       });
     } else {
       res.json({
-        code: 400, 
+        code: 400,
         status: 'FAILED',
         message: `Issuer with email ${email} not found`
       });
     }
   } catch (error) {
     res.json({
-      code: 400, 
+      code: 400,
       status: 'FAILED',
       message: messageCode.msgErrorOnFetching
     });
@@ -130,7 +147,7 @@ const getServiceLimitsByEmail = async (req, res) => {
 
     const { email } = req.body;
 
-    const issuerExist = await User.findOne({ email: email }).select('-password');
+    const issuerExist = await await User.findOne({ email: email });
     if (!issuerExist || !issuerExist.issuerId) {
       return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidIssuer, details: email });
     }
@@ -154,7 +171,7 @@ const getServiceLimitsByEmail = async (req, res) => {
 
   } catch (error) {
     res.json({
-      code: 400, 
+      code: 400,
       status: 'FAILED',
       message: messageCode.msgErrorOnFetching
     });
@@ -195,7 +212,7 @@ const getIssueDetails = async (req, res) => {
     }
 
     // Check if user with provided email exists
-    const issuerExist = await User.findOne({ email: email });
+    const issuerExist = await isValidIssuer(email);
 
     if (!issuerExist) {
       return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUserNotFound });
@@ -358,27 +375,51 @@ const getIssueDetails = async (req, res) => {
 const getIssuersWithFilter = async (req, res) => {
   let validResult = validationResult(req);
   if (!validResult.isEmpty()) {
-    return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+    return res.status(422).json({ status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
   }
   try {
     const input = req.body.input;
     const filter = req.body.filter;
-    if (!filter || !input) {
-      return res.status(400).send({ code: 400, status: "FAILED", message: messageCode.msgInputProvide });
+    const flag = parseInt(req.body.flag);
+    if (!filter || !input || !flag == 1 || !flag == 2) {
+      return res.status(400).send({ status: "FAILED", message: messageCode.msgEnterInvalid });
     }
-
     var fetchResult;
-    const query = {};
-    query[filter] = { $regex: `^${input}`, $options: 'i' };
-    fetchResult = await User.find(query).select(['-password']);
+    if (flag == 1) {
+      const query = {};
+      const projection = {};
+      query[filter] = { $regex: `^${input}`, $options: 'i' };
+      // Construct the projection object dynamically
+      projection[filter] = 1; // Include the field specified by `key`
+      projection['_id'] = 0; // Exclude the `_id` field
+      fetchResponse = await User.find(query, projection);
+      // Extract the key match from the results
+      const responseItems = fetchResponse.map(item => item[filter]);
+      // Remove duplicates using a Set
+      // const uniqueItems = Array.from(new Set(responseItems));
+      const uniqueItems = [...new Set(responseItems.map(item => item.toLowerCase()))];
+      // Sort the values alphabetically
+      // fetchResult = uniqueItems.sort((a, b) => a.localeCompare(b));
+      fetchResult = uniqueItems.map(lowerCaseItem =>
+        responseItems.find(item => item.toLowerCase() === lowerCaseItem)
+      );
+    } else {
+      let filterCriteria = `$${filter}`;
+      fetchResult = await User.find({
+        $expr: {
+          $and: [
+            { $eq: [{ $toLower: filterCriteria }, input.toLowerCase()] }
+          ]
+        }
+      }).select(['-password']);
+    }
 
     if (fetchResult.length == 0) {
-      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgNoMatchFound });
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgNoMatchFound });
     }
-
-    return res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgAllIssuersFetched, details: fetchResult });
+    return res.status(200).json({ status: "SUCCESS", message: messageCode.msgAllIssuersFetched, details: fetchResult });
   } catch (error) {
-    return res.status(500).json({ code: 500, status: "FAILED", message: messageCode.msgInternalError });
+    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
   }
 };
 
@@ -408,7 +449,7 @@ const getIssuesWithFilter = async (req, res) => {
     var startIndex;
     var endIndex;
     await isDBConnected();
-    const isEmailExist = await User.findOne({ email: email });
+    const isEmailExist = await isValidIssuer(email);
     if (!isEmailExist) {
       return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidEmail, details: email });
     }
@@ -437,16 +478,43 @@ const getIssuesWithFilter = async (req, res) => {
           url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
         });
 
+        // Query 3
+        var query3Promise = DynamicIssues.find({
+          issuerId: isEmailExist.issuerId,
+          $expr: {
+            $and: [
+              { $regexMatch: { input: { $toLower: filterCriteria }, regex: new RegExp(`^${input.toLowerCase()}`, 'i') } }
+            ]
+          },
+          url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
+        });
+
+        // Query 4
+        var query4Promise = DynamicBatchIssues.find({
+          issuerId: isEmailExist.issuerId,
+          $expr: {
+            $and: [
+              { $regexMatch: { input: { $toLower: filterCriteria }, regex: new RegExp(`^${input.toLowerCase()}`, 'i') } }
+            ]
+          },
+          url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
+        });
+
         // Await both promises
-        var [query1Result, query2Result] = await Promise.all([query1Promise, query2Promise]);
+        var [query1Result, query2Result, query3Result, query4Result] = await Promise.all([query1Promise, query2Promise, query3Promise, query4Promise]);
         // Check if results are non-empty and push to finalResults
-        if (query1Result.length > 0) {
+        if (query1Result && query1Result.length > 0) {
           fetchedIssues = fetchedIssues.concat(query1Result);
         }
-        if (query2Result.length > 0) {
+        if (query2Result && query2Result.length > 0) {
           fetchedIssues = fetchedIssues.concat(query2Result);
         }
-
+        if (query3Result && query3Result.length > 0) {
+          fetchedIssues = fetchedIssues.concat(query3Result);
+        }
+        if (query4Result && query4Result.length > 0) {
+          fetchedIssues = fetchedIssues.concat(query4Result);
+        }
         // Extract the key match from the results
         const responseItems = fetchedIssues.map(item => item[filter]);
         // Remove duplicates using a Set
@@ -492,14 +560,42 @@ const getIssuesWithFilter = async (req, res) => {
           url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
         });
 
+        // Query 3
+        var query3Promise = DynamicIssues.find({
+          issuerId: isEmailExist.issuerId,
+          $expr: {
+            $and: [
+              { $eq: [{ $toLower: filterCriteria }, input.toLowerCase()] }
+            ]
+          },
+          url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
+        });
+
+        // Query 4
+        var query4Promise = DynamicBatchIssues.find({
+          issuerId: isEmailExist.issuerId,
+          $expr: {
+            $and: [
+              { $eq: [{ $toLower: filterCriteria }, input.toLowerCase()] }
+            ]
+          },
+          url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
+        });
+
         // Await both promises
-        var [query1Result, query2Result] = await Promise.all([query1Promise, query2Promise]);
+        var [query1Result, query2Result, query3Result, query4Result] = await Promise.all([query1Promise, query2Promise, query3Promise, query4Promise]);
         // Check if results are non-empty and push to finalResults
-        if (query1Result.length > 0) {
+        if (query1Result && query1Result.length > 0) {
           fetchedIssues = fetchedIssues.concat(query1Result);
         }
-        if (query2Result.length > 0) {
+        if (query2Result && query2Result.length > 0) {
           fetchedIssues = fetchedIssues.concat(query2Result);
+        }
+        if (query3Result && query3Result.length > 0) {
+          fetchedIssues = fetchedIssues.concat(query3Result);
+        }
+        if (query4Result && query4Result.length > 0) {
+          fetchedIssues = fetchedIssues.concat(query4Result);
         }
 
         if (!page || !limit || page == 0 || limit == 0) {
@@ -535,7 +631,7 @@ const getIssuesWithFilter = async (req, res) => {
         if (page > totalPages && totalPages > 0) {
           return res.status(404).json({
             code: 404,
-            status: "SUCCESS", 
+            status: "SUCCESS",
             message: messageCode.msgPageNotFound,
             data: [],
             pagination: paginationDetails
@@ -556,6 +652,261 @@ const getIssuesWithFilter = async (req, res) => {
   } catch (error) {
     return res.status(500).json({ code: 500, status: "FAILED", message: messageCode.msgInternalError });
   }
+};
+
+/**
+ * API to Fetch issues details (for renew/revoke/reactivation) as per the filter end user/ course name/ expiration date.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
+const adminSearchWithFilter = async (req, res) => {
+  let validResult = validationResult(req);
+  if (!validResult.isEmpty()) {
+    return res.status(422).json({ code: 422, status: "FAILED", message: messageCode.msgEnterInvalid, details: validResult.array() });
+  }
+
+  var fetchedIssues = [];
+
+  try {
+    const input = req.body.input;
+    const _filter = req.body.filter;
+    const email = req.body.email;
+    const flag = parseInt(req.body.flag);
+    const filter = (_filter == 'certificationNumber') ? 'certificateNumber' : _filter;
+    const status = parseInt(req.body.status);
+    // Get page and limit from query parameters, with defaults
+    var page = parseInt(req.query.page) || null;
+    var limit = parseInt(req.query.limit) || null;
+    var startIndex;
+    var endIndex;
+    var certStatusFilter;
+    var expirationDateFilter = null;
+    await isDBConnected();
+    const isEmailExist = await isValidIssuer(email);
+    if (!isEmailExist) {
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidEmail, details: email });
+    }
+
+    if (!status) {
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidStatusValue });
+    }
+
+    if (status == 1) {
+      certStatusFilter = [1, 2, 4];
+      expirationDateFilter = "1";
+    } else if (status == 2) {
+      certStatusFilter = [3];
+    } else if (status == 3) {
+      certStatusFilter = [1, 2, 4];
+    }
+
+    if (input && filter) {
+      var filterCriteria = `$${filter}`;
+      if (flag == 1) {
+        // Query 1
+        var query1Promise = Issues.find({
+          issuerId: isEmailExist.issuerId,
+          $expr: {
+            $and: [
+              { $regexMatch: { input: { $toLower: filterCriteria }, regex: new RegExp(`^${input.toLowerCase()}`, 'i') } }
+            ]
+          },
+          certificateStatus: { $in: certStatusFilter },
+          expirationDate: { $ne: expirationDateFilter },
+          url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
+        });
+
+        // Query 2
+        var query2Promise = BatchIssues.find({
+          issuerId: isEmailExist.issuerId,
+          $expr: {
+            $and: [
+              { $regexMatch: { input: { $toLower: filterCriteria }, regex: new RegExp(`^${input.toLowerCase()}`, 'i') } }
+            ]
+          },
+          certificateStatus: { $in: certStatusFilter },
+          expirationDate: { $ne: expirationDateFilter },
+          url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
+        });
+
+        // Query 3
+        var query3Promise = DynamicIssues.find({
+          issuerId: isEmailExist.issuerId,
+          $expr: {
+            $and: [
+              { $regexMatch: { input: { $toLower: filterCriteria }, regex: new RegExp(`^${input.toLowerCase()}`, 'i') } }
+            ]
+          },
+          certificateStatus: { $in: certStatusFilter },
+          url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
+        });
+
+        // Query 4
+        var query4Promise = DynamicBatchIssues.find({
+          issuerId: isEmailExist.issuerId,
+          $expr: {
+            $and: [
+              { $regexMatch: { input: { $toLower: filterCriteria }, regex: new RegExp(`^${input.toLowerCase()}`, 'i') } }
+            ]
+          },
+          certificateStatus: { $in: certStatusFilter },
+          url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
+        });
+
+        // Await both promises
+        var [query1Result, query2Result, query3Result, query4Result] = await Promise.all([query1Promise, query2Promise, query3Promise, query4Promise]);
+        // Check if results are non-empty and push to finalResults
+        if (query1Result.length > 0) {
+          fetchedIssues = fetchedIssues.concat(query1Result);
+        }
+        if (query2Result.length > 0) {
+          fetchedIssues = fetchedIssues.concat(query2Result);
+        }
+        if (query3Result.length > 0) {
+          fetchedIssues = fetchedIssues.concat(query3Result);
+        }
+        if (query4Result.length > 0) {
+          fetchedIssues = fetchedIssues.concat(query4Result);
+        }
+
+        // Extract the key match from the results
+        const responseItems = fetchedIssues.map(item => item[filter]);
+        // Remove duplicates using a Set
+        const uniqueItems = Array.from(new Set(responseItems));
+        // Sort the values alphabetically
+        fetchResult = uniqueItems.sort((a, b) => a.localeCompare(b));
+
+        if (fetchResult.length == 0) {
+          return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgNoMatchFound });
+        }
+
+        return res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgIssueFound, details: fetchResult });
+
+      } else {
+
+        // Query 1
+        var query1Promise = Issues.find({
+          issuerId: isEmailExist.issuerId,
+          $expr: {
+            $and: [
+              { $eq: [{ $toLower: filterCriteria }, input.toLowerCase()] }
+            ]
+          },
+          certificateStatus: { $in: certStatusFilter },
+          expirationDate: { $ne: expirationDateFilter },
+          url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
+        });
+
+        // Query 2
+        var query2Promise = BatchIssues.find({
+          issuerId: isEmailExist.issuerId,
+          $expr: {
+            $and: [
+              { $eq: [{ $toLower: filterCriteria }, input.toLowerCase()] }
+            ]
+          },
+          certificateStatus: { $in: certStatusFilter },
+          expirationDate: { $ne: expirationDateFilter },
+          url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
+        });
+
+        // Query 3
+        var query3Promise = DynamicIssues.find({
+          issuerId: isEmailExist.issuerId,
+          $expr: {
+            $and: [
+              { $eq: [{ $toLower: filterCriteria }, input.toLowerCase()] }
+            ]
+          },
+          certificateStatus: { $in: certStatusFilter },
+          url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
+        });
+
+
+        // Query 4
+        var query4Promise = DynamicBatchIssues.find({
+          issuerId: isEmailExist.issuerId,
+          $expr: {
+            $and: [
+              { $eq: [{ $toLower: filterCriteria }, input.toLowerCase()] }
+            ]
+          },
+          certificateStatus: { $in: certStatusFilter },
+          url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
+        });
+
+        // Await both promises
+        var [query1Result, query2Result, query3Result, query4Result] = await Promise.all([query1Promise, query2Promise, query3Promise, query4Promise]);
+        // Check if results are non-empty and push to finalResults
+        if (query1Result.length > 0) {
+          fetchedIssues = fetchedIssues.concat(query1Result);
+        }
+        if (query2Result.length > 0) {
+          fetchedIssues = fetchedIssues.concat(query2Result);
+        }
+        if (query3Result.length > 0) {
+          fetchedIssues = fetchedIssues.concat(query3Result);
+        }
+        if (query4Result.length > 0) {
+          fetchedIssues = fetchedIssues.concat(query4Result);
+        }
+
+        if (!page || !limit || page == 0 || limit == 0) {
+          page = 1;
+          limit = fetchedIssues.length;
+          // Calculate the start and end indices for the slice
+          startIndex = (page - 1) * limit;
+          endIndex = startIndex + limit;
+        } else {
+          // Calculate the start and end indices for the slice
+          startIndex = (page - 1) * limit;
+          endIndex = startIndex + limit;
+        }
+
+        // Calculate total number of pages
+        const totalItems = fetchedIssues.length;
+        const totalPages = Math.ceil(totalItems / limit);
+
+        // Slice the array to get the current page of results
+        const paginatedData = fetchedIssues.slice(startIndex, endIndex);
+
+        const paginationDetails = {
+          total: totalItems,
+          page: page,
+          limit: limit,
+          totalPages: totalPages
+        }
+
+        if (fetchedIssues.length == 0) {
+          return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgNoMatchFound });
+        }
+        // Check if the requested page is beyond the total pages
+        if (page > totalPages && totalPages > 0) {
+          return res.status(404).json({
+            code: 404,
+            status: "SUCCESS",
+            message: messageCode.msgPageNotFound,
+            data: [],
+            pagination: paginationDetails
+          });
+        }
+
+        const matchPages = {
+          data: paginatedData,
+          ...paginationDetails
+        }
+
+        return res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgIssueFound, details: matchPages });
+      }
+    } else {
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidInput, detail: input });
+    }
+
+  } catch (error) {
+    return res.status(500).json({ code: 500, status: "FAILED", message: messageCode.msgInternalError });
+  }
+
 };
 
 /**
@@ -620,7 +971,7 @@ const getVerificationDetailsByCourse = async (req, res) => {
     // Check mongoose connection
     const dbStatus = await isDBConnected();
 
-    const isEmailExist = await User.findOne({ email: email });
+    const isEmailExist = await isValidIssuer(email);
 
     if (!isEmailExist) {
       return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUserEmailNotFound });
@@ -631,7 +982,7 @@ const getVerificationDetailsByCourse = async (req, res) => {
     if (verificationCommonResponse) {
       var responseCount = verificationCommonResponse.courses;
       res.status(200).json({
-        code: 200, 
+        code: 200,
         status: 'SUCCESS',
         data: responseCount,
         message: `Verification results fetched successfully with searched course`
@@ -639,7 +990,7 @@ const getVerificationDetailsByCourse = async (req, res) => {
       return;
     } else {
       res.status(400).json({
-        code: 400, 
+        code: 400,
         status: 'FAILED',
         data: 0,
         message: `No verification results found`
@@ -648,7 +999,7 @@ const getVerificationDetailsByCourse = async (req, res) => {
     }
   } catch (error) {
     res.status(500).json({
-      code: 500, 
+      code: 500,
       status: 'FAILED',
       data: error,
       message: messageCode.msgErrorOnFetching
@@ -697,7 +1048,7 @@ const fetchIssuesLogDetails = async (req, res) => {
     console.log(dbStatusMessage);
 
     // Check if user with provided email exists
-    const issuerExist = await User.findOne({ email: email });
+    const issuerExist = await isValidIssuer(email);
 
     if (!issuerExist) {
       return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUserNotFound });
@@ -793,23 +1144,35 @@ const fetchIssuesLogDetails = async (req, res) => {
           break;
         case 6:
           var filteredResponse6 = [];
-          var query1Promise = Issues.find({
+          var query1Promise = await Issues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: { $in: [1, 2, 4] },
             url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
-          var query2Promise = BatchIssues.find({
+          var query2Promise = await BatchIssues.find({
+            issuerId: issuerExist.issuerId,
+            certificateStatus: { $in: [1, 2, 4] },
+            url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
+          }).lean(); // Use lean() to convert documents to plain JavaScript objects
+
+          var query3Promise = await DynamicIssues.find({
+            issuerId: issuerExist.issuerId,
+            certificateStatus: { $in: [1, 2, 4] },
+            url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
+          }).lean(); // Use lean() to convert documents to plain JavaScript objects
+
+          var query4Promise = await DynamicBatchIssues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: { $in: [1, 2, 4] },
             url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           // Wait for both queries to resolve
-          var [queryResponse1, queryResponse2] = await Promise.all([query1Promise, query2Promise]);
+          var [queryResponse1, queryResponse2, queryResponse3, queryResponse4] = await Promise.all([query1Promise, query2Promise, query3Promise, query4Promise]);
 
           // Merge the results into a single array
-          var _queryResponse = [...queryResponse1, ...queryResponse2];
+          var _queryResponse = [...queryResponse1, ...queryResponse2, ...queryResponse3, ...queryResponse4];
           // Sort the data based on the 'issueDate' date in descending order
           _queryResponse.sort((a, b) => new Date(b.issueDate) - new Date(a.issueDate));
 
@@ -830,23 +1193,35 @@ const fetchIssuesLogDetails = async (req, res) => {
           queryResponse = filteredResponse6;
           break;
         case 7://To fetch Revoked certifications and count
-          var query1Promise = Issues.find({
+          var query1Promise = await Issues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: 3,
             url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
-          var query2Promise = BatchIssues.find({
+          var query2Promise = await BatchIssues.find({
+            issuerId: issuerExist.issuerId,
+            certificateStatus: 3,
+            url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
+          }).lean(); // Use lean() to convert documents to plain JavaScript objects
+
+          var query3Promise = await DynamicIssues.find({
+            issuerId: issuerExist.issuerId,
+            certificateStatus: 3,
+            url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
+          }).lean(); // Use lean() to convert documents to plain JavaScript objects
+
+          var query4Promise = await DynamicBatchIssues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: 3,
             url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
           // Wait for both queries to resolve
-          var [queryResponse1, queryResponse2] = await Promise.all([query1Promise, query2Promise]);
+          var [queryResponse1, queryResponse2, queryResponse3, queryResponse4] = await Promise.all([query1Promise, query2Promise, query3Promise, query4Promise]);
 
           // Merge the results into a single array
-          var _queryResponse = [...queryResponse1, ...queryResponse2];
+          var _queryResponse = [...queryResponse1, ...queryResponse2, ...queryResponse3, ...queryResponse4];
           // Sort the data based on the 'issueDate' date in descending order
           _queryResponse.sort((a, b) => new Date(b.issueDate) - new Date(a.issueDate));
 
@@ -855,14 +1230,14 @@ const fetchIssuesLogDetails = async (req, res) => {
           break;
         case 8:
           var filteredResponse8 = [];
-          var query1Promise = Issues.find({
+          var query1Promise = await Issues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: { $in: [1, 2, 4] },
             expirationDate: { $ne: "1" },
             url: { $exists: true, $ne: null, $ne: "", $regex: bucketName } // Filter to include documents where `url` exists
           }).lean(); // Use lean() to convert documents to plain JavaScript objects
 
-          var query2Promise = BatchIssues.find({
+          var query2Promise = await BatchIssues.find({
             issuerId: issuerExist.issuerId,
             certificateStatus: { $in: [1, 2, 4] },
             expirationDate: { $ne: "1" },
@@ -924,7 +1299,7 @@ const fetchIssuesLogDetails = async (req, res) => {
 
     // Respond with success and all user details
     res.json({
-      code: responseCode, 
+      code: responseCode,
       status: responseStatus,
       data: queryResponse,
       responses: totalResponses,
@@ -934,7 +1309,7 @@ const fetchIssuesLogDetails = async (req, res) => {
   } catch (error) {
     // Error occurred while fetching user details, respond with failure message
     res.json({
-      code: 400, 
+      code: 400,
       status: 'FAILED',
       message: messageCode.msgErrorOnFetching
     });
@@ -969,7 +1344,7 @@ const fetchGraphDetails = async (req, res) => {
   }
 
   // Check if user with provided email exists
-  const issuerExist = await User.findOne({ email: email });
+  const issuerExist = await isValidIssuer(email);
 
   if (!issuerExist) {
     return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUserEmailNotFound });
@@ -1000,7 +1375,7 @@ const fetchGraphDetails = async (req, res) => {
 
     // Send the fetched graph data as a response
     res.json({
-      code: 200, 
+      code: 200,
       status: "SUCCESS",
       message: messageCode.msgGraphDataFetched,
       data: responseData,
@@ -1074,7 +1449,7 @@ const fetchGraphStatusDetails = async (req, res) => {
   }
 
   // Check if user with provided email exists
-  const issuerExist = await User.findOne({ email: email });
+  const issuerExist = await isValidIssuer(email);
 
   if (!issuerExist) {
     return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUserEmailNotFound });
@@ -1118,7 +1493,7 @@ const fetchGraphStatusDetails = async (req, res) => {
 
       // Send the fetched graph data as a response
       res.json({
-        code: 200, 
+        code: 200,
         status: "SUCCESS",
         message: messageCode.msgGraphDataFetched,
         data: responseData,
@@ -1140,7 +1515,7 @@ const fetchGraphStatusDetails = async (req, res) => {
 
       // Send the fetched graph data as a response
       res.json({
-        code: 200, 
+        code: 200,
         status: "SUCCESS",
         message: messageCode.msgGraphDataFetched,
         data: responseData,
@@ -1209,7 +1584,7 @@ const fetchStatusCoreFeatureIssues = async (req, res) => {
   try {
     await isDBConnected();
     // Check if user with provided email exists
-    const issuerExist = await User.findOne({ email: email });
+    const issuerExist = await isValidIssuer(email);
     if (!issuerExist) {
       return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgUserEmailNotFound, details: email });
     }
@@ -1409,7 +1784,7 @@ const getSingleCertificates = async (req, res) => {
 
     // Validate request body
     if (!issuerId || (type !== 1 && type !== 2)) {
-      return res.status(400).json({ code: 400, status: "FAILED", message: "issuerId and valid type (1 or 2) are required" });
+      return res.status(400).json({ code: 400, status: "FAILED", message: "issuerId and valid type (1 or 2 or 3) are required" });
     }
 
     // Convert type to integer if it is a string
@@ -1418,23 +1793,33 @@ const getSingleCertificates = async (req, res) => {
     // Determine the type field value based on the provided type
     let typeField;
     if (typeInt == 1) {
-      typeField = 'withpdf';
+      typeField = ['withpdf', 'dynamic'];
     } else if (typeInt == 2) {
-      typeField = 'withoutpdf';
+      typeField = ['withoutpdf'];
     } else {
       return res.status(400).json({ code: 400, status: "FAILED", message: "Invalid type provided" });
     }
-
     // Fetch certificates based on issuerId and type
-    const certificates = await Issues.find({
+    const certificatesSimple = await Issues.find({
       issuerId: issuerId,
-      type: typeField,
+      type: { $in: typeField },
       url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
     });
 
+    const certificatesDynamic = await DynamicIssues.find({
+      issuerId: issuerId,
+      type: { $in: typeField },
+      url: { $exists: true, $ne: null, $ne: "", $regex: cloudBucket } // Filter to include documents where `url` exists
+    });
+
+    const certificates = [...certificatesSimple, ...certificatesDynamic];
+
+    // Function to sort data by issueDate
+    certificates.sort((a, b) => new Date(b.issueDate) - new Date(a.issueDate));
+
     // Respond with success and the certificates
     res.json({
-      code: 200, 
+      code: 200,
       status: 'SUCCESS',
       data: certificates,
       message: 'Certificates fetched successfully'
@@ -1444,7 +1829,7 @@ const getSingleCertificates = async (req, res) => {
 
     // Respond with failure message
     res.status(500).json({
-      code: 500, 
+      code: 500,
       status: 'FAILED',
       message: 'An error occurred while fetching the certificates',
       details: error.message
@@ -1462,7 +1847,11 @@ const getBatchCertificateDates = async (req, res) => {
     }
 
     // Fetch all batch certificates for the given issuerId
-    const batchCertificates = await BatchIssues.find({ issuerId }).sort({ issueDate: 1 });
+    const batchCertificatesOne = await BatchIssues.find({ issuerId }).sort({ issueDate: 1 });
+    const batchCertificatesTwo = await DynamicBatchIssues.find({ issuerId }).sort({ issueDate: 1 });
+
+    const batchCertificates = [...batchCertificatesOne, ...batchCertificatesTwo];
+
 
     // Create a map to store the first certificate's issueDate for each batchId
     const batchDateMap = new Map();
@@ -1481,9 +1870,12 @@ const getBatchCertificateDates = async (req, res) => {
       issuerId: value.issuerId
     }));
 
+    // Function to sort data by issueDate
+    uniqueBatchDates.sort((a, b) => new Date(b.issueDate) - new Date(a.issueDate));
+
     // Respond with success and the unique batch dates
     res.json({
-      code: 200, 
+      code: 200,
       status: 'SUCCESS',
       data: uniqueBatchDates,
       message: 'Unique batch dates fetched successfully'
@@ -1493,7 +1885,7 @@ const getBatchCertificateDates = async (req, res) => {
 
     // Respond with failure message
     res.status(500).json({
-      code: 500, 
+      code: 500,
       status: 'FAILED',
       message: 'An error occurred while fetching the unique batch dates',
       details: error.message
@@ -1511,11 +1903,14 @@ const getBatchCertificates = async (req, res) => {
     }
 
     // Fetch all certificates for the given batchId and issuerId
-    const certificates = await BatchIssues.find({ batchId, issuerId });
+    var certificates = await BatchIssues.find({ batchId, issuerId });
+    if (!certificates || certificates.length < 1) {
+      certificates = await DynamicBatchIssues.find({ batchId, issuerId });
+    }
 
     // Respond with success and the certificates
     res.json({
-      code: 200, 
+      code: 200,
       status: 'SUCCESS',
       data: certificates,
       message: 'Certificates fetched successfully'
@@ -1525,7 +1920,7 @@ const getBatchCertificates = async (req, res) => {
 
     // Respond with failure message
     res.status(500).json({
-      code: 500, 
+      code: 500,
       status: 'FAILED',
       message: 'An error occurred while fetching the certificates',
       details: error.message
@@ -1549,7 +1944,7 @@ const getOrganizationDetails = async (req, res) => {
     const sortedUniqueResponses = uniqueResponses.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
 
     res.json({
-      code: 200, 
+      code: 200,
       status: "SUCCESS",
       message: messageCode.msgOrganizationFetched,
       data: sortedUniqueResponses
@@ -1663,17 +2058,20 @@ const fetchCustomIssuedCertificates = async (req, res) => {
 
   const today = new Date();
   const contractAddresses = [netcomAddress, lmsAddress];
+  const allContracts = [netcomAddress, lmsAddress, certs365Address];
   try {
 
     if (!apiUrl || !polygonApiKey) {
       return res.status(400).send({ code: 400, status: "FAILED", message: msgInvalidPolygonCredentials });
     }
     const issuesCount = {
-      // Day: [],
       Week: [],
       Month: [],
       Annual: []
     };
+
+    var totalCount = [];
+    var sumOfIssuances = {};
 
     // Define date ranges
     const dateRanges = [
@@ -1682,6 +2080,20 @@ const fetchCustomIssuedCertificates = async (req, res) => {
       { name: "Month", startDate: await getPastDate(today, 30), endDate: today },
       { name: "Annual", startDate: await getPastDate(today, 365), endDate: today }
     ];
+    // Define date ranges
+    const datesRanges = [
+      { name: "Total", startDate: 0, endDate: today }
+    ];
+
+    const getIssuances = await IssueStatus.find({
+      certStatus: 6
+    });
+
+    if(getIssuances){
+      totalCount.push(getIssuances.length);
+    }
+
+    const issuanceResponses = await getIssuanceCounts(getIssuances);
 
     for (const addressIndex of contractAddresses) {
       for (const range of dateRanges) {
@@ -1695,7 +2107,47 @@ const fetchCustomIssuedCertificates = async (req, res) => {
       }
     }
 
-    return res.status(200).json({ code: 200, status: "SUCCESS", message: `${messageCode.msgAllQueryFetched}:[Netcom, LMS]`, details: issuesCount });
+    for (const addressesIndex of allContracts) {
+      for (const range of datesRanges) {
+        await holdExecution(350);
+        let _startDate = 0;
+        let _endDate = range.endDate.toISOString().split('T')[0];
+        let fetchDetails = await fetchTransactionCountWithRetry(addressesIndex, _startDate, _endDate);
+        if (fetchDetails !== 0 || fetchDetails) {
+          totalCount.push(fetchDetails);
+        }
+      }
+    }
+
+    // Iterate over each key in the response
+    for (let key in issuanceResponses) {
+      // Check if the key exists in count
+      if (issuesCount[key]) {
+        sumOfIssuances[key] = [...issuesCount[key]]; // Copy the original count array
+
+        // If there's a second element in the array, add the response value to it
+        if (sumOfIssuances[key].length >= 2) {
+          sumOfIssuances[key][1] += issuanceResponses[key];
+        } else {
+          // If there's no second element, just push the response value
+          sumOfIssuances[key].push(issuanceResponses[key]);
+        }
+      } else {
+        // If the key doesn't exist in count, initialize it with an array containing only the response value
+        sumOfIssuances[key] = [issuanceResponses[key]];
+      }
+    }
+    
+    // console.log("The response", issuanceResponses);
+    // console.log("Total count", issuesCount, sumOfIssuances);
+
+    // Calculate the sum of the numbers
+    const totalIssues = totalCount.reduce((acc, num) => acc + num, 0);
+    let totalResponse = { Total: totalIssues };
+    // Combine response and totalResponse
+    let combinedResponse = { ...sumOfIssuances, ...totalResponse };
+
+    return res.status(200).json({ code: 200, status: "SUCCESS", message: `${messageCode.msgAllQueryFetched}:[Netcom, LMS]`, details: combinedResponse });
 
   } catch (error) {
     res.status(400).json({
@@ -1704,6 +2156,32 @@ const fetchCustomIssuedCertificates = async (req, res) => {
       details: error
     });
   }
+};
+
+// Function to get counts for last 7 days, last 30 days, and last 1 year
+const getIssuanceCounts = async (data) => {
+  const currentDate = new Date();
+
+  // Dates for filtering
+  const last7Days = new Date();
+  last7Days.setDate(currentDate.getDate() - 7);
+
+  const last30Days = new Date();
+  last30Days.setDate(currentDate.getDate() - 30);
+
+  const last1Year = new Date();
+  last1Year.setFullYear(currentDate.getFullYear() - 1);
+
+  // Filter and count based on date ranges
+  const countLast7Days = data.filter(item => item.lastUpdate >= last7Days).length;
+  const countLast30Days = data.filter(item => item.lastUpdate >= last30Days).length;
+  const countLast1Year = data.filter(item => item.lastUpdate >= last1Year).length;
+
+  return {
+    Week: countLast7Days || 0, // Returns 0 if no match
+    Month: countLast30Days || 0, // Returns 0 if no match
+    Annual: countLast1Year || 0 // Returns 0 if no match
+  };
 };
 
 // Retry function to handle failed case
@@ -1943,6 +2421,8 @@ module.exports = {
   getIssuersWithFilter,
 
   // Function to fetch issues/Gallery certs based on the flag based filter (certificationId, name, course, grantDate, expirationDate)
-  getIssuesWithFilter
+  getIssuesWithFilter,
+
+  adminSearchWithFilter,
 
 };

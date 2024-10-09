@@ -4,6 +4,7 @@ const multer = require('multer');
 const adminController = require('../controllers/fetch');
 const { ensureAuthenticated } = require("../config/auth"); // Import authentication middleware
 const validationRoute = require("../common/validationRoutes");
+const { decryptRequestBody, decryptRequestParseBody } = require('../common/authUtils');
 
 const __upload = multer({dest: "./uploads/"});
 
@@ -11,8 +12,8 @@ const __upload = multer({dest: "./uploads/"});
  * @swagger
  * /api/get-all-issuers:
  *   get:
- *     summary: Get details of all issuers
- *     description: API to fetch all issuer details who are unapproved
+ *     summary: Get details of all issuers count with Active & Inactive status counts
+ *     description: API to fetch all issuer details who are Active/Inactive/Total.
  *     tags: [Fetch/Upload]
  *     responses:
  *       200:
@@ -51,7 +52,7 @@ const __upload = multer({dest: "./uploads/"});
  *               message: Internal server error.
  */
 
-router.get('/get-all-issuers', ensureAuthenticated, adminController.getAllIssuers);
+router.get('/get-all-issuers', adminController.getAllIssuers);
 
 /**
  * @swagger
@@ -198,7 +199,7 @@ router.post('/get-organization-issues', validationRoute.organizationIssues, admi
  * @swagger
  * /api/get-filtered-issuers:
  *   post:
- *     summary: Get details of all Issuers with the filter (organization, name, email).
+ *     summary: Get details of all Issuers with the filter (organization, name, email) as filter with flag 1:partial match, 2:complete match.
  *     description: API to fetch details of all Issuers with the filter (organization, name, email).
  *     tags: [Fetch/Upload]
  *     security:
@@ -216,9 +217,13 @@ router.post('/get-organization-issues', validationRoute.organizationIssues, admi
  *               filter:
  *                 type: string
  *                 description: Provide key 
+ *               flag:
+ *                 type: number
+ *                 description: Provide flag value 
  *             required:
  *               - input
  *               - filter
+ *               - flag
  *     responses:
  *       '200':
  *         description: All issues details fetched successfully
@@ -279,13 +284,13 @@ router.post('/get-organization-issues', validationRoute.organizationIssues, admi
  *                   example: An error occurred while fetching issues details
  */
 
-router.post('/get-filtered-issuers', validationRoute.fetchIssuers ,adminController. getIssuersWithFilter);
+router.post('/get-filtered-issuers',decryptRequestBody, validationRoute.fetchIssuers ,adminController.getIssuersWithFilter);
 
 /**
  * @swagger
  * /api/get-filtered-issues:
  *   post:
- *     summary: Get details of certifications issued by Issuers under particular input:filter as name, course, grantDate, expirationDate, certificateNumber with filter code 1:partial match, 2:complete match).
+ *     summary: Get details of certifications issued by Issuers under particular input:filter as name, course, grantDate, expirationDate, certificateNumber as filter with flag 1:partial match, 2:complete match.
  *     description: API to fetch details of certifications issued by Issuers under particular input:filter as name, course, grantDate, expirationDate, certificateNumber as filter code.
  *     tags: [Fetch/Upload]
  *     security:
@@ -387,7 +392,119 @@ router.post('/get-filtered-issuers', validationRoute.fetchIssuers ,adminControll
  *                   example: An error occurred while fetching issues details
  */
 
-router.post('/get-filtered-issues', validationRoute.filterIssues, adminController.getIssuesWithFilter);
+router.post('/get-filtered-issues',decryptRequestParseBody, validationRoute.filterIssues, adminController.getIssuesWithFilter);
+
+/**
+ * @swagger
+ * /api/admin-filtered-issues:
+ *   post:
+ *     summary: Get details of certifications (status code- 1:expiration extension, 2:revoke, 3:reactivate) by Issuers under particular input:filter as name, course, grantDate, expirationDate, certificateNumber with flag code 1:partial match, 2:complete match).
+ *     description: API to fetch details of certifications (status code- 1:expiration extension, 2:revoke, 3:reactivate) by Issuers under particular input:filter as name, course, grantDate, expirationDate, certificateNumber as filter code with flag code (1:partial match, 2:complete match).
+ *     tags: [Fetch/Upload]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - name: page
+ *         in: query
+ *         description: The page count (number).
+ *         required: false
+ *         schema:
+ *           type: number
+ *       - name: limit
+ *         in: query
+ *         description: The response limit count (number).
+ *         required: false
+ *         schema:
+ *           type: number
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: Provide issuer email
+ *               input:
+ *                 type: string
+ *                 description: Provide organization name
+ *               filter:
+ *                 type: string
+ *                 description: Provide Student/Candidate target name
+ *               status:
+ *                 type: number
+ *                 description: Provide status value 
+ *               flag:
+ *                 type: number
+ *                 description: Provide flag value 
+ *             required:
+ *               - email
+ *               - input
+ *               - filter
+ *               - status
+ *               - flag
+ *     responses:
+ *       '200':
+ *         description: All issues details fetched successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: SUCCESS
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     [Issuers Log Details]
+ *                 message:
+ *                   type: string
+ *                   example: All issues details fetched successfully
+ *       '400':
+ *         description: Bad request or Invalid code
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: Issues details not found (or) Bad request!
+ *       '422':
+ *         description: User given invalid input (Unprocessable Entity)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: "FAILED"
+ *               message: Error message for invalid input.
+ *       '500':
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: FAILED
+ *                 message:
+ *                   type: string
+ *                   example: An error occurred while fetching issues details
+ */
+
+router.post('/admin-filtered-issues',decryptRequestParseBody, validationRoute.adminFilterIssues, adminController.adminSearchWithFilter);
 
 /**
  * @swagger
@@ -471,7 +588,7 @@ router.post('/get-filtered-issues', validationRoute.filterIssues, adminControlle
  *                   example: An error occurred while fetching issuer log details
  */
 
-router.post('/get-issuers-log', validationRoute.queryCode, adminController.fetchIssuesLogDetails);
+router.post('/get-issuers-log',decryptRequestParseBody, validationRoute.queryCode, adminController.fetchIssuesLogDetails);
 
 /**
  * @swagger
@@ -548,7 +665,7 @@ router.post('/get-issuers-log', validationRoute.queryCode, adminController.fetch
  */
 
 router.post('/get-issue', validationRoute.searchCertification, adminController.getIssueDetails);
-
+    
 /**
  * @swagger
  * /api/get-graph-data/{year}/{email}:
@@ -773,7 +890,7 @@ router.get('/get-status-graph-data/:value/:email', adminController.fetchGraphSta
  *                   example: An error occurred during the process!
  */
 
-router.post('/get-issuer-by-email', validationRoute.emailCheck, adminController.getIssuerByEmail);
+router.post('/get-issuer-by-email',decryptRequestParseBody, validationRoute.emailCheck, adminController.getIssuerByEmail);
 
 /**
  * @swagger
@@ -853,7 +970,7 @@ router.post('/get-issuer-by-email', validationRoute.emailCheck, adminController.
  *                   example: An error occurred during the process!
  */
 
-router.post('/get-credits-by-email', validationRoute.emailCheck, adminController.getServiceLimitsByEmail);
+router.post('/get-credits-by-email',decryptRequestParseBody, validationRoute.emailCheck, adminController.getServiceLimitsByEmail);
 
 /**
  * @swagger
@@ -1403,7 +1520,7 @@ router.post('/upload-certificate',__upload.single('file'),(req, res)=>  adminCon
  *                   example: Error details
  */
 
-router.post('/get-single-certificates', adminController.getSingleCertificates);
+router.post('/get-single-certificates',decryptRequestParseBody, adminController.getSingleCertificates);
 
 /**
  * @swagger
@@ -1424,11 +1541,12 @@ router.post('/get-single-certificates', adminController.getSingleCertificates);
  *               issuerId:
  *                 type: string
  *                 description: Issuer's ID
- *               date:
+ *               batchId:
  *                 type: string
- *                 description: Batch Date
+ *                 description: Batch ID
  *             required:
  *               - issuerId
+ *               - batchId
  *     responses:
  *       '200':
  *         description: Batch certificates fetched successfully
@@ -1598,7 +1716,7 @@ router.post('/get-batch-certificates', adminController.getBatchCertificates);
  *                   example: Error details
  */
 
-router.post('/get-batch-certificate-dates', adminController.getBatchCertificateDates);
+router.post('/get-batch-certificate-dates',decryptRequestParseBody, adminController.getBatchCertificateDates);
 
 
 module.exports=router;

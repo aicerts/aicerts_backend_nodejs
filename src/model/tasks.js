@@ -19,23 +19,29 @@ const { decryptData } = require("../common/cryptoFunction"); // Custom functions
 
 const retryDelay = parseInt(process.env.TIME_DELAY);
 const maxRetries = 3; // Maximum number of retries
-const urlLimit = parseInt(process.env.MAX_URL_SIZE) || parseInt(50);
+
+const without_pdf_width = parseInt(process.env.WITHOUT_PDF_WIDTH);
+const without_pdf_height = parseInt(process.env.WITHOUT_PDF_HEIGHT);
+
+// Import ABI (Application Binary Interface) from the JSON file located at "../config/abi.json"
+const abi = require("../config/abi.json");
 
 // Retrieve contract address from environment variable
 const contractAddress = process.env.CONTRACT_ADDRESS;
+const polygonApiKey = process.env.POLYGON_API_KEY || null;
 
 // Define an array of providers to use as fallbacks
 const providers = [
   new ethers.AlchemyProvider(process.env.RPC_NETWORK, process.env.ALCHEMY_API_KEY),
   new ethers.InfuraProvider(process.env.RPC_NETWORK, process.env.INFURA_API_KEY)
+  // new ethers.ChainstackProvider(process.env.RPC_NETWORK, process.env.CHAIN_KEY)
+  // new ethers.JsonRpcProvider(process.env.CHAIN_RPC)
   // Add more providers as needed
 ];
 
 // Create a new FallbackProvider instance
 const fallbackProvider = new ethers.FallbackProvider(providers);
 
-// Regular expression to match MM/DD/YY format
-const regex = /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[0-2])\/\d{4}$/;
 const excludeUrlContent = "/verify-documents";
 
 // Create a nodemailer transporter using the provided configuration
@@ -75,25 +81,61 @@ const mailOptions = {
   text: '', // replace with text content of the email body
 };
 
-
 // Import the Issues models from the schema defined in "../config/schema"
-const { User, Issues, BatchIssues, BulkIssues, BulkBatchIssues, IssueStatus, VerificationLog, ShortUrl, DynamicIssues, ServiceAccountQuotas, DynamicBatchIssues } = require("../config/schema");
+const { User, Issues, BatchIssues, IssueStatus, VerificationLog, ShortUrl, DynamicIssues, ServiceAccountQuotas, DynamicBatchIssues } = require("../config/schema");
 
-//Connect to polygon
-const connectToPolygon = async () => {
+// Function to verify the Issuer email
+const isValidIssuer = async (email) => {
+  if (!email) {
+    return null;
+  }
   try {
-    const provider = new ethers.FallbackProvider(providers);
-    await provider.getNetwork(); // Attempt to detect the network
-    return provider;
+    var validIssuer = await User.findOne({
+      email: email,
+      status: 1
+    }).select('-password');
 
+    return validIssuer;
   } catch (error) {
-    console.error('Failed to connect to Polygon node:', error.message);
-    console.log(`Retrying connection in ${retryDelay / 1000} seconds...`);
-    await new Promise(resolve => setTimeout(resolve, retryDelay)); // Wait before retrying
-    return connectToPolygon(providers); // Retry connecting recursively
+    console.log("An error occured", error);
+    return null;
   }
 };
 
+//Connect to blockchain contract
+const connectToPolygon = async (retryCount = 0) => {
+  let fallbackProvider;
+
+  // Create a fallback provider
+  try {
+    fallbackProvider = new ethers.FallbackProvider(providers);
+  } catch (error) {
+    console.error('Failed to create fallback provider:', error.message);
+    return;
+  }
+
+  try {
+    // Create a new ethers signer instance using the private key from environment variable and the provider(Fallback)
+    const signer = new ethers.Wallet(process.env.PRIVATE_KEY, fallbackProvider);
+
+    // Create a new ethers contract instance with a signing capability (using the contract Address, ABI and signer)
+    const newContract = new ethers.Contract(contractAddress, abi, signer);
+
+    return newContract;
+
+  } catch (error) {
+    if (retryCount < maxRetries) {
+      console.error('Failed to connect to Polygon node:', error.message);
+      console.log(`Retrying connection in ${2500 / 1000} seconds... (Retry ${retryCount + 1} of ${maxRetries})`);
+      await new Promise(resolve => setTimeout(resolve, 2500)); // Wait before retrying
+      return connectToPolygon(retryCount + 1); // Retry connecting with incremented retry count
+    } else {
+      console.error('Max retries reached. Unable to connect to Polygon node.');
+      // throw error; // Re-throw the error after max retries
+      return null;
+    }
+  }
+};
 
 // Function to convert the Date format
 const validateSearchDateFormat = async (dateString) => {
@@ -198,7 +240,7 @@ const getIssuerServiceCredits = async (existIssuerId, serviceId) => {
     issuerId: existIssuerId,
     serviceId: serviceId
   });
-  if (getServiceLimit && getServiceLimit.limit > 0) {
+  if (getServiceLimit || getServiceLimit.limit > 0) {
     if (getServiceLimit.status === false) {
       return true;
     }
@@ -358,7 +400,29 @@ const convertEpochToDate = async (epochTimestamp) => {
     const dateString = `${month}/${day}/${year}`;
     return dateString;
   }
+
 };
+
+const convertEpochIntoDate = async (epochTimestamp) => {
+  if (!epochTimestamp || epochTimestamp == 0) {
+    return false;
+  } else if (epochTimestamp == 1) {
+    return epochTimestamp;
+  } else {
+    // Create a new Date object with the epoch timestamp (in milliseconds)
+    const regularIntValue = parseInt(epochTimestamp.toString());
+    const dateObject = new Date(regularIntValue); // No need to multiply by 1000
+
+    // Extract the month, day, and year components from the date object
+    const month = String(dateObject.getMonth() + 1).padStart(2, '0'); // Month starts from 0
+    const day = String(dateObject.getDate()).padStart(2, '0');
+    const year = String(dateObject.getFullYear()).slice(-4); // Get last 4 digits of the year
+
+    // Construct the MM/DD/YY date format string
+    const dateString = `${month}/${day}/${year}`;
+    return dateString;
+  }
+}
 
 const convertExpirationStatusLog = async (_date) => {
   if (_date == "1" || _date == null) {
@@ -405,14 +469,42 @@ const isCertificationIdExisted = async (certId) => {
 };
 
 const isBulkCertificationIdExisted = async (certId) => {
+  await isDBConnected();
+
+  if (certId == null || certId == "") {
+    return null;
+  }
+
+  const singleIssueExist = await DynamicIssues.findOne({ certificateNumber: certId });
+  const batchIssueExist = await DynamicBatchIssues.findOne({ certificateNumber: certId });
+
+  try {
+    if (singleIssueExist) {
+
+      return singleIssueExist;
+    } else if (batchIssueExist) {
+
+      return batchIssueExist;
+    } else {
+
+      return null;
+    }
+
+  } catch (error) {
+    console.error("Error during validation:", error);
+    return null;
+  }
+};
+
+const isDynamicCertificationIdExisted = async (certId) => {
   const dbStaus = await isDBConnected();
 
   if (certId == null || certId == "") {
     return null;
   }
 
-  const singleIssueExist = await BulkIssues.findOne({ certificateNumber: certId });
-  const batchIssueExist = await BulkBatchIssues.findOne({ certificateNumber: certId });
+  const singleIssueExist = await DynamicIssues.findOne({ certificateNumber: certId });
+  const batchIssueExist = await DynamicBatchIssues.findOne({ certificateNumber: certId });
 
   try {
     if (singleIssueExist) {
@@ -438,31 +530,32 @@ const insertUrlData = async (data) => {
     console.log("invaid data sent to store in DB");
     return false;
   }
-  try {
-    isDBConnected();
-    const isUrlExist = await ShortUrl.findOne({ email: data.email, certificateNumber: data.certificateNumber });
+  return true;
+  // try {
+  //   isDBConnected();
+  //   const isUrlExist = await ShortUrl.findOne({ email: data.email, certificateNumber: data.certificateNumber });
 
-    if (isUrlExist) {
-      isUrlExist.url = data.url;
-      await isUrlExist.save();
-    } else {
-      // Store new url details fro provided data
-      const newUrlData = new ShortUrl({
-        email: data.email,
-        certificateNumber: data.certificateNumber,
-        url: data.url
-      });
-      // Save the new shortUrl document to the database
-      const result = await newUrlData.save();
-    }
-    // Logging confirmation message
-    console.log("URL data inserted");
-    return true;
-  } catch (error) {
-    // Handle errors related to database connection or insertion
-    console.error("Error connecting in update URL data", error);
-    return false;
-  }
+  //   if (isUrlExist) {
+  //     isUrlExist.url = data.url;
+  //     await isUrlExist.save();
+  //   } else {
+  //     // Store new url details fro provided data
+  //     const newUrlData = new ShortUrl({
+  //       email: data.email,
+  //       certificateNumber: data.certificateNumber,
+  //       url: data.url
+  //     });
+  //     // Save the new shortUrl document to the database
+  //     const result = await newUrlData.save();
+  //   }
+  //   // Logging confirmation message
+  //   console.log("URL data inserted");
+  //   return true;
+  // } catch (error) {
+  //   // Handle errors related to database connection or insertion
+  //   console.error("Error connecting in update URL data", error);
+  //   return false;
+  // }
 };
 
 // Function to insert certification data into MongoDB
@@ -485,17 +578,25 @@ const insertIssuanceCertificateData = async (data) => {
     // Save the new Issues document to the database
     const result = await newIssue.save();
 
+
     const idExist = await User.findOne({ issuerId: data.issuerId });
     if (idExist.certificatesIssued == undefined) {
       idExist.certificatesIssued = 0;
     }
 
+    data.email = idExist.email;
+    data.certStatus = 6;
+    const updateIssuanceLog = await insertIssueStatus(data);
+
     if (idExist) {
       // If user with given id exists, update certificatesIssued count
       const previousCount = idExist.certificatesIssued || 0; // Initialize to 0 if certificatesIssued field doesn't exist
       idExist.certificatesIssued = previousCount + 1;
+      // If user with given id exists, update certificatesIssued transation fee
+      const previousrtransactionFee = idExist.transactionFee || 0; // Initialize to 0 if transactionFee field doesn't exist
+      idExist.transactionFee = previousrtransactionFee + data.transactionFee;
       await idExist.save(); // Save the changes to the existing user
-    } 
+    }
     // Logging confirmation message
     console.log("Certificate data inserted");
   } catch (error) {
@@ -518,6 +619,12 @@ const insertCertificateData = async (data) => {
       grantDate: data.grantDate,
       expirationDate: data.expirationDate,
       certificateStatus: data.certStatus,
+      positionX: data.positionX,
+      positionY: data.positionY,
+      qrSize: data.qrSize,
+      width: data.width || without_pdf_width,
+      height: data.height || without_pdf_height,
+      qrOption: data.qrOption || 0,
       url: data.url || '',
       type: data.type || '',
       issueDate: Date.now() // Set the issue date to the current timestamp
@@ -535,44 +642,15 @@ const insertCertificateData = async (data) => {
     // If user with given id exists, update certificatesIssued count
     const previousCount = idExist.certificatesIssued || 0; // Initialize to 0 if certificatesIssued field doesn't exist
     idExist.certificatesIssued = previousCount + 1;
+    // If user with given id exists, update certificatesIssued transation fee
+    const previousrtransactionFee = idExist.transactionFee || 0; // Initialize to 0 if transactionFee field doesn't exist
+    idExist.transactionFee = previousrtransactionFee + data.transactionFee;
     await idExist.save(); // Save the changes to the existing user
-
 
     // Logging confirmation message
     console.log("Certificate data inserted");
   } catch (error) {
     // Handle errors related to database connection or insertion
-    console.error("Error connecting to MongoDB:", error);
-  }
-};
-
-// Function to insert certification data into MongoDB
-const insertBulkBatchIssueData = async (data) => {
-  try {
-
-    // Insert data into MongoDB
-    const newBatchIssue = new BulkBatchIssues({
-      issuerId: data.issuerId,
-      batchId: data.batchId,
-      proofHash: data.proofHash,
-      encodedProof: data.encodedProof,
-      transactionHash: data.transactionHash,
-      certificateHash: data.certificateHash,
-      certificateNumber: data.certificateNumber,
-      name: data.name,
-      course: data.course,
-      grantDate: data.grantDate,
-      expirationDate: data.expirationDate,
-      certificateStatus: 1,
-      url: data.url || '',
-      issueDate: Date.now()
-    });
-
-    const result = await newBatchIssue.save();
-    // Logging confirmation message
-    // console.log("Certificate data inserted");
-
-  } catch (error) {
     console.error("Error connecting to MongoDB:", error);
   }
 };
@@ -588,7 +666,14 @@ const insertDynamicCertificateData = async (data) => {
       certificateNumber: data.certificateNumber,
       name: data.name,
       certificateStatus: 1,
+      positionX: data.positionX,
+      positionY: data.positionY,
+      qrSize: data.qrSize,
       certificateFields: data.customFields,
+      width: data.width || without_pdf_width,
+      height: data.height || without_pdf_height,
+      qrOption: data.qrOption || 0,
+      url: data.url,
       type: 'dynamic',
       issueDate: Date.now() // Set the issue date to the current timestamp
     });
@@ -603,8 +688,14 @@ const insertDynamicCertificateData = async (data) => {
     // If user with given id exists, update certificatesIssued count
     const previousCount = idExist.certificatesIssued || 0; // Initialize to 0 if certificatesIssued field doesn't exist
     idExist.certificatesIssued = previousCount + 1;
+    // If user with given id exists, update certificatesIssued transation fee
+    const previousrtransactionFee = idExist.transactionFee || 0; // Initialize to 0 if transactionFee field doesn't exist
+    idExist.transactionFee = previousrtransactionFee + data.transactionFee;
     await idExist.save(); // Save the changes to the existing user
 
+    data.email = idExist.email;
+    data.certStatus = 1;
+    const updateIssuerLog = await insertDynamicIssueStatus(data);
     // Logging confirmation message
     console.log("Certificate data inserted");
   } catch (error) {
@@ -631,6 +722,12 @@ const insertBatchCertificateData = async (data) => {
       grantDate: data.grantDate,
       expirationDate: data.expirationDate,
       certificateStatus: data.certStatus,
+      positionX: data.positionX,
+      positionY: data.positionY,
+      qrSize: data.qrSize,
+      width: data.width || without_pdf_width,
+      height: data.height || without_pdf_height,
+      qrOption: data.qrOption || 0,
       issueDate: Date.now()
     });
 
@@ -638,12 +735,54 @@ const insertBatchCertificateData = async (data) => {
 
     const updateIssuerLog = await insertIssueStatus(data);
 
-    const idExist = await User.findOne({ issuerId: data.issuerId });
+    var idExist = await User.findOne({ issuerId: data.issuerId });
 
     // If user with given id exists, update certificatesIssued count
     const previousCount = idExist.certificatesIssued || 0; // Initialize to 0 if certificatesIssued field doesn't exist
     idExist.certificatesIssued = previousCount + 1;
+    // If user with given id exists, update certificatesIssued transation fee
+    // const previousrtransactionFee = idExist.transactionFee || 0; // Initialize to 0 if transactionFee field doesn't exist
+    // idExist.transactionFee = previousrtransactionFee + data.transactionFee;
     await idExist.save(); // Save the changes to the existing user
+
+  } catch (error) {
+    console.error("Error connecting to MongoDB:", error);
+  }
+};
+
+// Function to insert certification data into MongoDB
+const insertDynamicBatchCertificateData = async (data) => {
+  try {
+
+    // Insert data into MongoDB
+    const newBatchIssue = new DynamicBatchIssues({
+      issuerId: data.issuerId,
+      batchId: data.batchId,
+      proofHash: data.proofHash,
+      encodedProof: data.encodedProof,
+      transactionHash: data.transactionHash,
+      certificateHash: data.certificateHash,
+      certificateNumber: data.certificateNumber,
+      name: data.name,
+      certificateFields: data.customFields,
+      certificateStatus: 1,
+      positionX: data.positionX,
+      positionY: data.positionY,
+      qrSize: data.qrSize,
+      width: data.width || without_pdf_width,
+      height: data.height || without_pdf_height,
+      qrOption: data.qrOption || 0,
+      url: data.url || '',
+      type: 'dynamic',
+      issueDate: Date.now()
+    });
+
+    const result = await newBatchIssue.save();
+
+    data.certStatus = 1;
+    const updateIssuerLog = await insertDynamicIssueStatus(data);
+    // Logging confirmation message
+    // console.log("Certificate data inserted");
 
   } catch (error) {
     console.error("Error connecting to MongoDB:", error);
@@ -675,6 +814,34 @@ const insertIssueStatus = async (issueData) => {
       course: issueData.course,
       name: issueData.name,
       expirationDate: formattedDate, // ExpirationDate field is of type String and is required
+      certStatus: issueData.certStatus,
+      lastUpdate: Date.now()
+    });
+    const updateLog = await newIssueStatus.save();
+  }
+};
+
+// Function to store issues log in the DB
+const insertDynamicIssueStatus = async (issueData) => {
+  if (issueData) {
+    // Format the date in ISO 8601 format with UTC offset
+    // const statusDate = await convertExpirationStatusLog(issueData.expirationDate);
+    // Parsing input date using moment
+    const batchId = issueData.batchId || null;
+    const email = issueData.email || null;
+    const issuerId = issueData.issuerId || null;
+    const transactionHash = issueData.transactionHash || null;
+
+    // Insert data into status MongoDB
+    const newIssueStatus = new IssueStatus({
+      email: email,
+      issuerId: issuerId, // ID field is of type String and is required
+      batchId: batchId,
+      transactionHash: transactionHash, // TransactionHash field is of type String and is required
+      certificateNumber: issueData.certificateNumber, // CertificateNumber field is of type String and is required
+      course: 0,
+      name: issueData.name,
+      expirationDate: 0, // ExpirationDate field is of type String and is required
       certStatus: issueData.certStatus,
       lastUpdate: Date.now()
     });
@@ -903,7 +1070,6 @@ const baseCodeResponse = async (pdfFilePath, pdf2PicOptions) => {
     1, // page number to be converted to image
     true // returns base64 output
   );
-
   // Extract base64 data URI from response
   var dataUri = base64Response?.base64;
 
@@ -911,6 +1077,7 @@ const baseCodeResponse = async (pdfFilePath, pdf2PicOptions) => {
   var buffer = Buffer.from(dataUri, "base64");
   // Read PNG data from buffer
   var png = PNG.sync.read(buffer);
+  // console.log("The data", buffer, buffer.toString('base64'), jsQR(Uint8ClampedArray.from(png.data), png.width, png.height));
 
   // Decode QR code from PNG data
   return _code = jsQR(Uint8ClampedArray.from(png.data), png.width, png.height);
@@ -951,6 +1118,43 @@ const extractQRCodeDataFromPDF = async (pdfFilePath) => {
         var code = await baseCodeResponse(pdfFilePath, pdf2picOptions3);
       }
     }
+    const qrCodeText = code?.data;
+    // Throw error if QR code text is not available
+    if (!qrCodeText) {
+      // throw new Error("QR Code Text could not be extracted from PNG image");
+      console.log("QR Code Not Found / QR Code Text could not be extracted");
+      return false;
+    } else {
+      detailsQR = qrCodeText;
+      // Extract certificate information from QR code text
+      // const certificateInfo = extractCertificateInfo(qrCodeText);
+
+      // Return the extracted certificate information
+      return qrCodeText;
+    }
+
+  } catch (error) {
+    // Log and rethrow any errors that occur during the process
+    console.error(error);
+    // throw error;
+    return false;
+  }
+};
+
+const verifyQRCodeDataFromPDF = async (pdfFilePath) => {
+  try {
+
+    const pdf2picOptions = {
+      quality: 100,
+      density: 100,
+      format: "png",
+      width: 2000,
+      height: 2000,
+    };
+
+    // Decode QR code from PNG data
+    var code = await baseCodeResponse(pdfFilePath, pdf2picOptions);
+
     const qrCodeText = code?.data;
     // Throw error if QR code text is not available
     if (!qrCodeText) {
@@ -1071,6 +1275,7 @@ const addLinkToPdf = async (
   qrY = 75;
   qrWidth = pngDims.width;
   qrHeight = pngDims.height;
+  // console.log("QR details", width, height, (width - pngDims.width - 108), 135, qrX, 75, qrWidth, qrHeight );
 
   const pdfBytes = await pdfDoc.save();
 
@@ -1099,13 +1304,6 @@ const addDynamicLinkToPdf = async (
   const width = page.getWidth();
   const height = page.getHeight();
 
-  // Add link URL to the PDF page
-  // page.drawText(linkUrl, {
-  //   x: 62, // X coordinate of the text
-  //   y: 30, // Y coordinate of the text
-  //   size: 8, // Font size
-  // });
-
   //Adding qr code
   const pdfDc = await PDFDocument.create();
   // Adding QR code to the PDF page
@@ -1120,11 +1318,6 @@ const addDynamicLinkToPdf = async (
   });
   // console.log("Width X Height", width, height);
 
-  qrX = width - pngDims.width - 75;
-  qrY = 75;
-  qrWidth = pngDims.width;
-  qrHeight = pngDims.height;
-
   const pdfBytes = await pdfDoc.save();
 
   fs.writeFileSync(outputPath, pdfBytes);
@@ -1133,7 +1326,7 @@ const addDynamicLinkToPdf = async (
 
 const verifyDynamicPDFDimensions = async (pdfPath, qrSide) => {
   // Extract QR code data from the PDF file
-  const certificateData = await extractQRCodeDataFromPDF(pdfPath);
+  const certificateData = await verifyQRCodeDataFromPDF(pdfPath);
   const pdfBuffer = fs.readFileSync(pdfPath);
   const pdfDoc = await PDFDocument.load(pdfBuffer);
 
@@ -1154,7 +1347,22 @@ const verifyDynamicPDFDimensions = async (pdfPath, qrSide) => {
   } else {
     return true
   }
+};
 
+const getPdfDimensions = async (pdfPath) => {
+  try {
+    const pdfBuffer = fs.readFileSync(pdfPath);
+    const pdfDoc = await PDFDocument.load(pdfBuffer);
+    const firstPage = pdfDoc.getPages()[0];
+    if (firstPage) {
+      return firstPage.getSize();
+    } else {
+      return null;
+    }
+  } catch (error) {
+    console.log("Invalid path", error);
+    return null;
+  }
 };
 
 
@@ -1196,7 +1404,8 @@ const verifyBulkDynamicPDFDimensions = async (pdfPath, posx, posy, qrside) => {
 
 const verifyPDFDimensions = async (pdfPath) => {
   // Extract QR code data from the PDF file
-  const certificateData = await extractQRCodeDataFromPDF(pdfPath);
+  const certificateData = await verifyQRCodeDataFromPDF(pdfPath);
+  console.log("The QR check", certificateData);
   const pdfBuffer = fs.readFileSync(pdfPath);
   const pdfDoc = await PDFDocument.load(pdfBuffer);
 
@@ -1224,7 +1433,6 @@ const verifyPDFDimensions = async (pdfPath) => {
     // throw new Error('PDF dimensions must be within 240-260 mm width and 340-360 mm height');
     return false;
   }
-
 };
 
 const validatePDFDimensions = async (pdfPath, _width, _height) => {
@@ -1460,9 +1668,11 @@ const getCertificationStatus = async (certStatus) => {
   };
 };
 
-const getContractAddress = async (contractAddress) => {
+const getContractAddress = async (contractAddress, maxRetries = 3, delay = 1000) => {
+  let attempt = 0;
   try {
     const code = await fallbackProvider.getCode(contractAddress);
+    // console.log("the provider", fallbackProvider, code);
     if (code === '0x') {
       console.log('RPC provider is not responding');
       return false;
@@ -1494,7 +1704,52 @@ const checkTransactionStatus = async (transactionHash) => {
   }
 }
 
+// Function to get last fund transfer date
+const getLatestTransferDate = async (address) => {
+
+  const url = `https://api.polygonscan.com/api?module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&sort=asc&apikey=${polygonApiKey}`;
+
+  try {
+    // Dynamically import fetch
+    const { default: fetch } = await import('node-fetch');
+    const response = await fetch(url);
+    if (!response) {
+      console.error("Error fetching transactions:");
+      return null; // Handle the error accordingly
+    }
+    const fetchdeData = await response.json();
+    // Check if the API call was successful
+    if (fetchdeData.status !== "1") {
+      console.error("Error fetching transactions:", fetchdeData.message);
+      return null; // Handle the error accordingly
+    }
+    // Assuming the transactions are under data.result
+    const transactions = fetchdeData.result;
+    // Filter incoming transactions
+    const incomingTransactions = transactions.filter(tx => tx.to.toLowerCase() === address.toLowerCase());
+
+    // Check if there are incoming transactions
+    if (incomingTransactions.length === 0) {
+      return null; // No incoming transactions found
+    }
+    // Get the most recent transaction
+    const lastTransaction = incomingTransactions[incomingTransactions.length - 1];
+    var formattedDate = await convertEpochToDate(lastTransaction.timeStamp);
+
+    return formattedDate;
+
+  } catch (error) {
+    console.error('Error fetching transactions:', error);
+    return null; // Return null in case of error
+  }
+};
+
 module.exports = {
+
+  fallbackProvider,
+
+  // Function to validate issuer by email
+  isValidIssuer,
 
   // Function to test contract response
   getContractAddress,
@@ -1511,6 +1766,8 @@ module.exports = {
   // Verify Certification ID from both dynamic bulk collections (single / batch)
   isBulkCertificationIdExisted,
 
+  isDynamicCertificationIdExisted,
+
   // Function to insert single certificate data into MongoDB
   insertCertificateData,
 
@@ -1523,7 +1780,7 @@ module.exports = {
   insertDynamicCertificateData,
 
   // Function to insert dynamic bulk (batch) certificate data into MongoDB
-  insertBulkBatchIssueData,
+  insertDynamicBatchCertificateData,
 
   // Function to extract certificate information from a QR code text
   extractCertificateInfo,
@@ -1545,8 +1802,12 @@ module.exports = {
   // Function to convert the Date format from epoch into the standard format
   convertEpochToDate,
 
+  convertEpochIntoDate,
+
   // Function to insert the certification issue status 
   insertIssueStatus,
+
+  insertDynamicIssueStatus,
 
   // Function to fetch certification status
   getCertificationStatus,
@@ -1616,4 +1877,8 @@ module.exports = {
 
   // Function to check transaction status for the verification
   checkTransactionStatus,
+
+  getPdfDimensions,
+
+  getLatestTransferDate,
 };

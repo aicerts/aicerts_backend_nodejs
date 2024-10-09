@@ -497,7 +497,6 @@ router.get('/check-balance', ensureAuthenticated, adminController.checkBalance);
 
 router.post('/create-validate-issuer', validationRoute.emailCheck, adminController.createAndValidateIssuerIdUponLogin);
 
-
 // /**
 //  * @swagger
 //  * /api/polygonlink:
