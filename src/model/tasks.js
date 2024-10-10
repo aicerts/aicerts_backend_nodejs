@@ -1670,19 +1670,44 @@ const getCertificationStatus = async (certStatus) => {
 
 const getContractAddress = async (contractAddress, maxRetries = 3, delay = 1000) => {
   let attempt = 0;
-  try {
-    const code = await fallbackProvider.getCode(contractAddress);
-    // console.log("the provider", fallbackProvider, code);
-    if (code === '0x') {
-      console.log('RPC provider is not responding');
-      return false;
-    } else {
-      console.log('RPC provider responding');
-      return true;
+  // try {
+  //   const code = await fallbackProvider.getCode(contractAddress);
+  //   // console.log("the provider", fallbackProvider, code);
+  //   if (code === '0x') {
+  //     console.log('RPC provider is not responding');
+  //     return false;
+  //   } else {
+  //     console.log('RPC provider responding');
+  //     return true;
+  //   }
+  // } catch (error) {
+  //   console.error('Error checking contract address:', error);
+  //   return false;
+  // }
+
+  while (attempt < maxRetries) {
+    try {
+      const code = await fallbackProvider.getCode(contractAddress);
+
+      if (code === '0x') {
+        console.log('RPC provider is not responding');
+        return false;
+      } else {
+        console.log('RPC provider responding');
+        return true;
+      }
+    } catch (error) {
+      attempt++;
+      console.error(`Error checking contract address (attempt ${attempt}):`, error);
+
+      if (attempt < maxRetries) {
+        console.log(`Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        console.log('Max retries reached. Giving up.');
+        return false;
+      }
     }
-  } catch (error) {
-    console.error('Error checking contract address:', error);
-    return false;
   }
 };
 
