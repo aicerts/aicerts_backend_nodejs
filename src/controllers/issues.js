@@ -918,7 +918,7 @@ const dynamicBatchIssueCertificates = async (req, res) => {
       excelData = await handleBulkExcelFile(excelFilePath);
     } else {
       console.log("the input option", queueOption);
-      excelData = await handleBatchExcelFile(excelFilePath);
+      excelData = await handleBatchExcelFile(excelFilePath,issuerExist);
     }
 
     // await _fs.remove(filePath);
