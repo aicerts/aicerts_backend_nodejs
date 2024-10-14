@@ -150,7 +150,7 @@ const findRepetitiveIdNumbers = async (data) => {
           repetitiveNumbers.push(key);
       }
   }
-
+  
   return repetitiveNumbers;
 };
 
