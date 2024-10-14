@@ -2182,8 +2182,6 @@ const dynamicBatchCertificates = async (
           insertUrl = await waitForJobsToComplete(jobs);
           console.log("bulk issue queue processing completed");
         } catch (error) {
-          await cleanUpJobs(bulkIssueQueue);
-          await wipeUploadFolder();
           return {
             status: 400,
             response: false,
@@ -2191,6 +2189,7 @@ const dynamicBatchCertificates = async (
             Details: failedErrorObject.Details // Include the failed details
           };
         } finally {
+         try {
           await cleanUpJobs(bulkIssueQueue);
           await wipeUploadFolder();
           Object.assign(failedErrorObject, {
@@ -2199,6 +2198,12 @@ const dynamicBatchCertificates = async (
             message: "",
             Details: [],
           });
+          // console.log("finally done")
+          
+         } catch (error) {
+          console.log("erro while deleting upload folder..", error.message)
+          
+         }
         }
 
         // // Wait for all insert promises to resolve

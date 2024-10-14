@@ -593,7 +593,6 @@ const handleBatchExcelFile = async (_path, issuer) => {
           });
           await cleanUpJobs(bulkIssueExcelQueueProcessor);
         } catch (error) {
-          await wipeUploadFolder();
           return {
             status: 400,
             response: false,
@@ -601,16 +600,23 @@ const handleBatchExcelFile = async (_path, issuer) => {
             Details: failedErrorObject.Details // Include the failed details
           };
         } finally {
-          // Remove the process listener after processing jobs
-          bulkIssueExcelQueueProcessor.removeAllListeners();
+       try {
+        await wipeUploadFolder();
+           // Remove the process listener after processing jobs
+           bulkIssueExcelQueueProcessor.removeAllListeners();
 
-          Object.assign(failedErrorObject, {
-            status: "FAILED",
-            response: false,
-            message: "",
-            Details: []
-          });
-          console.log("bulkIssue queue listener removed... ");
+           Object.assign(failedErrorObject, {
+             status: "FAILED",
+             response: false,
+             message: "",
+             Details: []
+           });
+           console.log("bulkIssue queue listener removed... ");
+        
+       } catch (error) {
+        console.log("error while wiping upload folder in handleExcel", error.message)
+        
+       }
         }
         console.log("all jobs for excel data completed...");
 
