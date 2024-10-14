@@ -1454,7 +1454,7 @@ const dynamicBatchIssueCredentials = async (req, res) => {
       }
       res.status(bulkIssueResponse.code).json({ code: bulkIssueResponse.code, status: "SUCCESS", message: messageCode.msgBatchIssuedSuccess, details: bulkResponse });
       // await cleanUploadFolder();
-      await wipeUploadFolder();
+      // await wipeUploadFolder();
       // await flushUploadFolder();
       return;
     } else {

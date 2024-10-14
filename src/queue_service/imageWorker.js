@@ -2,7 +2,6 @@ const { parentPort, workerData } = require('worker_threads');
 const { holdExecution } = require('../model/tasks');
 const { _convertPdfBufferToPng } = require('../utils/generateImage');
 
-
 const { certNumber, pdfBuffer, pdfWidth, pdfHeight } = workerData;
 
 async function processImage() {
