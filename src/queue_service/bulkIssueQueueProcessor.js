@@ -112,7 +112,7 @@ async function processBulkIssueJob(job) {
 
   try {
     const processPdfTasks = pdfResponse.map(async (pdfFileName) => {
-      const {  imageUrl } = await processSinglePdf({
+      const { s3UploadData, imageUrl } = await processSinglePdf({
         pdfFileName,
         pdfWidth,
         pdfHeight,
@@ -133,10 +133,10 @@ async function processBulkIssueJob(job) {
         certificateDataArray,
       });
 
-      // if (s3UploadData) {
-      //   batchS3Jobs.push(s3UploadData)
-      //   console.log("pushed s3 data in batchs3jobs and length of batchs3 jobs iss", batchS3Jobs.length)
-      // }
+      if (s3UploadData) {
+        batchS3Jobs.push(s3UploadData)
+        console.log("pushed s3 data in batchs3jobs and length of batchs3 jobs iss", batchS3Jobs.length)
+      }
 
       insertUrl.push(imageUrl); // Collect the image URL for returning
     });
@@ -144,17 +144,17 @@ async function processBulkIssueJob(job) {
      // Wait for all PDFs to be processed
      await Promise.all(processPdfTasks);
 
-    // if(batchS3Jobs.length>0 && flag ==0){
-    //   // console.log("inside batch s3 jobs")
-    //  await s3UploadQueue.add({ certificates: batchS3Jobs });
-    //  console.log("added s3upload data to s3 queue")
-    //   // s3JobPromises.push(s3Job.finished()); // Track completion of the remaining batch
-    //   // console.log("s3 promises finished")
-    // }
+    if(batchS3Jobs.length>0 && flag ==0){
+      // console.log("inside batch s3 jobs")
+     const s3Job=await s3UploadQueue.add({ certificates: batchS3Jobs });
+     console.log("added s3upload data to s3 queue")
+     s3JobPromises.push(s3Job.finished()); // Track completion of the remaining batch
+      // console.log("s3 promises finished")
+    }
 
    
     // Wait for all S3 uploads to finish
-    // await Promise.all(s3JobPromises);
+    await Promise.all(s3JobPromises);
     
 
     // Insert all certificate data in bulk
@@ -315,21 +315,21 @@ async function processSinglePdf({
     if (bulkIssueStatus == "ZIP_STORE" || flag == 1) {
       imageUrl = "";
     } else {
-      imageUrl = await _convertPdfBufferToPngWithRetry(
-        foundEntry.documentID,
-        fileBuffer,
-        pdfWidth,
-        pdfHeight
-      );
-      // const base64Buffer = fileBuffer.toString('base64');
-      // s3UploadData={
-      //   certificateNumber: foundEntry.documentID,
-      //     fileBuffer:base64Buffer,
-      //     pdfWidth,
-      //     pdfHeight,
+      // imageUrl = await _convertPdfBufferToPngWithRetry(
+      //   foundEntry.documentID,
+      //   fileBuffer,
+      //   pdfWidth,
+      //   pdfHeight
+      // );
+      const base64Buffer = fileBuffer.toString('base64');
+      s3UploadData={
+        certificateNumber: foundEntry.documentID,
+          fileBuffer:base64Buffer,
+          pdfWidth,
+          pdfHeight,
 
-      // }
-      // imageUrl = `https://certs365-live.s3.amazonaws.com/dynamic_bulk_issues/${foundEntry.documentID}.png`;
+      }
+       imageUrl = `https://certs365-live.s3.amazonaws.com/dynamic_bulk_issues/${foundEntry.documentID}.png`;
       if (!imageUrl) {
         return {
           code: 400,
@@ -374,7 +374,7 @@ async function processSinglePdf({
       console.log("File saved successfully at:", outputPath);
     }
 
-    return { imageUrl};
+    return {s3UploadData, imageUrl};
   } catch (error) {
     console.error(`Error processing PDF ${pdfFileName}:`, error.message);
     throw error; // Re-throw the error after logging

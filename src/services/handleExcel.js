@@ -593,6 +593,7 @@ const handleBatchExcelFile = async (_path, issuer) => {
           });
           await cleanUpJobs(bulkIssueExcelQueueProcessor);
         } catch (error) {
+          await wipeUploadFolder();
           return {
             status: 400,
             response: false,
@@ -601,7 +602,7 @@ const handleBatchExcelFile = async (_path, issuer) => {
           };
         } finally {
        try {
-        await wipeUploadFolder();
+       
            // Remove the process listener after processing jobs
            bulkIssueExcelQueueProcessor.removeAllListeners();
 
