@@ -50,8 +50,6 @@ s3UploadQueue.process(10, async (job) => {
   console.log(`Processing s3 batch job ${job.id}`);
   
   const { certificates } = job.data; // Expect an array of certificates
-  console.log(certificates)
-  
   try {
     // Parallel S3 uploads using Promise.all()
     const imageUrls = await Promise.all(certificates.map(async (certificate) => {
