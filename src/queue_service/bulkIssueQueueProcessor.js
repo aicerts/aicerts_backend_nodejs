@@ -50,6 +50,7 @@ s3UploadQueue.process(10, async (job) => {
   console.log(`Processing s3 batch job ${job.id}`);
   
   const { certificates } = job.data; // Expect an array of certificates
+  console.log(certificates)
   
   try {
     // Parallel S3 uploads using Promise.all()
@@ -145,9 +146,9 @@ async function processBulkIssueJob(job) {
      // Wait for all PDFs to be processed
      await Promise.all(processPdfTasks);
 
-    if(batchS3Jobs.length>0){
+    if(batchS3Jobs.length>0 && flag ==0){
       // console.log("inside batch s3 jobs")
-     s3UploadQueue.add({ certificates: batchS3Jobs });
+     await s3UploadQueue.add({ certificates: batchS3Jobs });
      console.log("added s3upload data to s3 queue")
       // s3JobPromises.push(s3Job.finished()); // Track completion of the remaining batch
       // console.log("s3 promises finished")
