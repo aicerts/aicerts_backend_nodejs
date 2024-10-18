@@ -666,7 +666,7 @@ const getExcelRecordsCount = async (_path) => {
       // api to fetch excel data into json
       const rows = await readXlsxFile(newPath, { sheet: 'Batch' });
       let rowsCount = rows.length - 1;
-      return { status: "SUCCESS", response: true, message: messageCode.msgInvalidExcel, data: rowsCount};
+      return { status: "SUCCESS", response: true, message: messageCode.msgValidDocumentsUploaded, data: rowsCount};
     } 
     return { status: "FAILED", response: false, message: messageCode.msgInvalidExcel };
 

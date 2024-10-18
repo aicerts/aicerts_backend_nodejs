@@ -1,3 +1,4 @@
+require("dotenv").config();
 const { StandardMerkleTree } = require("@openzeppelin/merkle-tree");
 const messageCode = require("../common/codes");
 const {
@@ -21,7 +22,6 @@ const {
   _convertPdfBufferToPng,
 } = require("../utils/generateImage");
 const { DynamicBatchIssues, IssueStatus } = require("../config/schema");
-
 
 const Queue = require("bull");
 
@@ -517,8 +517,8 @@ const insertDynamicBatchCertificateDataBulk = async (dataArray) => {
       positionX: data.positionX,
       positionY: data.positionY,
       qrSize: data.qrSize,
-      width: data.width || without_pdf_width,
-      height: data.height || without_pdf_height,
+      width: data.width,
+      height: data.height,
       qrOption: data.qrOption || 0,
       url: data.url || '',
       type: 'dynamic',
