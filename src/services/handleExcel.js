@@ -294,7 +294,6 @@ const handleBulkExcelFile = async (_path) => {
       // Check if the first three headers match the expectedBulkHeadersSchema
       const firstThreeHeaders = rows[0].slice(0, 3);
       const isValidHeaders = JSON.stringify(firstThreeHeaders) === JSON.stringify(expectedBulkHeadersSchema);
-      console.log("Headers match", isValidHeaders);
       if (!isValidHeaders) {
         return {
           status: "FAILED",
@@ -475,7 +474,6 @@ const handleBatchExcelFile = async (_path, issuer) => {
       // Check if the first three headers match the expectedBulkHeadersSchema
       const firstThreeHeaders = rows[0].slice(0, 3);
       const isValidHeaders = JSON.stringify(firstThreeHeaders) === JSON.stringify(expectedBulkHeadersSchema);
-      console.log("Headers match", isValidHeaders);
       if (!isValidHeaders) {
         return {
           status: "FAILED",
