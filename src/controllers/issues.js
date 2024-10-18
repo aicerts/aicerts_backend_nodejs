@@ -996,7 +996,7 @@ const dynamicBatchIssueCertificates = async (req, res) => {
       bulkIssueResponse = await dynamicBatchCertificates(emailExist.email, emailExist.issuerId, pdfFiles, excelData.message, excelFilePath, paramsExist.positionX, paramsExist.positionY, paramsExist.qrSide, paramsExist.pdfWidth, paramsExist.pdfHeight, qrOption, flag);
     }
 
-    if (bulkIssueStatus == 'ZIP_STORE' || flag == 1) {
+    if ((bulkIssueStatus == 'ZIP_STORE' && queueOption == 0) || (flag == 1 && queueOption == 0)) {
       if (bulkIssueResponse.code == 200) {
         // Update Issuer credits limit (decrease by 1)
         await updateIssuerServiceCredits(existIssuerId, 'issue');
