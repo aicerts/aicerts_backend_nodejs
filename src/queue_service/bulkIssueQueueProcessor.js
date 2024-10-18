@@ -29,7 +29,7 @@ const Queue = require("bull");
     const redisConfig = {
       redis: {
         port: process.env.REDIS_PORT || 6379,  // Redis port (6380 from your env)
-        host: process.env.REDIS_HOST || 'localhost',  // Redis host (127.0.0.1 from your env)
+        host: process.env.REDIS_HOST || '127.0.0.1',  // Redis host (127.0.0.1 from your env)
       }
     };
 // Create an S3 upload queue
@@ -133,6 +133,10 @@ async function processBulkIssueJob(job) {
         certificateDataArray,
       });
 
+      if (s3UploadData) {
+        batchS3Jobs.push(s3UploadData)
+        console.log("pushed S3 data in batchs3jobs and length of batch jobs is", batchS3Jobs.length)
+      }
       // if (s3UploadData) {
       //   batchS3Jobs.push(s3UploadData)
       //   console.log("pushed s3 data in batchs3jobs and length of batchs3 jobs iss", batchS3Jobs.length)

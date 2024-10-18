@@ -1832,7 +1832,10 @@ const dynamicBulkCertificates = async (
 
           const qrImageData = generateQr ? generateQr : qrCodeImage;
           file = pdfFilePath;
-          var outputPdf = `${pdfFileName}`;
+          console.log("The old file name", pdfFileName);
+          // pdfFileName = `${foundEntry.documentID}.pdf`;
+          var outputPdf = pdfFileName;
+          // console.log("The new file name", outputPdf);
 
           if (!fs.existsSync(pdfFilePath)) {
             return {

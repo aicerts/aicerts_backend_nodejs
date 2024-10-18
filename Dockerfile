@@ -1,5 +1,6 @@
 # Use the official Node.js image as a base
-FROM node:18-alpine
+# FROM node:18-alpine
+FROM node:21-alpine
 
 # Install dependencies needed for building native addons (canvas, node-gyp)
 RUN apk add --no-cache python3 make g++ cairo-dev pango-dev jpeg-dev giflib-dev
