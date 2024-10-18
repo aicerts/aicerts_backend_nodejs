@@ -602,7 +602,7 @@ const handleBatchExcelFile = async (_path, issuer) => {
           };
         } finally {
        try {
-       
+        // await wipeUploadFolder();
            // Remove the process listener after processing jobs
            bulkIssueExcelQueueProcessor.removeAllListeners();
 
@@ -615,7 +615,8 @@ const handleBatchExcelFile = async (_path, issuer) => {
            console.log("bulkIssue queue listener removed... ");
         
        } catch (error) {
-        console.log("error while wiping upload folder in handleExcel", error.message)
+        console.log("error while wiping upload folder in handleExcel", error.message);
+        
         
        }
         }

@@ -304,7 +304,6 @@ async function processSinglePdf({
     // Read the generated PDF file
     var fileBuffer = fs.readFileSync(outputPdf);
     // Assuming fileBuffer is available
-
     var outputPath = path.join(
       __dirname,
       "../../uploads",

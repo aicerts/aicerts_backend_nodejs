@@ -55,7 +55,7 @@ async function parseXML(filePath: string): Promise<any[]> {
   try {
     const xmlData = await fs.readFile(filePath, 'utf-8');
     const parser = new xml2js.Parser({ explicitArray: false });
-    console.log("The result is here", parser);
+    // console.log("The result is here", parser);
     const result = await new Promise<Record[]>((resolve, reject) => {
       parser.parseString(xmlData, (err, parsedResult) => {
         if (err) {

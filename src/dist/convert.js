@@ -80,7 +80,7 @@ function parseXML(filePath) {
         try {
             const xmlData = yield fs.readFile(filePath, 'utf-8');
             const parser = new xml2js.Parser({ explicitArray: false });
-            console.log("The result is here", parser);
+            // console.log("The result is here", parser);
             const result = yield new Promise((resolve, reject) => {
                 parser.parseString(xmlData, (err, parsedResult) => {
                     if (err) {
