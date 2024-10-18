@@ -26,7 +26,7 @@ module.exports = {
     msgInvalidExpirationDate: "File has invalid Expiration Date format, Recommended MM/DD/YYYY format ",
     msgOlderDateThanNewDate: "File has Future grant date than Expiration Date",
     msgExcelHasExistingIds: "Excel file has Existing Credential IDs",
-    msgInvalidHeaders: "Invalid headers in the Excel file.",
+    msgInvalidHeaders: "Invalid / missing headers in the Excel file.",
     msgExcelSheetname: "The Excel file Sheet name should be - Batch.",
     msgMissingDetailsInExcel: "The Excel file has missing fields, Please fill all required fields and try again",
     msgFailedToIssueAfterRetry: "Failed to issue credential after retries. Please try again...",

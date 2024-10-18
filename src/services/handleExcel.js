@@ -37,12 +37,9 @@ const expectedHeadersSchema = [
 ];
 
 const expectedBulkHeadersSchema = [
-  "Certs",
-  "certificationID",
-  "name",
-  "certificationName",
-  "grantDate",
-  "expirationDate",
+  "documentName",
+  "documentID",
+  "name"
 ];
 
 const messageCode = require("../common/codes");
@@ -294,6 +291,18 @@ const handleBulkExcelFile = async (_path) => {
       // api to fetch excel data into json
       const rows = await readXlsxFile(newPath, { sheet: 'Batch' });
 
+      // Check if the first three headers match the expectedBulkHeadersSchema
+      const firstThreeHeaders = rows[0].slice(0, 3);
+      const isValidHeaders = JSON.stringify(firstThreeHeaders) === JSON.stringify(expectedBulkHeadersSchema);
+      console.log("Headers match", isValidHeaders);
+      if (!isValidHeaders) {
+        return {
+          status: "FAILED",
+          response: false,
+          message: messageCode.msgInvalidHeaders,
+        };
+      }
+
       // Extract headers from the first row
       var headers = rows[0];
 
@@ -463,6 +472,18 @@ const handleBatchExcelFile = async (_path, issuer) => {
       // api to fetch excel data into json
       const rows = await readXlsxFile(newPath, { sheet: "Batch" });
 
+      // Check if the first three headers match the expectedBulkHeadersSchema
+      const firstThreeHeaders = rows[0].slice(0, 3);
+      const isValidHeaders = JSON.stringify(firstThreeHeaders) === JSON.stringify(expectedBulkHeadersSchema);
+      console.log("Headers match", isValidHeaders);
+      if (!isValidHeaders) {
+        return {
+          status: "FAILED",
+          response: false,
+          message: messageCode.msgInvalidHeaders,
+        };
+      }
+
       // Extract headers from the first row
       var headers = rows[0];
 
@@ -601,24 +622,24 @@ const handleBatchExcelFile = async (_path, issuer) => {
             Details: failedErrorObject.Details // Include the failed details
           };
         } finally {
-       try {
-        // await wipeUploadFolder();
-           // Remove the process listener after processing jobs
-           bulkIssueExcelQueueProcessor.removeAllListeners();
+          try {
+            // await wipeUploadFolder();
+            // Remove the process listener after processing jobs
+            bulkIssueExcelQueueProcessor.removeAllListeners();
 
-           Object.assign(failedErrorObject, {
-             status: "FAILED",
-             response: false,
-             message: "",
-             Details: []
-           });
-           console.log("bulkIssue queue listener removed... ");
-        
-       } catch (error) {
-        console.log("error while wiping upload folder in handleExcel", error.message);
-        
-        
-       }
+            Object.assign(failedErrorObject, {
+              status: "FAILED",
+              response: false,
+              message: "",
+              Details: []
+            });
+            console.log("bulkIssue queue listener removed... ");
+
+          } catch (error) {
+            console.log("error while wiping upload folder in handleExcel", error.message);
+
+
+          }
         }
         console.log("all jobs for excel data completed...");
 
@@ -666,14 +687,14 @@ const getExcelRecordsCount = async (_path) => {
       // api to fetch excel data into json
       const rows = await readXlsxFile(newPath, { sheet: 'Batch' });
       let rowsCount = rows.length - 1;
-      return { status: "SUCCESS", response: true, message: messageCode.msgValidDocumentsUploaded, data: rowsCount};
-    } 
+      return { status: "SUCCESS", response: true, message: messageCode.msgValidDocumentsUploaded, data: rowsCount };
+    }
     return { status: "FAILED", response: false, message: messageCode.msgInvalidExcel };
 
-    }catch (error) {
-      console.error("The error occured on fetching excel records count", error);
-      return { status: "FAILED", response: false, message: messageCode.msgInvalidExcel };
-    }
+  } catch (error) {
+    console.error("The error occured on fetching excel records count", error);
+    return { status: "FAILED", response: false, message: messageCode.msgInvalidExcel };
+  }
 };
 
 const validateBatchCertificateIDs = async (data) => {
