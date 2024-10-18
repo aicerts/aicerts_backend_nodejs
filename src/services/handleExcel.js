@@ -37,12 +37,9 @@ const expectedHeadersSchema = [
 ];
 
 const expectedBulkHeadersSchema = [
-  "Certs",
-  "certificationID",
-  "name",
-  "certificationName",
-  "grantDate",
-  "expirationDate",
+  "documentName",
+  "documentID",
+  "name"
 ];
 
 const messageCode = require("../common/codes");
