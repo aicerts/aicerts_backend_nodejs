@@ -105,6 +105,8 @@ const {
   waitForJobsToComplete,
   cleanUpJobs,
   addJobsInChunks,
+  setGlobalDataforQueue,
+  getGlobalDataforQueue,
 } = require("../queue_service/queueUtils");
 const {
   processBulkIssueJob,
@@ -1998,9 +2000,10 @@ const failedErrorObject = {
 };
 
 const processListener = async (job) => {
+  const globalData = getGlobalDataforQueue()
   try {
     // Process the job
-    const result = await processBulkIssueJob(job);
+    const result = await processBulkIssueJob(job,globalData);
 
     // Check the result and handle failures
     if (result.status === false) {
@@ -2149,9 +2152,7 @@ const dynamicBatchCertificates = async (
         const queueName = `bulkIssueQueue${issuerId}`;
 
         const bulkIssueQueue = new Queue(queueName, redisConfig);
-
-        const jobDataCallback = (chunk) => ({
-          pdfResponse: chunk,
+        setGlobalDataforQueue({
           pdfWidth,
           pdfHeight,
           linkUrl,
@@ -2168,6 +2169,11 @@ const dynamicBatchCertificates = async (
           bulkIssueStatus,
           flag,
           qrOption,
+
+        })
+
+        const jobDataCallback = (chunk) => ({
+          pdfResponse: chunk,
         });
         // Add jobs in chunks with custom job data
         const jobs = await addJobsInChunks(
@@ -2199,6 +2205,24 @@ const dynamicBatchCertificates = async (
             message: "",
             Details: [],
           });
+          setGlobalDataforQueue({
+            pdfWidth: null,
+            pdfHeight: null,
+            linkUrl: null,
+            qrside: null,
+            posx: null,
+            posy: null,
+            excelResponse: null,
+            hashedBatchData: null,
+            serializedTree: null,
+            email: null,
+            issuerId: null,
+            allocateBatchId: null,
+            txHash: null,
+            bulkIssueStatus: null,
+            flag: null,
+            qrOption: null,
+          })
         }
 
         // // Wait for all insert promises to resolve

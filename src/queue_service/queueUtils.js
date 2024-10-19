@@ -145,6 +145,31 @@ const cleanRedis = async (redisConfig) => {
   }
 };
 
+const globalStore = {
+  pdfWidth: null,
+  pdfHeight: null,
+  linkUrl: null,
+  qrside: null,
+  posx: null,
+  posy: null,
+  excelResponse: null,
+  hashedBatchData: null,
+  serializedTree: null,
+  email: null,
+  issuerId: null,
+  allocateBatchId: null,
+  txHash: null,
+  bulkIssueStatus: null,
+  flag: null,
+  qrOption: null,
+};
+
+const setGlobalDataforQueue = (data)=>{
+  Object.assign(globalStore, data);
+
+}
+const getGlobalDataforQueue = () => globalStore
+
 
 
 module.exports = {
@@ -153,5 +178,7 @@ module.exports = {
   cleanUpJobs,
   processExcelJob,
   getChunkSizeAndConcurrency,
-  cleanRedis
+  cleanRedis,
+  setGlobalDataforQueue,
+  getGlobalDataforQueue
 };
