@@ -351,6 +351,9 @@ async function processSinglePdf({
       height: pdfHeight,
       qrOption: qrOption,
       url: imageUrl,
+      positionX: posx,
+      positionY: posy,
+      qrSize:qrside
     };
 
     // Push the prepared certificate data into the array for bulk insertion
