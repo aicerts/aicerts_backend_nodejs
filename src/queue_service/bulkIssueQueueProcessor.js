@@ -1,3 +1,4 @@
+require("dotenv").config();
 const { StandardMerkleTree } = require("@openzeppelin/merkle-tree");
 const messageCode = require("../common/codes");
 const {
@@ -22,14 +23,13 @@ const {
 } = require("../utils/generateImage");
 const { DynamicBatchIssues, IssueStatus } = require("../config/schema");
 
-
 const Queue = require("bull");
 
     // Define the Redis connection options
     const redisConfig = {
       redis: {
         port: process.env.REDIS_PORT || 6379,  // Redis port (6380 from your env)
-        host: process.env.REDIS_HOST || 'localhost',  // Redis host (127.0.0.1 from your env)
+        host: process.env.REDIS_HOST || '127.0.0.1',  // Redis host (127.0.0.1 from your env)
       }
     };
 // Create an S3 upload queue
@@ -50,7 +50,6 @@ s3UploadQueue.process(10, async (job) => {
   console.log(`Processing s3 batch job ${job.id}`);
   
   const { certificates } = job.data; // Expect an array of certificates
-  
   try {
     // Parallel S3 uploads using Promise.all()
     const imageUrls = await Promise.all(certificates.map(async (certificate) => {
@@ -85,9 +84,9 @@ s3UploadQueue.process(10, async (job) => {
   }
 });
 
-async function processBulkIssueJob(job) {
+async function processBulkIssueJob(job,globalData) {
+  const { pdfResponse } = job.data;
   const {
-    pdfResponse,
     pdfWidth,
     pdfHeight,
     linkUrl,
@@ -104,16 +103,14 @@ async function processBulkIssueJob(job) {
     bulkIssueStatus,
     flag,
     qrOption,
-  } = job.data;
+  } = globalData;
 
   const certificateDataArray = []; // Array to collect all certificate data
   const insertUrl = []; // For URLS to return
-  const batchS3Jobs = []; // Array to hold S3 job promises
-  const s3JobPromises = [];
 
   try {
     const processPdfTasks = pdfResponse.map(async (pdfFileName) => {
-      const { s3UploadData, imageUrl } = await processSinglePdf({
+      const {  imageUrl } = await processSinglePdf({
         pdfFileName,
         pdfWidth,
         pdfHeight,
@@ -134,30 +131,12 @@ async function processBulkIssueJob(job) {
         certificateDataArray,
       });
 
-      if (s3UploadData) {
-        batchS3Jobs.push(s3UploadData)
-        console.log("pushed s3 data in batchs3jobs and length of batchs3 jobs iss", batchS3Jobs.length)
-      }
-
       insertUrl.push(imageUrl); // Collect the image URL for returning
     });
 
      // Wait for all PDFs to be processed
      await Promise.all(processPdfTasks);
-
-    if(batchS3Jobs.length>0){
-      // console.log("inside batch s3 jobs")
-     s3UploadQueue.add({ certificates: batchS3Jobs });
-     console.log("added s3upload data to s3 queue")
-      // s3JobPromises.push(s3Job.finished()); // Track completion of the remaining batch
-      // console.log("s3 promises finished")
-    }
-
-   
-    // Wait for all S3 uploads to finish
-    // await Promise.all(s3JobPromises);
     
-
     // Insert all certificate data in bulk
     if (certificateDataArray.length > 0) {
       await insertDynamicBatchCertificateDataBulk(certificateDataArray);
@@ -205,11 +184,8 @@ async function processSinglePdf({
   certificateDataArray,
 }) {
   try {
-    let shortUrlStatus = false;
     var modifiedUrl;
     let imageUrl = "";
-    let generatedImage = null;
-    let s3UploadData={}
     const treeData = JSON.parse(serializedTree);
     const tree = StandardMerkleTree.load(treeData);
     const pdfFilePath = path.join(__dirname, "../../uploads", pdfFileName);
@@ -305,7 +281,6 @@ async function processSinglePdf({
     // Read the generated PDF file
     var fileBuffer = fs.readFileSync(outputPdf);
     // Assuming fileBuffer is available
-
     var outputPath = path.join(
       __dirname,
       "../../uploads",
@@ -316,21 +291,21 @@ async function processSinglePdf({
     if (bulkIssueStatus == "ZIP_STORE" || flag == 1) {
       imageUrl = "";
     } else {
-      // imageUrl = await _convertPdfBufferToPngWithRetry(
-      //   foundEntry.documentID,
-      //   fileBuffer,
-      //   pdfWidth,
-      //   pdfHeight
-      // );
-      const base64Buffer = fileBuffer.toString('base64');
-      s3UploadData={
-        certificateNumber: foundEntry.documentID,
-          fileBuffer:base64Buffer,
-          pdfWidth,
-          pdfHeight,
+      imageUrl = await _convertPdfBufferToPngWithRetry(
+        foundEntry.documentID,
+        fileBuffer,
+        pdfWidth,
+        pdfHeight
+      );
+      // const base64Buffer = fileBuffer.toString('base64');
+      // s3UploadData={
+      //   certificateNumber: foundEntry.documentID,
+      //     fileBuffer:base64Buffer,
+      //     pdfWidth,
+      //     pdfHeight,
 
-      }
-      imageUrl = `https://certs365-live.s3.amazonaws.com/dynamic_bulk_issues/${foundEntry.documentID}.png`;
+      // }
+      // imageUrl = `https://certs365-live.s3.amazonaws.com/dynamic_bulk_issues/${foundEntry.documentID}.png`;
       if (!imageUrl) {
         return {
           code: 400,
@@ -355,6 +330,9 @@ async function processSinglePdf({
       height: pdfHeight,
       qrOption: qrOption,
       url: imageUrl,
+      positionX: posx,
+      positionY: posy,
+      qrSize:qrside
     };
 
     // Push the prepared certificate data into the array for bulk insertion
@@ -375,7 +353,7 @@ async function processSinglePdf({
       console.log("File saved successfully at:", outputPath);
     }
 
-    return {s3UploadData, imageUrl};
+    return { imageUrl};
   } catch (error) {
     console.error(`Error processing PDF ${pdfFileName}:`, error.message);
     throw error; // Re-throw the error after logging
@@ -501,6 +479,16 @@ const getFormattedFields = async (obj) => {
   return result;
 };
 
+function formatDate(date) {
+  if (date instanceof Date) {
+    const month = String(date.getMonth() + 1).padStart(2, "0"); // Months are zero-based
+    const day = String(date.getDate()).padStart(2, "0");
+    const year = date.getFullYear();
+    return `${month}/${day}/${year}`;
+  }
+  return date;
+}
+
 // Bulk insert function for MongoDB
 const insertDynamicBatchCertificateDataBulk = async (dataArray) => {
   try {
@@ -519,8 +507,8 @@ const insertDynamicBatchCertificateDataBulk = async (dataArray) => {
       positionX: data.positionX,
       positionY: data.positionY,
       qrSize: data.qrSize,
-      width: data.width || without_pdf_width,
-      height: data.height || without_pdf_height,
+      width: data.width,
+      height: data.height,
       qrOption: data.qrOption || 0,
       url: data.url || '',
       type: 'dynamic',

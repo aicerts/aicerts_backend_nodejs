@@ -27,3 +27,31 @@ services:
       REDIS_URL: redis://redis:6379  # Connection URL to Redis
     links:
       - redis
+
+  # ghostscript:
+  #   image: ubuntu:20.04
+  #   container_name: ghostscript
+  #   restart: unless-stopped
+  #   network_mode: bridge
+  #   environment:
+  #     DEBIAN_FRONTEND: noninteractive
+  #   command: >
+  #     bash -c "apt-get update && 
+  #               apt-get install -y ghostscript && 
+  #               apt-get clean && 
+  #               rm -rf /var/lib/apt/lists/* && 
+  #               tail -f /dev/null"  # Keeps the container running
+
+  # graphicsmagick:
+  #   image: ubuntu:20.04
+  #   container_name: graphicsmagick
+  #   restart: unless-stopped
+  #   network_mode: bridge
+  #   environment:
+  #     DEBIAN_FRONTEND: noninteractive
+  #   command: >
+  #     bash -c "apt-get update && 
+  #               apt-get install -y graphicsmagick && 
+  #               apt-get clean && 
+  #               rm -rf /var/lib/apt/lists/* && 
+  #               tail -f /dev/null"  # Keeps the container running

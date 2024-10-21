@@ -105,6 +105,8 @@ const {
   waitForJobsToComplete,
   cleanUpJobs,
   addJobsInChunks,
+  getGlobalDataforQueue,
+  setGlobalDataforQueue,
 } = require("../queue_service/queueUtils");
 const {
   processBulkIssueJob,
@@ -1832,7 +1834,10 @@ const dynamicBulkCertificates = async (
 
           const qrImageData = generateQr ? generateQr : qrCodeImage;
           file = pdfFilePath;
-          var outputPdf = `${pdfFileName}`;
+          console.log("The old file name", pdfFileName);
+          // pdfFileName = `${foundEntry.documentID}.pdf`;
+          var outputPdf = pdfFileName;
+          // console.log("The new file name", outputPdf);
 
           if (!fs.existsSync(pdfFilePath)) {
             return {
@@ -1998,9 +2003,11 @@ const failedErrorObject = {
 };
 
 const processListener = async (job) => {
+  const globalData = getGlobalDataforQueue()
   try {
+
     // Process the job
-    const result = await processBulkIssueJob(job);
+    const result = await processBulkIssueJob(job,globalData);
 
     // Check the result and handle failures
     if (result.status === false) {
@@ -2150,8 +2157,7 @@ const dynamicBatchCertificates = async (
 
         const bulkIssueQueue = new Queue(queueName, redisConfig);
 
-        const jobDataCallback = (chunk) => ({
-          pdfResponse: chunk,
+        setGlobalDataforQueue({
           pdfWidth,
           pdfHeight,
           linkUrl,
@@ -2168,6 +2174,13 @@ const dynamicBatchCertificates = async (
           bulkIssueStatus,
           flag,
           qrOption,
+
+        })
+
+
+        const jobDataCallback = (chunk) => ({
+          pdfResponse: chunk,
+        
         });
         // Add jobs in chunks with custom job data
         const jobs = await addJobsInChunks(
@@ -2182,8 +2195,6 @@ const dynamicBatchCertificates = async (
           insertUrl = await waitForJobsToComplete(jobs);
           console.log("bulk issue queue processing completed");
         } catch (error) {
-          await cleanUpJobs(bulkIssueQueue);
-          await wipeUploadFolder();
           return {
             status: 400,
             response: false,
@@ -2191,6 +2202,7 @@ const dynamicBatchCertificates = async (
             Details: failedErrorObject.Details // Include the failed details
           };
         } finally {
+         try {
           await cleanUpJobs(bulkIssueQueue);
           await wipeUploadFolder();
           Object.assign(failedErrorObject, {
@@ -2199,6 +2211,30 @@ const dynamicBatchCertificates = async (
             message: "",
             Details: [],
           });
+          // console.log("finally done")
+          setGlobalDataforQueue({
+            pdfWidth: null,
+            pdfHeight: null,
+            linkUrl: null,
+            qrside: null,
+            posx: null,
+            posy: null,
+            excelResponse: null,
+            hashedBatchData: null,
+            serializedTree: null,
+            email: null,
+            issuerId: null,
+            allocateBatchId: null,
+            txHash: null,
+            bulkIssueStatus: null,
+            flag: null,
+            qrOption: null,
+          })
+          
+         } catch (error) {
+          console.log("erro while deleting upload folder..", error.message)
+          
+         }
         }
 
         // // Wait for all insert promises to resolve

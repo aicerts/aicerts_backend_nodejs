@@ -9,6 +9,7 @@ const fs = require("fs");
 const AWS = require('../config/aws-config');
 const { validationResult } = require("express-validator");
 const moment = require('moment');
+const { ethers } = require("ethers"); // Ethereum JavaScript library
 
 // Import MongoDB models
 const { User, Issues, BatchIssues, IssueStatus, VerificationLog, ServiceAccountQuotas, DynamicIssues, DynamicBatchIssues, BulkBatchIssues } = require("../config/schema");
@@ -1783,8 +1784,20 @@ const getSingleCertificates = async (req, res) => {
     const { issuerId, type } = req.body;
 
     // Validate request body
-    if (!issuerId || (type !== 1 && type !== 2)) {
-      return res.status(400).json({ code: 400, status: "FAILED", message: "issuerId and valid type (1 or 2 or 3) are required" });
+    if (type !== 1 && type !== 2) {
+      return res.status(400).json({ code: 400, status: "FAILED", message: "Please provide valid type (1 or 2)" });
+    }
+
+    // Validate issuerId
+    if (!issuerId || !ethers.isAddress(issuerId)) {
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidIssuerId });
+    }
+
+    const isIdExist = await User.findOne({ issuerId : issuerId });
+
+    // Check if the target address is a valid Ethereum address
+    if (!ethers.isAddress(issuerId) || !isIdExist) {
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidIssuerId });
     }
 
     // Convert type to integer if it is a string
@@ -1814,6 +1827,10 @@ const getSingleCertificates = async (req, res) => {
 
     const certificates = [...certificatesSimple, ...certificatesDynamic];
 
+    if(certificates.length < 1){
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgNoMatchFound });
+    }
+
     // Function to sort data by issueDate
     certificates.sort((a, b) => new Date(b.issueDate) - new Date(a.issueDate));
 
@@ -1842,8 +1859,15 @@ const getBatchCertificateDates = async (req, res) => {
     const { issuerId } = req.body;
 
     // Validate issuerId
-    if (!issuerId) {
-      return res.status(400).json({ code: 400, status: "FAILED", message: "issuerId is required" });
+    if (!issuerId || !ethers.isAddress(issuerId)) {
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidIssuerId });
+    }
+
+    const isIdExist = await User.findOne({ issuerId : issuerId });
+
+    // Check if the target address is a valid Ethereum address
+    if (!isIdExist) {
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidIssuerId });
     }
 
     // Fetch all batch certificates for the given issuerId
@@ -1852,7 +1876,10 @@ const getBatchCertificateDates = async (req, res) => {
 
     const batchCertificates = [...batchCertificatesOne, ...batchCertificatesTwo];
 
-
+    if(batchCertificates.length < 1){
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgNoMatchFound });
+    }
+    
     // Create a map to store the first certificate's issueDate for each batchId
     const batchDateMap = new Map();
 
@@ -1898,14 +1925,25 @@ const getBatchCertificates = async (req, res) => {
     const { batchId, issuerId } = req.body;
 
     // Validate input
-    if (!batchId || !issuerId) {
-      return res.status(400).json({ code: 400, status: "FAILED", message: "batchId and issuerId are required" });
+    if (!batchId || !issuerId || !ethers.isAddress(issuerId)) {
+      return res.status(400).json({ code: 400, status: "FAILED", message: "Please provide valid batchId and issuerId" });
+    }
+
+    const isIdExist = await User.findOne({ issuerId : issuerId });
+
+    // Check if the target address is a valid Ethereum address
+    if (!isIdExist) {
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidIssuerId });
     }
 
     // Fetch all certificates for the given batchId and issuerId
     var certificates = await BatchIssues.find({ batchId, issuerId });
     if (!certificates || certificates.length < 1) {
       certificates = await DynamicBatchIssues.find({ batchId, issuerId });
+    }
+
+    if(certificates.length < 1){
+      return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgNoMatchFound });
     }
 
     // Respond with success and the certificates

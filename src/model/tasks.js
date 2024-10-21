@@ -33,8 +33,8 @@ const polygonApiKey = process.env.POLYGON_API_KEY || null;
 // Define an array of providers to use as fallbacks
 const providers = [
   new ethers.AlchemyProvider(process.env.RPC_NETWORK, process.env.ALCHEMY_API_KEY),
-  new ethers.InfuraProvider(process.env.RPC_NETWORK, process.env.INFURA_API_KEY)
-  // new ethers.ChainstackProvider(process.env.RPC_NETWORK, process.env.CHAIN_KEY)
+  new ethers.InfuraProvider(process.env.RPC_NETWORK, process.env.INFURA_API_KEY),
+  new ethers.ChainstackProvider(process.env.RPC_NETWORK, process.env.CHAIN_KEY)
   // new ethers.JsonRpcProvider(process.env.CHAIN_RPC)
   // Add more providers as needed
 ];
@@ -1670,19 +1670,44 @@ const getCertificationStatus = async (certStatus) => {
 
 const getContractAddress = async (contractAddress, maxRetries = 3, delay = 1000) => {
   let attempt = 0;
-  try {
-    const code = await fallbackProvider.getCode(contractAddress);
-    // console.log("the provider", fallbackProvider, code);
-    if (code === '0x') {
-      console.log('RPC provider is not responding');
-      return false;
-    } else {
-      console.log('RPC provider responding');
-      return true;
+  // try {
+  //   const code = await fallbackProvider.getCode(contractAddress);
+  //   // console.log("the provider", fallbackProvider, code);
+  //   if (code === '0x') {
+  //     console.log('RPC provider is not responding');
+  //     return false;
+  //   } else {
+  //     console.log('RPC provider responding');
+  //     return true;
+  //   }
+  // } catch (error) {
+  //   console.error('Error checking contract address:', error);
+  //   return false;
+  // }
+
+  while (attempt < maxRetries) {
+    try {
+      const code = await fallbackProvider.getCode(contractAddress);
+
+      if (code === '0x') {
+        console.log('RPC provider is not responding');
+        return false;
+      } else {
+        console.log('RPC provider responding');
+        return true;
+      }
+    } catch (error) {
+      attempt++;
+      console.error(`Error checking contract address (attempt ${attempt}):`, error);
+
+      if (attempt < maxRetries) {
+        console.log(`Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        console.log('Max retries reached. Giving up.');
+        return false;
+      }
     }
-  } catch (error) {
-    console.error('Error checking contract address:', error);
-    return false;
   }
 };
 

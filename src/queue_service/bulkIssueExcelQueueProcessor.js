@@ -19,7 +19,7 @@ const processBulkExcelJobs = async (rawBatchData,rows, jobId) => {
   var notNullDocumentIDs = documentIDs.filter(item => item == null);
   var notNullHolderNames = holderNames.filter(item => item == null);
   var notNullDocumentNames = documentNames.filter(item => item == null);
-
+  
   if (notNullDocumentIDs.length != 0 || notNullHolderNames.length != 0 || notNullDocumentNames.length != 0) {
       return { status: "FAILED", response: false, message: messageCode.msgMissingDetailsInExcel, Details: "" };
   }
@@ -31,7 +31,7 @@ const processBulkExcelJobs = async (rawBatchData,rows, jobId) => {
 
   // Initialize an empty list to store matching IDs
   const matchingIDs = [];
-  const repetitiveNumbers = await findRepetitiveIdNumbers(documentIDs);
+  // const repetitiveNumbers = await findRepetitiveIdNumbers(documentIDs);
   const invalidIdList = await validateDynamicBatchCertificateIDs(documentIDs);
   const invalidNamesList = await validateDynamicBatchCertificateNames(holderNames);
   if (invalidIdList != false) {
@@ -42,9 +42,9 @@ const processBulkExcelJobs = async (rawBatchData,rows, jobId) => {
       return { status: "FAILED", response: false, message: messageCode.msgOnlyAlphabets, Details: invalidNamesList };
   }
 
-  if (repetitiveNumbers.length > 0) {
-      return { status: "FAILED", response: false, message: messageCode.msgExcelRepetetionIds, Details: repetitiveNumbers };
-  }
+  // if (repetitiveNumbers.length > 0) {
+  //     return { status: "FAILED", response: false, message: messageCode.msgExcelRepetetionIds, Details: repetitiveNumbers };
+  // }
 
   // Assuming BatchIssues is your MongoDB model
   for (const id of documentIDs) {
@@ -220,7 +220,7 @@ const compareGrantExpiredSetDates = async (grantList, expirationList) => {
       const str = num.toString(); // Convert number to string
       if (
         str.length < min_length ||
-        str.length > max_length ||
+        str.length > 50 ||
         specialCharsRegex.test(str)
       ) {
         invalidStrings.push(str);

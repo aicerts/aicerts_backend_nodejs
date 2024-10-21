@@ -918,7 +918,7 @@ const dynamicBatchIssueCertificates = async (req, res) => {
       excelData = await handleBulkExcelFile(excelFilePath);
     } else {
       console.log("the input option", queueOption);
-      excelData = await handleBatchExcelFile(excelFilePath);
+      excelData = await handleBatchExcelFile(excelFilePath,issuerExist);
     }
 
     // await _fs.remove(filePath);
@@ -996,7 +996,7 @@ const dynamicBatchIssueCertificates = async (req, res) => {
       bulkIssueResponse = await dynamicBatchCertificates(emailExist.email, emailExist.issuerId, pdfFiles, excelData.message, excelFilePath, paramsExist.positionX, paramsExist.positionY, paramsExist.qrSide, paramsExist.pdfWidth, paramsExist.pdfHeight, qrOption, flag);
     }
 
-    if (bulkIssueStatus == 'ZIP_STORE' || flag == 1) {
+    if ((bulkIssueStatus == 'ZIP_STORE' && queueOption == 0) || (flag == 1 && queueOption == 0)) {
       if (bulkIssueResponse.code == 200) {
         // Update Issuer credits limit (decrease by 1)
         await updateIssuerServiceCredits(existIssuerId, 'issue');
@@ -1454,7 +1454,7 @@ const dynamicBatchIssueCredentials = async (req, res) => {
       }
       res.status(bulkIssueResponse.code).json({ code: bulkIssueResponse.code, status: "SUCCESS", message: messageCode.msgBatchIssuedSuccess, details: bulkResponse });
       // await cleanUploadFolder();
-      await wipeUploadFolder();
+      // await wipeUploadFolder();
       // await flushUploadFolder();
       return;
     } else {

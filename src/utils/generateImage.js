@@ -157,14 +157,13 @@ const convertPdfBufferToPng = async (certNumber, pdfBuffer, _width, _height) => 
     };
 
     try {
+        // console.log("The pdf buffer", pdfBuffer);
         const convert = fromBuffer(pdfBuffer, options);
         const pageOutput = await convert(1, { responseType: 'buffer' }); // Convert page 1 (adjust as needed)
         let base64String = await pageOutput.base64;
-        // Remove the data URL prefix if present
-        // const base64Data = await base64String.replace(/^data:image\/png;base64,/, '');
         // Convert Base64 to buffer
         const _buffer = Buffer.from(base64String, 'base64');
-
+        // console.log("The pdf buffer on base64", _buffer);
         const _keyName = `${certNumber}.png`;
         const s3 = new AWS.S3();
         const keyPrefix = 'issues/';
@@ -208,14 +207,13 @@ const _convertPdfBufferToPng = async (certNumber, pdfBuffer, _width, _height) =>
     };
 
     try {
+        // console.log("The pdf buffer", pdfBuffer);
         const convert = fromBuffer(pdfBuffer, options);
         const pageOutput = await convert(1, { responseType: 'buffer' }); // Convert page 1 (adjust as needed)
         let base64String = await pageOutput.base64;
-        // Remove the data URL prefix if present
-        // const base64Data = await base64String.replace(/^data:image\/png;base64,/, '');
         // Convert Base64 to buffer
         const _buffer = Buffer.from(base64String, 'base64');
-
+        // console.log("The pdf buffer on base64", _buffer);
         const _keyName = `${certNumber}.png`;
         const s3 = new AWS.S3();
         const keyPrefix = 'dynamic_bulk_issues/';

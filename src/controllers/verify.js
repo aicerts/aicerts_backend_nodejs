@@ -705,7 +705,6 @@ const verifyCertificationId = async (req, res) => {
           return res.status(400).json({ code: 400, status: "FAILED", message: verificationResponse });
         }
       }
-
       var isDynamicCertificateExist = await isDynamicCertificationIdExisted(inputId);
       if (isIdExist) {
         if (isIdExist.certificateStatus == 6) {
