@@ -37,12 +37,9 @@ const expectedHeadersSchema = [
 ];
 
 const expectedBulkHeadersSchema = [
-  "Certs",
-  "certificationID",
-  "name",
-  "certificationName",
-  "grantDate",
-  "expirationDate",
+  "documentName",
+  "documentID",
+  "name"
 ];
 
 const messageCode = require("../common/codes");
@@ -294,6 +291,17 @@ const handleBulkExcelFile = async (_path) => {
       // api to fetch excel data into json
       const rows = await readXlsxFile(newPath, { sheet: 'Batch' });
 
+      // Check if the first three headers match the expectedBulkHeadersSchema
+      const firstThreeHeaders = rows[0].slice(0, 3);
+      const isValidHeaders = JSON.stringify(firstThreeHeaders) === JSON.stringify(expectedBulkHeadersSchema);
+      if (!isValidHeaders) {
+        return {
+          status: "FAILED",
+          response: false,
+          message: messageCode.msgInvalidHeaders,
+        };
+      }
+
       // Extract headers from the first row
       var headers = rows[0];
 
@@ -462,6 +470,17 @@ const handleBatchExcelFile = async (_path, issuer) => {
     if (sheetNames == "Batch" || sheetNames.includes("Batch")) {
       // api to fetch excel data into json
       const rows = await readXlsxFile(newPath, { sheet: "Batch" });
+
+      // Check if the first three headers match the expectedBulkHeadersSchema
+      const firstThreeHeaders = rows[0].slice(0, 3);
+      const isValidHeaders = JSON.stringify(firstThreeHeaders) === JSON.stringify(expectedBulkHeadersSchema);
+      if (!isValidHeaders) {
+        return {
+          status: "FAILED",
+          response: false,
+          message: messageCode.msgInvalidHeaders,
+        };
+      }
 
       // Extract headers from the first row
       var headers = rows[0];

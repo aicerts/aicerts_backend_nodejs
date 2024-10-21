@@ -21,21 +21,22 @@ const {
   _convertPdfBufferToPng,
 } = require("../utils/generateImage");
 const { DynamicBatchIssues, IssueStatus } = require("../config/schema");
-
-
 const Queue = require("bull");
 
-    // Define the Redis connection options
-    const redisConfig = {
-      redis: {
-        port: process.env.REDIS_PORT || 6379,  // Redis port (6380 from your env)
-        host: process.env.REDIS_HOST || 'localhost',  // Redis host (127.0.0.1 from your env)
-      }
-    };
+// Define the Redis connection options
+const redisConfig = {
+  redis: {
+    port: process.env.REDIS_PORT || 6379, // Redis port (6380 from your env)
+    host: process.env.REDIS_HOST || "localhost", // Redis host (127.0.0.1 from your env)
+  },
+};
 // Create an S3 upload queue
 const s3UploadQueue = new Queue("s3-upload-queue", redisConfig);
+const s3RetryQueue = new Queue("s3-retry-queue", redisConfig); // Retry queue
+const concurrency = parseInt(process.env.S3_CONC)
 
-s3UploadQueue.on('completed', async (job) => {
+
+s3UploadQueue.on("completed", async (job) => {
   try {
     await job.remove();
     console.log(`Removed job ${job.id} from the queue after completion.`);
@@ -44,51 +45,92 @@ s3UploadQueue.on('completed', async (job) => {
   }
 });
 
-
-// Process the queue jobs with concurrency (e.g., 5 jobs in parallel)
-s3UploadQueue.process(10, async (job) => {
-  console.log(`Processing s3 batch job ${job.id}`);
+// Handle failed jobs and move them to the retry queue
+s3UploadQueue.on("failed", async (job, err) => {
+  console.error(`Job ${job.id} failed: ${err.message}`);
   
-  const { certificates } = job.data; // Expect an array of certificates
+  // Add failed job to the retry queue
+  await s3RetryQueue.add(job.data, { delay: 60000 }); // Retry after 1 minute
+  console.log(`Job ${job.id} added to retry queue.`);
+})
+
+// Common process listener for both queues
+const processListener = async (job) => {
+  console.log(`Processing job ${job.id}`);
+
+  const { certificates } = job.data;
   try {
-    // Parallel S3 uploads using Promise.all()
-    const imageUrls = await Promise.all(certificates.map(async (certificate) => {
-      const { certificateNumber, fileBuffer: base64Buffer, pdfWidth, pdfHeight } = certificate;
-      
-      // Convert back to Buffer
-      const fileBuffer = Buffer.from(base64Buffer, 'base64');
-      const imageUrl = await _convertPdfBufferToPngWithRetry(
-        certificateNumber,
-        fileBuffer,
-        pdfWidth,
-        pdfHeight
-      );
-      
-      if (!imageUrl) {
-        throw new Error("S3 upload failed after retries.");
+    const imageUrls = await Promise.allSettled(
+      certificates.map((certificate) => processCertificate(certificate))
+    );
+
+    const successfulUploads = imageUrls
+      .filter(result => result.status === "fulfilled")
+      .map(result => result.value);
+
+    const failedUploads = imageUrls
+      .filter(result => result.status === "rejected");
+
+    console.log(`${successfulUploads.length} certificates uploaded successfully.`);
+    if (failedUploads.length) {
+      console.error(`${failedUploads.length} certificates failed.`);
+
+      for (const failedUpload of failedUploads) {
+        const failedCertificate = certificates[imageUrls.indexOf(failedUpload)];
+        console.log(`Adding certificate ${failedCertificate.certificateNumber} to retry queue.`);
+        console.log(failedCertificate)
+        await s3RetryQueue.add(
+          {
+            certificate: failedCertificate, // Retry the failed certificate
+          },
+          {
+            delay: 60000, // Add a delay if needed (1 minute in this case)
+            attempts: 3,  // Number of retry attempts
+            backoff: {
+              type: "exponential", // Exponential backoff
+              delay: 10000, // Start with a 10-second delay between retries
+            },
+          }
+        );
       }
-      
-      return imageUrl;
-    }));
+    }
 
-    console.log(`Completed s3 batch job ${job.id}`);
-    
-    // Return success result with all image URLs
-    return {
-      status: "success",
-      imageUrls,
-    };
+    return successfulUploads; // Return the URLs of uploaded images
   } catch (error) {
-    console.error("Error in S3 batch upload process:", error.message);
-    // throw error;
+    console.error(`Error processing job ${job.id}:`, error);
+    throw error;
   }
-});
+};
 
-async function processBulkIssueJob(job,globalData) {
+// Process both the s3UploadQueue and the s3RetryQueue using the shared listener
+s3UploadQueue.process(concurrency, processListener);
+s3RetryQueue.process(concurrency, processListener);
+
+async function processCertificate(certificate) {
+  const { certificateNumber, fileBuffer: base64Buffer, pdfWidth, pdfHeight } = certificate;
+
+  if (certificateNumber === "TEST_FAIL") {
+    throw new Error(`Simulated failure for certificate ${certificateNumber}`);
+  }
+
+  // Convert base64 string to Buffer
+  const fileBuffer = Buffer.from(base64Buffer, "base64");
+
+  // Convert PDF buffer to PNG and upload to S3
+  const imageUrl = await _convertPdfBufferToPngWithRetry(certificateNumber, fileBuffer, pdfWidth, pdfHeight);
+
+  if (!imageUrl) {
+    throw new Error(`Failed to upload certificate ${certificateNumber}`);
+  }
+
+  return imageUrl;
+}
+
+
+async function processBulkIssueJob(job, globalData) {
+  const { pdfResponse } = job.data;
   const {
-    pdfResponse,
-  } = job.data;
-  const { pdfWidth,
+    pdfWidth,
     pdfHeight,
     linkUrl,
     qrside,
@@ -103,7 +145,8 @@ async function processBulkIssueJob(job,globalData) {
     txHash,
     bulkIssueStatus,
     flag,
-    qrOption,} = globalData
+    qrOption,
+  } = globalData;
 
   const certificateDataArray = []; // Array to collect all certificate data
   const insertUrl = []; // For URLS to return
@@ -134,35 +177,35 @@ async function processBulkIssueJob(job,globalData) {
       });
 
       if (s3UploadData) {
-        batchS3Jobs.push(s3UploadData)
-        console.log("pushed s3 data in batchs3jobs and length of batchs3 jobs iss", batchS3Jobs.length)
+        batchS3Jobs.push(s3UploadData);
+        console.log(
+          "pushed s3 data in batchs3jobs and length of batchs3 jobs iss",
+          batchS3Jobs.length
+        );
       }
 
       insertUrl.push(imageUrl); // Collect the image URL for returning
     });
 
-     // Wait for all PDFs to be processed
-     await Promise.all(processPdfTasks);
+    // Wait for all PDFs to be processed
+    await Promise.all(processPdfTasks);
 
-    if(batchS3Jobs.length>0 && flag ==0){
+    if (batchS3Jobs.length > 0 && flag == 0) {
       // console.log("inside batch s3 jobs")
-     await s3UploadQueue.add({ certificates: batchS3Jobs });
-     console.log("added s3upload data to s3 queue")
+      await s3UploadQueue.add({ certificates: batchS3Jobs });
+      console.log("added s3upload data to s3 queue");
       // s3JobPromises.push(s3Job.finished()); // Track completion of the remaining batch
       // console.log("s3 promises finished")
     }
 
-   
     // Wait for all S3 uploads to finish
     // await Promise.all(s3JobPromises);
-    
 
     // Insert all certificate data in bulk
     if (certificateDataArray.length > 0) {
       await insertDynamicBatchCertificateDataBulk(certificateDataArray);
-      
     }
-    console.log(insertUrl)
+    console.log(insertUrl);
 
     return {
       code: 200,
@@ -208,7 +251,7 @@ async function processSinglePdf({
     var modifiedUrl;
     let imageUrl = "";
     let generatedImage = null;
-    let s3UploadData={}
+    let s3UploadData = {};
     const treeData = JSON.parse(serializedTree);
     const tree = StandardMerkleTree.load(treeData);
     const pdfFilePath = path.join(__dirname, "../../uploads", pdfFileName);
@@ -263,10 +306,10 @@ async function processSinglePdf({
     //   }
     // }
     // if (shortUrlStatus) {
-      modifiedUrl = process.env.SHORT_URL + foundEntry.documentID;
+    modifiedUrl = process.env.SHORT_URL + foundEntry.documentID;
     // }
 
-    let _qrCodeData = modifiedUrl 
+    let _qrCodeData = modifiedUrl;
     // Generate vibrant QR
     const generateQr = await generateVibrantQr(_qrCodeData, qrside, qrOption);
 
@@ -321,14 +364,13 @@ async function processSinglePdf({
       //   pdfWidth,
       //   pdfHeight
       // );
-      const base64Buffer = fileBuffer.toString('base64');
-      s3UploadData={
+      const base64Buffer = fileBuffer.toString("base64");
+      s3UploadData = {
         certificateNumber: foundEntry.documentID,
-          fileBuffer:base64Buffer,
-          pdfWidth,
-          pdfHeight,
-
-      }
+        fileBuffer: base64Buffer,
+        pdfWidth,
+        pdfHeight,
+      };
       imageUrl = `https://certs365-live.s3.amazonaws.com/dynamic_bulk_issues/${foundEntry.documentID}.png`;
       if (!imageUrl) {
         return {
@@ -340,7 +382,7 @@ async function processSinglePdf({
     }
 
     var certificateData = {
-      email:email,
+      email: email,
       issuerId: issuerId,
       batchId: allocateBatchId,
       proofHash: _proof,
@@ -374,7 +416,7 @@ async function processSinglePdf({
       console.log("File saved successfully at:", outputPath);
     }
 
-    return {s3UploadData, imageUrl};
+    return { s3UploadData, imageUrl };
   } catch (error) {
     console.error(`Error processing PDF ${pdfFileName}:`, error.message);
     throw error; // Re-throw the error after logging
@@ -389,14 +431,13 @@ const _convertPdfBufferToPngWithRetry = async (
   retryCount = 3
 ) => {
   try {
-   
     const imageResponse = await _convertPdfBufferToPng(
       certificateNumber,
       pdfBuffer,
       _width,
       _height
     );
-    console.log(imageResponse)
+    console.log(imageResponse);
     if (!imageResponse) {
       if (retryCount > 0) {
         console.log(
@@ -511,12 +552,11 @@ function formatDate(date) {
   return date;
 }
 
-
 // Bulk insert function for MongoDB
 const insertDynamicBatchCertificateDataBulk = async (dataArray) => {
   try {
     // Map the input data array to the structure required by the DynamicBatchIssues model
-    const bulkInsertData = dataArray.map(data => ({
+    const bulkInsertData = dataArray.map((data) => ({
       issuerId: data.issuerId,
       batchId: data.batchId,
       proofHash: data.proofHash,
@@ -533,17 +573,19 @@ const insertDynamicBatchCertificateDataBulk = async (dataArray) => {
       width: data.width || without_pdf_width,
       height: data.height || without_pdf_height,
       qrOption: data.qrOption || 0,
-      url: data.url || '',
-      type: 'dynamic',
-      issueDate: Date.now()
+      url: data.url || "",
+      type: "dynamic",
+      issueDate: Date.now(),
     }));
 
     // Perform bulk insert into DynamicBatchIssues
-    const result = await DynamicBatchIssues.insertMany(bulkInsertData, { ordered: false });
+    const result = await DynamicBatchIssues.insertMany(bulkInsertData, {
+      ordered: false,
+    });
     console.log(`Inserted ${result.length} certificate records in bulk.`);
 
     // Prepare bulk data for IssueStatus
-    const bulkStatusData = dataArray.map(data => ({
+    const bulkStatusData = dataArray.map((data) => ({
       email: data.email || null,
       issuerId: data.issuerId, // Required field
       batchId: data.batchId || null,
@@ -553,19 +595,17 @@ const insertDynamicBatchCertificateDataBulk = async (dataArray) => {
       name: data.name,
       expirationDate: 0, // Default, update if necessary
       certStatus: 1, // Set certStatus as needed
-      lastUpdate: Date.now()
+      lastUpdate: Date.now(),
     }));
-  
 
     // Perform bulk insert into IssueStatus
     await IssueStatus.insertMany(bulkStatusData, { ordered: false });
-    console.log(`Inserted ${bulkStatusData.length} issue status records in bulk.`);
-
+    console.log(
+      `Inserted ${bulkStatusData.length} issue status records in bulk.`
+    );
   } catch (error) {
     console.error("Error in bulk insert:", error);
   }
 };
 
-
-module.exports = {processBulkIssueJob, s3UploadQueue};
-
+module.exports = { processBulkIssueJob, s3UploadQueue };

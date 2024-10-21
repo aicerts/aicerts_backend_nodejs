@@ -27,8 +27,7 @@ const decryptRequestBody = (req, res, next) => {
       const decryptedData = decryptData(encryptedData, key);
       console.log(key, "key")
       console.log(encryptedData, "encrypt")
-      console.log(decryptedData, "dycrypt")
-
+      console.log(decryptedData, "decrypt")
 
       req.body = JSON.parse(decryptedData);
     }
@@ -48,7 +47,7 @@ const decryptRequestParseBody = (req, res, next) => {
       const decryptedData = decryptData(encryptedData, key);
       console.log(key, "key")
       console.log(encryptedData, "encrypt")
-      console.log(decryptedData, "dycrypt")
+      console.log(decryptedData, "decrypt")
       req.body = decryptedData;
     }
     // Call the next middleware or controller
