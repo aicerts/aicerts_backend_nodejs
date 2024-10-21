@@ -19,7 +19,7 @@ const processBulkExcelJobs = async (rawBatchData,rows, jobId) => {
   var notNullDocumentIDs = documentIDs.filter(item => item == null);
   var notNullHolderNames = holderNames.filter(item => item == null);
   var notNullDocumentNames = documentNames.filter(item => item == null);
-
+  
   if (notNullDocumentIDs.length != 0 || notNullHolderNames.length != 0 || notNullDocumentNames.length != 0) {
       return { status: "FAILED", response: false, message: messageCode.msgMissingDetailsInExcel, Details: "" };
   }
