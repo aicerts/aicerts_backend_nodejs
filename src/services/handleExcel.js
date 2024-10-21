@@ -557,6 +557,11 @@ const handleBatchExcelFile = async (_path, issuer) => {
         // const { chunkSize, concurrency } = getChunkSizeAndConcurrency(
         //   rawBatchData.length
         // );
+        const documentIDs = rawBatchData.map(item => item.documentID);
+        const repetitiveNumbers = await findRepetitiveIdNumbers(documentIDs);
+        if (repetitiveNumbers.length > 0) {
+          return { status: "FAILED", response: false, message: messageCode.msgExcelRepetetionIds, Details: repetitiveNumbers };
+      }
 
         const chunkSize = parseInt(process.env.EXCEL_CHUNK);
         const concurrency = parseInt(process.env.EXCEL_CONC);

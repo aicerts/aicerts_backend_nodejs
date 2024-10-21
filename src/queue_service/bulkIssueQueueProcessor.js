@@ -84,9 +84,9 @@ s3UploadQueue.process(10, async (job) => {
   }
 });
 
-async function processBulkIssueJob(job) {
+async function processBulkIssueJob(job,globalData) {
+  const { pdfResponse } = job.data;
   const {
-    pdfResponse,
     pdfWidth,
     pdfHeight,
     linkUrl,
@@ -103,12 +103,10 @@ async function processBulkIssueJob(job) {
     bulkIssueStatus,
     flag,
     qrOption,
-  } = job.data;
+  } = globalData;
 
   const certificateDataArray = []; // Array to collect all certificate data
   const insertUrl = []; // For URLS to return
-  const batchS3Jobs = []; // Array to hold S3 job promises
-  const s3JobPromises = [];
 
   try {
     const processPdfTasks = pdfResponse.map(async (pdfFileName) => {
@@ -133,31 +131,12 @@ async function processBulkIssueJob(job) {
         certificateDataArray,
       });
 
-   
-      // if (s3UploadData) {
-      //   batchS3Jobs.push(s3UploadData)
-      //   console.log("pushed s3 data in batchs3jobs and length of batchs3 jobs iss", batchS3Jobs.length)
-      // }
-
       insertUrl.push(imageUrl); // Collect the image URL for returning
     });
 
      // Wait for all PDFs to be processed
      await Promise.all(processPdfTasks);
-
-    // if(batchS3Jobs.length>0 && flag ==0){
-    //   // console.log("inside batch s3 jobs")
-    //  await s3UploadQueue.add({ certificates: batchS3Jobs });
-    //  console.log("added s3upload data to s3 queue")
-    //   // s3JobPromises.push(s3Job.finished()); // Track completion of the remaining batch
-    //   // console.log("s3 promises finished")
-    // }
-
-   
-    // Wait for all S3 uploads to finish
-    // await Promise.all(s3JobPromises);
     
-
     // Insert all certificate data in bulk
     if (certificateDataArray.length > 0) {
       await insertDynamicBatchCertificateDataBulk(certificateDataArray);
@@ -205,11 +184,8 @@ async function processSinglePdf({
   certificateDataArray,
 }) {
   try {
-    let shortUrlStatus = false;
     var modifiedUrl;
     let imageUrl = "";
-    let generatedImage = null;
-    let s3UploadData={}
     const treeData = JSON.parse(serializedTree);
     const tree = StandardMerkleTree.load(treeData);
     const pdfFilePath = path.join(__dirname, "../../uploads", pdfFileName);
@@ -502,6 +478,16 @@ const getFormattedFields = async (obj) => {
 
   return result;
 };
+
+function formatDate(date) {
+  if (date instanceof Date) {
+    const month = String(date.getMonth() + 1).padStart(2, "0"); // Months are zero-based
+    const day = String(date.getDate()).padStart(2, "0");
+    const year = date.getFullYear();
+    return `${month}/${day}/${year}`;
+  }
+  return date;
+}
 
 // Bulk insert function for MongoDB
 const insertDynamicBatchCertificateDataBulk = async (dataArray) => {
