@@ -133,10 +133,6 @@ async function processBulkIssueJob(job) {
         certificateDataArray,
       });
 
-      if (s3UploadData) {
-        batchS3Jobs.push(s3UploadData)
-        console.log("pushed S3 data in batchs3jobs and length of batch jobs is", batchS3Jobs.length)
-      }
       // if (s3UploadData) {
       //   batchS3Jobs.push(s3UploadData)
       //   console.log("pushed s3 data in batchs3jobs and length of batchs3 jobs iss", batchS3Jobs.length)
@@ -156,11 +152,9 @@ async function processBulkIssueJob(job) {
     //   // console.log("s3 promises finished")
     // }
 
-   
     // Wait for all S3 uploads to finish
     // await Promise.all(s3JobPromises);
     
-
     // Insert all certificate data in bulk
     if (certificateDataArray.length > 0) {
       await insertDynamicBatchCertificateDataBulk(certificateDataArray);
