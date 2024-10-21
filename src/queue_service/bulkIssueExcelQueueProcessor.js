@@ -220,7 +220,7 @@ const compareGrantExpiredSetDates = async (grantList, expirationList) => {
       const str = num.toString(); // Convert number to string
       if (
         str.length < min_length ||
-        str.length > max_length ||
+        str.length > 50 ||
         specialCharsRegex.test(str)
       ) {
         invalidStrings.push(str);
