@@ -133,10 +133,7 @@ async function processBulkIssueJob(job) {
         certificateDataArray,
       });
 
-      if (s3UploadData) {
-        batchS3Jobs.push(s3UploadData)
-        console.log("pushed S3 data in batchs3jobs and length of batch jobs is", batchS3Jobs.length)
-      }
+   
       // if (s3UploadData) {
       //   batchS3Jobs.push(s3UploadData)
       //   console.log("pushed s3 data in batchs3jobs and length of batchs3 jobs iss", batchS3Jobs.length)
@@ -357,6 +354,9 @@ async function processSinglePdf({
       height: pdfHeight,
       qrOption: qrOption,
       url: imageUrl,
+      positionX: posx,
+      positionY: posy,
+      qrSize:qrside
     };
 
     // Push the prepared certificate data into the array for bulk insertion
