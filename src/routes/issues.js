@@ -320,7 +320,7 @@ router.post('/issue', validationRoute.issue, ensureAuthenticated, adminControlle
  *               message: Internal server error.
  */
 
-router.post('/issuance', validationRoute.issuance, ensureAuthenticated, adminController.Issuance);
+router.post('/issuance', validationRoute.issuance, adminController.Issuance);
 
 /**
  * @swagger
@@ -792,7 +792,7 @@ router.post('/batch-certificate-issue', __upload.single("excelFile"), ensureAuth
  *               message: The service is temporarily unavailable due to insufficient credits. Please try again later.
  */
 
-router.post('/dynamic-batch-issue', upload.single("zipFile"),  ensureAuthenticated, adminController.dynamicBatchIssueCertificates);
+router.post('/dynamic-batch-issue', upload.single("zipFile"), adminController.dynamicBatchIssueCertificates);
 
 /**
  * @swagger
@@ -902,7 +902,7 @@ router.post('/dynamic-batch-issue', upload.single("zipFile"),  ensureAuthenticat
  *               message: The service is temporarily unavailable due to insufficient credits. Please try again later.
  */
 
-// router.post('/dynamic-batch', upload.single("zipFile"), adminController.dynamicBatchIssueCredentials);
+router.post('/dynamic-batch', upload.single("zipFile"), adminController.dynamicBatchIssueCredentials);
 
 /**
  * @swagger

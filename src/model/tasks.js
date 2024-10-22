@@ -34,7 +34,7 @@ const polygonApiKey = process.env.POLYGON_API_KEY || null;
 const providers = [
   new ethers.AlchemyProvider(process.env.RPC_NETWORK, process.env.ALCHEMY_API_KEY),
   new ethers.InfuraProvider(process.env.RPC_NETWORK, process.env.INFURA_API_KEY),
-  new ethers.ChainstackProvider(process.env.RPC_NETWORK, process.env.CHAIN_KEY)
+  // new ethers.ChainstackProvider(process.env.RPC_NETWORK, process.env.CHAIN_KEY)
   // new ethers.JsonRpcProvider(process.env.CHAIN_RPC)
   // Add more providers as needed
 ];
