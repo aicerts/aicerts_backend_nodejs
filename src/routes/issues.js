@@ -1030,7 +1030,7 @@ router.post('/dynamic-batch-issue', upload.single("zipFile"),  ensureAuthenticat
  *               message: The service is temporarily unavailable due to insufficient credits. Please try again later.
  */
 
-// router.post('/dynamic-batch', upload.single("zipFile"), adminController.dynamicBatchIssueCredentials);
+router.post('/dynamic-batch', upload.single("zipFile"), adminController.dynamicBatchIssueCredentials);
 
 /**
  * @swagger

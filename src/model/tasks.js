@@ -31,20 +31,25 @@ const abi = require("../config/abi.json");
 const contractAddress = process.env.CONTRACT_ADDRESS;
 const polygonApiKey = process.env.POLYGON_API_KEY || null;
 
+// RPC PROVIDERS
+const alchemyKey = process.env.ISSUE_ALCHEMY_API_KEY || process.env.ALCHEMY_API_KEY;
+const infuraKey = process.env.ISSUE_INFURA_API_KEY || process.env.INFURA_API_KEY;
+const chainKey = process.env.ISSUE_CHAIN_KEY || process.env.CHAIN_KEY;
+
 // Define an array of providers to use as fallbacks
 const providers = [
   new ethers.AlchemyProvider(process.env.RPC_NETWORK, process.env.ALCHEMY_API_KEY),
   new ethers.InfuraProvider(process.env.RPC_NETWORK, process.env.INFURA_API_KEY),
-  // new ethers.ChainstackProvider(process.env.RPC_NETWORK, process.env.CHAIN_KEY)
+  new ethers.ChainstackProvider(process.env.RPC_NETWORK, process.env.CHAIN_KEY)
   // new ethers.JsonRpcProvider(process.env.CHAIN_RPC)
   // Add more providers as needed
 ];
 
 // Define an array of providers to use as fallbacks
 const issueProviders = [
-  new ethers.AlchemyProvider(process.env.RPC_NETWORK, process.env.ISSUE_ALCHEMY_API_KEY),
-  new ethers.InfuraProvider(process.env.RPC_NETWORK, process.env.ISSUE_INFURA_API_KEY),
-  // new ethers.ChainstackProvider(process.env.RPC_NETWORK, process.env.ISSUE_CHAIN_KEY)
+  new ethers.AlchemyProvider(process.env.RPC_NETWORK, alchemyKey),
+  new ethers.InfuraProvider(process.env.RPC_NETWORK, infuraKey),
+  new ethers.ChainstackProvider(process.env.RPC_NETWORK, chainKey)
   // new ethers.JsonRpcProvider(process.env.ISSUE_CHAIN_RPC)
   // Add more providers as needed
 ];
