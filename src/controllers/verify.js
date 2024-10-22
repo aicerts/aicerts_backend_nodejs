@@ -141,7 +141,7 @@ const verify = async (req, res) => {
               if (fs.existsSync(file)) {
                 fs.unlinkSync(file);
               }
-              return res.status(200).json({ code: 200, status: "SUCCESS", message: verificationResponse });
+              return res.status(400).json({ code: 400, status: "FAILED", message: verificationResponse });
             }
           }
           var isDynamicCertificateExist = await isDynamicCertificationIdExisted(certificationNumber);
@@ -199,7 +199,7 @@ const verify = async (req, res) => {
               }
               // Clean up the upload folder
               // await cleanUploadFolder();
-              return res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgCertRevoked });
+              return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgCertRevoked });
             }
 
             let txStatus = await checkTransactionStatus(isIdExist.transactionHash);
@@ -288,7 +288,7 @@ const verify = async (req, res) => {
                 }
                 // Clean up the upload folder
                 // await cleanUploadFolder();
-                return res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgCertRevoked });
+                return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgCertRevoked });
               }
             }
           }
@@ -447,7 +447,7 @@ const decodeQRScan = async (req, res) => {
               } else if (blockchainResponse == 3) {
                 verificationResponse = messageCode.msgCertRevoked;
               }
-              return res.status(200).json({ code: 200, status: "SUCCESS", message: verificationResponse });
+              return res.status(400).json({ code: 400, status: "FAILED", message: verificationResponse });
             }
           }
           var isDynamicCertificateExist = await isDynamicCertificationIdExisted(certificationNumber);
@@ -465,7 +465,7 @@ const decodeQRScan = async (req, res) => {
               "certificateUrl": certUrl
             }
             if (isIdExist.certificateStatus == 3) {
-              return res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgCertRevoked });
+              return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgCertRevoked });
             }
 
             let txStatus = await checkTransactionStatus(isIdExist.transactionHash);
@@ -518,7 +518,7 @@ const decodeQRScan = async (req, res) => {
               certificateS3Url = getCertificationInfo.url != null ? getCertificationInfo.url : null;
               var formatCertificationStatus = parseInt(getCertificationInfo.certificateStatus);
               if (formatCertificationStatus && formatCertificationStatus == 3) {
-                return res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgCertRevoked });
+                return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgCertRevoked });
               }
             }
           }
@@ -702,7 +702,7 @@ const verifyCertificationId = async (req, res) => {
           } else if (blockchainResponse == 3) {
             verificationResponse = messageCode.msgCertRevoked;
           }
-          return res.status(200).json({ code: 200, status: "SUCCESS", message: verificationResponse });
+          return res.status(400).json({ code: 400, status: "FAILED", message: verificationResponse });
         }
       }
       var isDynamicCertificateExist = await isDynamicCertificationIdExisted(inputId);
@@ -751,7 +751,7 @@ const verifyCertificationId = async (req, res) => {
           "certificateUrl": certUrl
         }
         if (isIdExist.certificateStatus == 3) {
-          return res.status(200).json({ code: 200, status: "SUCCESS", message: messageCode.msgCertRevoked });
+          return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgCertRevoked });
         }
 
         var verifyLog = {
