@@ -19,6 +19,7 @@ const { decryptData } = require("../common/cryptoFunction"); // Custom functions
 
 const retryDelay = parseInt(process.env.TIME_DELAY);
 const maxRetries = 3; // Maximum number of retries
+const schedule_days = parseInt(process.env.UPDATE_QUOTAS_DAYS) || 7;
 
 const without_pdf_width = parseInt(process.env.WITHOUT_PDF_WIDTH);
 const without_pdf_height = parseInt(process.env.WITHOUT_PDF_HEIGHT);
