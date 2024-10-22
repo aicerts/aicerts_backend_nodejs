@@ -66,7 +66,7 @@ const {
 
 const { fetchOrEstimateTransactionFee } = require('../utils/upload');
 const { handleExcelFile, handleBulkExcelFile, handleBatchExcelFile, getExcelRecordsCount } = require('../services/handleExcel');
-const { handleIssueCertification, handleIssuePdfCertification, handleIssueDynamicPdfCertification, dynamicBatchCertificates, dynamicBulkCertificates, andleIssuance } = require('../services/issue');
+const { handleIssueCertification, handleIssuePdfCertification, handleIssueDynamicPdfCertification, dynamicBatchCertificates, dynamicBulkCertificates, handleIssuance } = require('../services/issue');
 
 // Retrieve contract address from environment variable
 const contractAddress = process.env.CONTRACT_ADDRESS;
