@@ -31,6 +31,7 @@ const {
   fallbackProvider,
   isValidIssuer,
   connectToPolygon,
+  connectToPolygonIssue,
   convertDateFormat,
   convertDateToEpoch,
   convertEpochToDate,
@@ -57,9 +58,7 @@ const {
 const Queue = require("bull");
 
 const {
-  fetchOrEstimateTransactionFee,
-  uploadImageToS3,
-  _uploadImageToS3,
+  fetchOrEstimateTransactionFee
 } = require("../utils/upload");
 
 const {
@@ -95,6 +94,8 @@ const signer = new ethers.Wallet(process.env.PRIVATE_KEY, _fallbackProvider);
 
 // Create a new ethers contract instance with a signing capability (using the contract Address, ABI and signer)
 const newContract = new ethers.Contract(contractAddress, abi, signer);
+
+// const newContract = await connectToPolygon();
 
 // Parse environment variables for password length constraints
 const min_length = parseInt(process.env.MIN_LENGTH);
@@ -1634,6 +1635,425 @@ const handleIssueDynamicPdfCertification = async (
   }
 };
 
+// Custom endpoint function for template
+const handleIssueDynamicCertification = async (
+  email,
+  certificateNumber,
+  name,
+  courseName,
+  _grantDate,
+  _expirationDate,
+  _pdfPath,
+  _positionX,
+  _positionY,
+  _qrsize
+) => {
+  const newContract = await connectToPolygon();
+  var qrOption = 0;
+  if (!newContract) {
+    return { code: 400, status: "FAILED", message: messageCode.msgRpcFailed };
+  }
+  const pdfPath = _pdfPath;
+  const grantDate = await convertDateFormat(_grantDate);
+  const expirationDate = await convertDateFormat(_expirationDate);
+  // Get today's date
+  const today = new Date().toLocaleString("en-US", {
+    timeZone: "America/New_York",
+  }); // Adjust timeZone as per the US Standard Time zone
+  // Convert today's date to epoch time (in milliseconds)
+  const todayEpoch = new Date(today).getTime() / 1000; // Convert milliseconds to seconds
+
+  const epochGrant = await convertDateToEpoch(grantDate);
+  const epochExpiration =
+    expirationDate != 1 ? await convertDateToEpoch(expirationDate) : 1;
+  const validExpiration = todayEpoch + 32 * 24 * 60 * 60; // Add 32 days (30 * 24 hours * 60 minutes * 60 seconds);
+
+  if (
+    !grantDate ||
+    !expirationDate ||
+    (epochExpiration != 1 && epochGrant > epochExpiration) ||
+    (epochExpiration != 1 && epochExpiration < validExpiration)
+  ) {
+    let errorMessage = messageCode.msgInvalidDate;
+    if (!grantDate || !expirationDate) {
+      errorMessage = messageCode.msgInvalidDateFormat;
+    } else if (epochExpiration != 1 && epochGrant > epochExpiration) {
+      errorMessage = messageCode.msgOlderGrantDate;
+    } else if (epochExpiration != 1 && epochExpiration < validExpiration) {
+      errorMessage = `${expirationDate} - ${messageCode.msgInvalidExpiration}`;
+    }
+    return { code: 400, status: "FAILED", message: errorMessage };
+  }
+  try {
+    await isDBConnected();
+    // Check if user with provided email exists
+    const idExist = await isValidIssuer(email);
+
+    if (!idExist) {
+      return {
+        code: 400,
+        status: "FAILED",
+        message: messageCode.msgIssueNotFound,
+        details: email,
+      };
+    }
+    // Check if certificate number already exists
+    const isIssueExist = await DynamicIssues.findOne({
+      certificateNumber: certificateNumber,
+    });
+    if (isIssueExist) {
+      const _certStatus = await getCertificationStatus(
+        isIssueExist.certificateStatus
+      );
+      let issuedDate = await convertDateFormat(isIssueExist.issueDate);
+      let moreDetails = {
+        certificateNumber: isIssueExist.certificateNumber,
+        issueDate: issuedDate,
+        certificateStatus: _certStatus,
+      };
+      await cleanUploadFolder();
+      return {
+        code: 400,
+        status: "FAILED",
+        message: messageCode.msgCertIssued,
+        details: moreDetails,
+      };
+    }
+
+    let _result = "";
+    // let templateData = await extractQRCodeDataFromPDF(pdfPath)
+    //   .then(result => {
+    //     _result = result;
+    //   })
+    //   .catch(error => {
+    //     console.error("Error during verification:", error);
+    //   });
+
+    let templateData = await verifyDynamicPDFDimensions(pdfPath, _qrsize)
+      .then((result) => {
+        _result = result;
+      })
+      .catch((error) => {
+        console.error("Error during verification:", error);
+      });
+
+    // Validation checks for request data
+    if (
+      idExist.status !== 1 || // User does not exist
+      _result != false
+    ) {
+      // res.status(400).json({ message: "Please provide valid details" });
+      let errorMessage = messageCode.msgPlsEnterValid;
+      let moreDetails = "";
+      // Check for specific error conditions and update the error message accordingly
+      if (idExist.status != 1) {
+        errorMessage = messageCode.msgUnauthIssuer;
+      } else if (_result != false) {
+        if (_result == 1) {
+          errorMessage = messageCode.msgInvalidQrTemplate;
+        } else {
+          errorMessage = messageCode.msgInvalidPdfQr;
+        }
+        await cleanUploadFolder();
+      }
+
+      // Respond with error message
+      return {
+        code: 400,
+        status: "FAILED",
+        message: errorMessage,
+        details: moreDetails,
+      };
+    } else {
+      // If validation passes, proceed with certificate issuance
+      const fields = {
+        Certificate_Number: certificateNumber,
+        name: name,
+        courseName: courseName,
+        Grant_Date: grantDate,
+        Expiration_Date: expirationDate,
+      };
+      const hashedFields = {};
+      for (const field in fields) {
+        hashedFields[field] = calculateHash(fields[field]);
+      }
+      const combinedHash = calculateHash(JSON.stringify(hashedFields));
+
+      try {
+        let getContractStatus = await getContractAddress(contractAddress);
+        if (!getContractStatus) {
+          if (fs.existsSync(_pdfPath)) {
+            fs.unlinkSync(_pdfPath);
+          }
+          return {
+            code: 400,
+            status: "FAILED",
+            message: messageCode.msgFailedAtBlockchain,
+            details: messageCode.msgRpcFailed,
+          };
+        }
+        // Verify certificate on blockchain
+        let isPaused = await newContract.paused();
+        // Check if the Issuer wallet address is a valid Ethereum address
+        if (!ethers.isAddress(idExist.issuerId)) {
+          return {
+            code: 400,
+            status: "FAILED",
+            message: messageCode.msgInvalidEthereum,
+          };
+        }
+        const issuerAuthorized = await newContract.hasRole(
+          process.env.ISSUER_ROLE,
+          idExist.issuerId
+        );
+        const val = await newContract.verifyCertificateById(certificateNumber);
+        console.log("Issuer Authorized: ", issuerAuthorized);
+        if (
+          val[0] === true ||
+          isPaused === true ||
+          issuerAuthorized === false
+        ) {
+          // Certificate already issued / contract paused
+          let messageContent = messageCode.msgCertIssued;
+          let modifiedDate =
+            val[1] == 1
+              ? "infinite expiration"
+              : await convertEpochToDate(val[1]);
+          let _certificateStatus = await getCertificationStatus(val[3]);
+          let moreDetails =
+            val[0] === true
+              ? {
+                  certificateNumber: certificateNumber,
+                  expirationDate: modifiedDate,
+                  certificateStatus: _certificateStatus,
+                }
+              : "";
+
+          if (isPaused === true) {
+            messageContent = messageCode.msgOpsRestricted;
+          } else if (issuerAuthorized === false) {
+            messageContent = messageCode.msgIssuerUnauthrized;
+          }
+          return {
+            code: 400,
+            status: "FAILED",
+            message: messageContent,
+            details: moreDetails,
+          };
+        }
+      } catch (error) {
+        // Handle mongoose connection error (log it, response an error, etc.)
+        console.error("Internal server error", error);
+        return {
+          code: 400,
+          status: "FAILED",
+          message: messageCode.msgFailedAtBlockchain,
+          details: error,
+        };
+      }
+
+      var { txHash, txFee } = await issueCertificateWithRetry(
+        certificateNumber,
+        combinedHash,
+        epochExpiration
+      );
+      if (!txHash) {
+        return {
+          code: 400,
+          status: false,
+          message: messageCode.msgFailedToIssueAfterRetry,
+          details: certificateNumber,
+        };
+      }
+
+      var polygonLink = `https://${process.env.NETWORK}/tx/${txHash}`;
+
+      try {
+        // Generate encrypted URL with certificate data
+        const dataWithLink = {
+          ...fields,
+          polygonLink: polygonLink,
+        };
+        const urlLink = await generateEncryptedUrl(dataWithLink);
+        const legacyQR = false;
+        let shortUrlStatus = false;
+        let modifiedUrl;
+
+        let qrCodeData = "";
+        if (legacyQR) {
+          // Include additional data in QR code
+          qrCodeData = `Verify On Blockchain: ${polygonLink},
+            Certification Number: ${dataWithLink.Certificate_Number},
+            Name: ${dataWithLink.name},
+            Type: 'dynamic',
+            Certification Name: ${dataWithLink.courseName},
+            Grant Date: ${dataWithLink.Grant_Date},
+            Expiration Date: ${dataWithLink.Expiration_Date}`;
+        } else {
+          // Directly include the URL in QR code
+          qrCodeData = urlLink;
+        }
+
+        // if (urlLink) {
+        //   let dbStatus = await isDBConnected();
+        //   if (dbStatus) {
+        //     const urlData = {
+        //       email: email,
+        //       certificateNumber: certificateNumber,
+        //       url: urlLink
+        //     }
+        //     await insertUrlData(urlData);
+        //     shortUrlStatus = true;
+        //   }
+        // }
+
+        // if (shortUrlStatus) {
+        modifiedUrl = process.env.SHORT_URL + certificateNumber;
+        // }
+
+        let _qrCodeData = modifiedUrl != false ? modifiedUrl : qrCodeData;
+        // console.log("Short URL", _qrCodeData);
+
+        if (idExist.qrPreference) {
+          qrOption = idExist.qrPreference;
+        }
+
+        // Generate vibrant QR
+        const generateQr = await generateVibrantQr(
+          _qrCodeData,
+          _qrsize,
+          qrOption
+        );
+
+        if (!generateQr) {
+          var qrCodeImage = await QRCode.toDataURL(_qrCodeData, {
+            errorCorrectionLevel: "H",
+            width: _qrsize,
+            height: _qrsize,
+          });
+        }
+
+        var qrImageData = generateQr ? generateQr : qrCodeImage;
+        var file = pdfPath;
+        var { width, height } = await getPdfDimensions(pdfPath);
+        var outputPdf = `${fields.Certificate_Number}${name}.pdf`;
+        // Add link and QR code to the PDF file
+        const opdf = await addDynamicLinkToPdf(
+          path.join("./", ".", file),
+          outputPdf,
+          polygonLink,
+          qrImageData,
+          combinedHash,
+          _positionX,
+          _positionY
+        );
+
+        // Read the generated PDF file
+        var fileBuffer = fs.readFileSync(outputPdf);
+      } catch (error) {
+        return {
+          code: 400,
+          status: "FAILED",
+          message: messageCode.msgPdfError,
+          details: error,
+        };
+      }
+
+      // Convert PDF buffer into PNG and upload into S3
+      var imageUrl = await _convertPdfBufferToPngWithRetry(
+        fields.Certificate_Number,
+        fileBuffer,
+        width,
+        height
+      );
+
+      if (!imageUrl) {
+        return {
+          code: 400,
+          status: "FAILED",
+          message: messageCode.msgUploadError,
+        };
+      }
+
+      try {
+        // Check mongoose connection
+        const dbStatus = await isDBConnected();
+        const dbStatusMessage =
+          dbStatus === true
+            ? messageCode.msgDbReady
+            : messageCode.msgDbNotReady;
+        console.log(dbStatusMessage);
+
+        // Insert certificate data into database
+        const issuerId = idExist.issuerId;
+        let certificateData = {
+          issuerId,
+          transactionHash: txHash,
+          transactionFee: txFee,
+          certificateHash: combinedHash,
+          certificateNumber: fields.Certificate_Number,
+          name: fields.name,
+          course: fields.courseName,
+          grantDate: fields.Grant_Date,
+          expirationDate: fields.Expiration_Date,
+          email: email,
+          certStatus: 1,
+          positionX: _positionX,
+          positionY: _positionY,
+          qrSize: _qrsize,
+          width: width,
+          height: height,
+          qrOption: qrOption,
+          url: imageUrl,
+          type: "withpdf",
+        };
+        // await insertDynamicCertificateData(certificateData);
+        await insertCertificateData(certificateData);
+
+        // Delete files
+        if (fs.existsSync(outputPdf)) {
+          // Delete the specified file
+          fs.unlinkSync(outputPdf);
+        }
+
+        // Always delete the temporary file (if it exists)
+        if (fs.existsSync(file)) {
+          fs.unlinkSync(file);
+        }
+
+        // await cleanUploadFolder();
+
+        // Set response headers for PDF download
+        return { code: 200, file: fileBuffer };
+      } catch (error) {
+        // Handle mongoose connection error (log it, response an error, etc.)
+        console.error("Internal server error", error);
+        if (fs.existsSync(file)) {
+          fs.unlinkSync(file);
+        }
+        return {
+          code: 500,
+          status: "FAILED",
+          message: messageCode.msgInternalError,
+          details: error,
+        };
+      }
+    }
+  } catch (error) {
+    // Handle mongoose connection error (log it, response an error, etc.)
+    console.error("Internal server error", error);
+    if (fs.existsSync(file)) {
+      fs.unlinkSync(file);
+    }
+    return {
+      code: 400,
+      status: "FAILED",
+      message: messageCode.msgInternalError,
+      details: error,
+    };
+  }
+};
+
 const dynamicBulkCertificates = async (
   email,
   issuerId,
@@ -2304,7 +2724,7 @@ const issueCustomCertificateWithRetry = async (
   retryCount = 3,
   gasPrice = null
 ) => {
-  const newContract = await connectToPolygon();
+  const newContract = await connectToPolygonIssue();
   if (!newContract) {
     return { code: 400, status: "FAILED", message: messageCode.msgRpcFailed };
   }
@@ -2444,7 +2864,7 @@ const issueCertificateWithRetry = async (
   expirationEpoch,
   retryCount = 3
 ) => {
-  const newContract = await connectToPolygon();
+  const newContract = await connectToPolygonIssue();
   if (!newContract) {
     return { code: 400, status: "FAILED", message: messageCode.msgRpcFailed };
   }
@@ -2519,7 +2939,7 @@ const issueBatchCertificateWithRetry = async (
   expirationEpoch,
   retryCount = 3
 ) => {
-  const newContract = await connectToPolygon();
+  const newContract = await connectToPolygonIssue();
   if (!newContract) {
     return { code: 400, status: "FAILED", message: messageCode.msgRpcFailed };
   }
@@ -2776,6 +3196,8 @@ module.exports = {
   handleIssuePdfCertification,
   // Function to issue a Dynamic QR certification (single)
   handleIssueDynamicPdfCertification,
+
+  handleIssueDynamicCertification,
   // Function to issue a Dynamic QR Bulk certification (batch)
   dynamicBatchCertificates,
   dynamicBulkCertificates,

@@ -18,6 +18,7 @@ const abi = require("../config/abi.json");
 const {
     isValidIssuer,
     connectToPolygon,
+    connectToPolygonIssue,
     convertDateFormat,
     convertDateToEpoch,
     insertIssueStatus,
@@ -1091,7 +1092,7 @@ const expirationDateVariaton = async (_oldExpirationDate, _newExpirationDate) =>
 
 // Function to Perform Extend expiration of Single Certificate with retry mechanism 
 const renewSingleCertificateExpirationWithRetry = async (certificateNumber, combinedHash, epochExpiration, retryCount = 3) => {
-    const newContract = await connectToPolygon();
+    const newContract = await connectToPolygonIssue();
     if (!newContract) {
         return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
     }
@@ -1153,7 +1154,7 @@ const renewSingleCertificateExpirationWithRetry = async (certificateNumber, comb
 
 // Function to Perform Extend expiration of Certificate in the batch with retry mechanism 
 const renewCertificateExpirationInBatchWithRetry = async (fetchIndex, hashedProof, epochExpiration, retryCount = 3) => {
-    const newContract = await connectToPolygon();
+    const newContract = await connectToPolygonIssue();
     if (!newContract) {
         return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
     }
@@ -1215,7 +1216,7 @@ const renewCertificateExpirationInBatchWithRetry = async (fetchIndex, hashedProo
 
 // Function to Perform Update Single Certificate status with retry mechanism 
 const updateSingleCertificateStatusWithRetry = async (certificateNumber, certStatus, retryCount = 3) => {
-    const newContract = await connectToPolygon();
+    const newContract = await connectToPolygonIssue();
     if (!newContract) {
         return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
     }
@@ -1275,7 +1276,7 @@ const updateSingleCertificateStatusWithRetry = async (certificateNumber, certSta
 
 // Function to Perform Update Certificate status in Batch with retry mechanism 
 const updateCertificateStatusInBatchWithRetry = async (hashedProof, certStatus, retryCount = 3) => {
-    const newContract = await connectToPolygon();
+    const newContract = await connectToPolygonIssue();
     if (!newContract) {
         return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
     }
@@ -1335,7 +1336,7 @@ const updateCertificateStatusInBatchWithRetry = async (hashedProof, certStatus, 
 
 // Function to Perform Extend Batch expiration with retry mechanism 
 const updateBatchCertificateExpirationWithRetry = async (rootIndex, expirationEpoch, retryCount = 3) => {
-    const newContract = await connectToPolygon();
+    const newContract = await connectToPolygonIssue();
     if (!newContract) {
         return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
     }
@@ -1395,7 +1396,7 @@ const updateBatchCertificateExpirationWithRetry = async (rootIndex, expirationEp
 
 // Function to Perform Update Batch Status with retry mechanism 
 const updateBatchCertificateStatusWithRetry = async (rootIndex, certStatus, retryCount = 3) => {
-    const newContract = await connectToPolygon();
+    const newContract = await connectToPolygonIssue();
     if (!newContract) {
         return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
     }

@@ -49,6 +49,7 @@ const uploadPath = path.join(__dirname, '../../uploads');
 const {
   isValidIssuer,
   connectToPolygon,
+  connectToPolygonIssue,
   convertDateFormat,
   convertDateToEpoch,
   insertBatchCertificateData, // Function to insert Batch certificate data into the database
@@ -66,7 +67,7 @@ const {
 
 const { fetchOrEstimateTransactionFee } = require('../utils/upload');
 const { handleExcelFile, handleBulkExcelFile, handleBatchExcelFile, getExcelRecordsCount } = require('../services/handleExcel');
-const { handleIssueCertification, handleIssuePdfCertification, handleIssueDynamicPdfCertification, dynamicBatchCertificates, dynamicBulkCertificates, handleIssuance } = require('../services/issue');
+const { handleIssueCertification, handleIssuePdfCertification, handleIssueDynamicPdfCertification, handleIssueDynamicCertification, dynamicBatchCertificates, dynamicBulkCertificates, handleIssuance } = require('../services/issue');
 
 // Retrieve contract address from environment variable
 const contractAddress = process.env.CONTRACT_ADDRESS;
@@ -355,6 +356,167 @@ const issue = async (req, res) => {
   } catch (error) {
     // Handle any errors that occur during token verification or validation
     return res.status(500).json({ code: 500, status: "FAILED", message: messageCode.msgInternalError });
+  }
+};
+
+/**
+ * API call for Certificate issue with Single / dynamic QR on the pdf custom template.
+ *
+ * @param {Object} req - Express request object.
+ * @param {Object} res - Express response object.
+ */
+const issueDynamicCredential = async (req, res) => {
+  if (!req.file.path) {
+    return res.status(400).json({ status: "FAILED", message: messageCode.msgMustPdf });
+  }
+
+  var file = req?.file;
+  const fileBuffer = fs.readFileSync(req.file.path);
+  const pdfDoc = await PDFDocument.load(fileBuffer);
+  const flag = parseInt(req.body.flag);
+  var issueResponse;
+  var credentialNumber;
+
+  if (flag != 1 && flag != 0) {
+    return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidFlag });
+  }
+
+  if (pdfDoc.getPageCount() > 1) {
+    // Respond with success status and certificate details
+    // await cleanUploadFolder();
+    if (fs.existsSync(file)) {
+      fs.unlinkSync(file);
+    }
+    return res.status(400).json({ status: "FAILED", message: messageCode.msgMultiPagePdf });
+  }
+  try {
+
+    if (flag == 0) {
+      // Extracting required data from the request body
+      let email = req.body.email;
+      let certificateNumber = req.body.certificateNumber;
+      let certificateName = req.body.name;
+      let customFields = req.body.customFields;
+      let positionX = req.body.posx;
+      let positionY = req.body.posy;
+      let qrsize = req.body.qrsize;
+      let _positionX = parseInt(positionX);
+      let _positionY = parseInt(positionY);
+      let _qrsize = parseInt(qrsize);
+
+      if (!email || !certificateNumber || !certificateName || !_positionX || !_positionY || !_qrsize || !customFields) {
+        res.status(400).json({ status: "FAILED", message: messageCode.msgInputProvide });
+        return;
+      }
+      credentialNumber = certificateName;
+
+      // Verify with existing credits limit of an issuer to perform the operation
+      if (email) {
+        let dbStatus = await isDBConnected();
+        if (dbStatus) {
+          var issuerExist = await isValidIssuer(email);
+          if (issuerExist && issuerExist.issuerId) {
+            existIssuerId = issuerExist.issuerId;
+            let fetchCredits = await getIssuerServiceCredits(existIssuerId, 'issue');
+            if (fetchCredits === true) {
+              return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaStatus });
+            }
+            if (fetchCredits) {
+            } else {
+              return res.status(503).json({ status: "FAILED", message: messageCode.msgIssuerQuotaExceeded });
+            }
+          } else {
+            return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidIssuerId });
+          }
+        }
+      }
+
+      issueResponse = await handleIssueDynamicPdfCertification(email, certificateNumber, certificateName, customFields, req.file.path, _positionX, _positionY, _qrsize);
+    } else if (flag == 1) {
+      // Extracting required data from the request body
+      let email = req.body.email;
+      let certificateNumber = req.body.certificateNumber;
+      let name = req.body.name;
+      let courseName = req.body.course;
+      let positionX = req.body.posx;
+      let positionY = req.body.posy;
+      let qrsize = req.body.qrsize;
+      let _positionX = parseInt(positionX);
+      let _positionY = parseInt(positionY);
+      let _qrsize = parseInt(qrsize);
+      let _grantDate = await convertDateFormat(req.body.grantDate);
+      let _expirationDate;
+
+      if (!email || !certificateNumber || !name || !_positionX || !_positionY || !_qrsize || !courseName || !_grantDate) {
+        res.status(400).json({ status: "FAILED", message: messageCode.msgInputProvide });
+        return;
+      }
+      credentialNumber = certificateNumber;
+      // Verify with existing credits limit of an issuer to perform the operation
+      if (email) {
+        let dbStatus = await isDBConnected();
+        if (dbStatus) {
+          var issuerExist = await isValidIssuer(email);
+          if (issuerExist && issuerExist.issuerId) {
+            existIssuerId = issuerExist.issuerId;
+            let fetchCredits = await getIssuerServiceCredits(existIssuerId, 'issue');
+            if (fetchCredits === true) {
+              return res.status(503).json({ code: 503, status: "FAILED", message: messageCode.msgIssuerQuotaStatus });
+            }
+            if (fetchCredits) {
+            } else {
+              return res.status(503).json({ code: 503, status: "FAILED", message: messageCode.msgIssuerQuotaExceeded });
+            }
+          } else {
+            return res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidIssuerId });
+          }
+        }
+      }
+
+      if (_grantDate == "1" || _grantDate == null || _grantDate == "string") {
+        res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidGrantDate, details: req.body.grantDate });
+        return;
+      }
+      if (req.body.expirationDate == 1 || req.body.expirationDate == null || req.body.expirationDate == "string") {
+        _expirationDate = 1;
+      } else {
+        _expirationDate = await convertDateFormat(req.body.expirationDate);
+      }
+
+      if (_expirationDate == null) {
+        res.status(400).json({ code: 400, status: "FAILED", message: messageCode.msgInvalidExpirationDate, details: req.body.expirationDate });
+        return;
+      }
+
+      issueResponse = await handleIssueDynamicCertification(email, certificateNumber, name, courseName, _grantDate, _expirationDate, req.file.path, _positionX, _positionY, _qrsize);
+    
+    } else {
+      return res.status(400).json({ status: "FAILED", message: messageCode.msgInvalidFlag });
+    }
+    const responseDetails = issueResponse.details ? issueResponse.details : '';
+    if (issueResponse.code == 200) {
+      // Update Issuer credits limit (decrease by 1)
+      await updateIssuerServiceCredits(existIssuerId, 'issue');
+
+      // Set response headers for PDF to download
+      const certificateName = `${credentialNumber}_certificate.pdf`;
+
+      res.set({
+        'Content-Type': "application/pdf",
+        'Content-Disposition': `attachment; filename="${certificateName}"`, // Change filename as needed
+      });
+
+      // Send Pdf file
+      res.send(issueResponse.file);
+      return;
+
+    } else {
+      return res.status(issueResponse.code).json({ status: issueResponse.status, message: issueResponse.message, details: responseDetails });
+    }
+
+  } catch (error) {
+    // Handle any errors that occur during token verification or validation
+    return res.status(500).json({ status: "FAILED", message: messageCode.msgInternalError });
   }
 };
 
@@ -739,10 +901,7 @@ const batchIssueCertificate = async (req, res) => {
  * @param {Object} res - Express response object.
  */
 const dynamicBatchIssueCertificates = async (req, res) => {
-  const newContract = await connectToPolygon();
-  if (!newContract) {
-    return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
-  }
+ 
   var file = req?.file;
   // Check if the file path matches the pattern
   if (!req.file || !req.file.originalname.endsWith('.zip')) {
@@ -1119,10 +1278,7 @@ const dynamicBatchIssueCertificates = async (req, res) => {
 };
 
 const dynamicBatchIssueCredentials = async (req, res) => {
-  const newContract = await connectToPolygon();
-  if (!newContract) {
-    return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
-  }
+ 
   var file = req?.file;
   // Check if the file path matches the pattern
   if (!req.file || !req.file.originalname.endsWith('.zip')) {
@@ -1863,7 +2019,7 @@ const findDirectories = async (items) => {
 };
 
 const issueBatchCertificateWithRetry = async (root, expirationEpoch, retryCount = 3) => {
-  const newContract = await connectToPolygon();
+  const newContract = await connectToPolygonIssue();
   if (!newContract) {
     return ({ code: 400, status: "FAILED", message: messageCode.msgRpcFailed });
   }
@@ -1994,6 +2150,8 @@ module.exports = {
 
   // Function to issue a Dynamic QR with PDF certification
   issueDynamicPdf,
+
+  issueDynamicCredential,
 
   // Function to issue a certification
   issue,

@@ -10,44 +10,16 @@ const {
   fallbackProvider
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
-const fetchOrEstimateTransactionFee = async (tx, timeoutDuration = 3500) => {
-  const timeoutPromise = new Promise((_, reject) =>
-    setTimeout(() => reject(new Error('Transaction timed out')), timeoutDuration)
-  );
+const fetchOrEstimateTransactionFee = async (tx) => {
   if (!tx) {
     return null;
   }
-  try {
-    const receipt = await Promise.race([tx.wait(), timeoutPromise]);
 
-    // If the receipt is obtained, calculate the transaction fee
-    if (receipt) {
-      const gasUsed = BigInt(receipt.gasUsed.toString());
-      const gasPrice = BigInt(receipt.gasPrice.toString());
-      // console.log('The actual gas fee', gasUsed, gasPrice);
-
-      let txFee = gasUsed * gasPrice; // Fee in wei
-      let actualTxFee = Number(txFee) / 1e18;
-      console.log("Actual transaction fee", actualTxFee);
-      return actualTxFee;
-    }
-  } catch (error) {
-    // If the error is a timeout, proceed to estimation
-    if (error.message === 'Transaction timed out') {
-      console.warn('Transaction timed out, proceeding to estimate transaction fee.');
-    } else {
-      console.error("An error occurred", error);
-      return null;
-    }
-  }
-
-  // If we reach here, it means either a timeout occurred or no receipt was obtained
-  try {
+try {
     const feeData = await fallbackProvider.getFeeData();
     const estimateGasPrice = BigInt(feeData.gasPrice.toString());
     const gasLimit = BigInt(tx.gasLimit.toString());
     // console.log('The assessed limit & price', gasLimit, estimateGasPrice);
-
     let estimatedTxFee = gasLimit * estimateGasPrice; // Fee in wei
     let calculatedTxFee = Number(estimatedTxFee) / 1e18;
     console.log("Estimated transaction fee", calculatedTxFee);

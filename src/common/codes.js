@@ -21,6 +21,7 @@ module.exports = {
     msgInvalidDocIds: "Excel file has invalid Document ID format (no special characters) / length (min 6 - max 50)",
     msgExcelRepetetionIds: "Excel file has repetition in credentail IDs",
     msgInvalidDateFormat: "File has invalid Date format, Recommended MM/DD/YYYY format ",
+    msgInvalidExcelSheets: "Excel file has invalid sheets, Please use provided excel file format",
     msgInvalidDates: "File has invalid Dates",
     msgInvalidGrantDate: "File has invalid Grant Date format, Recommended MM/DD/YYYY format ",
     msgInvalidExpirationDate: "File has invalid Expiration Date format, Recommended MM/DD/YYYY format ",

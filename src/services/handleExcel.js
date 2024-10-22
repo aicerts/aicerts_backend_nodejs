@@ -60,7 +60,7 @@ const handleExcelFile = async (_path) => {
     return {
       status: "FAILED",
       response: false,
-      message: messageCode.msgInvalidExcel,
+      message: messageCode.msgInvalidExcelSheets,
       Details: sheetNames,
     };
   }
@@ -284,7 +284,7 @@ const handleBulkExcelFile = async (_path) => {
   const newPath = path.join(..._path.split("\\"));
   const sheetNames = await readXlsxFile.readSheetNames(newPath);
   if (sheetNames[0] != sheetName || sheetNames.length != 1) {
-    return { status: "FAILED", response: false, message: messageCode.msgInvalidExcel, Details: sheetNames };
+    return { status: "FAILED", response: false, message: messageCode.msgInvalidExcelSheets, Details: sheetNames };
   }
   try {
     if (sheetNames == "Batch" || sheetNames.includes("Batch")) {
@@ -462,7 +462,7 @@ const handleBatchExcelFile = async (_path, issuer) => {
     return {
       status: "FAILED",
       response: false,
-      message: messageCode.msgInvalidExcel,
+      message: messageCode.msgInvalidExcelSheets,
       Details: sheetNames,
     };
   }

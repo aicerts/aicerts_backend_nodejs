@@ -562,6 +562,134 @@ router.post('/issue-dynamic-pdf', _upload.single("file"), ensureAuthenticated, a
 
 /**
  * @swagger
+ * /api/issue-dynamic-cert:
+ *   post:
+ *     summary: API call for issuing certificates with a PDF/custom template with Dynamic QR
+ *     description: API call for issuing certificates with Request Data Extraction, Validation Checks, Blockchain Processing, Certificate Issuance, PDF Generation, Database Interaction, Response Handling, PDF Template, QR Code Integration, File Handling, Asynchronous Operation, Cleanup and Response Format.
+ *     tags:
+ *       - Issue Certification (*Upload pdf)
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 description: The issuer email.
+ *               certificateNumber:
+ *                 type: string
+ *                 description: The certificate number.
+ *               name:
+ *                 type: string
+ *                 description: The name associated with the certificate.
+ *               customFields:
+ *                 type: object
+ *                 description: Custom fields associated with the certificate.
+ *               posx:
+ *                 type: integer
+ *                 description: The horizontal(x-axis) position of the QR in the document.
+ *               posy:
+ *                 type: integer
+ *                 description: The vertical(y-axis) position of the QR in the document.
+ *               qrsize:
+ *                 type: integer
+ *                 description: The side of the QR in the document.
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *                 description: PDF file to be uploaded.
+ *                 x-parser:
+ *                   expression: file.originalname.endsWith('.pdf') // Allow only PDF files
+ *               course:
+ *                 type: string
+ *                 description: The course name associated with the certificate.
+ *               grantDate:
+ *                 type: string
+ *                 description: The grant date of the certificate.
+ *               expirationDate:
+ *                 type: string
+ *                 description: The expiration date of the certificate (optional), can provide "1" / null / "".
+ *               flag:
+ *                 type: number
+ *                 description: The Flag for 0:'DYNAMIC', 1:'NORMAL', default will be 'DYNAMIC'.
+ *                 default: 0
+ *             required:
+ *               - email
+ *               - certificateNumber
+ *               - name
+ *               - customFields
+ *               - posx
+ *               - posy
+ *               - qrsize
+ *               - file
+ *               - flag
+ *     responses:
+ *       '200':
+ *         description: Successful certificate issuance in PDF format
+ *         content:
+ *           application/pdf:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *             example:
+ *               code: 200.
+ *               status: "SUCCESS"
+ *               message: PDF file containing the issued certificate.
+ *       '400':
+ *         description: Certificate already issued or invalid input
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               code: 400.
+ *               status: "FAILED"
+ *               message: Error message for certificate already issued or invalid input.
+ *       '401':
+ *         description: Unauthorized Aceess / No token provided.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   description: Status of the operation (FAILED).
+ *                 message:
+ *                   type: string
+ *                   description: Unauthorized access. No token provided.
+ *             example:
+ *               code: 401.
+ *               status: "FAILED"
+ *               message: Unauthorized access. No token provided.
+ *       '500':
+ *         description: Internal Server Error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *             example:
+ *               code: 500.
+ *               status: "FAILED"
+ *               message: Internal Server Error.
+ */
+
+router.post('/issue-dynamic-cert', _upload.single("file"), ensureAuthenticated, adminController.issueDynamicCredential);
+
+/**
+ * @swagger
  * /api/batch-certificate-issue:
  *   post:
  *     summary: API call for issuing batch certificates.
