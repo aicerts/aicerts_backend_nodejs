@@ -40,7 +40,7 @@ const chainKey = process.env.ISSUE_CHAIN_KEY || process.env.CHAIN_KEY;
 const providers = [
   new ethers.AlchemyProvider(process.env.RPC_NETWORK, process.env.ALCHEMY_API_KEY),
   new ethers.InfuraProvider(process.env.RPC_NETWORK, process.env.INFURA_API_KEY),
-  new ethers.ChainstackProvider(process.env.RPC_NETWORK, process.env.CHAIN_KEY)
+  // new ethers.ChainstackProvider(process.env.RPC_NETWORK, process.env.CHAIN_KEY)
   // new ethers.JsonRpcProvider(process.env.CHAIN_RPC)
   // Add more providers as needed
 ];
@@ -49,7 +49,7 @@ const providers = [
 const issueProviders = [
   new ethers.AlchemyProvider(process.env.RPC_NETWORK, alchemyKey),
   new ethers.InfuraProvider(process.env.RPC_NETWORK, infuraKey),
-  new ethers.ChainstackProvider(process.env.RPC_NETWORK, chainKey)
+  // new ethers.ChainstackProvider(process.env.RPC_NETWORK, chainKey)
   // new ethers.JsonRpcProvider(process.env.ISSUE_CHAIN_RPC)
   // Add more providers as needed
 ];
