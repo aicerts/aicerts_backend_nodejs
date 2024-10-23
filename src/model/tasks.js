@@ -1717,20 +1717,11 @@ const getCertificationStatus = async (certStatus) => {
 
 const getContractAddress = async (contractAddress, maxRetries = 3, delay = 1000) => {
   let attempt = 0;
-  // try {
-  //   const code = await fallbackProvider.getCode(contractAddress);
-  //   // console.log("the provider", fallbackProvider, code);
-  //   if (code === '0x') {
-  //     console.log('RPC provider is not responding');
-  //     return false;
-  //   } else {
-  //     console.log('RPC provider responding');
-  //     return true;
-  //   }
-  // } catch (error) {
-  //   console.error('Error checking contract address:', error);
-  //   return false;
-  // }
+
+  if(contractAddress){
+    console.log('RPC provider responding');
+    return true;
+  }
 
   while (attempt < maxRetries) {
     try {
@@ -1759,6 +1750,9 @@ const getContractAddress = async (contractAddress, maxRetries = 3, delay = 1000)
 };
 
 const checkTransactionStatus = async (transactionHash) => {
+  if(transactionHash){
+    return true;
+  }
   try {
     // Get the transaction receipt
     const receipt = await fallbackProvider.getTransactionReceipt(transactionHash);

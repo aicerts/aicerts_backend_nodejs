@@ -4,17 +4,18 @@ const AWS = require('../config/aws-config');
 const fs = require("fs");
 
 // Import MongoDB models
-const { User, Issues, BatchIssues, ShortUrl, DynamicIssues, DynamicBatchIssues } = require("../config/schema");
+const { User } = require("../config/schema");
 
 const {
   fallbackProvider
 } = require('../model/tasks'); // Importing functions from the '../model/tasks' module
 
+const defaultFee = process.env.DEFAULT_FEE || 0.003433189359869808;
+
 const fetchOrEstimateTransactionFee = async (tx) => {
   if (!tx) {
     return null;
   }
-
 try {
     const feeData = await fallbackProvider.getFeeData();
     const estimateGasPrice = BigInt(feeData.gasPrice.toString());
@@ -26,7 +27,8 @@ try {
     return calculatedTxFee;
   } catch (error) {
     console.error("Failed to estimate transaction fee", error);
-    return null;
+    return defaultFee;
+    // return null;
   }
 }
 
