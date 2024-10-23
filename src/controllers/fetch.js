@@ -921,9 +921,10 @@ const uploadFileToS3 = async (req, res) => {
   const filePath = file.path;
 
   const bucketName = process.env.BUCKET_NAME;
-  const keyName = file.originalname;
+  const _keyName = file.originalname;
   const acl = process.env.ACL_NAME;
-
+  const keyPrefix = 'uploads/';
+  const keyName = keyPrefix + _keyName;
   const s3 = new AWS.S3();
   const fileStream = fs.createReadStream(filePath);
 
