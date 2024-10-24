@@ -683,7 +683,7 @@ const getExcelRecordsCount = async (_path) => {
   const newPath = path.join(..._path.split("\\"));
   const sheetNames = await readXlsxFile.readSheetNames(newPath);
   if (sheetNames[0] != sheetName || sheetNames.length != 1) {
-    return { status: "FAILED", response: false, message: messageCode.msgInvalidExcel };
+    return { status: "FAILED", response: false, message: messageCode.msgInvalidExcelSheets };
   }
   try {
     if (sheetNames == "Batch" || sheetNames.includes("Batch")) {
@@ -692,11 +692,11 @@ const getExcelRecordsCount = async (_path) => {
       let rowsCount = rows.length - 1;
       return { status: "SUCCESS", response: true, message: messageCode.msgValidDocumentsUploaded, data: rowsCount };
     }
-    return { status: "FAILED", response: false, message: messageCode.msgInvalidExcel };
+    return { status: "FAILED", response: false, message: messageCode.msgInvalidExcelSheets };
 
   } catch (error) {
     console.error("The error occured on fetching excel records count", error);
-    return { status: "FAILED", response: false, message: messageCode.msgInvalidExcel };
+    return { status: "FAILED", response: false, message: messageCode.msgInvalidExcelSheets };
   }
 };
 
